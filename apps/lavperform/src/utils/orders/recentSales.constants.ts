@@ -1,0 +1,1 @@
+export const RECENT_SALES_PAGE_LIMIT = 7

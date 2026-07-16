@@ -1,0 +1,12 @@
+// Customer components will be exported here when migrated
+export * from './CreateCustomerForm/CreateCustomerForm'
+export * from './CustomerDetailsDrawer/CustomerDetailsDrawer'
+export * from './CustomerDetailsModal/CustomerDetailsModal'
+export * from './CustomerList/CustomerList'
+export * from './CustomerMetricsSection'
+export * from './CustomerOrderList/CustomerOrderList'
+export * from './CustomerSummaryWidget/CustomerSummaryWidget'
+export * from './EditCustomerForm/EditCustomerForm'
+export * from './ImportCustomersWizard/ImportCustomersWizard'
+export * from './ImportWhatsAppCustomers'
+export * from './RfvMatrix'

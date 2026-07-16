@@ -1,0 +1,14 @@
+{
+  "name": "@lavperform/app",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "lint:fix": "eslint . --fix",
+    "format": "npx prettier --write .",
+    "format:check": "npx prettier --check .",
+    "preview": "vite preview"
+  }
+}

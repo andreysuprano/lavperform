@@ -1,0 +1,224 @@
+import { HStack, Stack, VStack } from '@chakra-ui/react'
+import { yupResolver } from '@hookform/resolvers/yup'
+import { useForm } from 'react-hook-form'
+import * as yup from 'yup'
+
+import { Input, SegmentationSelect, WeekdaySelect } from '@/components'
+import { clientTypesOptions } from '@/utils/constants/clientType'
+import { WEEKDAYS } from '@/utils/weekdays'
+
+import { DEFAULT_MAX_DAILY_SENDS, MIN_DAILY_SENDS } from '../../constants'
+import { maxDailySendsYupField } from '../../maxDailySends.validation'
+import { CardResume } from '../CardResume'
+import { FormDataProps, FormStepsProps } from './FormSteps.types'
+
+// Mapeamento de value (1-7) para short ('seg'-'dom')
+// Derivado de WEEKDAYS para garantir consistência
+const dayMap: { [key: number]: string } = Object.fromEntries(
+  WEEKDAYS.map((day) => [day.value, day.short])
+)
+
+// Mapeamento reverso: de short ('seg'-'dom') para value (1-7)
+const reverseDayMap: { [key: string]: number } = Object.fromEntries(
+  WEEKDAYS.map((day) => [day.short, day.value])
+)
+
+// Função para converter array de strings ['seg', 'qua'] para array de números [1, 3]
+const convertDaysToNumbers = (days: string[] | undefined): number[] => {
+  if (!days || !Array.isArray(days)) return [1, 2, 3, 4, 5, 6, 7]
+
+  return days
+    .map((dayShort) => reverseDayMap[dayShort])
+    .filter((value) => value !== undefined)
+}
+
+const schema = yup.object({
+  name: yup.string().required('Informe o nome da campanha'),
+  segmentation: yup
+    .array()
+    .min(1, 'Informe ao menos 1 segmento')
+    .required('Informe os segmentos da campanha'),
+  startDate: yup
+    .string()
+    .required('A data de início é obrigatória')
+    .test(
+      'is-not-past',
+      'A data de início não pode ser no passado',
+      function (value) {
+        if (!value) return true
+
+        const hoje = new Date()
+        const anoHoje = hoje.getFullYear()
+        const mesHoje = String(hoje.getMonth() + 1).padStart(2, '0')
+        const diaHoje = String(hoje.getDate()).padStart(2, '0')
+        const hojeString = `${anoHoje}-${mesHoje}-${diaHoje}`
+
+        // Se a data já passou (campo desabilitado), não valida
+        if (value < hojeString) return true
+
+        // Se está habilitado, valida que não pode ser no passado
+        return value >= hojeString
+      }
+    ),
+  endDate: yup
+    .string()
+    .test(
+      'is-valid-range',
+      'O intervalo deve ser de no mínimo 1 dia e no máximo 30 dias após a data de início',
+      (value, { parent }) => {
+        const { startDate: dataInicio } = parent
+
+        if (!dataInicio || !value) return true
+
+        const inicio = new Date(dataInicio + 'T00:00:00')
+        const fim = new Date(value + 'T00:00:00')
+
+        if (fim <= inicio) {
+          return false
+        }
+
+        const diffTime = Math.abs(fim.getTime() - inicio.getTime())
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+
+        return diffDays <= 30
+      }
+    ),
+  selectedDays: yup
+    .array(yup.number().required())
+    .min(1, 'Selecione ao menos um dia da semana para o disparo')
+    .required('Informe os dias da semana para o disparo'),
+  maxDailySends: maxDailySendsYupField,
+})
+
+type FormData = yup.InferType<typeof schema>
+
+export function Details(props: FormStepsProps) {
+  const { register, handleSubmit, control, watch } = useForm<FormData>({
+    mode: 'onChange',
+    resolver: yupResolver<FormData, any, any>(schema),
+    values: {
+      name: props.formData?.name ?? '',
+      segmentation: props.formData?.segmentation ?? [],
+      startDate: props.formData?.startDate
+        ? props.formData.startDate.split('T')[0]
+        : '',
+
+      endDate: props.formData?.endDate
+        ? props.formData.endDate.split('T')[0]
+        : '',
+      selectedDays: convertDaysToNumbers(props.formData?.daysOfWeek),
+      maxDailySends: props.formData?.maxDailySends ?? DEFAULT_MAX_DAILY_SENDS,
+    },
+  })
+
+  const segmentationValue = watch('segmentation')
+  const maxDailySendsValue = watch('maxDailySends')
+  const startDateValue = watch('startDate')
+
+  // Verifica se a data de início é passada ou presente
+  const isStartDatePastOrToday = () => {
+    if (!startDateValue) return false
+
+    const hoje = new Date()
+    const anoHoje = hoje.getFullYear()
+    const mesHoje = String(hoje.getMonth() + 1).padStart(2, '0')
+    const diaHoje = String(hoje.getDate()).padStart(2, '0')
+    const hojeString = `${anoHoje}-${mesHoje}-${diaHoje}`
+
+    return startDateValue <= hojeString
+  }
+
+  const onSubmit = (data: FormData) => {
+    const daysOfWeek = data.selectedDays
+      .map((dayNumber: number) => dayMap[dayNumber])
+      .filter(Boolean)
+
+    props.onSubmit?.({
+      ...data,
+      daysOfWeek,
+    } as FormDataProps)
+  }
+
+  return (
+    <VStack
+      align="stretch"
+      gap={4}
+    >
+      <CardResume
+        formData={{
+          name: '',
+          segmentation: segmentationValue,
+          startDate: '',
+          endDate: '',
+          campaignType: props.formData?.campaignType || 'REACTIVATION',
+          messageText: props.formData?.messageText || '',
+          deliveryRadius: props.formData?.deliveryRadius ?? 0,
+          discountCurrency: props.formData?.discountCurrency ?? 0,
+          discountPercent: props.formData?.discountPercent ?? 0,
+          selectedDays: props.formData?.selectedDays ?? [1, 2, 3, 4, 5, 6, 7],
+          images: props.formData?.images ?? (undefined as any as FileList),
+          imagesBase64: props.formData?.imagesBase64 ?? [],
+          incitation: props.formData?.incitation ?? 'none',
+          daysOfWeek: props.formData?.daysOfWeek ?? [],
+          target: segmentationValue,
+          maxDailySends: maxDailySendsValue,
+        }}
+        id={(props.id ?? 0) + 1}
+      />
+      <Stack
+        as="form"
+        gap={4}
+        id={`hook-form-${props.id}`}
+        onSubmit={handleSubmit(onSubmit)}
+      >
+        <SegmentationSelect
+          collection={clientTypesOptions}
+          control={control}
+          label="Segmentação"
+          multiple
+          name="segmentation"
+          placeholder="Selecione os tipos de clientes"
+          required
+        />
+        <Input
+          control={control}
+          label="Nome da campanha"
+          placeholder="Informe o Nome da campanha"
+          required
+          {...register('name')}
+        />
+        <HStack alignItems="flex-start">
+          <Input
+            control={control}
+            disabled={isStartDatePastOrToday()}
+            label="Data início"
+            required
+            type="date"
+            {...register('startDate')}
+          />
+          <Input
+            control={control}
+            label="Data fim"
+            type="date"
+            {...register('endDate')}
+          />
+        </HStack>
+        <Input
+          control={control}
+          label="Limite máximo de envios por dia"
+          min={MIN_DAILY_SENDS}
+          name="maxDailySends"
+          placeholder="Informe a quantidade (número inteiro)"
+          required
+          type="number"
+        />
+        <WeekdaySelect
+          control={control}
+          label="Dias da semana para campanha"
+          name="selectedDays"
+          required
+        />
+      </Stack>
+    </VStack>
+  )
+}

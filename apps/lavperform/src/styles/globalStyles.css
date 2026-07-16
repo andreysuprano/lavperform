@@ -1,0 +1,56 @@
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--theme-bg);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--theme-primary);
+  border-radius: 30px;
+}
+
+/* Para Firefox */
+.custom-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: var(--theme-primary) var(--theme-bg);
+}
+
+html {
+  background-color: #f5f5f6;
+}
+
+body::-webkit-scrollbar {
+  width: 10px; /* width of the entire scrollbar */
+  padding: 1px;
+}
+
+body::-webkit-scrollbar-track {
+  background: var(--theme-bg); /* color of the tracking area */
+}
+
+body::-webkit-scrollbar-thumb {
+  background: var(--theme-primary);
+  border-radius: 30px;
+}
+
+.embla {
+  overflow: hidden;
+  --slide-spacing: 1.5rem;
+}
+@media (max-width: 768px) {
+  .embla {
+    --slide-spacing: 1rem;
+  }
+}
+.embla__container {
+  display: flex;
+  touch-action: pan-y pinch-zoom;
+  margin-left: calc(var(--slide-spacing) * 1);
+  margin-right: calc(var(--slide-spacing) * 1);
+}
+.embla__slide {
+  padding-left: var(--slide-spacing);
+}

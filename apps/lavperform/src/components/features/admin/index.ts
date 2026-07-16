@@ -1,0 +1,6 @@
+export * from './carrousel'
+export * from './companies'
+export * from './credits'
+export * from './courses'
+export * from './partners'
+export * from './week-events'
