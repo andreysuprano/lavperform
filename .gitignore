@@ -7,11 +7,16 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 *.env
+!.env.example
 node_modules
 dist
 dist-ssr
 *.local
 .yarn/install-state.gz
+coverage
+.nyc_output
+.trivy-cache
+reports
 
 # Editor directories and files
 .vscode/*

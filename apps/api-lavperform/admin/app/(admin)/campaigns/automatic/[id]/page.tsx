@@ -1,0 +1,19 @@
+"use client"
+
+import { use } from "react"
+
+import { AutomaticCampaignDetailView } from "@/features/campaigns/components/automatic/automatic-campaign-detail-view"
+
+export default function AutomaticCampaignDetailPage({
+  params,
+}: {
+  params: Promise<{ id: string }>
+}) {
+  const { id } = use(params)
+
+  return (
+    <div className="flex flex-col gap-4 px-4 py-4 md:gap-6 md:px-6 md:py-6">
+      <AutomaticCampaignDetailView campaignId={id} />
+    </div>
+  )
+}

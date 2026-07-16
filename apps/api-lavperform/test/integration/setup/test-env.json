@@ -1,0 +1,1 @@
+{"DATABASE_URL":"postgres://postgres:postgres@localhost:32961/testdb","REDIS_HOST":"localhost","REDIS_PORT":32960,"JWT_SECRET":"test-secret","ASAAS_BASE_URL":"https://sandbox.asaas.com","ASAAS_API_KEY":"test-api-key"}

@@ -1,0 +1,4 @@
+-- AlterTable
+ALTER TABLE "EducationalCarrousel" ALTER COLUMN "videoUrl" DROP NOT NULL,
+ALTER COLUMN "ctaLabel" DROP NOT NULL,
+ALTER COLUMN "ctaUrl" DROP NOT NULL;

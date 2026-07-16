@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "Plan" ADD COLUMN "allowBoleto" BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE "Plan" ADD COLUMN "allowPix" BOOLEAN NOT NULL DEFAULT false;

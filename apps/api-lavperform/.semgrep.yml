@@ -1,0 +1,16 @@
+rules:
+  - id: avoid-console-statements
+    languages:
+      - javascript
+      - typescript
+    severity: INFO
+    message: "Avoid `console` statements in production code; prefer the Nest `Logger` instead."
+    metadata:
+      category: logging
+    pattern-either:
+      - pattern: console.log(...)
+      - pattern: console.warn(...)
+      - pattern: console.error(...)
+
+extends:
+  - p/ci

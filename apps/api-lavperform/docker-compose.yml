@@ -1,0 +1,48 @@
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: lavperform_db
+    environment:
+      POSTGRES_USER: lavperform
+      POSTGRES_PASSWORD: lavperform
+      POSTGRES_DB: lavperform
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - lavperform_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U lavperform" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lavperform_api
+    ports:
+      - "3000:3000"
+    environment:
+      NODE_ENV: production
+      WHITELABEL: lavperform
+      DATABASE_URL: postgresql://lavperform:lavperform@postgres:5432/lavperform?schema=public
+      JWT_SECRET: "change-me-in-production"
+      TZ: UTC
+      PORT: 3000
+    depends_on:
+      postgres:
+        condition: service_healthy
+    networks:
+      - lavperform_network
+    restart: unless-stopped
+    command: sh -c "npx prisma migrate deploy && npm run start:prod"
+
+volumes:
+  postgres_data:
+
+networks:
+  lavperform_network:
+    driver: bridge
