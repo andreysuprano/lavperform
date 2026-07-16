@@ -1,0 +1,6 @@
+-- AlterTable
+ALTER TABLE "weather_data" 
+  ALTER COLUMN "shortRad" DROP NOT NULL,
+  ALTER COLUMN "diffRad" DROP NOT NULL,
+  ALTER COLUMN "dni" DROP NOT NULL,
+  ALTER COLUMN "gti" DROP NOT NULL;

@@ -9,7 +9,12 @@
   "packageManager": "yarn@4.3.0",
   "scripts": {
     "dev": "yarn workspace @lavperform/app dev",
+    "dev:app": "yarn workspace @lavperform/app dev",
+    "dev:api": "yarn workspace @lavperform/api start:dev",
     "build": "yarn workspace @lavperform/app build",
+    "build:app": "yarn workspace @lavperform/app build",
+    "build:api": "yarn workspace @lavperform/api build",
+    "start:api": "yarn workspace @lavperform/api start:prod",
     "lint:fix": "yarn workspace @lavperform/app lint:fix",
     "format": "yarn workspace @lavperform/app format",
     "format:check": "yarn workspace @lavperform/app format:check",

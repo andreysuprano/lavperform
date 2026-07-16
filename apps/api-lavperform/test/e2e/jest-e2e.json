@@ -1,0 +1,27 @@
+{
+  "displayName": "E2E Tests",
+  "moduleFileExtensions": ["js", "json", "ts"],
+  "rootDir": "../..",
+  "testRegex": "tests/e2e/.*\\.e2e\\.spec\\.ts$",
+  "transform": {
+    "^.+\\.(t|j)s$": "ts-jest"
+  },
+  "testEnvironment": "node",
+  "globalSetup": "<rootDir>/jest.globalSetup.ts",
+  "globalTeardown": "<rootDir>/jest.globalTeardown.ts",
+  "testTimeout": 120000,
+  "maxWorkers": 1,
+  "moduleNameMapper": {
+    "^src/(.*)$": "<rootDir>/src/$1"
+  },
+  "setupFilesAfterEnv": [],
+  "collectCoverageFrom": [
+    "src/**/*.(t|j)s",
+    "!src/**/*.interface.ts",
+    "!src/**/*.dto.ts",
+    "!src/**/*.module.ts",
+    "!src/main.ts",
+    "!src/instrument.ts"
+  ],
+  "coverageDirectory": "./coverage/e2e"
+}

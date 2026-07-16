@@ -1,0 +1,1394 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String        @id @default(uuid())
+  email         String        @unique
+  name          String
+  phone         String
+  password      String
+  avatarUrl     String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  userCompanies UserCompany[]
+  accessRules   AccessRule[]
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  ADMIN
+  SDR
+  CLOSER
+  REVOPS
+  CSM
+  CS
+}
+
+model AdminUser {
+  id        String    @id @default(uuid())
+  email     String    @unique
+  name      String
+  password  String
+  avatarUrl String?
+  role      AdminRole @default(SDR)
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+}
+
+model Company {
+  id                        String                     @id @default(uuid())
+  name                      String
+  cnpj                      String                     @unique
+  email                     String
+  phone                     String?
+  avatarUrl                 String?
+  address                   Address?                   @relation(fields: [addressId], references: [id])
+  addressId                 String?                    @unique
+  createdAt                 DateTime                   @default(now())
+  updatedAt                 DateTime                   @updatedAt
+  slug                      String?                    @unique
+  businessPartnerId         String?
+  businessPartner           BusinessPartner?           @relation(fields: [businessPartnerId], references: [id])
+  state                     CompanyStatus              @default(PENDING)
+  deletedAt                 DateTime?
+  userCompanies             UserCompany[]
+  accessRules               AccessRule[]
+  customers                 Customer[]
+  campaigns                 Campaign[]
+  whatsappInstances         WhatsappInstance[]
+  whatsappConnectionLinks   WhatsappConnectionLink[]
+  digitalMenuIntegration    DigitalMenuIntegration[]
+  orders                    Order[]
+  automaticCampaigns        AutomaticCampaign[]
+  companySubscriptions      CompanySubscription[]
+  openingHours              OpeningHours[]
+  linkPages                 LinkPage[]
+  landingPages              LandingPage[]
+  weatherAlert              WeatherAlert?
+  weatherAlertHistory       WeatherAlertHistory[]
+  aiAgents                  AiAgent[]
+  rfvConfiguration          RfvConfiguration?
+  campaignConversionWindows CampaignConversionWindow[]
+  coupons                   Coupon[]
+  overAgentCompanyId        String?                    @unique
+  asaasCustomerId           String?
+  creditWallet              CompanyCreditWallet?
+  creditProducts            CreditProduct[]
+  creditTopups              CreditTopup[]
+  creditLedgerEntries       CreditLedgerEntry[]
+  metaIntegration           MetaIntegration?
+  metaMessageTemplates      MetaMessageTemplate[]
+  renitencyConfiguration    RenitencyConfiguration?
+  publicApiKeys             PublicApiKey[]
+  audiences                 Audience[]
+
+  @@index([businessPartnerId])
+  @@index([deletedAt])
+}
+
+enum AgentPersonality {
+  PROFESSIONAL
+  FRIENDLY
+  RELAXED
+}
+
+enum AgentResponseStyle {
+  CONCISE
+  DETAILED
+  BALANCED
+}
+
+model AiAgent {
+  id                  String             @id @default(uuid())
+  companyId           String
+  company             Company            @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name                String?
+  personality         AgentPersonality   @default(PROFESSIONAL)
+  responseStyle       AgentResponseStyle @default(BALANCED)
+  systemPrompt        String?            @db.Text
+  userSystemPrompt    String?            @db.Text
+  active              Boolean            @default(true)
+  contextWindowLength Int                @default(8192)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  knowledgeFiles      KnowledgeFile[]
+
+  @@index([companyId])
+}
+
+enum KnowledgeFileStatus {
+  PENDING
+  PROCESSING
+  READY
+  ERROR
+}
+
+model KnowledgeFile {
+  id        String              @id @default(uuid())
+  agentId   String
+  agent     AiAgent             @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  fileName  String
+  fileUrl   String
+  status    KnowledgeFileStatus @default(PENDING)
+  active    Boolean             @default(true)
+  deletedAt DateTime?
+  createdAt DateTime            @default(now())
+  updatedAt DateTime            @updatedAt
+
+  @@index([agentId])
+  @@index([agentId, deletedAt])
+}
+
+enum CompanyStatus {
+  ACTIVE
+  INACTIVE
+  PENDING
+}
+
+model OpeningHours {
+  id        String   @id @default(uuid())
+  companyId String
+  company   Company  @relation(fields: [companyId], references: [id])
+  dayOfWeek String
+  openTime  String   @default("18:00")
+  closeTime String   @default("22:00")
+  isOpen    Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([companyId, dayOfWeek])
+}
+
+model CompanySubscription {
+  id             String   @id @default(uuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  subscriptionId String?
+  planId         String
+  plan           Plan     @relation(fields: [planId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([companyId, planId])
+  @@index([companyId])
+  @@index([planId])
+}
+
+model BusinessPartner {
+  id        String    @id @default(cuid())
+  name      String
+  email     String
+  phone     String
+  cnpj      String?
+  avatarUrl String?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  companies Company[]
+}
+
+model Plan {
+  id                   String                @id @default(uuid())
+  name                 String
+  description          String
+  price                Float                 @default(0)
+  cycle                CycleType             @default(MONTHLY)
+  recommended          Boolean               @default(false)
+  maxPayments          Int                   @default(1)
+  endDate              DateTime?
+  active               Boolean               @default(true)
+  isSelfCheckout       Boolean               @default(false)
+  allowBoleto          Boolean               @default(false)
+  allowPix             Boolean               @default(false)
+  createdAt            DateTime              @default(now())
+  updatedAt            DateTime              @updatedAt
+  companySubscriptions CompanySubscription[]
+}
+
+enum CycleType {
+  MONTHLY
+  YEARLY
+  SEMIANNUALLY
+  QUARTERLY
+}
+
+model DigitalMenuIntegration {
+  id             String   @id @default(uuid())
+  companyId      String
+  company        Company  @relation(fields: [companyId], references: [id])
+  apiKey         String?
+  apiSecret      String?
+  username       String?
+  password       String?
+  partnerId      String?
+  partner        Partner? @relation(fields: [partnerId], references: [id])
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  active         Boolean  @default(true)
+  merchantId     String?
+  digitalMenuUrl String?
+
+  @@index([companyId, partnerId])
+}
+
+model Partner {
+  id                      String                   @id @default(uuid())
+  name                    String
+  logoUrl                 String?
+  partnerSlug             String?                  @unique
+  createdAt               DateTime                 @default(now())
+  digitalMenuIntegrations DigitalMenuIntegration[]
+  baseUrlWebhook          String?
+  orders                  Order[]
+}
+
+enum ApiKeyStatus {
+  ACTIVE
+  REVOKED
+  EXPIRED
+}
+
+model PublicApiKey {
+  id              String       @id @default(uuid())
+  name            String
+  prefix          String       @unique
+  hashedKey       String       @unique
+  encryptedSecret String?
+  status          ApiKeyStatus @default(ACTIVE)
+  companyId       String
+  company         Company      @relation(fields: [companyId], references: [id])
+  expiresAt       DateTime?
+  lastUsedAt      DateTime?
+  revokedAt       DateTime?
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+
+  @@index([companyId])
+}
+
+model Address {
+  id           String    @id @default(uuid())
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+  zipCode      String?
+  company      Company?
+  customer     Customer?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([neighborhood])
+}
+
+model UserCompany {
+  id        String   @id @default(uuid())
+  userId    String
+  companyId String
+  user      User     @relation(fields: [userId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, companyId])
+}
+
+model AccessRule {
+  id        String   @id @default(uuid())
+  userId    String
+  companyId String
+  user      User     @relation(fields: [userId], references: [id])
+  company   Company  @relation(fields: [companyId], references: [id])
+  module    String
+  action    String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, companyId, module, action])
+}
+
+model Customer {
+  id                 String               @id @default(uuid())
+  name               String
+  phone              String?
+  email              String?
+  cpf                String?
+  birthDate          DateTime?
+  firstOrderDate     DateTime?
+  lastOrderDate      DateTime?
+  bestOrderDay       String?
+  bestOrderHour      String?
+  lastContactDate    DateTime?
+  rfvClassification  String?              @default("novo")
+  gender             String?
+  observations       String?
+  whatsappOptin      Boolean              @default(true)
+  averageTicket      Float?               @default(0)
+  companyId          String
+  whatsappVerified   Boolean              @default(false)
+  whatsappVerifiedAt DateTime?
+  avatarUrl          String?
+  company            Company              @relation(fields: [companyId], references: [id])
+  address            Address?             @relation(fields: [addressId], references: [id])
+  addressId          String?              @unique
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  orders             Order[]
+  messages           Message[]
+  rfvHistory         CustomerRfvHistory[]
+
+  @@index([companyId])
+  @@index([phone])
+  @@index([email])
+  @@index([companyId, cpf])
+}
+
+enum CampaignStatus {
+  WAITING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AudienceTargetingMode {
+  RFV
+  AUDIENCE
+}
+
+model Audience {
+  id                 String                @id @default(uuid())
+  companyId          String
+  company            Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  definition         Json
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+  deletedAt          DateTime?
+  campaigns          Campaign[]
+  automaticCampaigns AutomaticCampaign[]
+
+  @@index([companyId])
+  @@index([companyId, deletedAt])
+}
+
+model Campaign {
+  id             String                @id @default(uuid())
+  name           String
+  scheduledDate  DateTime
+  messageText    String
+  segmentation   String
+  targetingMode  AudienceTargetingMode @default(RFV)
+  audienceId     String?
+  audience       Audience?             @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  maxDailySends  Int                   @default(50)
+  imageUrl       String?
+  status         CampaignStatus        @default(WAITING)
+  modifiedByAI   Boolean               @default(false)
+  channel        CampaignChannel       @default(WHATSAPP_WEB)
+  companyId      String
+  company        Company               @relation(fields: [companyId], references: [id])
+  messages       Message[]
+  campaignMetric CampaignMetric[]
+  trakingCode    String?
+  createdAt      DateTime              @default(now())
+  updatedAt      DateTime              @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, scheduledDate])
+  @@index([audienceId])
+}
+
+enum AutomaticCampaignType {
+  ACQUISITION
+  RECURRENCE
+  REACTIVATION
+}
+
+enum CampaignChannel {
+  WHATSAPP_WEB
+  WHATSAPP_BUSINESS_API
+  SMS
+  RCS
+  EMAIL
+  PUSH_NOTIFICATION
+}
+
+enum AutomaticCampaignStatus {
+  PROCESSING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model AutomaticCampaign {
+  id              String                      @id @default(uuid())
+  name            String
+  type            AutomaticCampaignType
+  channel         CampaignChannel             @default(WHATSAPP_WEB)
+  status          AutomaticCampaignStatus     @default(PROCESSING)
+  companyId       String
+  segmentation    String
+  targetingMode   AudienceTargetingMode       @default(RFV)
+  audienceId      String?
+  audience        Audience?                   @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  maxDailySends   Int                         @default(50)
+  active          Boolean                     @default(true)
+  images          String?
+  daysOfWeek      String[]                    @default(["seg", "ter", "qua", "qui", "sex", "sab", "dom"])
+  startDate       DateTime
+  endDate         DateTime?
+  messageText     String
+  couponId        String?
+  coupon          Coupon?                     @relation(fields: [couponId], references: [id])
+  gifts           Gift[]
+  creatives       AutomaticCampaignCreative[]
+  messages        Message[]
+  company         Company                     @relation(fields: [companyId], references: [id])
+  campaignMetric  CampaignMetric[]
+  createdAt       DateTime                    @default(now())
+  updatedAt       DateTime                    @updatedAt
+  deletedAt       DateTime?
+  lastProcessedAt DateTime?
+  sendTimeStart   String?
+  sendTimeEnd     String?
+
+  /// Template Meta aprovado selecionado para campanhas de API Oficial (sem criativo).
+  metaMessageTemplateId String?
+  metaMessageTemplate   MetaMessageTemplate? @relation(fields: [metaMessageTemplateId], references: [id], onDelete: SetNull)
+  /// Mapeamento de variáveis do template: [{ index: 1, source: "customer_first_name" }]
+  metaTemplateVariableMappings Json?
+
+  @@index([companyId])
+  @@index([couponId])
+  @@index([metaMessageTemplateId])
+  @@index([audienceId])
+}
+
+model AutomaticCampaignCreative {
+  id                  String            @id @default(uuid())
+  automaticCampaignId String
+  automaticCampaign   AutomaticCampaign @relation(fields: [automaticCampaignId], references: [id], onDelete: Cascade)
+  imageUrls           String[]          @default([])
+  title               String
+  message             String            @db.Text
+  link                String?
+  metaTemplate        MetaMessageTemplate?
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
+
+  @@index([automaticCampaignId])
+}
+
+model cron_automatic_campaign {
+  id             String   @id @default(uuid())
+  campaignsFound Int      @default(0)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+}
+
+model Gift {
+  id                  String            @id @default(cuid())
+  type                String
+  unit                String
+  value               Decimal           @db.Decimal(10, 2)
+  automaticCampaignId String
+  automaticCampaign   AutomaticCampaign @relation(fields: [automaticCampaignId], references: [id])
+
+  @@index([automaticCampaignId])
+}
+
+model CampaignMetric {
+  id                  String             @id @default(uuid())
+  campaignId          String?
+  campaign            Campaign?          @relation(fields: [campaignId], references: [id])
+  automaticCampaignId String?
+  automaticCampaign   AutomaticCampaign? @relation(fields: [automaticCampaignId], references: [id])
+  messagesSent        Int                @default(0)
+  messagesDelivered   Int                @default(0)
+  interactions        Int                @default(0)
+  messagesError       Int                @default(0)
+  conversionRate      Decimal            @default(0) @db.Decimal(10, 2)
+  salesTotalAmount    Decimal            @default(0) @db.Decimal(10, 2)
+  salesTotalQuantity  Int                @default(0)
+  createdAt           DateTime           @default(now())
+  updatedAt           DateTime           @updatedAt
+  totalCustomers      Int                @default(0)
+
+  @@index([campaignId])
+  @@index([automaticCampaignId])
+}
+
+model Message {
+  id                    String               @id @default(uuid())
+  attempts              Int                  @default(0)
+  segmentation          String
+  token                 String?
+  error                 String?
+  status                MessageStatus        @default(PENDING)
+  channel               CampaignChannel      @default(WHATSAPP_WEB)
+  messageText           String
+  mediaUrl              String?
+  customerName          String
+  phone                 String
+  customerId            String
+  customer              Customer             @relation(fields: [customerId], references: [id])
+  messageInteractions   MessageInteraction[]
+  MessageOrders         MessageOrder[]
+  companyId             String
+  automaticCampaign     AutomaticCampaign?   @relation(fields: [automaticCampaignId], references: [id])
+  automaticCampaignId   String?
+  campaign              Campaign?            @relation(fields: [campaignId], references: [id])
+  campaignId            String?
+  weatherAlertHistory   WeatherAlertHistory? @relation(fields: [weatherAlertHistoryId], references: [id])
+  weatherAlertHistoryId String?
+  metaMessageTemplate   MetaMessageTemplate? @relation(fields: [metaMessageTemplateId], references: [id])
+  metaMessageTemplateId String?
+  scheduledDate         DateTime?
+  redirectUrl           String?
+  couponCode            String?
+  createdAt             DateTime             @default(now())
+  updatedAt             DateTime             @updatedAt
+
+  @@index([customerId])
+  @@index([companyId])
+  @@index([campaignId])
+  @@index([status])
+  @@index([automaticCampaignId, createdAt])
+  @@index([weatherAlertHistoryId])
+  @@index([metaMessageTemplateId])
+  @@index([customerId, companyId, channel, status])
+}
+
+model MessageInteraction {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id])
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([messageId])
+}
+
+model MessageOrder {
+  id        String   @id @default(uuid())
+  messageId String
+  message   Message  @relation(fields: [messageId], references: [id])
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([messageId])
+  @@index([orderId])
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  PROCESSING
+  ERROR
+  ABORTED
+}
+
+enum WhatsappInstanceStatus {
+  CONNECTED
+  DISCONNECTED
+  PENDING
+  ERROR
+}
+
+model WhatsappInstance {
+  id          String                 @id @default(uuid())
+  name        String
+  status      WhatsappInstanceStatus @default(PENDING)
+  token       String
+  phoneNumber String
+  companyId   String                 @unique
+  company     Company                @relation(fields: [companyId], references: [id])
+  createdAt   DateTime               @default(now())
+  updatedAt   DateTime               @updatedAt
+  connectionLinks WhatsappConnectionLink[]
+
+  @@index([phoneNumber])
+}
+
+model WhatsappConnectionLink {
+  id                 String           @id @default(uuid())
+  token              String           @unique
+  companyId          String
+  whatsappInstanceId String
+  expiresAt          DateTime
+  revokedAt          DateTime?
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
+  company            Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  whatsappInstance   WhatsappInstance @relation(fields: [whatsappInstanceId], references: [id], onDelete: Cascade)
+
+  @@index([companyId])
+  @@index([whatsappInstanceId])
+}
+
+model Order {
+  id                 String  @id @default(uuid())
+  integratorOrderId  Int?
+  externalOrderId    String?
+  displayId          Int
+  merchantId         Int
+  status             String
+  orderType          String
+  orderTiming        String
+  salesChannel       String
+  customerOrigin     String?
+  tableNumber        String?
+  estimatedTime      Int?
+  cancellationReason String?
+  fiscalDocument     String?
+  observation        String?
+
+  deliveryFee   Decimal @db.Decimal(10, 2)
+  serviceFee    Decimal @db.Decimal(10, 2)
+  additionalFee Decimal @db.Decimal(10, 2)
+  total         Decimal @db.Decimal(10, 2)
+
+  createdAt                DateTime
+  updatedAt                DateTime
+  digitalMenuIntegrationId String?
+  partnerId                String?
+  partner                  Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
+  companyId                String
+  company                  Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
+  customerId               String
+  customer                 Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  deliveryAddress OrderDeliveryAddress?
+  schedule        OrderSchedule?
+
+  items        OrderItem[]
+  discounts    OrderDiscount[]
+  payments     OrderPayment[]
+  MessageOrder MessageOrder[]
+
+  @@unique([companyId, externalOrderId])
+  @@index([merchantId, displayId])
+  @@index([companyId, createdAt])
+  @@index([companyId, integratorOrderId])
+  @@index([companyId, externalOrderId])
+  @@index([customerId])
+  @@index([customerId, createdAt(sort: Desc)])
+  @@index([partnerId])
+}
+
+model OrderDeliveryAddress {
+  id      String @id @default(cuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  street       String?
+  number       String?
+  complement   String?
+  neighborhood String?
+  city         String?
+  state        String?
+  zipCode      String?
+  reference    String?
+}
+
+model OrderSchedule {
+  id      String @id @default(cuid())
+  orderId String @unique
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  deliveryDateRaw String
+  deliveryTimeRaw String
+
+  deliveryAt DateTime?
+}
+
+model OrderItem {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  itemId       Int
+  externalCode String?
+  name         String
+  quantity     Int
+  unitPrice    Decimal @db.Decimal(10, 2)
+  totalPrice   Decimal @db.Decimal(10, 2)
+  kind         String
+  status       String
+  observation  String?
+
+  parentItemId String?
+  parentItem   OrderItem?  @relation("OrderItemChildren", fields: [parentItemId], references: [id])
+  items        OrderItem[] @relation("OrderItemChildren")
+
+  options OrderOption[]
+
+  @@index([orderId])
+  @@index([itemId])
+  @@index([name])
+}
+
+model OrderOption {
+  id          String    @id @default(cuid())
+  orderItemId String
+  orderItem   OrderItem @relation(fields: [orderItemId], references: [id], onDelete: Cascade)
+
+  optionId        Int
+  externalCode    String?
+  name            String
+  quantity        Int
+  unitPrice       Decimal @db.Decimal(10, 2)
+  optionGroupId   Int
+  optionGroupName String
+
+  @@index([orderItemId])
+  @@index([optionId])
+  @@index([optionGroupId])
+}
+
+model OrderDiscount {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  type        String
+  value       Decimal @db.Decimal(10, 2)
+  description String?
+
+  @@index([orderId])
+}
+
+model OrderPayment {
+  id      String @id @default(cuid())
+  orderId String
+  order   Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  total         Decimal  @db.Decimal(10, 2)
+  paymentType   String
+  changeFor     Decimal? @db.Decimal(10, 2)
+  status        String
+  paymentMethod String
+  cardNumber    String?
+  cardBrand     String?
+  observation   String?
+  paymentFee    Decimal  @db.Decimal(10, 2)
+
+  @@index([orderId])
+}
+
+model ConfirmationCode {
+  id        String   @id @default(uuid())
+  code      String
+  userId    String
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([code])
+}
+
+model WebhookReceived {
+  id        String   @id @default(uuid())
+  companyId String
+  partnerId String
+  data      String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId, createdAt])
+  @@index([partnerId, createdAt])
+}
+
+model Gallery {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  images      String[] @default([])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  linkPage    LinkPage @relation(fields: [linkPageId], references: [id])
+  linkPageId  String
+}
+
+model LinkPage {
+  id              String    @id @default(uuid())
+  companyId       String
+  company         Company   @relation(fields: [companyId], references: [id])
+  biography       String?   @default("A melhor experiência gastronômica que você pode ter hoje! 👨🏻‍🍳")
+  whatsappMessage String?   @default("Olá, tudo bem?")
+  coverImage      String?
+  bgColor         String?   @default("white")
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  links           Link[]
+  galleries       Gallery[]
+
+  @@index([companyId])
+}
+
+model Link {
+  id         String   @id @default(uuid())
+  label      String
+  url        String
+  linkPageId String
+  linkPage   LinkPage @relation(fields: [linkPageId], references: [id])
+  icon       String   @default("default")
+  iconType   String   @default("icon")
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([linkPageId])
+}
+
+model LandingPage {
+  id           String   @id @default(uuid())
+  companyId    String
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  slug         String   @unique
+  customDomain String?  @unique
+  active       Boolean  @default(true)
+  template     String   @default("default")
+  branding     Json
+  hero         Json
+  services     Json
+  location     Json
+  faq          Json
+  testimonials Json
+  cta          Json
+  footer       Json
+  navigation   Json
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
+  @@index([slug])
+  @@index([customDomain])
+  @@index([active])
+  @@map("landing_pages")
+}
+
+model Course {
+  id            String   @id @default(uuid())
+  title         String
+  description   String?
+  coverImageUrl String?
+  bannerUrl     String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  modules       Module[]
+}
+
+model Module {
+  id          String   @id @default(uuid())
+  title       String
+  description String?
+  order       Int      @default(0) // Usado para ordenar os módulos sequencialmente
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  courseId    String
+  course      Course   @relation(fields: [courseId], references: [id])
+  lessons     Lesson[]
+}
+
+model Lesson {
+  id           String        @id @default(uuid())
+  title        String
+  description  String?
+  videoUrl     String?
+  thumbnailUrl String?
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  moduleId     String
+  module       Module        @relation(fields: [moduleId], references: [id])
+  lessonFiles  LessonFiles[]
+}
+
+model LessonFiles {
+  id        String   @id @default(uuid())
+  name      String
+  lessonId  String
+  lesson    Lesson   @relation(fields: [lessonId], references: [id])
+  fileUrl   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([lessonId])
+}
+
+model EducationalCarrousel {
+  id           String   @id @default(uuid())
+  title        String
+  description  String
+  videoUrl     String?
+  thumbnailUrl String
+  ctaLabel     String?
+  ctaUrl       String?
+  order        Int      @default(0)
+  isStream     Boolean  @default(false)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+model EducationalWeekEvents {
+  id          String   @id @default(uuid())
+  title       String
+  description String
+  coverImage  String?
+  ctaLabel    String?
+  ctaUrl      String?
+  eventDate   DateTime
+  isStream    Boolean  @default(false)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+enum WeatherCondition {
+  SUNNY
+  CLOUDY
+  RAINING
+  COLD
+}
+
+model WeatherAlert {
+  id          String           @id @default(uuid())
+  companyId   String           @unique
+  company     Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  condition   WeatherCondition
+  daysOfWeek  String[]
+  dailyAlerts Int
+  giftId      String?
+  messages    Json?
+  active      Boolean          @default(true)
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  @@index([companyId])
+  @@index([active])
+  @@map("weather_alerts")
+}
+
+model WeatherData {
+  id       String @id @default(uuid())
+  cityName String @unique
+
+  // Location data
+  region         String
+  country        String
+  lat            Float
+  lon            Float
+  tzId           String
+  localtimeEpoch Int
+  localtime      String
+
+  // Current weather data
+  lastUpdatedEpoch Int
+  lastUpdated      String
+  tempC            Float
+  tempF            Float
+  isDay            Int
+
+  // Condition
+  conditionText String
+  conditionIcon String
+  conditionCode Int
+
+  // Wind
+  windMph    Float
+  windKph    Float
+  windDegree Int
+  windDir    String
+
+  // Pressure and precipitation
+  pressureMb Float
+  pressureIn Float
+  precipMm   Float
+  precipIn   Float
+
+  // Other metrics
+  humidity   Int
+  cloud      Int
+  feelslikeC Float
+  feelslikeF Float
+  windchillC Float
+  windchillF Float
+  heatindexC Float
+  heatindexF Float
+  dewpointC  Float
+  dewpointF  Float
+  visKm      Float
+  visMiles   Float
+  uv         Float
+  gustMph    Float
+  gustKph    Float
+  shortRad   Float?
+  diffRad    Float?
+  dni        Float?
+  gti        Float?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cityName])
+  @@map("weather_data")
+}
+
+model WeatherAlertHistory {
+  id           String           @id @default(uuid())
+  companyId    String
+  company      Company          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  condition    WeatherCondition
+  tempC        Float
+  tempF        Float
+  messagesSent Int              @default(0)
+  sentAt       DateTime         @default(now())
+  messages     Message[]
+  createdAt    DateTime         @default(now())
+  updatedAt    DateTime         @updatedAt
+
+  @@index([companyId])
+  @@index([companyId, sentAt])
+  @@map("weather_alert_history")
+}
+
+model CustomerRfvHistory {
+  id         String   @id @default(uuid())
+  customerId String
+  customer   Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+
+  recencyScore   Int
+  frequencyScore Int
+  monetaryScore  Int
+
+  rfvSegment String
+
+  daysSinceLastOrder Int?
+  totalOrders        Int     @default(0)
+  totalSpent         Decimal @db.Decimal(10, 2)
+  averageTicket      Decimal @db.Decimal(10, 2)
+
+  analysisStartDate DateTime
+  analysisEndDate   DateTime
+
+  calculatedAt DateTime @default(now())
+
+  @@index([customerId])
+  @@index([customerId, calculatedAt])
+  @@index([rfvSegment])
+  @@map("customer_rfv_history")
+}
+
+model RfvConfiguration {
+  id        String  @id @default(uuid())
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  recencyPeriodDays   Int @default(365)
+  frequencyPeriodDays Int @default(365)
+  monetaryPeriodDays  Int @default(365)
+
+  recencyThresholds   Json
+  frequencyThresholds Json
+  monetaryThresholds  Json
+
+  autoRecalculate      Boolean @default(true)
+  recalculateFrequency String  @default("daily")
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("rfv_configuration")
+}
+
+model RenitencyConfiguration {
+  id             String   @id @default(uuid())
+  companyId      String   @unique
+  company        Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  minDaysBetween Int      @default(3)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@map("renitency_configuration")
+}
+
+/// Cupom disponível para utilização em campanhas. O código é emitido por uma plataforma externa.
+model Coupon {
+  id                 String              @id @default(uuid())
+  companyId          String
+  company            Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  code               String
+  description        String?
+  type               String
+  unit               String
+  value              Decimal             @db.Decimal(10, 2)
+  validUntil         DateTime
+  active             Boolean             @default(true)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+  automaticCampaigns AutomaticCampaign[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, active])
+  @@index([companyId, validUntil])
+  @@map("coupons")
+}
+
+enum CreditPaymentMethod {
+  PIX
+  CREDIT_CARD
+  DEBIT_CARD
+  PLATFORM
+}
+
+enum CreditTopupStatus {
+  PENDING
+  PAID
+  FAILED
+  CANCELED
+  EXPIRED
+}
+
+enum CreditLedgerEntryType {
+  TOPUP
+  CONSUMPTION
+}
+
+model CompanyCreditWallet {
+  id           String   @id @default(uuid())
+  companyId    String   @unique
+  company      Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  balanceCents Int      @default(0)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([companyId])
+  @@map("company_credit_wallets")
+}
+
+model CreditProduct {
+  id            String              @id @default(uuid())
+  companyId     String
+  company       Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name          String
+  code          String
+  description   String?
+  priceCents    Int
+  active        Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  deletedAt     DateTime?
+  ledgerEntries CreditLedgerEntry[]
+
+  @@unique([companyId, code])
+  @@index([companyId])
+  @@index([companyId, active])
+  @@index([companyId, deletedAt])
+  @@map("credit_products")
+}
+
+model DefaultCreditProduct {
+  id            String              @id @default(uuid())
+  name          String
+  code          String              @unique
+  description   String?
+  priceCents    Int
+  active        Boolean             @default(true)
+  createdAt     DateTime            @default(now())
+  updatedAt     DateTime            @updatedAt
+  deletedAt     DateTime?
+  ledgerEntries CreditLedgerEntry[]
+
+  @@index([active])
+  @@index([deletedAt])
+  @@map("default_credit_products")
+}
+
+model CreditTopup {
+  id                String              @id @default(uuid())
+  companyId         String
+  company           Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  paymentMethod     CreditPaymentMethod
+  status            CreditTopupStatus   @default(PENDING)
+  amountCents       Int
+  asaasChargeId     String?             @unique
+  paidAt            DateTime?
+  rawPaymentPayload Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  ledgerEntries     CreditLedgerEntry[]
+
+  @@index([companyId])
+  @@index([companyId, createdAt])
+  @@index([companyId, status])
+  @@map("credit_topups")
+}
+
+model CreditLedgerEntry {
+  id                String                @id @default(uuid())
+  companyId         String
+  company           Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  type              CreditLedgerEntryType
+  amountCents       Int
+  balanceAfterCents Int
+  metadata          Json?
+  topupId           String?
+  topup             CreditTopup?          @relation(fields: [topupId], references: [id], onDelete: SetNull)
+  productId         String?
+  product           CreditProduct?        @relation(fields: [productId], references: [id], onDelete: SetNull)
+  defaultProductId  String?
+  defaultProduct    DefaultCreditProduct? @relation(fields: [defaultProductId], references: [id], onDelete: SetNull)
+  createdAt         DateTime              @default(now())
+
+  @@index([companyId])
+  @@index([companyId, createdAt])
+  @@index([companyId, type])
+  @@index([topupId])
+  @@index([productId])
+  @@index([defaultProductId])
+  @@map("credit_ledger_entries")
+}
+
+/// Janela de conversão por classificação RFV (dias desde a última mensagem recebida do cliente).
+model CampaignConversionWindow {
+  id                String   @id @default(uuid())
+  companyId         String
+  company           Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  rfvClassification String
+  thresholdDays     Int      @default(7)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@unique([companyId, rfvClassification])
+  @@index([companyId])
+  @@map("campaign_conversion_window")
+}
+
+enum MetaIntegrationStatus {
+  PENDING
+  ACTIVE
+  ERROR
+  REVOKED
+}
+
+enum MetaTemplateStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  DISABLED
+  PAUSED
+  IN_APPEAL
+  DELETED
+  ERROR
+}
+
+enum MetaTemplateCategory {
+  AUTHENTICATION
+  MARKETING
+  UTILITY
+}
+
+/// Integração com a API oficial do WhatsApp Business (Meta Cloud API).
+/// Armazena o token de acesso e os IDs de ativos da Meta necessários para envio de mensagens.
+model MetaIntegration {
+  id String @id @default(uuid())
+
+  companyId String  @unique
+  company   Company @relation(fields: [companyId], references: [id])
+
+  /// Número de telefone no formato internacional (ex: 5541997269435)
+  phoneNumber String
+
+  /// Business Integration System User Access Token obtido via Embedded Signup
+  accessToken String
+
+  tokenType String @default("bearer")
+
+  /// ID do número de telefone na Meta (Phone Number ID   usado em todas as chamadas de API)
+  phoneNumberId String?
+
+  /// WhatsApp Business Account ID (WABA ID   necessário para gestão de templates, webhooks, etc.)
+  wabaId String?
+
+  /// Business Portfolio ID (Meta Business ID)
+  businessId String?
+
+  /// Nome de exibição do número de telefone na Meta
+  displayName String?
+
+  /// Qualidade do número: GREEN | YELLOW | RED
+  qualityRating String?
+
+  /// Limite de mensagens: TIER_50 | TIER_250 | TIER_1K | TIER_10K | TIER_100K | UNLIMITED
+  messagingLimitTier String?
+
+  /// Indica se o app foi inscrito nos webhooks da WABA
+  webhooksSubscribed Boolean @default(false)
+
+  /// Indica se o número foi registrado no Cloud API
+  phoneNumberRegistered Boolean @default(false)
+
+  status MetaIntegrationStatus @default(PENDING)
+
+  /// Última vez que os dados do número foram consultados na Meta API (qualityRating, messagingLimitTier, displayName)
+  phoneInfoLastSyncAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([wabaId])
+  @@index([phoneNumberId])
+  @@map("meta_integrations")
+}
+
+/// Template de mensagem submetido para aprovação na Meta Cloud API.
+/// Cada criativo de campanha automática de API Oficial gera um template.
+model MetaMessageTemplate {
+  id String @id @default(uuid())
+
+  companyId String
+  company   Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
+
+  automaticCampaignCreativeId String?                    @unique
+  automaticCampaignCreative   AutomaticCampaignCreative? @relation(fields: [automaticCampaignCreativeId], references: [id], onDelete: SetNull)
+
+  /// ID retornado pela Meta após submissão do template.
+  metaTemplateId String?
+
+  /// Nome técnico enviado à Meta (snake_case, único na conta).
+  name       String
+  /// Nome amigável exibido no app para identificar o template.
+  displayName String?
+  language   String               @default("pt_BR")
+  category   MetaTemplateCategory @default(MARKETING)
+  components Json
+
+  /// URL pública da mídia usada no header (IMAGE/VIDEO/DOCUMENT), preservada
+  /// apenas para exibição de prévia no app — a Meta não retorna a URL
+  /// original, só um handle opaco (`header_handle`).
+  headerMediaUrl String?
+
+  status         MetaTemplateStatus @default(PENDING)
+  rejectedReason String?
+  qualityScore   Json?
+
+  messages  Message[]
+  automaticCampaigns AutomaticCampaign[]
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  @@index([companyId])
+  @@index([metaTemplateId])
+  @@map("meta_message_templates")
+}

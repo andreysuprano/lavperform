@@ -1,0 +1,2155 @@
+{
+    "info": {
+        "name": "FoodCRM API",
+        "description": "Complete API collection for FoodCRM - Customer Relationship Management for Food Businesses",
+        "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+        "_exporter_id": "foodcrm-api"
+    },
+    "auth": {
+        "type": "bearer",
+        "bearer": [
+            {
+                "key": "token",
+                "value": "{{authToken}}",
+                "type": "string"
+            }
+        ]
+    },
+    "event": [
+        {
+            "listen": "prerequest",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    "// Global pre-request script",
+                    "console.log('Request to: ' + pm.request.url);"
+                ]
+            }
+        },
+        {
+            "listen": "test",
+            "script": {
+                "type": "text/javascript",
+                "exec": [
+                    "// Global test script",
+                    "pm.test('Status code is successful', function () {",
+                    "    pm.expect(pm.response.code).to.be.oneOf([200, 201, 204]);",
+                    "});"
+                ]
+            }
+        }
+    ],
+    "item": [
+        {
+            "name": "Application",
+            "item": [
+                {
+                    "name": "Preload Application Data",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/application/preload",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "application",
+                                "preload"
+                            ]
+                        },
+                        "description": "Carregar todas as informações necessárias para o carregamento da aplicação"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Debug Sentry",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/application/debug-sentry",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "application",
+                                "debug-sentry"
+                            ]
+                        }
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Auth",
+            "item": [
+                {
+                    "name": "Login",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 200) {",
+                                    "    const response = pm.response.json();",
+                                    "    if (response.token) {",
+                                    "        pm.environment.set('authToken', response.token);",
+                                    "        console.log('Auth token saved to environment');",
+                                    "    }",
+                                    "    if (response.user && response.user.id) {",
+                                    "        pm.environment.set('userId', response.user.id);",
+                                    "    }",
+                                    "    if (response.company && response.company.id) {",
+                                    "        pm.environment.set('companyId', response.company.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"{{userEmail}}\",\n  \"password\": \"{{userPassword}}\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/login",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "login"
+                            ]
+                        },
+                        "description": "Fazer login e obter JWT token"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Forgot Password",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/forgot-password",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "forgot-password"
+                            ]
+                        },
+                        "description": "Solicitar código de recuperação de senha"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Confirm Code",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"email\": \"user@example.com\",\n  \"code\": \"123456\",\n  \"newPassword\": \"newPassword123\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/auth/confirm-code",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "auth",
+                                "confirm-code"
+                            ]
+                        },
+                        "description": "Confirmar código de recuperação de senha"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Automatic Campaigns",
+            "item": [
+                {
+                    "name": "Create Automatic Campaign",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Birthday Campaign\",\n  \"type\": \"birthday\",\n  \"message\": \"Happy Birthday! Here's a special gift for you!\",\n  \"isActive\": true\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Criar uma nova campanha automática"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Automatic Campaigns",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Listar todas as campanhas automáticas de uma empresa"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Automatic Campaign by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}/{{campaignId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}",
+                                "{{campaignId}}"
+                            ]
+                        },
+                        "description": "Buscar uma campanha automática por ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Automatic Campaign",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Birthday Campaign\",\n  \"message\": \"Updated message\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}/{{campaignId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}",
+                                "{{campaignId}}"
+                            ]
+                        },
+                        "description": "Atualizar uma campanha automática"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Toggle Active Status",
+                    "request": {
+                        "method": "PUT",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}/{{campaignId}}/toggle-active",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}",
+                                "{{campaignId}}",
+                                "toggle-active"
+                            ]
+                        },
+                        "description": "Ativar/Desativar uma campanha automática"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Automatic Campaign",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}/{{campaignId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}",
+                                "{{campaignId}}"
+                            ]
+                        },
+                        "description": "Remover uma campanha automática (soft delete)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Campaign Metrics",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}/{{campaignId}}/metrics",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}",
+                                "{{campaignId}}",
+                                "metrics"
+                            ]
+                        },
+                        "description": "Buscar métricas de uma campanha automática"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Campaign Messages",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/campaigns/automatic/{{companyId}}/{{campaignId}}/messages",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "campaigns",
+                                "automatic",
+                                "{{companyId}}",
+                                "{{campaignId}}",
+                                "messages"
+                            ]
+                        },
+                        "description": "Buscar mensagens de uma campanha automática"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Campaigns",
+            "item": [
+                {
+                    "name": "Create Campaign",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    const response = pm.response.json();",
+                                    "    if (response.id) {",
+                                    "        pm.environment.set('campaignId', response.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Spring Promotion\",\n  \"type\": \"promotional\",\n  \"message\": \"Check out our spring offers!\",\n  \"scheduledDate\": \"2024-03-20T10:00:00Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/campaigns",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "campaigns"
+                            ]
+                        },
+                        "description": "Criar uma nova campanha"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Campaigns",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/campaigns",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "campaigns"
+                            ]
+                        },
+                        "description": "Listar todas as campanhas"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Campaign by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/campaigns/{{campaignId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "campaigns",
+                                "{{campaignId}}"
+                            ]
+                        },
+                        "description": "Buscar uma campanha por ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Campaign Status",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"status\": \"active\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/campaigns/{{campaignId}}/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "campaigns",
+                                "{{campaignId}}",
+                                "status"
+                            ]
+                        },
+                        "description": "Atualizar status de uma campanha"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Campaign",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Campaign Name\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/campaigns/{{campaignId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "campaigns",
+                                "{{campaignId}}"
+                            ]
+                        },
+                        "description": "Atualizar uma campanha"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Campaign",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/campaigns/{{campaignId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "campaigns",
+                                "{{campaignId}}"
+                            ]
+                        },
+                        "description": "Remover uma campanha"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Companies",
+            "item": [
+                {
+                    "name": "Create Company",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"My Restaurant\",\n  \"email\": \"contact@restaurant.com\",\n  \"phone\": \"1234567890\",\n  \"address\": {\n    \"street\": \"Main St\",\n    \"number\": \"123\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01000-000\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies"
+                            ]
+                        },
+                        "description": "Criar uma nova empresa"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Companies",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies"
+                            ]
+                        },
+                        "description": "Listar todas as empresas"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Company by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Buscar uma empresa por ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Company",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Restaurant Name\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Atualizar uma empresa"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Company State",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/state/active",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "state",
+                                "active"
+                            ]
+                        },
+                        "description": "Atualizar status de uma empresa"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Company Avatar",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "avatar",
+                                    "type": "file",
+                                    "src": []
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/avatar",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "avatar"
+                            ]
+                        },
+                        "description": "Atualiza o avatar da empresa autenticada"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Import Order History",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"integrationId\": \"cardapio-web-integration-id\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/order-history",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "order-history"
+                            ]
+                        },
+                        "description": "Importar histórico de pedidos do Cardapio Web"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Subscription",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/subscription",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "subscription"
+                            ]
+                        },
+                        "description": "Buscar assinatura da empresa"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Subscription Payments",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/subscription/payments",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "subscription",
+                                "payments"
+                            ]
+                        },
+                        "description": "Buscar pagamentos de uma assinatura"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Payment Details",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/subscription/payments/{{paymentId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "subscription",
+                                "payments",
+                                "{{paymentId}}"
+                            ]
+                        },
+                        "description": "Buscar detalhes de um pagamento"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Credit Card",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"creditCardToken\": \"card_token_here\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/subscription/credit-card",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "subscription",
+                                "credit-card"
+                            ]
+                        },
+                        "description": "Adicionar um cartão de crédito à assinatura"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Opening Hours",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/opening-hours",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "opening-hours"
+                            ]
+                        },
+                        "description": "Buscar horários de funcionamento"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Opening Hours",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"dayOfWeek\": 1,\n  \"openTime\": \"09:00\",\n  \"closeTime\": \"18:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/opening-hours",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "opening-hours"
+                            ]
+                        },
+                        "description": "Criar horário de funcionamento"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Opening Hours",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"dayOfWeek\": 1,\n  \"openTime\": \"10:00\",\n  \"closeTime\": \"20:00\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/opening-hours",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "opening-hours"
+                            ]
+                        },
+                        "description": "Atualizar horário de funcionamento"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Company Users",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "users"
+                            ]
+                        },
+                        "description": "Listar usuários de uma empresa"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Courses",
+            "item": [
+                {
+                    "name": "Create Course",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Marketing Fundamentals\",\n  \"description\": \"Learn the basics of marketing\",\n  \"duration\": 120\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/courses",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses"
+                            ]
+                        },
+                        "description": "Criar um novo curso"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Courses",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/courses",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses"
+                            ]
+                        },
+                        "description": "Listar todos os cursos"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Course by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/{{courseId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "{{courseId}}"
+                            ]
+                        },
+                        "description": "Buscar curso por ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Carousels",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-carrousel",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-carrousel"
+                            ]
+                        },
+                        "description": "Listar carrosséis educacionais"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Carousel",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Featured Courses\",\n  \"items\": []\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-carrousel",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-carrousel"
+                            ]
+                        },
+                        "description": "Criar carrossel educacional"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Carousel",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Updated Carousel\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-carrousel/{{carouselId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-carrousel",
+                                "{{carouselId}}"
+                            ]
+                        },
+                        "description": "Atualizar carrossel"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Carousel",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-carrousel/{{carouselId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-carrousel",
+                                "{{carouselId}}"
+                            ]
+                        },
+                        "description": "Deletar carrossel"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Week Events",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-week-events",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-week-events"
+                            ]
+                        },
+                        "description": "Listar eventos da semana"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Current Week Events",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-week-events/current-week",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-week-events",
+                                "current-week"
+                            ]
+                        },
+                        "description": "Obter eventos da semana atual"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Week Event",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Webinar\",\n  \"date\": \"2024-03-20T15:00:00Z\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-week-events",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-week-events"
+                            ]
+                        },
+                        "description": "Criar evento da semana"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Week Event",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Updated Webinar\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-week-events/{{eventId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-week-events",
+                                "{{eventId}}"
+                            ]
+                        },
+                        "description": "Atualizar evento"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Week Event",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/educational-week-events/{{eventId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "educational-week-events",
+                                "{{eventId}}"
+                            ]
+                        },
+                        "description": "Deletar evento"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Module",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"Introduction\",\n  \"description\": \"Getting started\",\n  \"order\": 1\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/courses/{{courseId}}/modules",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "courses",
+                                "{{courseId}}",
+                                "modules"
+                            ]
+                        },
+                        "description": "Criar módulo de curso"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Customers",
+            "item": [
+                {
+                    "name": "Create Customer",
+                    "event": [
+                        {
+                            "listen": "test",
+                            "script": {
+                                "exec": [
+                                    "if (pm.response.code === 201) {",
+                                    "    const response = pm.response.json();",
+                                    "    if (response.id) {",
+                                    "        pm.environment.set('customerId', response.id);",
+                                    "    }",
+                                    "}"
+                                ],
+                                "type": "text/javascript"
+                            }
+                        }
+                    ],
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"John Doe\",\n  \"email\": \"john@example.com\",\n  \"phone\": \"1234567890\",\n  \"address\": {\n    \"street\": \"Main St\",\n    \"number\": \"123\",\n    \"city\": \"São Paulo\",\n    \"state\": \"SP\",\n    \"zipCode\": \"01000-000\"\n  }\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers"
+                            ]
+                        },
+                        "description": "Criar um novo cliente"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Customers",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers?page=1&limit=50",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers"
+                            ],
+                            "query": [
+                                {
+                                    "key": "page",
+                                    "value": "1"
+                                },
+                                {
+                                    "key": "limit",
+                                    "value": "50"
+                                }
+                            ]
+                        },
+                        "description": "Listar todos os clientes"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Customer Summary",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers/summary",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers",
+                                "summary"
+                            ]
+                        },
+                        "description": "Obter resumo de segmentação de clientes"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Customer by ID",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers/{{customerId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers",
+                                "{{customerId}}"
+                            ]
+                        },
+                        "description": "Buscar cliente por ID"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Customer by Phone",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers/phone/{{phoneNumber}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers",
+                                "phone",
+                                "{{phoneNumber}}"
+                            ]
+                        },
+                        "description": "Buscar cliente por telefone"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Customer",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Name\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers/{{customerId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers",
+                                "{{customerId}}"
+                            ]
+                        },
+                        "description": "Atualizar cliente"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Customer",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers/{{customerId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers",
+                                "{{customerId}}"
+                            ]
+                        },
+                        "description": "Remover cliente"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Import Customers",
+                    "request": {
+                        "method": "POST",
+                        "header": [],
+                        "body": {
+                            "mode": "formdata",
+                            "formdata": [
+                                {
+                                    "key": "file",
+                                    "type": "file",
+                                    "src": []
+                                }
+                            ]
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/companies/{{companyId}}/customers/import",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "companies",
+                                "{{companyId}}",
+                                "customers",
+                                "import"
+                            ]
+                        },
+                        "description": "Importar clientes em massa (CSV)"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Dashboard",
+            "item": [
+                {
+                    "name": "Get Customers Summary",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/dashboard/customers-summary/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "dashboard",
+                                "customers-summary",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Obter resumo de clientes (RFV)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Campaigns Summary",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/dashboard/campaigns-summary/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "dashboard",
+                                "campaigns-summary",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Obter resumo de campanhas"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Link Page",
+            "item": [
+                {
+                    "name": "Get Link Page",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/link-page/{{slug}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "link-page",
+                                "{{slug}}"
+                            ]
+                        },
+                        "description": "Obter dados da página de links"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update Link Page",
+                    "request": {
+                        "method": "PUT",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"title\": \"My Links\",\n  \"description\": \"Find all my links here\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/link-page/{{slug}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "link-page",
+                                "{{slug}}"
+                            ]
+                        },
+                        "description": "Atualizar página de links"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Link",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/link-page/link/{{linkId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "link-page",
+                                "link",
+                                "{{linkId}}"
+                            ]
+                        },
+                        "description": "Deletar link"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete Gallery Image",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/link-page/gallery/{{galleryId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "link-page",
+                                "gallery",
+                                "{{galleryId}}"
+                            ]
+                        },
+                        "description": "Deletar imagem da galeria"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Metrics",
+            "item": [
+                {
+                    "name": "Register Interaction",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/metrics/interaction/{{interactionToken}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "metrics",
+                                "interaction",
+                                "{{interactionToken}}"
+                            ]
+                        },
+                        "description": "Registrar evento de interação (click tracking)"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Onboarding",
+            "item": [
+                {
+                    "name": "Create Company and Admin",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"user\": {\n    \"name\": \"Admin User\",\n    \"email\": \"admin@restaurant.com\",\n    \"password\": \"password123\"\n  },\n  \"company\": {\n    \"name\": \"My Restaurant\",\n    \"email\": \"contact@restaurant.com\",\n    \"phone\": \"1234567890\"\n  },\n  \"planId\": \"plan-id-here\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/onboarding",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "onboarding"
+                            ]
+                        },
+                        "description": "Criar empresa e usuário administrador (com assinatura Asaas)"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Digital Menu Integration",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"apiKey\": \"cardapio-web-api-key\",\n  \"restaurantId\": \"restaurant-id\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/onboarding/digital-menu-integration/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "onboarding",
+                                "digital-menu-integration",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Criar integração com digital menu"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Digital Menu Integration",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/onboarding/digital-menu-integration/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "onboarding",
+                                "digital-menu-integration",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Obter integração com digital menu"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Create Partner",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Partner Name\",\n  \"email\": \"partner@example.com\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/onboarding/partner",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "onboarding",
+                                "partner"
+                            ]
+                        },
+                        "description": "Criar parceiro"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Partners",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/onboarding/partner/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "onboarding",
+                                "partner",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Obter parceiros"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Business Partner",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/onboarding/business-partner/{{partnerId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "onboarding",
+                                "business-partner",
+                                "{{partnerId}}"
+                            ]
+                        },
+                        "description": "Obter business partner"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Plans",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/onboarding/plans",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "onboarding",
+                                "plans"
+                            ]
+                        },
+                        "description": "Obter planos disponíveis"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Orders",
+            "item": [
+                {
+                    "name": "List Orders",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/orders?companyId={{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "orders"
+                            ],
+                            "query": [
+                                {
+                                    "key": "companyId",
+                                    "value": "{{companyId}}"
+                                }
+                            ]
+                        },
+                        "description": "Listar todos os pedidos de uma empresa"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Orders by Customer",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/orders/customer/{{customerId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "orders",
+                                "customer",
+                                "{{customerId}}"
+                            ]
+                        },
+                        "description": "Buscar pedidos de um cliente"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Users",
+            "item": [
+                {
+                    "name": "Create User",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"New User\",\n  \"email\": \"newuser@example.com\",\n  \"password\": \"password123\",\n  \"role\": \"user\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users"
+                            ]
+                        },
+                        "description": "Criar um novo usuário"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "List Users",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users"
+                            ]
+                        },
+                        "description": "Listar todos os usuários"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Current User",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users/me",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "me"
+                            ]
+                        },
+                        "description": "Buscar dados do usuário autenticado"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Update User",
+                    "request": {
+                        "method": "PATCH",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"name\": \"Updated Name\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/users/{{userId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "{{userId}}"
+                            ]
+                        },
+                        "description": "Atualizar um usuário"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete User",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/users/{{userId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "users",
+                                "{{userId}}"
+                            ]
+                        },
+                        "description": "Remover um usuário"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "WhatsApp",
+            "item": [
+                {
+                    "name": "Create WhatsApp Instance",
+                    "request": {
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"instanceName\": \"company-whatsapp\"\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/whatsapp/companies/{{companyId}}/instances",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "whatsapp",
+                                "companies",
+                                "{{companyId}}",
+                                "instances"
+                            ]
+                        },
+                        "description": "Criar uma nova instância do WhatsApp"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Connection Info",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/whatsapp/companies/{{companyId}}/instances/connection",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "whatsapp",
+                                "companies",
+                                "{{companyId}}",
+                                "instances",
+                                "connection"
+                            ]
+                        },
+                        "description": "Obter QR Code e informações de conexão"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Get Instance Status",
+                    "request": {
+                        "method": "GET",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/whatsapp/companies/{{companyId}}/instances/status",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "whatsapp",
+                                "companies",
+                                "{{companyId}}",
+                                "instances",
+                                "status"
+                            ]
+                        },
+                        "description": "Obter status atual da instância"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "Delete WhatsApp Instance",
+                    "request": {
+                        "method": "DELETE",
+                        "header": [],
+                        "url": {
+                            "raw": "{{baseUrl}}/whatsapp/companies/{{companyId}}/instances",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "whatsapp",
+                                "companies",
+                                "{{companyId}}",
+                                "instances"
+                            ]
+                        },
+                        "description": "Excluir a instância do WhatsApp"
+                    },
+                    "response": []
+                }
+            ]
+        },
+        {
+            "name": "Webhooks",
+            "item": [
+                {
+                    "name": "Cardapio Web Webhook",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"event\": \"order.created\",\n  \"data\": {}\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/webhooks/cw/{{companyId}}",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "webhooks",
+                                "cw",
+                                "{{companyId}}"
+                            ]
+                        },
+                        "description": "Recebe eventos do Cardapio Web"
+                    },
+                    "response": []
+                },
+                {
+                    "name": "WhatsApp Webhook",
+                    "request": {
+                        "auth": {
+                            "type": "noauth"
+                        },
+                        "method": "POST",
+                        "header": [
+                            {
+                                "key": "Content-Type",
+                                "value": "application/json"
+                            }
+                        ],
+                        "body": {
+                            "mode": "raw",
+                            "raw": "{\n  \"event\": \"message.received\",\n  \"data\": {}\n}"
+                        },
+                        "url": {
+                            "raw": "{{baseUrl}}/whatsapp/webhook",
+                            "host": [
+                                "{{baseUrl}}"
+                            ],
+                            "path": [
+                                "whatsapp",
+                                "webhook"
+                            ]
+                        },
+                        "description": "Endpoint para receber eventos do WhatsApp"
+                    },
+                    "response": []
+                }
+            ]
+        }
+    ],
+    "variable": [
+        {
+            "key": "baseUrl",
+            "value": "http://localhost:3000",
+            "type": "string"
+        }
+    ]
+}
