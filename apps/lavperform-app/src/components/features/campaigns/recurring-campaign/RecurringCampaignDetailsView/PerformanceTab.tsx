@@ -1,4 +1,3 @@
-import { Chart, type UseChartReturn } from '@chakra-ui/charts'
 import {
   Box,
   Card,
@@ -9,7 +8,7 @@ import {
   Stack,
   Text,
 } from '@chakra-ui/react'
-import { memo } from 'react'
+import { memo, useMemo } from 'react'
 import { LuChartColumnBig } from 'react-icons/lu'
 import {
   Bar,
@@ -28,16 +27,15 @@ import {
   DateRangeFilter,
   type DateRangeValue,
 } from '@/components'
+import { RechartsFrame, useRechartsTheme } from '@/hooks/useRechartsTheme'
+import type { CampaignMessageTypeBreakdown } from '@/types'
+import {
+  formatMessageTypeLabel,
+  getCampaignDerivedMetrics,
+} from '@/utils/campaigns/campaignMetrics'
 import { formatCurrency } from '@/utils/money'
 
 import { CampaignMessagesSection } from './CampaignMessagesSection'
-
-type ChartDatum = {
-  clicks: number
-  day: string
-  messages: number
-  sales: number
-}
 
 interface CampaignMetricsShape {
   campaignMetric: {
@@ -48,6 +46,8 @@ interface CampaignMetricsShape {
     salesTotalAmount: string
     salesTotalQuantity: number
     totalCustomers: number
+    totalCost?: number
+    messageTypeBreakdown?: CampaignMessageTypeBreakdown[]
   }
   messagesSentByDate: Array<{
     clicks: number
@@ -57,20 +57,12 @@ interface CampaignMetricsShape {
   }>
 }
 
-interface ChartSeriesItem {
-  name: 'messages' | 'clicks' | 'sales'
-  label: string
-  color: string
-}
-
 interface Props {
   campaignId: string | undefined
   companyId: string | undefined
   dateRange: DateRangeValue
   onDateRangeChange: (value: DateRangeValue) => void
   metrics: CampaignMetricsShape
-  chart: UseChartReturn<ChartDatum>
-  chartSeries: ChartSeriesItem[]
 }
 
 function PerformanceTabComponent({
@@ -79,10 +71,47 @@ function PerformanceTabComponent({
   dateRange,
   onDateRangeChange,
   metrics,
-  chart,
-  chartSeries,
 }: Props) {
+  const {
+    color,
+    colorPalette,
+    tooltipStyle,
+    gridStroke,
+    axisStroke,
+    cursorFill,
+    labelFill,
+  } = useRechartsTheme()
+
   const { campaignMetric, messagesSentByDate } = metrics
+
+  const chartSeries = useMemo(
+    () => [
+      {
+        name: 'messages' as const,
+        label: 'Enviadas',
+        color: color(`${colorPalette}.400`),
+      },
+      {
+        name: 'clicks' as const,
+        label: 'Cliques',
+        color: color('orange.400'),
+      },
+      {
+        name: 'sales' as const,
+        label: 'Vendas',
+        color: color('red.400'),
+      },
+    ],
+    [color, colorPalette]
+  )
+
+  const totalCost = Number(campaignMetric.totalCost ?? 0)
+  const messageTypeBreakdown = campaignMetric.messageTypeBreakdown ?? []
+  const derivedMetrics = getCampaignDerivedMetrics(
+    totalCost,
+    Number(campaignMetric.salesTotalAmount),
+    campaignMetric.salesTotalQuantity
+  )
 
   return (
     <Box
@@ -169,7 +198,61 @@ function PerformanceTabComponent({
               label="Receita"
               value={formatCurrency(Number(campaignMetric.salesTotalAmount))}
             />
+            <ChartMetricCard
+              label="Investimento"
+              value={formatCurrency(totalCost)}
+            />
+            <ChartMetricCard
+              label="ROI"
+              value={derivedMetrics.roiLabel}
+            />
+            <ChartMetricCard
+              label="Investimento por venda"
+              value={derivedMetrics.costPerSaleLabel}
+            />
           </SimpleGrid>
+
+          {messageTypeBreakdown.length > 0 && (
+            <Stack gap={2}>
+              <Text
+                color="fg.muted"
+                fontSize="xs"
+                fontWeight="medium"
+              >
+                Tipo de mensagem enviada
+              </Text>
+              <HStack
+                flexWrap="wrap"
+                gap={2}
+              >
+                {messageTypeBreakdown.map((item, idx) => (
+                  <HStack
+                    bg="bg.muted"
+                    borderColor="border.muted"
+                    borderRadius="md"
+                    borderWidth="1px"
+                    gap={2}
+                    key={`${item.channel}-${item.category ?? 'none'}-${idx}`}
+                    px={3}
+                    py={1.5}
+                  >
+                    <Text
+                      fontSize="xs"
+                      fontWeight="medium"
+                    >
+                      {formatMessageTypeLabel(item.channel, item.category)}
+                    </Text>
+                    <Text
+                      color="fg.muted"
+                      fontSize="xs"
+                    >
+                      {item.count} envio(s) · {formatCurrency(item.cost)}
+                    </Text>
+                  </HStack>
+                ))}
+              </HStack>
+            </Stack>
+          )}
 
           <Card.Root
             bg="bg.panel"
@@ -225,10 +308,9 @@ function PerformanceTabComponent({
                 h={{ base: '260px', md: '320px' }}
                 w="100%"
               >
-                <Chart.Root
-                  chart={chart}
-                  height="100%"
-                  width="100%"
+                <RechartsFrame
+                  h="100%"
+                  w="100%"
                 >
                   <ResponsiveContainer
                     height="100%"
@@ -236,33 +318,27 @@ function PerformanceTabComponent({
                   >
                     <BarChart data={messagesSentByDate}>
                       <CartesianGrid
-                        stroke={chart.color('bg.emphasized')}
+                        stroke={gridStroke}
                         vertical={false}
                       />
                       <XAxis
                         dataKey="day"
                         fontSize={11}
-                        stroke={chart.color('fg.muted')}
+                        stroke={axisStroke}
                         tickFormatter={(value) => value.slice(0, 6)}
                         tickLine={false}
                       />
                       <YAxis
                         axisLine={false}
                         fontSize={11}
-                        stroke={chart.color('fg.muted')}
+                        stroke={axisStroke}
                         tickLine={false}
                         width={28}
                       />
                       <Tooltip
-                        contentStyle={{
-                          borderColor: chart.color('border.muted'),
-                          backgroundColor: chart.color('bg'),
-                          color: chart.color('fg'),
-                          borderRadius: 8,
-                          fontSize: 12,
-                        }}
+                        contentStyle={tooltipStyle}
                         cursor={{
-                          fill: chart.color('bg.emphasized'),
+                          fill: cursorFill,
                           opacity: 0.5,
                         }}
                       />
@@ -272,28 +348,28 @@ function PerformanceTabComponent({
                       />
                       {chartSeries.map((item) => (
                         <Bar
-                          dataKey={chart.key(item.name)}
-                          fill={chart.color(item.color)}
+                          dataKey={item.name}
+                          fill={item.color}
                           isAnimationActive={false}
                           key={item.name}
                           name={item.label}
                           radius={[6, 6, 0, 0]}
-                          stroke={chart.color(item.color)}
+                          stroke={item.color}
                         >
                           <LabelList
-                            dataKey={chart.key(item.name)}
+                            dataKey={item.name}
                             fontSize={10}
                             position="top"
                             style={{
                               fontWeight: 600,
-                              fill: chart.color('fg'),
+                              fill: labelFill,
                             }}
                           />
                         </Bar>
                       ))}
                     </BarChart>
                   </ResponsiveContainer>
-                </Chart.Root>
+                </RechartsFrame>
               </Box>
             </Card.Body>
           </Card.Root>

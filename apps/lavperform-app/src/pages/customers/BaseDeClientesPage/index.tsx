@@ -1,9 +1,10 @@
 import { useCallback, useMemo, useState } from 'react'
 import { RiUserLine } from 'react-icons/ri'
 
+import { Stack } from '@chakra-ui/react'
+
 import {
   AppContentLayout,
-  CustomerMetricsSection,
   CustomerSummaryWidget,
 } from '@/components'
 import { CustomerTableSection } from '../DetailClientsPage'
@@ -32,12 +33,13 @@ export function BaseDeClientesPage() {
       icon={<RiUserLine />}
       title="Base de clientes"
     >
-      <CustomerMetricsSection />
-      <CustomerSummaryWidget
-        onSegmentationToggle={handleSegmentationToggle}
-        selectedSegmentations={selectedSegmentations}
-      />
-      <CustomerTableSection rfvClassifications={rfvClassifications} />
+      <Stack gap={4}>
+        <CustomerSummaryWidget
+          onSegmentationToggle={handleSegmentationToggle}
+          selectedSegmentations={selectedSegmentations}
+        />
+        <CustomerTableSection rfvClassifications={rfvClassifications} />
+      </Stack>
     </AppContentLayout>
   )
 }

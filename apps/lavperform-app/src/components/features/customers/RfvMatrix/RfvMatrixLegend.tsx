@@ -31,7 +31,7 @@ function RfvMatrixLegendBase({
         Legenda de Segmentos:
       </Text>
       <SimpleGrid
-        columns={{ base: 1, md: 2, lg: 2, xl: 2, '2xl': 4 }}
+        columns={{ base: 1, md: 2, lg: 2, xl: 3, '2xl': 5 }}
         gap={4}
       >
         {RFV_SEGMENT_CATEGORIES.map((category) => (

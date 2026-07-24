@@ -187,11 +187,14 @@ export function CustomerDetailsModal({ data, isOpen, onClose }: Props) {
   }, [data?.whatsappOptin, data?.phone])
 
   const rfvSummaryItem = useMemo(() => {
-    if (!data?.rfvClassification) return null
+    const segmentation = !data?.firstOrderDate
+      ? 'lead'
+      : data?.rfvClassification
+    if (!segmentation) return null
     return (
-      customersSummary.find((item) => item.segmentation === data.rfvClassification) ?? null
+      customersSummary.find((item) => item.segmentation === segmentation) ?? null
     )
-  }, [data?.rfvClassification, customersSummary])
+  }, [data?.firstOrderDate, data?.rfvClassification, customersSummary])
 
   const formattedAddress = useMemo(() => {
     const addr = data?.address

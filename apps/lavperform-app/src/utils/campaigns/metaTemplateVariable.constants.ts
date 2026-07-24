@@ -1,5 +1,8 @@
 export const META_TEMPLATE_VARIABLE_SOURCE = {
   CUSTOMER_FIRST_NAME: 'customer_first_name',
+  CUSTOMER_NAME: 'customer_name',
+  DAYS_SINCE_LAST_ORDER: 'days_since_last_order',
+  STORE_NAME: 'store_name',
 } as const
 
 export type MetaTemplateVariableSource =
@@ -17,6 +20,18 @@ export const META_TEMPLATE_VARIABLE_OPTIONS: ReadonlyArray<{
   {
     value: META_TEMPLATE_VARIABLE_SOURCE.CUSTOMER_FIRST_NAME,
     label: 'Primeiro nome do cliente',
+  },
+  {
+    value: META_TEMPLATE_VARIABLE_SOURCE.CUSTOMER_NAME,
+    label: 'Nome do cliente',
+  },
+  {
+    value: META_TEMPLATE_VARIABLE_SOURCE.DAYS_SINCE_LAST_ORDER,
+    label: 'Dias desde o último pedido',
+  },
+  {
+    value: META_TEMPLATE_VARIABLE_SOURCE.STORE_NAME,
+    label: 'Nome da loja',
   },
 ]
 

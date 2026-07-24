@@ -21,6 +21,17 @@ export const metaTemplatesService = {
     )
   },
 
+  async update(
+    companyId: string,
+    templateId: string,
+    payload: CreateMetaTemplatePayload
+  ) {
+    return await client.patch<MetaMessageTemplate>(
+      `/companies/${companyId}/meta-templates/${templateId}`,
+      payload
+    )
+  },
+
   async syncStatus(companyId: string, templateId: string) {
     return await client.get<MetaTemplateSyncResult>(
       `/companies/${companyId}/meta-templates/${templateId}/sync`

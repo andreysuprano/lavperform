@@ -1,3 +1,5 @@
+import type { AudienceTargetingMode } from '@/types'
+
 export interface FormDataProps {
   campaignType: 'REACTIVATION' | 'RECURRENCE'
   /**
@@ -16,6 +18,8 @@ export interface FormDataProps {
   incitation: 'discount' | 'tax' | 'none'
   maxDailySends: number
   name: string
+  targetingMode?: AudienceTargetingMode
+  audienceId?: string | null
   segmentation: string[]
   daysOfWeek: string[]
   startDate: string
@@ -63,6 +67,7 @@ export type TemplateStepSubmitPayload = Pick<
 
 export interface FormStepsProps {
   id?: number
+  wizardFormId?: string
   onSubmit?: (data: Partial<FormDataProps>) => void
   formData?: FormDataProps
   /** Em `edit`, sincroniza criativos com o wizard ao atualizar um criativo. */

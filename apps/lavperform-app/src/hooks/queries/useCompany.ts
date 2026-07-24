@@ -6,7 +6,12 @@ import {
   scheduleService,
   selfOnboardingService,
 } from '@/services'
-import type { Company, CompanyOpeningHour, Onboarding } from '@/types'
+import type {
+  Company,
+  CompanyOpeningHour,
+  Onboarding,
+  OnboardingWithPayment,
+} from '@/types'
 
 /**
  * Hook para buscar a lista de empresas
@@ -49,6 +54,34 @@ export function useOnboarding() {
         exact: false, // Invalida todas as queries que começam com essa chave
       })
     },
+  })
+}
+
+export function useOnboardingWithPayment() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({ data }: { data: OnboardingWithPayment }) => {
+      const response = await companyService.createOnboardingWithPayment(data)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: ['company', 'list'],
+        exact: false,
+      })
+    },
+  })
+}
+
+export function useSubscriptionPlan() {
+  return useQuery({
+    queryKey: ['onboarding', 'subscription-plan'],
+    queryFn: async () => {
+      const response = await selfOnboardingService.getSubscriptionPlan()
+      return response.data
+    },
+    staleTime: 1000 * 60 * 10,
   })
 }
 

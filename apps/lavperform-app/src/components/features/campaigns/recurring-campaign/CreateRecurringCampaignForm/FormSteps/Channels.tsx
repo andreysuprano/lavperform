@@ -4,6 +4,7 @@ import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { CHANNEL_CATALOG, type ChannelCatalogItem, type ChannelKey } from '@/components/features/channels/channelCatalog.constants'
 import { useWhiteLabel } from '@/config'
 
+import { getWizardFormId } from '../../wizardFormId'
 import { FormStepsProps } from './FormSteps.types'
 
 type ChannelCardProps = {
@@ -142,7 +143,7 @@ export function Channels(props: FormStepsProps) {
     <Stack
       as="form"
       gap={4}
-      id={`hook-form-${props.id}`}
+      id={getWizardFormId(props.wizardFormId ?? 'campaign', props.id ?? 0)}
       onSubmit={onSubmit}
     >
       <Stack gap={1}>

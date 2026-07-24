@@ -45,19 +45,25 @@ const MetricCardComponent = ({
     },
   }
 
+  const isSm = size === 'sm'
+
   return (
-    <Card.Root size="sm">
+    <Card.Root
+      h="full"
+      size="sm"
+    >
       <Card.Body
-        alignItems={inline ? '' : 'flex-start'}
+        alignItems={inline ? 'center' : 'flex-start'}
         as={HStack}
-        gap={size === 'sm' ? 2 : 4}
-        p={size === 'sm' ? 2 : 4}
+        gap={isSm ? 3 : 4}
+        p={isSm ? 3 : 4}
       >
         <Box
           bg="primary"
           borderRadius="md"
+          flexShrink={0}
           lineHeight={0}
-          p={size === 'sm' ? 3 : 4}
+          p={isSm ? 3 : 4}
         >
           <Show
             fallback={
@@ -67,7 +73,7 @@ const MetricCardComponent = ({
                 size="md"
               />
             }
-            when={size === 'md'}
+            when={!isSm}
           >
             <Icon
               as={icon}
@@ -76,18 +82,38 @@ const MetricCardComponent = ({
             />
           </Show>
         </Box>
-        <Stat.Root gap={0}>
-          <Stat.Label fontSize={size === 'sm' ? 'xs' : ''}>{label}</Stat.Label>
+        <Stat.Root
+          gap={0}
+          minW={0}
+        >
+          <Stat.Label
+            color="fg.muted"
+            fontSize={isSm ? 'xs' : 'sm'}
+            fontWeight="medium"
+            lineClamp={1}
+          >
+            {label}
+          </Stat.Label>
           <Box
-            alignItems={inline ? '' : 'flex-start'}
+            alignItems={inline ? 'center' : 'flex-start'}
             as={inline ? HStack : VStack}
             gap={inline ? 2 : 0}
+            mt={0.5}
           >
-            <Stat.ValueText fontSize={size === 'sm' ? 'xl' : '2xl'}>
-              <FormatNumber
-                {...valueTypeProps[valueType]}
-                value={Math.abs(Number(value))}
-              />
+            <Stat.ValueText
+              fontSize={isSm ? 'xl' : '2xl'}
+              fontWeight="bold"
+              letterSpacing="-0.02em"
+              lineHeight="1.1"
+            >
+              {valueType === 'text' ? (
+                value
+              ) : (
+                <FormatNumber
+                  {...valueTypeProps[valueType]}
+                  value={Math.abs(Number(value))}
+                />
+              )}
             </Stat.ValueText>
             {change != null && (
               <Badge

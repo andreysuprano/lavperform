@@ -10,5 +10,11 @@ export const rfvSettingsService = {
   async updateSettings(companyId: string, settings: Partial<RFVConfiguration>) {
     return await client.put<RFVConfiguration>(`/rfv-engine/configuration/${companyId}`, settings)
   },
+
+  async autoConfigure(companyId: string) {
+    return await client.post<{ message: string; companyId: string }>(
+      `/rfv-engine/configuration/${companyId}/auto`
+    )
+  },
 }
 

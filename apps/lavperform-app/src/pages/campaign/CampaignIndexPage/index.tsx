@@ -1,24 +1,43 @@
-import { Flex, Spinner, Stack, Text } from '@chakra-ui/react'
+import { Flex, Grid, SimpleGrid, Spinner, Stack, Text } from '@chakra-ui/react'
 import { useCallback, useEffect, useMemo, useRef } from 'react'
 import { GrCycle } from 'react-icons/gr'
-import { LuCircleDollarSign, LuPercent, LuSend, LuShoppingCart } from 'react-icons/lu'
+import {
+  LuCircleDollarSign,
+  LuMousePointerClick,
+  LuPercent,
+  LuReceipt,
+  LuSend,
+  LuShoppingCart,
+  LuTriangleAlert,
+  LuTrendingUp,
+  LuWallet,
+} from 'react-icons/lu'
 import { useSearchParams } from 'react-router-dom'
 
 import {
   AppContentLayout,
   CampaignChart,
+  CampaignCostBreakdown,
+  CampaignFunnelSection,
   CampaignPageBanner,
+  CampaignStrategyInsights,
+  CampaignTopRanking,
+  ChartMetricCard,
   DateRangeFilter,
   type DateRangeValue,
-  GridLayout,
   isSameDateRange,
   MetricCard,
-  MetricCardProps,
   parseDateRangeFromSearch,
   toaster,
 } from '@/components'
 import { useAuth } from '@/context/AuthContext'
 import { useDashboardCampaigns } from '@/hooks/queries'
+import {
+  formatPercentRate,
+  getCampaignDerivedMetrics,
+  getCampaignStrategyInsights,
+} from '@/utils/campaigns/campaignMetrics'
+import { formatCurrency } from '@/utils/money'
 
 import { CampaignIndexSkeletonLoading } from './skeletonLoading'
 
@@ -76,36 +95,68 @@ export function CampaignIndexPage() {
     [dateRange, setSearchParams]
   )
 
-  const sectionCards: MetricCardProps[] = useMemo(() => {
-    return [
-      {
-        icon: LuSend,
-        size: 'sm',
-        label: 'Total de envios',
-        value: campaigns?.activeCampaigns.messagesSent ?? 0,
-      },
-      {
-        icon: LuShoppingCart,
-        size: 'sm',
-        label: 'Pedidos Gerados',
-        value: campaigns?.activeCampaigns.salesTotalQuantity ?? 0,
-      },
-      {
-        icon: LuPercent,
-        label: 'Taxa de Conversão',
-        size: 'sm',
-        value: Number(campaigns?.activeCampaigns.conversionRate ?? 0) / 100,
-        valueType: 'percent',
-      },
-      {
-        icon: LuCircleDollarSign,
-        label: 'Receita Incentivada',
-        size: 'sm',
-        value: Number(campaigns?.activeCampaigns.salesTotalAmount ?? 0),
-        valueType: 'currency-full',
-      },
+  const active = campaigns?.activeCampaigns
+  const messagesSent = active?.messagesSent ?? 0
+  const interactions = Number(active?.interactions ?? 0)
+  const salesQty = active?.salesTotalQuantity ?? 0
+  const salesAmount = Number(active?.salesTotalAmount ?? 0)
+  const ctr = Number(active?.ctr ?? 0)
+  const clickToSaleRate = Number(active?.clickToSaleRate ?? 0)
+  const conversionRate = Number(active?.conversionRate ?? 0)
+  const averageTicket = Number(active?.averageTicket ?? 0)
+  const errorRate = Number(active?.errorRate ?? 0)
+  const totalCost = Number(active?.totalCost ?? 0)
+  const messageTypeBreakdown = active?.messageTypeBreakdown ?? []
+  const topCampaigns = campaigns?.topCampaigns ?? []
+
+  const derived = useMemo(
+    () => getCampaignDerivedMetrics(totalCost, salesAmount, salesQty),
+    [totalCost, salesAmount, salesQty]
+  )
+
+  const dailySeries = campaigns?.messagesSentByDate ?? []
+
+  const revenueSpark = useMemo(
+    () => dailySeries.map((d) => ({ value: Number(d.salesAmount) || 0 })),
+    [dailySeries]
+  )
+  const clicksSpark = useMemo(
+    () => dailySeries.map((d) => ({ value: Number(d.clicks) || 0 })),
+    [dailySeries]
+  )
+  const salesSpark = useMemo(
+    () => dailySeries.map((d) => ({ value: Number(d.sales) || 0 })),
+    [dailySeries]
+  )
+
+  const insights = useMemo(
+    () =>
+      getCampaignStrategyInsights({
+        messagesSent,
+        interactions,
+        salesTotalQuantity: salesQty,
+        salesTotalAmount: salesAmount,
+        ctr,
+        clickToSaleRate,
+        conversionRate,
+        errorRate,
+        roi: derived.roi,
+        topCampaignName: topCampaigns[0]?.name,
+        topCampaignMessagesSent: topCampaigns[0]?.messagesSent,
+      }),
+    [
+      messagesSent,
+      interactions,
+      salesQty,
+      salesAmount,
+      ctr,
+      clickToSaleRate,
+      conversionRate,
+      errorRate,
+      derived.roi,
+      topCampaigns,
     ]
-  }, [campaigns])
+  )
 
   if (isLoading) {
     return <CampaignIndexSkeletonLoading />
@@ -116,8 +167,9 @@ export function CampaignIndexPage() {
       icon={<GrCycle />}
       title="Fidelização e Recorrência"
     >
-      <Stack gap={4}>
+      <Stack gap={5}>
         <CampaignPageBanner />
+
         <Flex
           align={{ base: 'stretch', md: 'center' }}
           direction={{ base: 'column', md: 'row' }}
@@ -128,7 +180,7 @@ export function CampaignIndexPage() {
             color="fg.muted"
             fontSize="sm"
           >
-            Métricas do período:
+            Performance das campanhas no período
           </Text>
           <Flex
             align="center"
@@ -149,20 +201,116 @@ export function CampaignIndexPage() {
             )}
           </Flex>
         </Flex>
-        <GridLayout
+
+        <SimpleGrid
           columns={{ base: 1, sm: 2, lg: 4 }}
-          items={sectionCards}
-          renderItem={(card, idx) => (
-            <MetricCard
-              key={idx}
-              {...card}
-            />
-          )}
+          gap={3}
+        >
+          <ChartMetricCard
+            data={revenueSpark}
+            icon={LuCircleDollarSign}
+            label="Receita incentivada"
+            maxValue={Math.max(...revenueSpark.map((d) => d.value), 1)}
+            showTrend={revenueSpark.length > 1}
+            value={formatCurrency(salesAmount)}
+          />
+          <ChartMetricCard
+            icon={LuTrendingUp}
+            label="ROI"
+            value={derived.roiLabel}
+          />
+          <ChartMetricCard
+            data={clicksSpark}
+            icon={LuMousePointerClick}
+            label="CTR"
+            maxValue={Math.max(messagesSent, 1)}
+            showTrend={clicksSpark.length > 1}
+            value={formatPercentRate(ctr)}
+          />
+          <ChartMetricCard
+            data={salesSpark}
+            icon={LuPercent}
+            label="Taxa de conversão"
+            maxValue={Math.max(messagesSent, 1)}
+            showTrend={salesSpark.length > 1}
+            value={formatPercentRate(conversionRate)}
+          />
+        </SimpleGrid>
+
+        <SimpleGrid
+          columns={{ base: 2, md: 3, lg: 4 }}
+          gap={3}
+        >
+          <MetricCard
+            icon={LuSend}
+            label="Envios"
+            size="sm"
+            value={messagesSent}
+          />
+          <MetricCard
+            icon={LuMousePointerClick}
+            label="Cliques"
+            size="sm"
+            value={interactions}
+          />
+          <MetricCard
+            icon={LuShoppingCart}
+            label="Pedidos"
+            size="sm"
+            value={salesQty}
+          />
+          <MetricCard
+            icon={LuReceipt}
+            label="Ticket médio"
+            size="sm"
+            value={averageTicket}
+            valueType="currency-full"
+          />
+          <MetricCard
+            icon={LuWallet}
+            label="Investimento"
+            size="sm"
+            value={totalCost}
+            valueType="currency-full"
+          />
+          <MetricCard
+            icon={LuReceipt}
+            label="Custo por venda"
+            size="sm"
+            value={derived.costPerSaleLabel}
+            valueType="text"
+          />
+          <MetricCard
+            icon={LuTriangleAlert}
+            label="Taxa de erro"
+            size="sm"
+            value={formatPercentRate(errorRate)}
+            valueType="text"
+          />
+        </SimpleGrid>
+
+        <CampaignFunnelSection
+          clickToSaleRate={clickToSaleRate}
+          ctr={ctr}
+          interactions={interactions}
+          messagesSent={messagesSent}
+          salesTotalQuantity={salesQty}
         />
+
+        <CampaignStrategyInsights insights={insights} />
+
         <CampaignChart
           campaigns={campaigns}
           isFetching={isFetching}
         />
+
+        <Grid
+          gap={4}
+          templateColumns={{ base: '1fr', lg: '1.2fr 1fr' }}
+        >
+          <CampaignTopRanking campaigns={topCampaigns} />
+          <CampaignCostBreakdown items={messageTypeBreakdown} />
+        </Grid>
       </Stack>
     </AppContentLayout>
   )

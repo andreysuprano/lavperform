@@ -18,6 +18,7 @@ import { useWhiteLabel } from '@/config'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 
 import { campaignTypeItems } from '../../constants'
+import { getWizardFormId } from '../../wizardFormId'
 import { FormStepsProps } from './FormSteps.types'
 
 const schema = yup.object({
@@ -70,7 +71,7 @@ export function SelectType(props: FormStepsProps) {
     <Stack
       as="form"
       gap={4}
-      id={`hook-form-${props.id}`}
+      id={getWizardFormId(props.wizardFormId ?? 'campaign', props.id ?? 0)}
       onSubmit={handleSubmit(onSubmit)}
     >
       {!isEdit && (

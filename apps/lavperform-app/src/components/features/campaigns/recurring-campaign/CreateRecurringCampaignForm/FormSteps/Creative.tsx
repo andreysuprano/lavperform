@@ -8,6 +8,7 @@ import {
   type ChannelKey,
 } from '@/components/features/channels/channelCatalog.constants'
 
+import { getWizardFormId } from '../../wizardFormId'
 import type {
   CampaignCreative,
   CreativeStepSubmitPayload,
@@ -190,7 +191,7 @@ export function Creative(props: FormStepsProps) {
     <Stack
       as="form"
       gap={4}
-      id={`hook-form-${id}`}
+      id={getWizardFormId(props.wizardFormId ?? 'campaign', id ?? 0)}
       onSubmit={(e) => {
         e.preventDefault()
         if (isFormOpen) {

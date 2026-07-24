@@ -31,4 +31,8 @@ export interface Props {
   data: InvoiceItem | null
   company: CompanyDetails | null
   onClose: () => void
+  allowBoleto?: boolean
+  allowPix?: boolean
+  planAllowsAlternativePayments?: boolean
+  alternativePaymentLabel?: string
 }

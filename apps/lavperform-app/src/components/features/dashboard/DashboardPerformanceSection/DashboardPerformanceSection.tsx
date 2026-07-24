@@ -7,7 +7,10 @@ import { Props } from './DashboardPerformanceSection.types'
 import { PerformanceMetricsPanel } from './PerformanceMetricsPanel'
 import { RecentSalesPanel } from './RecentSalesPanel'
 
-function DashboardPerformanceSectionBase({ companyId }: Props) {
+function DashboardPerformanceSectionBase({
+  companyId,
+  showDailyCards = true,
+}: Props) {
   const {
     data: performance,
     isError,
@@ -30,6 +33,7 @@ function DashboardPerformanceSectionBase({ companyId }: Props) {
           isError={isError}
           isLoading={isLoading}
           performance={performance}
+          showDailyCards={showDailyCards}
         />
       </Stack>
       <Stack h="full">

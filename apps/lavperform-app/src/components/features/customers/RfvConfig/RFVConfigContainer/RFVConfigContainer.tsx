@@ -1,8 +1,9 @@
-import { Button, SimpleGrid, Stack, Text } from '@chakra-ui/react'
+import { Button, Flex, SimpleGrid, Stack, Text } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 
 import { InfoCard, LoadingState } from '@/components'
 import {
+  useAutoConfigureRfv,
   useRfvSettings,
   useUpdateRfvSettings,
 } from '@/hooks/queries/useRfvSettings'
@@ -24,6 +25,11 @@ function RFVConfigContainerBase({ companyId }: Props) {
   const { mutate: updateSettings, isPending } = useUpdateRfvSettings({
     companyId: companyId ?? '',
   })
+
+  const { mutate: autoConfigure, isPending: isAutoConfiguring } =
+    useAutoConfigureRfv({
+      companyId: companyId ?? '',
+    })
 
   useEffect(() => {
     if (data) {
@@ -99,18 +105,40 @@ function RFVConfigContainerBase({ companyId }: Props) {
     updateSettings({ settings })
   }, [settings, updateSettings])
 
+  const handleAutoConfigure = useCallback(() => {
+    autoConfigure()
+  }, [autoConfigure])
+
   if (isLoading) {
     return <LoadingState title="Carregando parâmetros RFV..." />
   }
 
   return (
     <Stack gap={6}>
-      <InfoCard
-        title="Configurações da Matriz RFV/RFM"
-        description="A classificação RFV analisa o comportamento dos clientes a partir de três dimensões: Recência (dias desde a última compra), Frequência (quantidade de pedidos realizados) e Valor Monetário (ticket médio). Com base nessas informações, os clientes são distribuídos em 11 grupos, tornando mais fácil direcionar ofertas e campanhas personalizadas para cada perfil.
-
-Cada dimensão é avaliada em uma escala de 1 a 5, onde 1 representa o menor valor e 5 o maior. Na tela de Análise da base de clientes, você encontra a matriz RFV com a distribuição completa dos seus clientes entre os grupos."
-      />
+      <Flex
+        justify="flex-end"
+        gap={3}
+        direction={{ base: 'column', sm: 'row' }}
+      >
+        <Button
+          variant="outline"
+          disabled={isAutoConfiguring || isPending || !companyId}
+          loading={isAutoConfiguring}
+          loadingText="Analisando dados..."
+          onClick={handleAutoConfigure}
+        >
+          Configurar automaticamente
+        </Button>
+        <Button
+          colorScheme="green"
+          disabled={hasInvalidRanges || isPending || isAutoConfiguring || !companyId}
+          loading={isPending}
+          loadingText="Salvando..."
+          onClick={handleSave}
+        >
+          Salvar configurações
+        </Button>
+      </Flex>
 
       {hasInvalidRanges && (
         <Text color="red.500" fontSize="sm">
@@ -146,16 +174,14 @@ Cada dimensão é avaliada em uma escala de 1 a 5, onde 1 representa o menor val
         />
       </SimpleGrid>
 
-      <Button
-        alignSelf="flex-end"
-        colorScheme="green"
-        disabled={hasInvalidRanges || isPending || !companyId}
-        loading={isPending}
-        loadingText="Salvando..."
-        onClick={handleSave}
-      >
-        Salvar configurações
-      </Button>
+      <InfoCard
+        title="Configurações da Matriz RFV/RFM"
+        description="A classificação RFV analisa o comportamento dos clientes a partir de três dimensões: Recência (dias desde a última compra), Frequência (quantidade de pedidos realizados) e Valor Monetário (ticket médio). Com base nessas informações, os clientes são distribuídos em 11 grupos, tornando mais fácil direcionar ofertas e campanhas personalizadas para cada perfil.
+
+Cada dimensão é avaliada em uma escala de 1 a 5, onde 1 representa o menor valor e 5 o maior. Na tela de Análise da base de clientes, você encontra a matriz RFV com a distribuição completa dos seus clientes entre os grupos.
+
+Não sabe por onde começar? Use o botão 'Configurar automaticamente' para que analisemos os dados reais da sua base e definamos os melhores parâmetros para você."
+      />
     </Stack>
   )
 }

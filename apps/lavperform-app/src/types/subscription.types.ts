@@ -13,6 +13,8 @@ export interface Subscription {
       name: string
       description: string
       price: string
+      allowBoleto?: boolean
+      allowPix?: boolean
       createdAt: string
       updatedAt: string
     }

@@ -12,7 +12,7 @@ import {
   Stack,
   Text,
 } from '@chakra-ui/react'
-import { memo, type ReactNode } from 'react'
+import { memo, useMemo, type ReactNode } from 'react'
 import {
   LuCalendarDays,
   LuCircleDollarSign,
@@ -30,15 +30,23 @@ import {
 } from 'react-icons/lu'
 
 import { DisplaySelectedWeekday, LazyImage } from '@/components'
+import { MetaTemplatePreview } from '@/components/features/campaigns/meta-templates/MetaTemplatePreview'
+import { getTemplateDisplayLabel } from '@/components/features/campaigns/meta-templates/metaTemplate.utils'
 import { useWhiteLabel } from '@/config'
+import { useAuth } from '@/context/AuthContext'
 import {
   CHANNEL_CATALOG,
   type ChannelKey,
 } from '@/components/features/channels/channelCatalog.constants'
+import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useMetaTemplates } from '@/hooks/queries/useMetaTemplates'
 import { convertLinkToResizedImage } from '@/firebase/storage'
 import type { RecurringCampaign } from '@/types'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { convertISOToDate } from '@/utils/convertISOToDate'
+import { getMetaTemplateVariableLabel } from '@/utils/campaigns/metaTemplateVariable.constants'
+import { parseCampaignImagesField } from '@/utils/campaigns/resolveCampaignPreviewImageUrl'
+import { resolveCampaignTargetingFromApi } from '@/utils/campaigns/resolveCampaignTargetingFromApi'
 import { formatCurrency } from '@/utils/money'
 
 import { discountTypeItems, incitationItems } from '../constants'
@@ -148,17 +156,44 @@ function CampaignDetailsTabComponent({
   activeDaysStrings,
 }: Props) {
   const { colorPalette } = useWhiteLabel()
+  const { selectedCompany } = useAuth()
+  const { data: audiencesResult } = useAudiences(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
+  const { data: metaTemplates = [] } = useMetaTemplates(selectedCompany?.id)
 
-  const segmentationItems = campaign.segmentation
-    ? campaign.segmentation
-        .split(',')
-        .map((s) => s.trim())
-        .filter(Boolean)
-    : []
+  const audienceBadges = useMemo(() => {
+    const targeting = resolveCampaignTargetingFromApi(campaign)
 
-  const imageList = campaign.images
-    ? campaign.images.split(', ').filter(Boolean)
-    : []
+    if (targeting.targetingMode === 'AUDIENCE') {
+      const audienceName = audiencesResult?.data?.find(
+        (audience) => audience.id === targeting.audienceId,
+      )?.name
+
+      return audienceName ? [audienceName] : []
+    }
+
+    return targeting.segmentation.map(
+      (segItem) =>
+        clientTypesOptions.items.find((item) => item.value === segItem)?.label ??
+        segItem,
+    )
+  }, [audiencesResult?.data, campaign])
+
+  const imageList = parseCampaignImagesField(campaign.images)
+
+  const linkedMetaTemplate = useMemo(
+    () =>
+      metaTemplates.find(
+        (template) => template.id === campaign.metaMessageTemplateId,
+      ),
+    [campaign.metaMessageTemplateId, metaTemplates],
+  )
+
+  const usesOfficialTemplate =
+    campaign.channel?.toLowerCase() === 'whatsapp_business_api' &&
+    !!campaign.metaMessageTemplateId
 
   const channelKey = campaign.channel?.toLowerCase() as ChannelKey | undefined
   const channelInfo = CHANNEL_CATALOG.find((c) => c.key === channelKey)
@@ -427,25 +462,23 @@ function CampaignDetailsTabComponent({
                   icon={<LuTarget size={16} />}
                   label="Público selecionado"
                   value={
-                    segmentationItems.length > 0 ? (
+                    audienceBadges.length > 0 ? (
                       <Flex
                         gap={1.5}
                         mt={1}
                         wrap="wrap"
                       >
-                        {segmentationItems.map((segmentationItem) => (
+                        {audienceBadges.map((badgeLabel) => (
                           <Badge
                             fontSize="2xs"
                             fontWeight="semibold"
-                            key={segmentationItem}
+                            key={badgeLabel}
                             px={2.5}
                             py={0.5}
                             rounded="full"
                             variant="subtle"
                           >
-                            {clientTypesOptions.items.find(
-                              (item) => item.value === segmentationItem
-                            )?.label ?? segmentationItem}
+                            {badgeLabel}
                           </Badge>
                         ))}
                       </Flex>
@@ -454,7 +487,7 @@ function CampaignDetailsTabComponent({
                         color="fg.muted"
                         fontSize="sm"
                       >
-                        Nenhum segmento definido
+                        Nenhum público definido
                       </Text>
                     )
                   }
@@ -553,6 +586,80 @@ function CampaignDetailsTabComponent({
             </Stack>
           </GridItem>
         </Grid>
+
+        {usesOfficialTemplate && linkedMetaTemplate && (
+          <Box
+            bg="bg.panel"
+            borderColor="border.muted"
+            borderRadius="xl"
+            borderWidth="1px"
+            p={{ base: 4, md: 6 }}
+            shadow="xs"
+          >
+            <HStack
+              align="center"
+              gap={3}
+              mb={5}
+            >
+              <Flex
+                align="center"
+                bg={`${colorPalette}.subtle`}
+                borderRadius="lg"
+                color={`${colorPalette}.fg`}
+                h={9}
+                justify="center"
+                w={9}
+              >
+                <LuLayoutGrid size={18} />
+              </Flex>
+              <Stack gap={0}>
+                <Heading
+                  fontSize="sm"
+                  fontWeight="semibold"
+                  letterSpacing="tight"
+                >
+                  Template da campanha
+                </Heading>
+                <Text
+                  color="fg.muted"
+                  fontSize="xs"
+                >
+                  {getTemplateDisplayLabel(linkedMetaTemplate)}
+                </Text>
+              </Stack>
+            </HStack>
+
+            <MetaTemplatePreview
+              components={linkedMetaTemplate.components}
+              headerMediaUrl={linkedMetaTemplate.headerMediaUrl}
+              name={getTemplateDisplayLabel(linkedMetaTemplate)}
+            />
+
+            {(campaign.metaTemplateVariableMappings?.length ?? 0) > 0 && (
+              <Stack
+                gap={2}
+                mt={5}
+              >
+                <Text
+                  fontSize="sm"
+                  fontWeight="semibold"
+                >
+                  Variáveis do template
+                </Text>
+                {campaign.metaTemplateVariableMappings?.map((mapping) => (
+                  <Text
+                    color="fg.muted"
+                    fontSize="sm"
+                    key={mapping.index}
+                  >
+                    {`{{${mapping.index}}}`} →{' '}
+                    {getMetaTemplateVariableLabel(mapping.source)}
+                  </Text>
+                ))}
+              </Stack>
+            )}
+          </Box>
+        )}
 
         {hasCreatives && (
           <Box

@@ -1,6 +1,8 @@
 import { GrCycle, GrGraphQl, GrTarget } from 'react-icons/gr'
 import {
+  LuBrain,
   LuCalendarSync,
+  LuChartColumnBig,
   LuClock,
   LuCoins,
   LuDollarSign,
@@ -40,6 +42,11 @@ export const MENU_ITEMS = [
     isNew: false,
     links: [
       {
+        label: 'Insights',
+        href: '/campaigns',
+        icon: LuChartColumnBig,
+      },
+      {
         label: 'Campanhas',
         href: '/campaigns/recurring-campaigns',
         icon: LuCalendarSync,
@@ -59,9 +66,19 @@ export const MENU_ITEMS = [
     isNew: false,
     links: [
       {
+        label: 'Insights',
+        href: '/customers/insights',
+        icon: LuBrain,
+      },
+      {
         label: 'Base de clientes',
         href: '/customers/CustomerBase',
         icon: LuUserRound,
+      },
+      {
+        label: 'Audiências',
+        href: '/customers/audiences',
+        icon: GrTarget,
       },
       {
         label: 'Matriz RFV',

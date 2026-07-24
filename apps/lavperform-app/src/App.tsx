@@ -6,7 +6,7 @@ import { useEffect } from 'react'
 import { BrowserRouter } from 'react-router-dom'
 import { registerSW } from 'virtual:pwa-register'
 
-import { ChatwootWidget, Provider, Toaster } from '@/components'
+import { ChatwootWidget, ErrorBoundary, Provider, Toaster } from '@/components'
 import { useWhiteLabelInit } from '@/config'
 import { AuthProvider } from '@/context/AuthContext'
 import { CustomerSummaryProvider } from '@/context/CustomerSummaryContext'
@@ -48,7 +48,9 @@ export function App() {
             <CustomerSummaryProvider>
               <Toaster />
               <ChatwootWidget />
-              <Router />
+              <ErrorBoundary>
+                <Router />
+              </ErrorBoundary>
             </CustomerSummaryProvider>
           </AuthProvider>
         </BrowserRouter>

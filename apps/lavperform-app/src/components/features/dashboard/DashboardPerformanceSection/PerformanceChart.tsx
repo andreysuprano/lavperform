@@ -1,4 +1,3 @@
-import { Chart, useChart } from '@chakra-ui/charts'
 import { Box, Card, Center, Heading, Stack, Text } from '@chakra-ui/react'
 import { memo, useMemo } from 'react'
 import {
@@ -13,7 +12,7 @@ import {
   YAxis,
 } from 'recharts'
 
-import { useWhiteLabel } from '@/config'
+import { RechartsFrame, useRechartsTheme } from '@/hooks/useRechartsTheme'
 import { formatCurrency } from '@/utils/money'
 
 import { Props } from './PerformanceChart.types'
@@ -21,31 +20,23 @@ import { Props } from './PerformanceChart.types'
 const CHART_HEIGHT = { base: '260px', md: '320px' }
 
 function PerformanceChartBase({ data = [] }: Props) {
-  const { colorPalette } = useWhiteLabel()
+  const { color, colorPalette, tooltipStyle, gridStroke, axisStroke, cursorFill } =
+    useRechartsTheme()
 
-  const chartSeries = useMemo(
-    () => [
-      {
-        name: 'count' as const,
-        label: 'Quantidade de Vendas',
-        color: `${colorPalette}.400`,
+  const series = useMemo(
+    () => ({
+      count: {
+        label: 'Pedidos',
+        color: color(`${colorPalette}.400`),
       },
-      {
-        name: 'totalValue' as const,
+      revenue: {
         label: 'Faturamento',
-        color: 'orange.400',
+        color: color('orange.400'),
       },
-    ],
-    [colorPalette]
+    }),
+    [color, colorPalette]
   )
 
-  const chart = useChart({
-    data,
-    series: chartSeries,
-  })
-
-  const countSeries = chartSeries[0]
-  const revenueSeries = chartSeries[1]
   const hasData = data.length > 0
 
   return (
@@ -57,12 +48,12 @@ function PerformanceChartBase({ data = [] }: Props) {
     >
       <Card.Body gap={4}>
         <Stack gap={1}>
-          <Heading size="md">Vendas dos últimos 6 meses</Heading>
+          <Heading size="md">Últimos 6 meses</Heading>
           <Text
             color="fg.muted"
             fontSize="sm"
           >
-            Comparativo mensal de quantidade de vendas e faturamento.
+            Quantidade de pedidos e faturamento por mês.
           </Text>
         </Stack>
 
@@ -71,10 +62,9 @@ function PerformanceChartBase({ data = [] }: Props) {
           w="100%"
         >
           {hasData ? (
-            <Chart.Root
-              chart={chart}
-              height="100%"
-              width="100%"
+            <RechartsFrame
+              h="100%"
+              w="100%"
             >
               <ResponsiveContainer
                 height="100%"
@@ -82,20 +72,20 @@ function PerformanceChartBase({ data = [] }: Props) {
               >
                 <ComposedChart data={data}>
                   <CartesianGrid
-                    stroke={chart.color('bg.emphasized')}
+                    stroke={gridStroke}
                     vertical={false}
                   />
                   <XAxis
                     axisLine={false}
                     dataKey="label"
                     fontSize={11}
-                    stroke={chart.color('fg.muted')}
+                    stroke={axisStroke}
                     tickLine={false}
                   />
                   <YAxis
                     axisLine={false}
                     fontSize={11}
-                    stroke={chart.color('fg.muted')}
+                    stroke={axisStroke}
                     tickLine={false}
                     width={28}
                     yAxisId="count"
@@ -104,29 +94,22 @@ function PerformanceChartBase({ data = [] }: Props) {
                     axisLine={false}
                     fontSize={11}
                     orientation="right"
-                    stroke={chart.color('fg.muted')}
+                    stroke={axisStroke}
                     tickFormatter={(value) => `R$ ${value / 1000}k`}
                     tickLine={false}
                     width={48}
                     yAxisId="revenue"
                   />
                   <Tooltip
-                    contentStyle={{
-                      borderColor: chart.color('border.muted'),
-                      backgroundColor: chart.color('bg'),
-                      color: chart.color('fg'),
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
+                    contentStyle={tooltipStyle}
                     cursor={{
-                      fill: chart.color('bg.emphasized'),
+                      fill: cursorFill,
                       opacity: 0.35,
                     }}
                     formatter={(value, name) => {
                       if (name === 'Faturamento') {
                         return [formatCurrency(Number(value)), name]
                       }
-
                       return [value, name]
                     }}
                   />
@@ -135,26 +118,26 @@ function PerformanceChartBase({ data = [] }: Props) {
                     wrapperStyle={{ fontSize: 12 }}
                   />
                   <Bar
-                    dataKey={chart.key(countSeries.name)}
-                    fill={chart.color(countSeries.color)}
+                    dataKey="count"
+                    fill={series.count.color}
                     isAnimationActive={false}
-                    name={countSeries.label}
+                    name={series.count.label}
                     radius={[6, 6, 0, 0]}
                     yAxisId="count"
                   />
                   <Line
-                    dataKey={chart.key(revenueSeries.name)}
+                    dataKey="totalValue"
                     dot={{ r: 3 }}
                     isAnimationActive={false}
-                    name={revenueSeries.label}
-                    stroke={chart.color(revenueSeries.color)}
+                    name={series.revenue.label}
+                    stroke={series.revenue.color}
                     strokeWidth={3}
                     type="monotone"
                     yAxisId="revenue"
                   />
                 </ComposedChart>
               </ResponsiveContainer>
-            </Chart.Root>
+            </RechartsFrame>
           ) : (
             <Center
               h="100%"

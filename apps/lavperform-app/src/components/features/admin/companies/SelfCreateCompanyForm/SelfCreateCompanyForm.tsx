@@ -143,15 +143,15 @@ function SelfCreateCompanyForm() {
       >
         {!isSuccess && (
           <Steps.List mb={4}>
-            {steps.map((step, index) => (
+            {steps.map((stepItem, index) => (
               <Steps.Item
                 index={index}
                 key={index}
-                title={step.title}
+                title={stepItem.title}
               >
                 <Steps.Indicator />
                 <Steps.Title display={{ base: 'none', md: 'block' }}>
-                  {step.title}
+                  {stepItem.title}
                 </Steps.Title>
                 <Steps.Separator />
               </Steps.Item>
@@ -162,9 +162,9 @@ function SelfCreateCompanyForm() {
           <User
             formData={data ?? undefined}
             id={0}
-            onSubmit={(data) => {
+            onSubmit={(formValues) => {
               goToNextStep()
-              saveData(data)
+              saveData(formValues)
             }}
           />
         </Steps.Content>
@@ -172,9 +172,9 @@ function SelfCreateCompanyForm() {
           <Company
             formData={data ?? undefined}
             id={1}
-            onSubmit={(data) => {
+            onSubmit={(formValues) => {
               goToNextStep()
-              saveData(data)
+              saveData(formValues)
             }}
           />
         </Steps.Content>
@@ -183,9 +183,9 @@ function SelfCreateCompanyForm() {
             formData={data ?? undefined}
             id={2}
             planIdFromUrl={planIdFromUrl}
-            onSubmit={(data) => {
+            onSubmit={(formValues) => {
               goToNextStep()
-              saveData(data)
+              saveData(formValues)
             }}
           />
         </Steps.Content>

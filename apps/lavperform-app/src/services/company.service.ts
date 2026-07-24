@@ -5,6 +5,8 @@ import type {
   CompanyOpeningHour,
   CompanyState,
   Onboarding,
+  OnboardingWithPayment,
+  OnboardingWithPaymentResponse,
   Plan,
 } from '@/types'
 
@@ -19,6 +21,13 @@ export const companyService = {
 
   async createOnboarding(payload: Onboarding) {
     return await client.post('/onboarding', payload)
+  },
+
+  async createOnboardingWithPayment(payload: OnboardingWithPayment) {
+    return await client.post<OnboardingWithPaymentResponse>(
+      '/onboarding/with-payment',
+      payload
+    )
   },
 
   async getCompany(companyId: string) {
@@ -58,6 +67,10 @@ export const scheduleService = {
 export const selfOnboardingService = {
   async getAllPlans() {
     return await client.get<Plan[]>('/onboarding/plans')
+  },
+
+  async getSubscriptionPlan() {
+    return await client.get<Plan>('/onboarding/subscription-plan')
   },
 
   async getPartner(id: string) {

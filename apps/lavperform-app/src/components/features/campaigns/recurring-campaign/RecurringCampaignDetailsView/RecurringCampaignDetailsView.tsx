@@ -1,4 +1,3 @@
-import { useChart } from '@chakra-ui/charts'
 import { Box, Center, Spinner, Stack, Tabs, Text, useTabs } from '@chakra-ui/react'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { LuChartColumnBig, LuFileText, LuTriangleAlert } from 'react-icons/lu'
@@ -75,7 +74,7 @@ const INITIAL_METRICS = {
 }
 
 function RecurringCampaignDetailsView({ data, onClose }: Props) {
-  const { colorPalette, theme } = useWhiteLabel()
+  const { theme } = useWhiteLabel()
   const hasDelivery = theme.features.hasDelivery
 
   const { selectedCompany } = useAuth()
@@ -157,43 +156,6 @@ function RecurringCampaignDetailsView({ data, onClose }: Props) {
     fetchCampaignMetrics().catch(() => {})
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [fetchCampaignMetrics])
-
-  const chartData = useMemo(
-    () => [...campaignMetrics.messagesSentByDate],
-    [campaignMetrics.messagesSentByDate]
-  )
-
-  const chartSeries = useMemo<
-    {
-      name: 'messages' | 'clicks' | 'sales'
-      label: string
-      color: string
-    }[]
-  >(
-    () => [
-      {
-        name: 'messages',
-        label: 'Enviadas',
-        color: `${colorPalette}.400`,
-      },
-      {
-        name: 'clicks',
-        label: 'Cliques',
-        color: 'orange.400',
-      },
-      {
-        name: 'sales',
-        label: 'Vendas',
-        color: 'red.400',
-      },
-    ],
-    [colorPalette]
-  )
-
-  const chart = useChart({
-    data: chartData,
-    series: chartSeries,
-  })
 
   const handleClose = useCallback(() => {
     onClose()
@@ -311,8 +273,6 @@ function RecurringCampaignDetailsView({ data, onClose }: Props) {
           >
             <PerformanceTab
               campaignId={campaign.id}
-              chart={chart}
-              chartSeries={chartSeries}
               companyId={selectedCompany?.id}
               dateRange={dateRange}
               metrics={campaignMetrics}

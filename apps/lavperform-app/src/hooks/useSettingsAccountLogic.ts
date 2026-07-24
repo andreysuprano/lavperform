@@ -27,6 +27,8 @@ export interface Subscription {
       name: string
       description: string
       price: string
+      allowBoleto?: boolean
+      allowPix?: boolean
       createdAt: string
       updatedAt: string
     }
@@ -183,6 +185,16 @@ const formatCpfCnpj = (value: string | undefined | null): string => {
   return cleanValue
 }
 
+function getAlternativePaymentLabel(
+  allowBoleto: boolean,
+  allowPix: boolean
+): string {
+  if (allowBoleto && allowPix) return 'Boleto/Pix'
+  if (allowBoleto) return 'Boleto'
+  if (allowPix) return 'Pix'
+  return 'N/A'
+}
+
 export function useSettingsAccountLogic() {
   const { selectedCompany } = useAuth()
   const [company, setCompany] = useState<Company | null>(null)
@@ -197,6 +209,8 @@ export function useSettingsAccountLogic() {
     orderBy: 'createdAt',
     orderDirection: 'desc' as 'asc' | 'desc',
   })
+  const [allowBoleto, setAllowBoleto] = useState(false)
+  const [allowPix, setAllowPix] = useState(false)
 
   const fetchSubscription = useCallback(async () => {
     if (!selectedCompany?.id) return
@@ -205,6 +219,11 @@ export function useSettingsAccountLogic() {
       const { data } = await subscriptionService.listSubscriptions(
         selectedCompany.id
       )
+
+      const planAllowsBoleto = data.internal.plan.allowBoleto ?? false
+      const planAllowsPix = data.internal.plan.allowPix ?? false
+      setAllowBoleto(planAllowsBoleto)
+      setAllowPix(planAllowsPix)
 
       const subscriptionData: SubscriptionTableItem[] = [
         {
@@ -244,6 +263,9 @@ export function useSettingsAccountLogic() {
         selectedCompany.id
       )
 
+      const planAllowsAlternativePayments = allowBoleto || allowPix
+      const alternativeLabel = getAlternativePaymentLabel(allowBoleto, allowPix)
+
       const paymentsTableData: SubscriptionTableItem[] = data.data.map(
         (payment) => ({
           id: payment.id,
@@ -259,8 +281,8 @@ export function useSettingsAccountLogic() {
             ? `${
                 payment.creditCard.creditCardBrand
               } •••• ${payment.creditCard.creditCardNumber.slice(-4)}`
-            : payment.bankSlipUrl
-            ? 'Boleto/Pix'
+            : payment.bankSlipUrl && planAllowsAlternativePayments
+            ? alternativeLabel
             : 'N/A',
         })
       )
@@ -270,7 +292,7 @@ export function useSettingsAccountLogic() {
     } finally {
       setIsLoading(false)
     }
-  }, [selectedCompany])
+  }, [selectedCompany, allowBoleto, allowPix])
 
   const fetchCompany = useCallback(async () => {
     if (!selectedCompany?.id) return
@@ -382,13 +404,16 @@ export function useSettingsAccountLogic() {
   useEffect(() => {
     fetchCompany()
     fetchSubscription()
+  }, [selectedCompany?.id, fetchCompany, fetchSubscription])
+
+  useEffect(() => {
     fetchPayments()
   }, [
     selectedCompany?.id,
     params.page,
     params.limit,
-    fetchCompany,
-    fetchSubscription,
+    allowBoleto,
+    allowPix,
     fetchPayments,
   ])
 
@@ -411,7 +436,14 @@ export function useSettingsAccountLogic() {
   // Memoize derived values
   const derivedValues = useMemo(() => {
     const latestInvoice = assas?.[0]
-    const isLastInvoiceBoletoOrPix = latestInvoice?.card === 'Boleto/Pix'
+    const planAllowsAlternativePayments = allowBoleto || allowPix
+    const alternativePaymentLabel = getAlternativePaymentLabel(
+      allowBoleto,
+      allowPix
+    )
+    const isLastInvoiceBoletoOrPix =
+      planAllowsAlternativePayments &&
+      latestInvoice?.card === alternativePaymentLabel
     const subscriptionCard = subscription[0]?.card
     const hasCard = subscriptionCard && subscriptionCard !== 'N/A'
 
@@ -420,8 +452,12 @@ export function useSettingsAccountLogic() {
       isLastInvoiceBoletoOrPix,
       subscriptionCard,
       hasCard,
+      allowBoleto,
+      allowPix,
+      planAllowsAlternativePayments,
+      alternativePaymentLabel,
     }
-  }, [assas, subscription])
+  }, [assas, subscription, allowBoleto, allowPix])
 
   // Memoize handlers
   const handlers = useMemo(

@@ -38,18 +38,17 @@ const CustomerSummaryWidgetComponent = ({
         return (
           <Badge
             as="div"
-            bg={card.count ? 'bg' : 'bg.emphasized'}
-            borderColor={isSelected ? colors.primary : undefined}
-            borderWidth={isSelected ? '2px' : undefined}
-            colorPalette={'gray'}
+            bg={card.count ? 'bg.panel' : 'bg.muted'}
+            borderColor={isSelected ? colors.primary : 'border'}
+            borderWidth="1px"
+            colorPalette="gray"
             cursor={onSegmentationToggle ? 'pointer' : 'default'}
-            justifyContent={'space-between'}
+            justifyContent="space-between"
             key={idx}
-            opacity={card.count ? 1 : 0.6}
+            opacity={card.count ? 1 : 0.55}
             px={3}
             py={2}
-            transform={isSelected ? 'scale(1.02)' : 'scale(1)'}
-            transition="all 0.15s"
+            transition="border-color 0.15s ease, background 0.15s ease"
             userSelect="none"
             variant="outline"
             onClick={
@@ -61,18 +60,28 @@ const CustomerSummaryWidgetComponent = ({
               onSegmentationToggle && card.count
                 ? {
                     borderColor: colors.primary,
-                    transform: isSelected ? 'scale(1.02)' : 'scale(1.01)',
+                    bg: 'bg.subtle',
                   }
                 : undefined
             }
           >
             <Text
               as="span"
-              fontWeight="bold"
+              color="fg"
+              fontSize="xs"
+              fontWeight="medium"
             >
               {card.icon} {card.label}
             </Text>
-            <Text as="span">{card.count}</Text>
+            <Text
+              as="span"
+              color="fg"
+              fontSize="sm"
+              fontWeight="bold"
+              fontVariantNumeric="tabular-nums"
+            >
+              {card.count}
+            </Text>
           </Badge>
         )
       })}

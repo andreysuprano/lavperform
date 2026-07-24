@@ -6,34 +6,51 @@ import type { RFVLevel } from '@/types'
 import { RFVLevelItem } from '../RFVLevelItem/RFVLevelItem'
 import type { Props } from './RFVSection.types'
 
+function formatMinValue(
+  dimension: RFVLevel['dimension'],
+  minValue: number | null
+): string {
+  const value = minValue ?? 0
+
+  if (dimension === 'MONETARY') {
+    return value.toLocaleString('pt-BR', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    })
+  }
+
+  return String(Math.round(value))
+}
+
+/**
+ * Monta o texto de intervalo de cada nível a partir dos valores reais vindos do
+ * backend (level.minValue). O input mostra o limite superior (level.maxValue),
+ * que é o threshold real; os níveis extremos (5 e 1) são abertos.
+ */
 function buildRowCopy(params: {
   dimension: RFVLevel['dimension']
   badgeLevel: number
+  level: RFVLevel
 }): { beforeInput: string; afterInput?: string } {
-  const { dimension, badgeLevel } = params
+  const { dimension, badgeLevel, level } = params
+  const min = formatMinValue(dimension, level.minValue)
 
   if (dimension === 'RECENCY') {
     if (badgeLevel === 5) return { beforeInput: 'Até', afterInput: 'dias desde o último pedido' }
-    if (badgeLevel === 4) return { beforeInput: 'De 11 a', afterInput: 'dias desde o último pedido' }
-    if (badgeLevel === 3) return { beforeInput: 'De 16 a', afterInput: 'dias desde o último pedido' }
-    if (badgeLevel === 2) return { beforeInput: 'De 46 a', afterInput: 'dias desde o último pedido' }
-    return { beforeInput: 'Acima de', afterInput: 'dias desde o último pedido' }
+    if (badgeLevel === 1) return { beforeInput: 'Acima de', afterInput: 'dias desde o último pedido' }
+    return { beforeInput: `De ${min} a`, afterInput: 'dias desde o último pedido' }
   }
 
   if (dimension === 'FREQUENCY') {
     if (badgeLevel === 5) return { beforeInput: 'A partir de', afterInput: 'pedidos feitos.' }
-    if (badgeLevel === 4) return { beforeInput: 'De', afterInput: 'a 9 pedidos feitos.' }
-    if (badgeLevel === 3) return { beforeInput: 'De', afterInput: 'a 7 pedidos feitos.' }
-    if (badgeLevel === 2) return { beforeInput: 'De', afterInput: 'a 4 pedidos feitos.' }
-    return { beforeInput: 'Até', afterInput: 'pedidos feitos.' }
+    if (badgeLevel === 1) return { beforeInput: 'Até', afterInput: 'pedidos feitos.' }
+    return { beforeInput: `De ${min} a`, afterInput: 'pedidos feitos.' }
   }
 
-  // MONETARY
+  // MONETARY (ticket médio)
   if (badgeLevel === 5) return { beforeInput: 'Ticket médio a partir de R$' }
-  if (badgeLevel === 4) return { beforeInput: 'Ticket médio de R$', afterInput: 'a R$69,99' }
-  if (badgeLevel === 3) return { beforeInput: 'Ticket médio de R$', afterInput: 'a R$58,99' }
-  if (badgeLevel === 2) return { beforeInput: 'Ticket médio de R$', afterInput: 'a R$38,99' }
-  return { beforeInput: 'Ticket médio até R$' }
+  if (badgeLevel === 1) return { beforeInput: 'Ticket médio até R$' }
+  return { beforeInput: `Ticket médio de R$ ${min} a R$` }
 }
 
 function RFVSectionBase({
@@ -59,7 +76,7 @@ function RFVSectionBase({
           <VStack align="stretch" gap={3}>
             {levels.map((level, index) => {
               const badgeLevel = levels.length - index
-              const { beforeInput, afterInput } = buildRowCopy({ dimension, badgeLevel })
+              const { beforeInput, afterInput } = buildRowCopy({ dimension, badgeLevel, level })
 
               return (
               <RFVLevelItem

@@ -73,8 +73,17 @@ const formatCNPJ = (cnpj?: string) => {
   return cnpj
 }
 
-function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
-  const [activeTab, setActiveTab] = useState<'pix' | 'boleto'>('pix')
+function InvoiceDetailsDrawerComponent({
+  data,
+  company,
+  onClose,
+  allowBoleto = false,
+  allowPix = false,
+  planAllowsAlternativePayments = false,
+  alternativePaymentLabel = 'Boleto/Pix',
+}: Props) {
+  const defaultTab = allowPix ? 'pix' : 'boleto'
+  const [activeTab, setActiveTab] = useState<'pix' | 'boleto'>(defaultTab)
   const [paymentDetails, setPaymentDetails] = useState<PaymentDetails | null>(
     null
   )
@@ -85,11 +94,11 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
     if (!data) return
 
     const isInvoice = !!data.invoiceNumber
-    const isBoletoOrPix = data.card === 'Boleto/Pix'
+    const isAlternativePayment = data.card === alternativePaymentLabel
 
     if (!selectedCompany?.id || !data.id) return
 
-    if (!isInvoice || !isBoletoOrPix) {
+    if (!isInvoice || !isAlternativePayment || !planAllowsAlternativePayments) {
       setPaymentDetails(null)
       return
     }
@@ -114,7 +123,12 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
     } finally {
       setIsLoadingDetails(false)
     }
-  }, [selectedCompany?.id, data])
+  }, [
+    selectedCompany?.id,
+    data,
+    alternativePaymentLabel,
+    planAllowsAlternativePayments,
+  ])
 
   useEffect(() => {
     fetchPaymentDetails()
@@ -126,6 +140,7 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
   const mappedStatus = statusMap[rawStatus] || rawStatus
   const color =
     statusColorMap[rawStatus] || statusColorMap[mappedStatus] || 'gray'
+  const isAlternativePayment = data.card === alternativePaymentLabel
 
   const invoiceData = {
     number: data.id,
@@ -170,7 +185,7 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
 
   const renderTabContent = () => {
     const isSubscriptionItem = !data.invoiceNumber
-    const isCreditCardPayment = data.card !== 'Boleto/Pix'
+    const isCreditCardPayment = !isAlternativePayment
 
     if (isSubscriptionItem) {
       return (
@@ -220,21 +235,30 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
             fontWeight="bold"
             mb={3}
           >
-            Pagamento via Cartão de Crédito
+            {data.card === 'N/A'
+              ? 'Pagamento pendente'
+              : 'Pagamento via Cartão de Crédito'}
           </Text>
           <Stack gap={2}>
-            <Text fontSize="sm">
-              Esta fatura foi paga (ou será debitada) usando o Cartão de
-              Crédito:
-              <Text
-                as="span"
-                fontWeight="semibold"
-              >
-                {' '}
-                {data.card}
+            {data.card === 'N/A' ? (
+              <Text fontSize="sm">
+                Cadastre um cartão de crédito para concluir o pagamento desta
+                fatura.
               </Text>
-              .
-            </Text>
+            ) : (
+              <Text fontSize="sm">
+                Esta fatura foi paga (ou será debitada) usando o Cartão de
+                Crédito:
+                <Text
+                  as="span"
+                  fontWeight="semibold"
+                >
+                  {' '}
+                  {data.card}
+                </Text>
+                .
+              </Text>
+            )}
             <Text fontSize="sm">
               <Text
                 as="span"
@@ -262,7 +286,7 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
       return <Text>Carregando detalhes do pagamento...</Text>
     }
 
-    if (activeTab === 'pix' && paymentDetails?.pixQrCode) {
+    if (activeTab === 'pix' && allowPix && paymentDetails?.pixQrCode) {
       return (
         <Box
           bg="bg.muted"
@@ -321,7 +345,7 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
       )
     }
 
-    if (activeTab === 'boleto' && paymentDetails?.barcode) {
+    if (activeTab === 'boleto' && allowBoleto && paymentDetails?.barcode) {
       const barcodeValue = paymentDetails.barcode.barCode.replace(/\s/g, '')
 
       return (
@@ -625,41 +649,47 @@ function InvoiceDetailsDrawerComponent({ data, company, onClose }: Props) {
           >
             Informações de Pagamento
           </Text>
-          {data.card === 'Boleto/Pix' && data.invoiceNumber && (
+          {isAlternativePayment &&
+            data.invoiceNumber &&
+            planAllowsAlternativePayments && (
             <Flex
               borderBottom="1px solid"
               borderColor="border.emphasized"
               gap={1}
               mb={4}
             >
-              <Button
-                borderBottom={activeTab === 'pix' ? '2px solid' : 'none'}
-                borderBottomColor={
-                  activeTab === 'pix' ? 'colorPalette.solid' : 'transparent'
-                }
-                borderRadius="0"
-                colorPalette={activeTab === 'pix' ? 'blue' : 'gray'}
-                fontWeight="medium"
-                onClick={() => setActiveTab('pix')}
-                size="sm"
-                variant="ghost"
-              >
-                Pix
-              </Button>
-              <Button
-                borderBottom={activeTab === 'boleto' ? '2px solid' : 'none'}
-                borderBottomColor={
-                  activeTab === 'boleto' ? 'colorPalette.solid' : 'transparent'
-                }
-                borderRadius="0"
-                colorPalette={activeTab === 'boleto' ? 'blue' : 'gray'}
-                fontWeight="medium"
-                onClick={() => setActiveTab('boleto')}
-                size="sm"
-                variant="ghost"
-              >
-                Boleto
-              </Button>
+              {allowPix && (
+                <Button
+                  borderBottom={activeTab === 'pix' ? '2px solid' : 'none'}
+                  borderBottomColor={
+                    activeTab === 'pix' ? 'colorPalette.solid' : 'transparent'
+                  }
+                  borderRadius="0"
+                  colorPalette={activeTab === 'pix' ? 'blue' : 'gray'}
+                  fontWeight="medium"
+                  onClick={() => setActiveTab('pix')}
+                  size="sm"
+                  variant="ghost"
+                >
+                  Pix
+                </Button>
+              )}
+              {allowBoleto && (
+                <Button
+                  borderBottom={activeTab === 'boleto' ? '2px solid' : 'none'}
+                  borderBottomColor={
+                    activeTab === 'boleto' ? 'colorPalette.solid' : 'transparent'
+                  }
+                  borderRadius="0"
+                  colorPalette={activeTab === 'boleto' ? 'blue' : 'gray'}
+                  fontWeight="medium"
+                  onClick={() => setActiveTab('boleto')}
+                  size="sm"
+                  variant="ghost"
+                >
+                  Boleto
+                </Button>
+              )}
             </Flex>
           )}
           {renderTabContent()}

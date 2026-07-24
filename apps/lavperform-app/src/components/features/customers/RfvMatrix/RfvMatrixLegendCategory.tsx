@@ -8,6 +8,11 @@ import {
   RFV_SEGMENT_COLORS,
   RFV_SEGMENT_DESCRIPTIONS,
   RFV_SEGMENT_POSITIONS,
+  LEAD_CATEGORY_COLOR,
+  LEAD_SEGMENT_COLOR,
+  LEAD_SEGMENT_DESCRIPTION,
+  LEAD_SEGMENT_KEY,
+  LEAD_SEGMENT_LABEL,
 } from '@/utils/constants/rfvMatrix'
 
 interface Props {
@@ -26,6 +31,18 @@ function RfvMatrixLegendCategoryBase({
   const { colors } = useWhiteLabel()
   const categorySegments = category.segments
     .map((segmentKey) => {
+      if (segmentKey === LEAD_SEGMENT_KEY) {
+        const segmentData = data?.[segmentKey]
+        return {
+          key: segmentKey,
+          label: LEAD_SEGMENT_LABEL,
+          color: LEAD_SEGMENT_COLOR,
+          description: LEAD_SEGMENT_DESCRIPTION,
+          count: segmentData?.count || 0,
+          percentage: segmentData?.percentage || 0,
+        }
+      }
+
       const position = RFV_SEGMENT_POSITIONS.find((p) => p.key === segmentKey)
       const segmentData = data?.[segmentKey]
       if (!position) return null
@@ -50,6 +67,7 @@ function RfvMatrixLegendCategoryBase({
     neutros: 'gray.400',
     atencao: 'orange.400',
     criticos: 'red.500',
+    leads: LEAD_CATEGORY_COLOR,
   }
   const categoryColor = categoryColorMap[category.id] || 'gray.400'
 

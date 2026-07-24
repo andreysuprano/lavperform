@@ -7,5 +7,5 @@ export interface Props {
   label: string
   size?: 'sm' | 'md'
   value: number | string
-  valueType?: 'number' | 'percent' | 'currency' | 'currency-full'
+  valueType?: 'number' | 'percent' | 'currency' | 'currency-full' | 'text'
 }

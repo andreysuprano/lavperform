@@ -1,5 +1,5 @@
 import { Button, Steps } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useId, useRef, useState } from 'react'
 import { RiSaveLine } from 'react-icons/ri'
 
 import type { ChannelKey } from '@/components/features/channels/channelCatalog.constants'
@@ -12,6 +12,7 @@ import {
   buildAutomaticCampaignPayload,
   resolveCreativeTitleForApi,
 } from '@/utils/campaigns/buildAutomaticCampaignPayload'
+import { resolveCampaignTargetingFromApi } from '@/utils/campaigns/resolveCampaignTargetingFromApi'
 import { isWhatsAppBusinessApiChannel } from '@/utils/campaigns/isWhatsAppBusinessApiChannel'
 import { uploadCampaignCreativeImages } from '@/utils/campaigns/uploadCampaignCreativeImages'
 import { toHtmlDateInputValue } from '@/utils/date'
@@ -19,6 +20,7 @@ import { logger } from '@/utils/logger'
 import { WEEKDAYS } from '@/utils/weekdays'
 
 import { DEFAULT_MAX_DAILY_SENDS } from '../constants'
+import { getWizardFormId } from '../wizardFormId'
 import { inferSendScheduleMode } from '../sendSchedule.utils'
 import { CardResume } from '../CreateRecurringCampaignForm/CardResume'
 import { Channels } from '../CreateRecurringCampaignForm/FormSteps/Channels'
@@ -129,12 +131,8 @@ const reverseDayShortToValue = Object.fromEntries(
 function mapCampaignToFormData(campaignData: RecurringCampaign): FormDataProps {
   const imagesArray = parseImagesField(campaignData.images)
 
-  const segmentationArray = campaignData.segmentation
-    ? campaignData.segmentation
-        .split(',')
-        .map((seg) => seg.trim())
-        .filter(Boolean)
-    : []
+  const { targetingMode, audienceId, segmentation: segmentationArray } =
+    resolveCampaignTargetingFromApi(campaignData)
 
   let couponId =
     typeof campaignData.couponId === 'string' &&
@@ -219,6 +217,8 @@ function mapCampaignToFormData(campaignData: RecurringCampaign): FormDataProps {
     incitation,
     maxDailySends: campaignData.maxDailySends ?? DEFAULT_MAX_DAILY_SENDS,
     name: campaignData.name || '',
+    targetingMode,
+    audienceId,
     segmentation: segmentationArray,
     daysOfWeek: campaignData.daysOfWeek || [],
     startDate: toHtmlDateInputValue(campaignData.startDate),
@@ -243,6 +243,7 @@ const EditRecurringCampaignFormComponent = ({
   onClose,
 }: Props) => {
   const { colorPalette } = useWhiteLabel()
+  const wizardFormId = useId().replace(/:/g, '')
 
   const [step, setStep] = useState(0)
   const [data, setData] = useState<FormDataProps | null>(null)
@@ -316,8 +317,12 @@ const EditRecurringCampaignFormComponent = ({
   }
 
   const goToNextStep = () => {
-    setStep(step + 1)
+    setStep((current) => current + 1)
   }
+
+  const submitCurrentStep = useCallback(() => {
+    document.getElementById(getWizardFormId(wizardFormId, step))?.requestSubmit()
+  }, [step, wizardFormId])
 
   function handleClose() {
     setStep(0)
@@ -477,8 +482,8 @@ const EditRecurringCampaignFormComponent = ({
                 isFormLoading ||
                 (step === 3 && isCreativeFormOpen)
               }
-              form={`hook-form-${step}`}
-              type="submit"
+              onClick={submitCurrentStep}
+              type="button"
             >
               Avançar
             </Button>
@@ -542,6 +547,7 @@ const EditRecurringCampaignFormComponent = ({
               saveData(payload)
             }}
             wizardContext="edit"
+            wizardFormId={wizardFormId}
           />
         </Steps.Content>
         <Steps.Content index={1}>
@@ -553,6 +559,7 @@ const EditRecurringCampaignFormComponent = ({
               saveData(payload)
             }}
             wizardContext="edit"
+            wizardFormId={wizardFormId}
           />
         </Steps.Content>
         <Steps.Content index={2}>
@@ -564,6 +571,7 @@ const EditRecurringCampaignFormComponent = ({
               saveData(payload)
             }}
             wizardContext="edit"
+            wizardFormId={wizardFormId}
           />
         </Steps.Content>
         <Steps.Content index={3}>
@@ -576,6 +584,7 @@ const EditRecurringCampaignFormComponent = ({
                 saveData(payload)
               }}
               wizardContext="edit"
+              wizardFormId={wizardFormId}
             />
           ) : (
             <Creative
@@ -588,6 +597,7 @@ const EditRecurringCampaignFormComponent = ({
                 saveData(payload)
               }}
               wizardContext="edit"
+              wizardFormId={wizardFormId}
             />
           )}
         </Steps.Content>

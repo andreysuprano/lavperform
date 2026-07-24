@@ -1,8 +1,7 @@
-import { Chart, useChart } from '@chakra-ui/charts'
 import { Box, Card, FormatNumber, Stat, Text } from '@chakra-ui/react'
-import { Area, AreaChart, YAxis } from 'recharts'
+import { Area, AreaChart, ResponsiveContainer, YAxis } from 'recharts'
 
-import { useWhiteLabel } from '@/config'
+import { RechartsFrame, useRechartsTheme } from '@/hooks/useRechartsTheme'
 
 import { Props } from './ChartMetricCard.types'
 
@@ -16,21 +15,16 @@ const ChartMetricCard = ({
   maxValue = 100,
   showTrend = false,
 }: Props) => {
-  const { colorPalette } = useWhiteLabel()
-
-  const chart = useChart({
-    data: [...data],
-    series: [{ color: `${colorPalette}.400` }],
-  })
-
+  const { color, colorPalette } = useRechartsTheme()
+  const seriesColor = color(`${colorPalette}.400`)
   const trend = data.length && data[0].value / maxValue
 
   return (
     <Card.Root
       flex={1}
       flexGrow={1}
-      overflow={'hidden'}
-      size={'sm'}
+      overflow="hidden"
+      size="sm"
     >
       <Card.Body
         p={2}
@@ -43,7 +37,7 @@ const ChartMetricCard = ({
             display="flex"
             fontSize="xs"
             gap={2}
-            lineHeight={'shorter'}
+            lineHeight="shorter"
           >
             {Icon && <Icon size={20} />} {label}
           </Stat.Label>
@@ -63,13 +57,13 @@ const ChartMetricCard = ({
           )}
         </Stat.Root>
       </Card.Body>
-      <Box position={'relative'}>
+      <Box position="relative">
         {showTrend && (
           <Text
             bottom={0}
             fontSize="2xs"
             left={2}
-            position={'absolute'}
+            position="absolute"
             zIndex={1}
           >
             <FormatNumber
@@ -79,32 +73,32 @@ const ChartMetricCard = ({
             />
           </Text>
         )}
-        <Chart.Root
-          chart={chart}
-          height="10"
-        >
-          <AreaChart
-            data={chart.data}
-            margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+        <RechartsFrame h="40px">
+          <ResponsiveContainer
+            height="100%"
+            width="100%"
           >
-            <YAxis
-              domain={[0, maxValue ? maxValue : 'auto']}
-              hide={true}
-            />
-            {chart.series.map((item, index) => (
+            <AreaChart
+              data={data}
+              margin={{ top: 0, right: 0, left: 0, bottom: 0 }}
+            >
+              <YAxis
+                domain={[0, maxValue ? maxValue : 'auto']}
+                hide
+              />
               <Area
                 activeDot={false}
-                dataKey={chart.key(item.name)}
-                fill={chart.color(item.color)}
+                dataKey="value"
+                fill={seriesColor}
                 fillOpacity={0.2}
                 isAnimationActive={false}
-                key={index}
-                stroke={chart.color(item.color)}
+                stroke={seriesColor}
                 strokeWidth={2}
+                type="monotone"
               />
-            ))}
-          </AreaChart>
-        </Chart.Root>
+            </AreaChart>
+          </ResponsiveContainer>
+        </RechartsFrame>
       </Box>
     </Card.Root>
   )

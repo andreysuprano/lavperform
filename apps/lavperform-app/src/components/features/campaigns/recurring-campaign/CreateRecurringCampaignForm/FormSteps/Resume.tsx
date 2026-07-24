@@ -4,10 +4,13 @@ import { PiEmpty } from 'react-icons/pi'
 
 import { DisplaySelectedWeekday } from '@/components'
 import { CampaignCouponCard } from '@/components/features/campaigns/coupons/CampaignCouponCard/CampaignCouponCard'
+import { MetaTemplatePreview } from '@/components/features/campaigns/meta-templates/MetaTemplatePreview'
+import { getTemplateDisplayLabel } from '@/components/features/campaigns/meta-templates/metaTemplate.utils'
 import { CHANNEL_CATALOG } from '@/components/features/channels/channelCatalog.constants'
 import { useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import { useCompanyCoupons } from '@/hooks/queries'
+import { useMetaTemplates } from '@/hooks/queries/useMetaTemplates'
 import { formatCurrency } from '@/utils/money'
 
 import { DEFAULT_MAX_DAILY_SENDS, discountTypeItems, incitationItems } from '../../constants'
@@ -62,6 +65,15 @@ export function Resume(props: FormStepsProps) {
 
   const usesOfficialTemplate = isWhatsAppBusinessApiChannel(props.formData?.channels)
 
+  const { data: metaTemplates = [] } = useMetaTemplates(selectedCompany?.id)
+  const selectedMetaTemplate = useMemo(
+    () =>
+      metaTemplates.find(
+        (template) => template.id === props.formData?.metaMessageTemplateId,
+      ),
+    [metaTemplates, props.formData?.metaMessageTemplateId],
+  )
+
   const showIncentiveDetails =
     !!incitation?.title &&
     !(props.formData.incitation === 'tax' && !hasDelivery) &&
@@ -93,9 +105,21 @@ export function Resume(props: FormStepsProps) {
           <Text fontWeight="bold">Template da campanha:</Text>
           <Text mb={2}>
             {props.formData.selectedMetaTemplateLabel ||
+              (selectedMetaTemplate
+                ? getTemplateDisplayLabel(selectedMetaTemplate)
+                : null) ||
               props.formData.metaMessageTemplateId ||
               'Nenhum template selecionado'}
           </Text>
+          {selectedMetaTemplate && (
+            <Box mb={4}>
+              <MetaTemplatePreview
+                components={selectedMetaTemplate.components}
+                headerMediaUrl={selectedMetaTemplate.headerMediaUrl}
+                name={getTemplateDisplayLabel(selectedMetaTemplate)}
+              />
+            </Box>
+          )}
           {(props.formData.metaTemplateVariableMappings?.length ?? 0) > 0 && (
             <>
               <Text fontWeight="bold">Variáveis:</Text>

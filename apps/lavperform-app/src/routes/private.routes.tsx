@@ -24,6 +24,16 @@ const BaseDeClientesPage = lazy(() =>
     default: module.BaseDeClientesPage,
   }))
 )
+const AudiencesPage = lazy(() =>
+  import('@/pages/customers/AudiencesPage').then((module) => ({
+    default: module.AudiencesPage,
+  }))
+)
+const CustomerInsightsPage = lazy(() =>
+  import('@/pages/customers/CustomerInsightsPage').then((module) => ({
+    default: module.CustomerInsightsPage,
+  }))
+)
 const CampaignIndexPage = lazy(() =>
   import('@/pages/campaign/CampaignIndexPage').then((module) => ({
     default: module.CampaignIndexPage,
@@ -209,6 +219,14 @@ export function PrivateRoutes() {
         <Route
           element={<DetailClientsPage />}
           path="/customers/ClientDetails"
+        />
+        <Route
+          element={<AudiencesPage />}
+          path="/customers/audiences"
+        />
+        <Route
+          element={<CustomerInsightsPage />}
+          path="/customers/insights"
         />
         <Route
           element={<RfvAttributionWindowPage />}

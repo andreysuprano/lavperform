@@ -21,6 +21,8 @@ export const queryKeys = {
     all: ['dashboard'] as const,
     customers: (companyId: string) =>
       ['dashboard', 'customers', companyId] as const,
+    customersInsights: (companyId: string) =>
+      ['dashboard', 'customers-insights', companyId] as const,
     campaigns: (companyId: string, interval: string) =>
       ['dashboard', 'campaigns', companyId, interval] as const,
   },
@@ -46,12 +48,30 @@ export const queryKeys = {
       ['customers', 'detail', customerId] as const,
     summary: (companyId: string) =>
       ['customers', 'summary', companyId] as const,
+    topBuyers: (
+      companyId: string,
+      limit: number,
+      sortBy: 'totalSpent' | 'orderCount' = 'totalSpent'
+    ) => ['customers', 'top-buyers', companyId, limit, sortBy] as const,
     orders: (customerId: string) =>
       ['customers', 'orders', customerId] as const,
     rfvMatrix: (companyId: string) =>
       ['customers', 'rfv-matrix', companyId] as const,
     rfvSettings: (companyId: string) =>
       ['customers', 'rfv-settings', companyId] as const,
+  },
+
+  audiences: {
+    all: ['audiences'] as const,
+    lists: (companyId: string) => ['audiences', 'list', companyId] as const,
+    list: (companyId: string, params: any) =>
+      ['audiences', 'list', companyId, params] as const,
+    detail: (companyId: string, audienceId: string) =>
+      ['audiences', 'detail', companyId, audienceId] as const,
+    criteria: (companyId: string) =>
+      ['audiences', 'criteria', companyId] as const,
+    preview: (companyId: string, definition: unknown) =>
+      ['audiences', 'preview', companyId, definition] as const,
   },
 
   campaigns: {

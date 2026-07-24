@@ -1,4 +1,8 @@
-import type { DashCampaignsProps, DashCustomersProps } from '@/types'
+import type {
+  DashCampaignsProps,
+  DashCustomersInsightsProps,
+  DashCustomersProps,
+} from '@/types'
 
 import { client } from './client'
 
@@ -18,6 +22,12 @@ export const dashboardService = {
   async getCustomers(companyId: string) {
     return await client.get<DashCustomersProps>(
       `/dashboard/customers-summary/${companyId}`
+    )
+  },
+
+  async getCustomersInsights(companyId: string) {
+    return await client.get<DashCustomersInsightsProps>(
+      `/dashboard/customers-insights/${companyId}`
     )
   },
 

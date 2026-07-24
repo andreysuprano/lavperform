@@ -48,6 +48,27 @@ export interface CustomerResponse {
   meta: PaginationMeta
 }
 
+export interface TopBuyerCustomer {
+  customerId: string
+  name: string
+  phone: string | null
+  email: string | null
+  rfvClassification: string | null
+  averageTicket: number
+  lastOrderDate: string | null
+  totalSpent: number
+  orderCount: number
+  companyId: string
+  whatsappOptin: boolean
+  createdAt: string
+  updatedAt: string
+  birthDate: string | null
+}
+
+export interface TopBuyersResponse {
+  items: TopBuyerCustomer[]
+}
+
 export interface CustomerFormData {
   name: string
   phone: string
@@ -351,6 +372,7 @@ export interface RfvMatrixData {
   em_risco: RfvSegmentData
   hibernando: RfvSegmentData
   perdido: RfvSegmentData
+  lead: RfvSegmentData
 }
 
 /**

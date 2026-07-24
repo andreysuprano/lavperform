@@ -1,10 +1,10 @@
-import { HStack, Stack, VStack } from '@chakra-ui/react'
+import { HStack, RadioGroup, Stack, VStack } from '@chakra-ui/react'
 import { yupResolver } from '@hookform/resolvers/yup'
-import { useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { useEffect, useMemo } from 'react'
+import { Controller, FieldErrors, useForm } from 'react-hook-form'
 import * as yup from 'yup'
 
-import { Input, SegmentationSelect, WeekdaySelect } from '@/components'
+import { AudienceSelect, Input, SegmentationSelect, WeekdaySelect, toaster } from '@/components'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { WEEKDAYS } from '@/utils/weekdays'
 
@@ -13,6 +13,7 @@ import { maxDailySendsYupField } from '../../maxDailySends.validation'
 import { sendScheduleYupFields } from '../../sendSchedule.validation'
 import { inferSendScheduleMode } from '../../sendSchedule.utils'
 import { SendScheduleFields } from '../../SendScheduleFields'
+import { getWizardFormId } from '../../wizardFormId'
 import { CardResume } from '../CardResume'
 import { FormDataProps, FormStepsProps } from './FormSteps.types'
 
@@ -29,10 +30,21 @@ function buildDetailsSchema(opts: {
 }) {
   return yup.object({
     name: yup.string().required('Informe o nome da campanha'),
-    segmentation: yup
-      .array()
-      .min(1, 'Informe ao menos 1 segmento')
-      .required('Informe os segmentos da campanha'),
+    targetingMode: yup
+      .mixed<'RFV' | 'AUDIENCE'>()
+      .oneOf(['RFV', 'AUDIENCE'])
+      .default('RFV'),
+    segmentation: yup.array().when('targetingMode', {
+      is: (mode: string) => mode === 'RFV',
+      then: (schema) =>
+        schema.min(1, 'Informe ao menos 1 segmento').required('Informe os segmentos da campanha'),
+      otherwise: (schema) => schema.optional(),
+    }),
+    audienceId: yup.string().when('targetingMode', {
+      is: (mode: string) => mode === 'AUDIENCE',
+      then: (schema) => schema.required('Selecione uma audiência'),
+      otherwise: (schema) => schema.nullable().optional(),
+    }),
     startDate: yup
       .string()
       .required('A data de início é obrigatória')
@@ -99,11 +111,11 @@ export function Details(props: FormStepsProps) {
     [isEdit]
   )
 
-  const { handleSubmit, control, watch, register } = useForm<FormData>({
-    mode: 'onChange',
-    resolver: yupResolver<FormData, any, any>(schema),
-    values: {
+  const defaultValues = useMemo(
+    () => ({
       name: props.formData?.name || '',
+      targetingMode: props.formData?.targetingMode ?? 'RFV',
+      audienceId: props.formData?.audienceId ?? null,
       segmentation:
         props.formData?.segmentation?.length &&
         Array.isArray(props.formData.segmentation)
@@ -121,16 +133,46 @@ export function Details(props: FormStepsProps) {
         ),
       sendTimeStart: props.formData?.sendTimeStart ?? '',
       sendTimeEnd: props.formData?.sendTimeEnd ?? '',
-    },
-  })
+    }),
+    [props.formData],
+  )
+
+  const { handleSubmit, control, watch, register, reset, setValue } =
+    useForm<FormData>({
+      mode: 'onChange',
+      resolver: yupResolver<FormData, any, any>(schema),
+      defaultValues,
+      shouldUnregister: true,
+    })
+
+  useEffect(() => {
+    reset(defaultValues)
+  }, [defaultValues, reset])
 
   const segmentationValue = watch('segmentation')
+  const targetingModeValue = watch('targetingMode')
+  const audienceIdValue = watch('audienceId')
   const maxDailySendsValue = watch('maxDailySends')
   const startDateValue = watch('startDate')
   const endDateValue = watch('endDate')
   const sendScheduleModeValue = watch('sendScheduleMode')
   const sendTimeStartValue = watch('sendTimeStart')
   const sendTimeEndValue = watch('sendTimeEnd')
+
+  const onInvalid = (errors: FieldErrors<FormData>) => {
+    const firstError = Object.values(errors).find(
+      (entry) => entry && typeof entry === 'object' && 'message' in entry,
+    )
+    toaster.create({
+      title: 'Não foi possível avançar',
+      description:
+        (firstError?.message as string | undefined) ??
+        'Verifique os campos obrigatórios do passo Detalhes.',
+      type: 'error',
+      closable: true,
+      duration: 4000,
+    })
+  }
 
   const onSubmit = (formValues: FormData) => {
     const daysOfWeek = formValues.selectedDays
@@ -159,6 +201,8 @@ export function Details(props: FormStepsProps) {
         formData={{
           name: '',
           segmentation: segmentationValue,
+          targetingMode: targetingModeValue,
+          audienceId: audienceIdValue,
           startDate: startDateValue ?? '',
           endDate: endDateValue?.trim() ? endDateValue : null,
           campaignType: props.formData?.campaignType || 'REACTIVATION',
@@ -182,18 +226,59 @@ export function Details(props: FormStepsProps) {
       <Stack
         as="form"
         gap={4}
-        id={`hook-form-${props.id}`}
-        onSubmit={handleSubmit(onSubmit)}
+        id={getWizardFormId(props.wizardFormId ?? 'campaign', props.id ?? 0)}
+        noValidate
+        onSubmit={handleSubmit(onSubmit, onInvalid)}
       >
-        <SegmentationSelect
-          collection={clientTypesOptions}
+        <Controller
           control={control}
-          label="Segmentação"
-          multiple
-          name="segmentation"
-          placeholder="Selecione os tipos de clientes"
-          required
+          name="targetingMode"
+          render={({ field }) => (
+            <RadioGroup.Root
+              onValueChange={({ value }) => {
+                field.onChange(value)
+                if (value === 'AUDIENCE') {
+                  setValue('segmentation', [], { shouldValidate: true })
+                } else {
+                  setValue('audienceId', null, { shouldValidate: true })
+                }
+              }}
+              value={field.value}
+            >
+              <HStack gap={6}>
+                <RadioGroup.Item value="RFV">
+                  <RadioGroup.ItemHiddenInput />
+                  <RadioGroup.ItemIndicator />
+                  <RadioGroup.ItemText>Segmentação RFV</RadioGroup.ItemText>
+                </RadioGroup.Item>
+                <RadioGroup.Item value="AUDIENCE">
+                  <RadioGroup.ItemHiddenInput />
+                  <RadioGroup.ItemIndicator />
+                  <RadioGroup.ItemText>Audiência customizada</RadioGroup.ItemText>
+                </RadioGroup.Item>
+              </HStack>
+            </RadioGroup.Root>
+          )}
         />
+
+        {targetingModeValue === 'RFV' ? (
+          <SegmentationSelect
+            collection={clientTypesOptions}
+            control={control}
+            label="Segmentação RFV"
+            multiple
+            name="segmentation"
+            placeholder="Selecione os tipos de clientes"
+            required
+          />
+        ) : (
+          <AudienceSelect
+            control={control}
+            label="Audiência"
+            name="audienceId"
+            required
+          />
+        )}
         <Input
           control={control}
           label="Nome da campanha"

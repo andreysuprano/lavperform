@@ -1,5 +1,6 @@
 export * from './ads.service'
 export * from './application.service'
+export * from './audience.service'
 export * from './auth.service'
 export * from './campaign.service'
 export * from './campaignAttribution.service'
