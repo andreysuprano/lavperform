@@ -70,6 +70,46 @@ export interface Onboarding {
   planId: string
 }
 
+export interface OnboardingCreditCard {
+  holderName: string
+  number: string
+  expiryMonth: string
+  expiryYear: string
+  ccv: string
+}
+
+export interface OnboardingCreditCardHolderInfo {
+  name: string
+  email: string
+  cpfCnpj: string
+  postalCode: string
+  addressNumber: string
+  phone: string
+}
+
+export interface OnboardingWithPayment {
+  businessPartnerId?: string
+  company: CompanyOnboarding
+  name: string
+  email: string
+  password: string
+  phone: string
+  planId?: string
+  creditCard: OnboardingCreditCard
+  creditCardHolderInfo: OnboardingCreditCardHolderInfo
+}
+
+export interface OnboardingWithPaymentResponse {
+  accountActivated: boolean
+  message?: string
+  payment?: {
+    id?: string
+    status?: string
+    invoiceUrl?: string | null
+    value?: number
+  } | null
+}
+
 export interface CompanyOpeningHour {
   dayOfWeek: string
   openTime: string
@@ -85,6 +125,8 @@ export interface Plan {
   cycle: 'MONTHLY' | 'QUARTERLY' | 'SEMIANNUALLY' | 'YEARLY'
   recommended: boolean
   maxPayments: 1 | 3 | 6 | 12
+  allowBoleto?: boolean
+  allowPix?: boolean
 }
 
 export interface BusinessPartner {

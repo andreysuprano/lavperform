@@ -59,6 +59,13 @@ export type CampaignChannel =
   | 'rcs'
   | 'push_notification'
 
+export interface CampaignMessageTypeBreakdown {
+  channel: CampaignChannel | string
+  category: string | null
+  count: number
+  cost: number
+}
+
 export interface RecurringCampaignMetric {
   automaticCampaignId: string
   campaignId: null
@@ -73,6 +80,8 @@ export interface RecurringCampaignMetric {
   salesTotalAmount: number
   salesTotalQuantity: number
   totalCustomers: number
+  totalCost: number
+  messageTypeBreakdown: CampaignMessageTypeBreakdown[]
   updatedAt: string
 }
 
@@ -111,6 +120,8 @@ export interface RecurringCampaign {
   messageText: string
   name: string
   segmentation: string
+  targetingMode?: AudienceTargetingMode
+  audienceId?: string | null
   startDate: string
   channels?: CampaignChannel[]
   creatives?: RecurringCampaignCreative[]
@@ -282,11 +293,15 @@ export type MetaTemplateVariableMapping = {
  * - `images`: string JSON (array de URLs) conforme back.
  * - `couponId`: null quando nenhum cupom selecionado.
  */
+export type AudienceTargetingMode = 'RFV' | 'AUDIENCE'
+
 export type CreateAutomaticCampaignRequest = {
   name: string
   type: AutomaticCampaignType
   channel: AutomaticCampaignApiChannel
-  segmentation: string
+  targetingMode?: AudienceTargetingMode
+  audienceId?: string | null
+  segmentation?: string
   maxDailySends: number
   active: boolean
   /** JSON stringificado: string[] de URLs. */

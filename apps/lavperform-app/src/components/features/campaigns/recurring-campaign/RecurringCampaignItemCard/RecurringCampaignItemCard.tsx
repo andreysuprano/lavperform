@@ -25,12 +25,14 @@ import {
   LuLoader,
   LuMessageSquare,
   LuPen,
+  LuReceipt,
   LuSend,
   LuShoppingCart,
   LuSquareCheckBig,
   LuTrash2,
   LuTrendingUp,
   LuUsers,
+  LuWallet,
 } from 'react-icons/lu'
 
 import {
@@ -51,7 +53,12 @@ import {
   useDuplicateCampaign,
   useToggleCampaign,
 } from '@/hooks/queries'
+import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useMetaTemplates } from '@/hooks/queries/useMetaTemplates'
 import type { RecurringCampaignStatus } from '@/types'
+import { getCampaignDerivedMetrics } from '@/utils/campaigns/campaignMetrics'
+import { resolveCampaignPreviewImageUrl } from '@/utils/campaigns/resolveCampaignPreviewImageUrl'
+import { resolveCampaignTargetingFromApi } from '@/utils/campaigns/resolveCampaignTargetingFromApi'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { convertISOToDate } from '@/utils/convertISOToDate'
 import { logger } from '@/utils/logger'
@@ -131,41 +138,23 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
     return Array.isArray(days) ? (days as string[]) : []
   }, [data])
 
-  const firstImageUrl = useMemo(() => {
-    const isValidImageUrl = (u: unknown): u is string =>
-      typeof u === 'string' &&
-      u.trim().length > 0 &&
-      (u.trim().startsWith('http://') || u.trim().startsWith('https://'))
+  const { data: metaTemplates = [] } = useMetaTemplates(selectedCompany?.id)
 
-    const fromCreative = data.creatives
-      ?.flatMap((c) => c.imageUrls ?? [])
-      .find(isValidImageUrl)
-    if (fromCreative) return fromCreative.trim()
-    if (!data.images?.trim()) return null
-
-    const raw = data.images.trim()
-    if (raw.startsWith('[')) {
-      try {
-        const parsed = JSON.parse(raw) as unknown
-        if (Array.isArray(parsed)) {
-          const fromJson = parsed
-            .map(String)
-            .map((s) => s.trim())
-            .find(isValidImageUrl)
-          if (fromJson) return fromJson
-        }
-      } catch {
-        // fallback abaixo
-      }
-    }
-
-    return (
-      raw
-        .split(',')
-        .map((s) => s.trim())
-        .find(isValidImageUrl) ?? null
-    )
-  }, [data.creatives, data.images])
+  const firstImageUrl = useMemo(
+    () =>
+      resolveCampaignPreviewImageUrl({
+        creatives: data.creatives,
+        images: data.images,
+        metaMessageTemplateId: data.metaMessageTemplateId,
+        metaTemplates,
+      }),
+    [
+      data.creatives,
+      data.images,
+      data.metaMessageTemplateId,
+      metaTemplates,
+    ],
+  )
 
   const channelKey = data.channel?.toLowerCase() as ChannelKey | undefined
   const channelInfo = CHANNEL_CATALOG.find((c) => c.key === channelKey)
@@ -174,6 +163,10 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
   const toggleCampaignMutation = useToggleCampaign()
   const deleteCampaignMutation = useDeleteCampaign()
   const duplicateCampaignMutation = useDuplicateCampaign()
+  const { data: audiencesResult } = useAudiences(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
 
   const isToggling = toggleCampaignMutation.isPending
 
@@ -181,10 +174,29 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
 
   const metric = data.campaignMetric[0]
 
-  const segmentationBadges = data.segmentation
-    .split(',')
-    .map((s) => s.trim())
-    .filter(Boolean)
+  const derivedMetrics = getCampaignDerivedMetrics(
+    metric?.totalCost,
+    metric?.salesTotalAmount,
+    metric?.salesTotalQuantity
+  )
+
+  const segmentationBadges = useMemo(() => {
+    const targeting = resolveCampaignTargetingFromApi(data)
+
+    if (targeting.targetingMode === 'AUDIENCE') {
+      const audienceName = audiencesResult?.data?.find(
+        (audience) => audience.id === targeting.audienceId,
+      )?.name
+
+      return audienceName ? [audienceName] : []
+    }
+
+    return targeting.segmentation.map(
+      (segItem) =>
+        clientTypesOptions.items.find((item) => item.value === segItem)?.label ??
+        segItem,
+    )
+  }, [audiencesResult?.data, data])
 
   const campaignTitle = campaignTypeItems.find(
     (item) => item.value === data.type
@@ -505,9 +517,7 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
                 py={0.5}
                 variant="solid"
               >
-                {clientTypesOptions.items.find(
-                  (item) => item.value === segItem
-                )?.label ?? segItem}
+                {segItem}
               </Badge>
             ))}
           </HStack>
@@ -553,6 +563,34 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
                   value={(metric.conversionRate || 0) / 100}
                 />
               }
+            />
+          </HStack>
+          <Box
+            bg="border.muted"
+            h="1px"
+            my={2}
+            w="full"
+          />
+          <HStack
+            gap={0}
+            justifyContent="space-around"
+          >
+            <StatCell
+              icon={<LuWallet size={12} />}
+              label="Custo"
+              value={formatCurrency(metric.totalCost ?? 0)}
+            />
+            <StatDivider />
+            <StatCell
+              icon={<LuTrendingUp size={12} />}
+              label="ROI"
+              value={derivedMetrics.roiLabel}
+            />
+            <StatDivider />
+            <StatCell
+              icon={<LuReceipt size={12} />}
+              label="Custo/venda"
+              value={derivedMetrics.costPerSaleLabel}
             />
           </HStack>
         </Box>

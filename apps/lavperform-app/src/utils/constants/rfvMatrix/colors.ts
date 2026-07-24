@@ -12,6 +12,7 @@ export const RFV_SEGMENT_COLORS: Record<keyof RfvMatrixData, string> = {
   em_risco: 'red.600',
   hibernando: 'gray.600',
   perdido: 'gray.700',
+  lead: 'blue.400',
 }
 
 const CHAKRA_COLOR_TO_HEX: Record<string, string> = {
@@ -28,6 +29,7 @@ const CHAKRA_COLOR_TO_HEX: Record<string, string> = {
   'orange.700': '#c2410c',
   'red.400': '#f87171',
   'red.600': '#dc2626',
+  'blue.400': '#60a5fa',
 }
 
 export function getColorHex(colorToken: string): string {

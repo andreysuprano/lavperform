@@ -12,6 +12,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useCustomers } from '@/hooks/queries'
 import type { Customer } from '@/types'
 import { clientTypesOptions } from '@/utils/constants/clientType'
+import { LEAD_SEGMENT_LABEL } from '@/utils/constants/rfvMatrix'
 import { formatTelefone } from '@/utils/mask'
 import {
   displayValue,
@@ -177,10 +178,15 @@ export function CustomerList() {
             </Table.Cell>
             <Table.Cell>
               <Badge
-                colorPalette="gray"
+                colorPalette={!item.firstOrderDate ? 'blue' : 'gray'}
                 variant="solid"
               >
-                {displayValue(clientTypeMap[item.rfvClassification], EMPTY_PLACEHOLDER)}
+                {displayValue(
+                  !item.firstOrderDate
+                    ? LEAD_SEGMENT_LABEL
+                    : clientTypeMap[item.rfvClassification],
+                  EMPTY_PLACEHOLDER
+                )}
               </Badge>
             </Table.Cell>
             <Table.Cell>

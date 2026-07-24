@@ -1,3 +1,4 @@
+export * from './audience.types'
 export * from './auth.types'
 export * from './campaign.types'
 export * from './cep.types'

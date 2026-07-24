@@ -1,5 +1,5 @@
 import { Button, Steps } from '@chakra-ui/react'
-import { memo, useCallback, useMemo, useState } from 'react'
+import { memo, useCallback, useMemo, useId, useState } from 'react'
 import { RiAddLine, RiSaveLine } from 'react-icons/ri'
 
 import { CustomDrawer, toaster } from '@/components'
@@ -11,6 +11,7 @@ import { isWhatsAppBusinessApiChannel } from '@/utils/campaigns/isWhatsAppBusine
 import { uploadCampaignCreativeImages } from '@/utils/campaigns/uploadCampaignCreativeImages'
 
 import { DEFAULT_MAX_DAILY_SENDS } from '../constants'
+import { getWizardFormId } from '../wizardFormId'
 import { CardResume } from './CardResume'
 import { Channels } from './FormSteps/Channels'
 import { Creative } from './FormSteps/Creative'
@@ -33,6 +34,7 @@ const baseSteps = [
 
 const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
   const { colorPalette } = useWhiteLabel()
+  const wizardFormId = useId().replace(/:/g, '')
 
   const [step, setStep] = useState(0)
   const [data, setData] = useState<FormDataProps | null>(null)
@@ -59,8 +61,12 @@ const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
   }
 
   const goToNextStep = () => {
-    setStep(step + 1)
+    setStep((current) => current + 1)
   }
+
+  const submitCurrentStep = useCallback(() => {
+    document.getElementById(getWizardFormId(wizardFormId, step))?.requestSubmit()
+  }, [step, wizardFormId])
 
   function handleClose() {
     setStep(0)
@@ -203,8 +209,8 @@ const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
           {step + 1 <= steps.length ? (
             <Button
               disabled={isSaving || (step === 3 && isCreativeFormOpen)}
-              form={`hook-form-${step}`}
-              type="submit"
+              onClick={submitCurrentStep}
+              type="button"
             >
               Avançar
             </Button>
@@ -270,6 +276,7 @@ const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
               goToNextStep()
               saveData(data)
             }}
+            wizardFormId={wizardFormId}
           />
         </Steps.Content>
         <Steps.Content index={1}>
@@ -280,6 +287,7 @@ const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
               goToNextStep()
               saveData(data)
             }}
+            wizardFormId={wizardFormId}
           />
         </Steps.Content>
         <Steps.Content index={2}>
@@ -290,6 +298,7 @@ const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
               goToNextStep()
               saveData(payload)
             }}
+            wizardFormId={wizardFormId}
           />
         </Steps.Content>
         <Steps.Content index={3}>
@@ -301,6 +310,7 @@ const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
                 goToNextStep()
                 saveData(payload)
               }}
+              wizardFormId={wizardFormId}
             />
           ) : (
             <Creative
@@ -312,6 +322,7 @@ const CreateRecurringCampaignFormComponent = ({ onClose }: Props) => {
                 goToNextStep()
                 saveData(payload)
               }}
+              wizardFormId={wizardFormId}
             />
           )}
         </Steps.Content>

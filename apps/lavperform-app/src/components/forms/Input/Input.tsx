@@ -13,16 +13,17 @@ function InputComponent<T extends FieldValues>({
   disabled,
   ...rest
 }: Props<T>) {
-  const { field, fieldState } = useController({
+  const { field, fieldState, formState } = useController({
     name,
     control,
   })
-  const { error } = fieldState
+  const { error, isTouched } = fieldState
+  const showError = !!error && (isTouched || formState.isSubmitted)
 
   return (
     <Field.Root
       disabled={disabled}
-      invalid={!!error}
+      invalid={showError}
       required={required}
     >
       {label && (
@@ -38,7 +39,7 @@ function InputComponent<T extends FieldValues>({
         type={type}
         {...rest}
       />
-      {!!error && <Field.ErrorText>{error?.message}</Field.ErrorText>}
+      {showError && <Field.ErrorText>{error?.message}</Field.ErrorText>}
     </Field.Root>
   )
 }

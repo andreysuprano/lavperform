@@ -1,7 +1,8 @@
 import {
   Box,
+  createListCollection,
   Field,
-  NativeSelect,
+  Select,
   Stack,
   Text,
 } from '@chakra-ui/react'
@@ -17,6 +18,8 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { useMetaTemplatesWithAutoSync } from '@/hooks/queries/useMetaTemplates'
 import type { MetaMessageTemplate } from '@/types/metaTemplate.types'
+
+import { getWizardFormId } from '../../wizardFormId'
 import {
   buildDefaultVariableMappings,
   META_TEMPLATE_VARIABLE_OPTIONS,
@@ -28,6 +31,13 @@ import type { FormStepsProps } from './FormSteps.types'
 function getTemplateBodyText(template: MetaMessageTemplate): string {
   return extractComponentText(template.components, 'BODY') ?? ''
 }
+
+const variableSourceCollection = createListCollection({
+  items: META_TEMPLATE_VARIABLE_OPTIONS.map((option) => ({
+    value: option.value,
+    label: option.label,
+  })),
+})
 
 export function TemplateStep(props: FormStepsProps) {
   const { formData, id, onSubmit } = props
@@ -53,6 +63,17 @@ export function TemplateStep(props: FormStepsProps) {
   const selectedTemplate = useMemo(
     () => approvedTemplates.find((template) => template.id === selectedTemplateId),
     [approvedTemplates, selectedTemplateId],
+  )
+
+  const templatesCollection = useMemo(
+    () =>
+      createListCollection({
+        items: approvedTemplates.map((template) => ({
+          value: template.id,
+          label: getTemplateDisplayLabel(template),
+        })),
+      }),
+    [approvedTemplates],
   )
 
   const bodyText = selectedTemplate ? getTemplateBodyText(selectedTemplate) : ''
@@ -121,7 +142,7 @@ export function TemplateStep(props: FormStepsProps) {
 
   return (
     <form
-      id={`hook-form-${id}`}
+      id={getWizardFormId(props.wizardFormId ?? 'campaign', id ?? 0)}
       onSubmit={handleSubmit}
     >
       <Stack gap={4}>
@@ -139,23 +160,36 @@ export function TemplateStep(props: FormStepsProps) {
           <>
             <Field.Root required>
               <Field.Label>Template aprovado</Field.Label>
-              <NativeSelect.Root>
-                <NativeSelect.Field
-                  onChange={(event) => setSelectedTemplateId(event.target.value)}
-                  value={selectedTemplateId}
-                >
-                  <option value="">Selecione um template</option>
-                  {approvedTemplates.map((template) => (
-                    <option
-                      key={template.id}
-                      value={template.id}
-                    >
-                      {getTemplateDisplayLabel(template)}
-                    </option>
-                  ))}
-                </NativeSelect.Field>
-                <NativeSelect.Indicator />
-              </NativeSelect.Root>
+              <Select.Root
+                collection={templatesCollection}
+                onValueChange={({ value }) =>
+                  setSelectedTemplateId(value[0] ?? '')
+                }
+                value={selectedTemplateId ? [selectedTemplateId] : []}
+              >
+                <Select.HiddenSelect />
+                <Select.Control>
+                  <Select.Trigger>
+                    <Select.ValueText placeholder="Selecione um template" />
+                  </Select.Trigger>
+                  <Select.IndicatorGroup>
+                    <Select.Indicator />
+                  </Select.IndicatorGroup>
+                </Select.Control>
+                <Select.Positioner>
+                  <Select.Content>
+                    {templatesCollection.items.map((item) => (
+                      <Select.Item
+                        item={item}
+                        key={item.value}
+                      >
+                        {item.label}
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Select.Root>
             </Field.Root>
 
             {selectedTemplate && variableCount > 0 && (
@@ -174,27 +208,39 @@ export function TemplateStep(props: FormStepsProps) {
                       required
                     >
                       <Field.Label>{`{{${variableIndex}}}`}</Field.Label>
-                      <NativeSelect.Root>
-                        <NativeSelect.Field
-                          onChange={(event) =>
-                            handleMappingChange(
-                              variableIndex,
-                              event.target.value as MetaTemplateVariableMapping['source'],
-                            )
-                          }
-                          value={currentSource}
-                        >
-                          {META_TEMPLATE_VARIABLE_OPTIONS.map((option) => (
-                            <option
-                              key={option.value}
-                              value={option.value}
-                            >
-                              {option.label}
-                            </option>
-                          ))}
-                        </NativeSelect.Field>
-                        <NativeSelect.Indicator />
-                      </NativeSelect.Root>
+                      <Select.Root
+                        collection={variableSourceCollection}
+                        onValueChange={({ value }) =>
+                          handleMappingChange(
+                            variableIndex,
+                            value[0] as MetaTemplateVariableMapping['source'],
+                          )
+                        }
+                        value={[currentSource]}
+                      >
+                        <Select.HiddenSelect />
+                        <Select.Control>
+                          <Select.Trigger>
+                            <Select.ValueText placeholder="Selecione o dado" />
+                          </Select.Trigger>
+                          <Select.IndicatorGroup>
+                            <Select.Indicator />
+                          </Select.IndicatorGroup>
+                        </Select.Control>
+                        <Select.Positioner>
+                          <Select.Content>
+                            {variableSourceCollection.items.map((item) => (
+                              <Select.Item
+                                item={item}
+                                key={item.value}
+                              >
+                                {item.label}
+                                <Select.ItemIndicator />
+                              </Select.Item>
+                            ))}
+                          </Select.Content>
+                        </Select.Positioner>
+                      </Select.Root>
                     </Field.Root>
                   )
                 })}
@@ -211,6 +257,7 @@ export function TemplateStep(props: FormStepsProps) {
                 </Text>
                 <MetaTemplatePreview
                   components={selectedTemplate.components}
+                  headerMediaUrl={selectedTemplate.headerMediaUrl}
                   name={getTemplateDisplayLabel(selectedTemplate)}
                 />
               </Box>

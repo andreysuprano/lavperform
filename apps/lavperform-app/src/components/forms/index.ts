@@ -1,3 +1,4 @@
+export * from './AudienceSelect/AudienceSelect'
 export * from './DateRangeFilter'
 export * from './DisplaySelectedWeekday/DisplaySelectedWeekday'
 export * from './FileUploadInput/FileUploadInput'

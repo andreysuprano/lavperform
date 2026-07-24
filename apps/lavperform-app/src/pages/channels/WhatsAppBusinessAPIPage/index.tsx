@@ -103,11 +103,16 @@ function formatValue(value: number | string | null | undefined) {
 }
 
 
-function formatDateTime(value: string) {
+function formatDateTime(value: string | null | undefined) {
+  if (!value) return 'Não informado'
+
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) return 'Não informado'
+
   return new Intl.DateTimeFormat('pt-BR', {
     dateStyle: 'short',
     timeStyle: 'short',
-  }).format(new Date(value))
+  }).format(date)
 }
 
 function normalizePhoneNumber(value: string) {

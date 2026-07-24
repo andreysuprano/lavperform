@@ -11,6 +11,7 @@ import type {
   CustomerOrderSummary,
   CustomerResponse,
   DashCustomersProps,
+  TopBuyersResponse,
   OrderDirection,
   RfvMatrixData,
   WhatsAppContact,
@@ -49,6 +50,7 @@ function mapSummaryToRfvMatrix(
     em_risco: { count: 0, percentage: 0 },
     hibernando: { count: 0, percentage: 0 },
     perdido: { count: 0, percentage: 0 },
+    lead: { count: 0, percentage: 0 },
   }
 
   // Preenche com dados do summary
@@ -180,6 +182,11 @@ export const customerService = {
       orderDirection?: OrderDirection
       name?: string
       rfvClassification?: string[]
+      hasEmail?: boolean
+      hasBirthDate?: boolean
+      whatsappOptin?: boolean
+      whatsappVerified?: boolean
+      hasOrders?: boolean
     }
   ) {
     // Backend espera rfvClassification como string JSON na query (ex: ["fiel"]).
@@ -194,6 +201,19 @@ export const customerService = {
       `/companies/${companyId}/customers`,
       {
         params: requestParams,
+      }
+    )
+  },
+
+  async getTopBuyers(
+    companyId: string,
+    limit = 10,
+    sortBy: 'totalSpent' | 'orderCount' = 'totalSpent'
+  ) {
+    return await client.get<TopBuyersResponse>(
+      `/companies/${companyId}/customers/top`,
+      {
+        params: { limit, sortBy },
       }
     )
   },

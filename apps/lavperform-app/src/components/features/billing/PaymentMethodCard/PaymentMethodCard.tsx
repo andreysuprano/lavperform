@@ -1,15 +1,47 @@
 import { Button, Card, Flex, Icon, Stack, Text } from '@chakra-ui/react'
 import { memo } from 'react'
-import { RiBarcodeBoxLine } from 'react-icons/ri'
+import { RiBankCardLine, RiBarcodeBoxLine } from 'react-icons/ri'
 
 import { Props } from './PaymentMethodCard.types'
+
+function getPaymentMethodLabel({
+  hasCard,
+  subscriptionCard,
+  planAllowsAlternativePayments,
+  alternativePaymentLabel,
+}: Pick<
+  Props,
+  | 'hasCard'
+  | 'subscriptionCard'
+  | 'planAllowsAlternativePayments'
+  | 'alternativePaymentLabel'
+>) {
+  if (hasCard && subscriptionCard && subscriptionCard !== 'N/A') {
+    return subscriptionCard
+  }
+
+  if (planAllowsAlternativePayments) {
+    return alternativePaymentLabel || 'Boleto Bancário / Pix'
+  }
+
+  return 'Cartão de crédito'
+}
 
 function PaymentMethodCardComponent({
   hasCard,
   subscriptionCard,
   isLoading,
   onAddCard,
+  planAllowsAlternativePayments = false,
+  alternativePaymentLabel,
 }: Props) {
+  const paymentLabel = getPaymentMethodLabel({
+    hasCard,
+    subscriptionCard,
+    planAllowsAlternativePayments,
+    alternativePaymentLabel,
+  })
+
   return (
     <Card.Root
       borderRadius="lg"
@@ -32,7 +64,7 @@ function PaymentMethodCardComponent({
           p={4}
         >
           <Icon
-            as={RiBarcodeBoxLine}
+            as={hasCard ? RiBankCardLine : RiBarcodeBoxLine}
             boxSize={6}
             color="fg.default"
             mr={3}
@@ -41,9 +73,7 @@ function PaymentMethodCardComponent({
             fontSize="md"
             fontWeight="medium"
           >
-            {subscriptionCard && subscriptionCard !== 'N/A'
-              ? subscriptionCard
-              : 'Boleto Bancário / Pix'}
+            {paymentLabel}
           </Text>
         </Flex>
         {hasCard && (
@@ -56,7 +86,7 @@ function PaymentMethodCardComponent({
             com seus pagamentos.
           </Text>
         )}
-        {!hasCard && (
+        {!hasCard && planAllowsAlternativePayments && (
           <Stack gap={2}>
             <Text
               color="fg.muted"
@@ -73,6 +103,16 @@ function PaymentMethodCardComponent({
               Você poderá voltar para o boleto quando quiser.
             </Text>
           </Stack>
+        )}
+        {!hasCard && !planAllowsAlternativePayments && (
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+            lineHeight="tall"
+          >
+            Cadastre um cartão de crédito para ativar os pagamentos recorrentes
+            do seu plano.
+          </Text>
         )}
       </Card.Body>
       <Card.Footer>

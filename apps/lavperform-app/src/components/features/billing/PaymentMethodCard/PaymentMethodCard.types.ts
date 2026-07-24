@@ -3,4 +3,8 @@ export interface Props {
   subscriptionCard: string | undefined
   isLoading: boolean
   onAddCard: () => void
+  allowBoleto?: boolean
+  allowPix?: boolean
+  planAllowsAlternativePayments?: boolean
+  alternativePaymentLabel?: string
 }

@@ -13,11 +13,31 @@ export interface FormDataProps {
     street: string
     zipCode: string
   }
+  creditCard?: {
+    holderName: string
+    number: string
+    expiryMonth: string
+    expiryYear: string
+    ccv: string
+  }
+  creditCardHolderInfo?: {
+    name: string
+    email: string
+    cpfCnpj: string
+    postalCode: string
+    addressNumber: string
+    phone: string
+  }
   email: string
   name: string
   password: string
   phone: string
   planId: string
+}
+
+export interface OnboardingSuccessState {
+  accountActivated: boolean
+  invoiceUrl?: string | null
 }
 
 export interface FormStepsProps {

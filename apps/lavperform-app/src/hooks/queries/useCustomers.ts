@@ -22,6 +22,11 @@ export function useCustomers(
     orderDirection?: 'asc' | 'desc'
     name?: string
     rfvClassification?: string[]
+    hasEmail?: boolean
+    hasBirthDate?: boolean
+    whatsappOptin?: boolean
+    whatsappVerified?: boolean
+    hasOrders?: boolean
   } = {}
 ) {
   return useQuery({
@@ -49,6 +54,30 @@ export function useCustomersSummary(companyId: string | undefined) {
     },
     enabled: !!companyId,
     staleTime: 1000 * 60 * 5, // 5 minutos
+  })
+}
+
+/**
+ * Ranking de clientes que mais compram (por valor ou número de pedidos)
+ */
+export function useTopBuyers(
+  companyId: string | undefined,
+  limit = 10,
+  sortBy: 'totalSpent' | 'orderCount' = 'totalSpent'
+) {
+  return useQuery({
+    queryKey: queryKeys.customers.topBuyers(companyId || '', limit, sortBy),
+    queryFn: async () => {
+      if (!companyId) throw new Error('Company ID is required')
+      const response = await customerService.getTopBuyers(
+        companyId,
+        limit,
+        sortBy
+      )
+      return response.data.items
+    },
+    enabled: !!companyId,
+    staleTime: 1000 * 60 * 5,
   })
 }
 

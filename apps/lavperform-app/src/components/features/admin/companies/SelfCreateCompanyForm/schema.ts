@@ -79,20 +79,58 @@ const schemaPlan = yup.object({
   planId: yup.string().required('O plano é obrigatório'),
 })
 
+const schemaPayment = yup.object({
+  creditCard: yup.object().shape({
+    holderName: yup.string().required('O nome do titular é obrigatório.'),
+    number: yup
+      .string()
+      .required('O número do cartão é obrigatório.')
+      .transform((value) => value?.replace(/\s/g, '') ?? '')
+      .matches(/^\d{13,19}$/, {
+        message: 'Número do cartão inválido. Apenas números.',
+        excludeEmptyString: true,
+      }),
+    expiryMonth: yup
+      .string()
+      .required('Mês é obrigatório.')
+      .matches(/^(0[1-9]|1[0-2])$/, {
+        message: 'Mês inválido (MM).',
+        excludeEmptyString: true,
+      }),
+    expiryYear: yup
+      .string()
+      .required('Ano é obrigatório.')
+      .matches(/^\d{2}$/, {
+        message: 'O ano deve ter 2 dígitos (AA).',
+        excludeEmptyString: true,
+      }),
+    ccv: yup
+      .string()
+      .required('CCV é obrigatório.')
+      .matches(/^\d{3,4}$/, {
+        message: 'CCV inválido (3 ou 4 dígitos).',
+        excludeEmptyString: true,
+      }),
+  }),
+})
+
 const schema = schemaUser.concat(schemaCompany).concat(schemaPlan)
 
 type FormData = yup.InferType<typeof schema>
 type FormDataUser = yup.InferType<typeof schemaUser>
 type FormDataCompany = yup.InferType<typeof schemaCompany>
 type FormDataPlan = yup.InferType<typeof schemaPlan>
+type FormDataPayment = yup.InferType<typeof schemaPayment>
 
 export {
   type FormData,
   type FormDataCompany,
+  type FormDataPayment,
   type FormDataPlan,
   type FormDataUser,
   schema,
   schemaCompany,
+  schemaPayment,
   schemaPlan,
   schemaUser,
 }

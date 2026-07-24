@@ -14,6 +14,7 @@ export * from './billing'
 export * from './campaigns'
 
 // Customers
+export * from './audiences'
 export * from './customers'
 
 // Dashboard

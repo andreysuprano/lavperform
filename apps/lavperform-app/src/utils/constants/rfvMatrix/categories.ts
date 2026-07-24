@@ -1,6 +1,11 @@
 import type { RfvMatrixData } from '@/types'
 
-export type RfvSegmentCategory = 'positivos' | 'neutros' | 'atencao' | 'criticos'
+export type RfvSegmentCategory =
+  | 'positivos'
+  | 'neutros'
+  | 'atencao'
+  | 'criticos'
+  | 'leads'
 
 export interface RfvSegmentCategoryInfo {
   id: RfvSegmentCategory
@@ -28,5 +33,10 @@ export const RFV_SEGMENT_CATEGORIES: RfvSegmentCategoryInfo[] = [
     id: 'criticos',
     label: 'Segmentos Críticos',
     segments: ['nao_posso_perder', 'em_risco', 'hibernando', 'perdido'],
+  },
+  {
+    id: 'leads',
+    label: 'Leads',
+    segments: ['lead'],
   },
 ]

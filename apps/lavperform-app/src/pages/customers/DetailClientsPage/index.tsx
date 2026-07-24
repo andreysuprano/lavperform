@@ -1,9 +1,11 @@
 import {
   Badge,
+  Box,
   Button,
   Flex,
   Input,
   InputGroup,
+  Stack,
   Table,
   Text,
 } from '@chakra-ui/react'
@@ -14,6 +16,14 @@ import {
   RiUserCommunityLine,
   RiWhatsappLine,
 } from 'react-icons/ri'
+import {
+  LuArrowDownUp,
+  LuArrowUpDown,
+  LuCake,
+  LuMail,
+  LuMessageCircle,
+  LuShoppingBag,
+} from 'react-icons/lu'
 
 import {
   AppContentLayout,
@@ -22,6 +32,7 @@ import {
   ImportCustomersWizard,
   ImportWhatsAppCustomersModal,
 } from '@/components'
+import { MultiSelectFilter } from '@/components/features/campaigns/recurring-campaign/RecurringCampaignDetailsView/MultiSelectFilter'
 import { Tooltip } from '@/components/ui/tooltip'
 import { CustomerDetailsModal } from '@/components/features/customers/CustomerDetailsModal'
 import { CustomerDetailsModal as WhiteLabelCustomerDetailsModal } from '@/whitelabel/components/CustomerDetailsModal'
@@ -31,7 +42,7 @@ import { useCustomers } from '@/hooks/queries'
 import { useWhatsAppManager } from '@/hooks/useWhatsAppManager'
 import type { Customer } from '@/types'
 import { clientTypesOptions } from '@/utils/constants/clientType'
-import { RFV_SEGMENT_CATEGORIES } from '@/utils/constants/rfvMatrix'
+import { LEAD_SEGMENT_LABEL } from '@/utils/constants/rfvMatrix'
 import type { RfvSegmentCategory } from '@/utils/constants/rfvMatrix/categories'
 import { formatTelefone } from '@/utils/mask'
 import {
@@ -41,8 +52,101 @@ import {
   normalizeText,
 } from '@/utils/strings'
 
+type BoolFilter = 'true' | 'false'
+type OrderByFilter =
+  | 'createdAt'
+  | 'name'
+  | 'lastOrderDate'
+  | 'averageTicket'
+  | 'updatedAt'
+type OrderDirectionFilter = 'asc' | 'desc'
+
+type ListFilters = {
+  hasEmail: BoolFilter[]
+  hasBirthDate: BoolFilter[]
+  whatsappOptin: BoolFilter[]
+  whatsappVerified: BoolFilter[]
+  hasOrders: BoolFilter[]
+  orderBy: OrderByFilter[]
+  orderDirection: OrderDirectionFilter[]
+}
+
 interface CustomerTableSectionProps {
   rfvClassifications?: string[]
+}
+
+const DEFAULT_FILTERS: ListFilters = {
+  hasEmail: [],
+  hasBirthDate: [],
+  whatsappOptin: [],
+  whatsappVerified: [],
+  hasOrders: [],
+  orderBy: [],
+  orderDirection: [],
+}
+
+const EMAIL_OPTIONS = [
+  { value: 'true' as const, label: 'Com e-mail', icon: <LuMail size={14} /> },
+  { value: 'false' as const, label: 'Sem e-mail' },
+]
+
+const BIRTHDATE_OPTIONS = [
+  { value: 'true' as const, label: 'Com data', icon: <LuCake size={14} /> },
+  { value: 'false' as const, label: 'Sem data' },
+]
+
+const OPTIN_OPTIONS = [
+  {
+    value: 'true' as const,
+    label: 'Com opt-in',
+    icon: <LuMessageCircle size={14} />,
+  },
+  { value: 'false' as const, label: 'Sem opt-in' },
+]
+
+const VERIFIED_OPTIONS = [
+  {
+    value: 'true' as const,
+    label: 'Verificado',
+    icon: <RiWhatsappLine size={14} />,
+  },
+  { value: 'false' as const, label: 'Não verificado' },
+]
+
+const ORDERS_OPTIONS = [
+  {
+    value: 'true' as const,
+    label: 'Com pedidos',
+    icon: <LuShoppingBag size={14} />,
+  },
+  { value: 'false' as const, label: 'Leads (sem pedidos)' },
+]
+
+const ORDER_BY_OPTIONS = [
+  { value: 'createdAt' as const, label: 'Data de cadastro' },
+  { value: 'name' as const, label: 'Nome' },
+  { value: 'lastOrderDate' as const, label: 'Último pedido' },
+  { value: 'averageTicket' as const, label: 'Ticket médio' },
+  { value: 'updatedAt' as const, label: 'Atualização' },
+]
+
+const ORDER_DIRECTION_OPTIONS = [
+  { value: 'desc' as const, label: 'Decrescente' },
+  { value: 'asc' as const, label: 'Crescente' },
+]
+
+/** Mantém seleção exclusiva (uma opção) para filtros mutuamente exclusivos. */
+function exclusiveSelect<T extends string>(next: T[], previous: T[]): T[] {
+  if (next.length === 0) return []
+  if (next.length === 1) return next
+  const added = next.find((value) => !previous.includes(value))
+  return [added ?? next[next.length - 1]]
+}
+
+function firstBool(values: BoolFilter[]): boolean | undefined {
+  if (values[0] === 'true') return true
+  if (values[0] === 'false') return false
+  return undefined
 }
 
 // Componente reutilizável com a tabela de clientes
@@ -56,11 +160,10 @@ export function CustomerTableSection({
 
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearchQuery, setDebouncedSearchQuery] = useState('')
+  const [filters, setFilters] = useState<ListFilters>(DEFAULT_FILTERS)
   const [params, setParams] = useState({
     page: 1,
     limit: 10,
-    orderBy: 'createdAt',
-    orderDirection: 'desc' as 'asc' | 'desc',
   })
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(
     null
@@ -69,16 +172,29 @@ export function CustomerTableSection({
 
   useEffect(() => {
     setParams((prev) => ({ ...prev, page: 1 }))
-  }, [rfvClassifications])
+  }, [rfvClassifications, filters])
 
   const queryParams = useMemo(() => {
     const hasFilter = rfvClassifications && rfvClassifications.length > 0
+    const hasEmail = firstBool(filters.hasEmail)
+    const hasBirthDate = firstBool(filters.hasBirthDate)
+    const whatsappOptin = firstBool(filters.whatsappOptin)
+    const whatsappVerified = firstBool(filters.whatsappVerified)
+    const hasOrders = firstBool(filters.hasOrders)
+
     return {
       ...params,
+      orderBy: filters.orderBy[0] ?? 'createdAt',
+      orderDirection: filters.orderDirection[0] ?? 'desc',
       ...(debouncedSearchQuery && { name: debouncedSearchQuery }),
       ...(hasFilter && { rfvClassification: rfvClassifications }),
+      ...(hasEmail !== undefined && { hasEmail }),
+      ...(hasBirthDate !== undefined && { hasBirthDate }),
+      ...(whatsappOptin !== undefined && { whatsappOptin }),
+      ...(whatsappVerified !== undefined && { whatsappVerified }),
+      ...(hasOrders !== undefined && { hasOrders }),
     }
-  }, [params, debouncedSearchQuery, rfvClassifications])
+  }, [params, debouncedSearchQuery, rfvClassifications, filters])
 
   const { data, isLoading } = useCustomers(selectedCompany?.id, queryParams)
 
@@ -130,6 +246,22 @@ export function CustomerTableSection({
     [handleSearch]
   )
 
+  const updateExclusiveFilter = useCallback(
+    <K extends keyof ListFilters>(key: K, next: ListFilters[K]) => {
+      setFilters((prev) => ({
+        ...prev,
+        [key]: exclusiveSelect(next as string[], prev[key] as string[]),
+      }))
+    },
+    []
+  )
+
+  const handleClearFilters = useCallback(() => {
+    setFilters(DEFAULT_FILTERS)
+    setSearchQuery('')
+    setDebouncedSearchQuery('')
+  }, [])
+
   const handleOpenWhatsAppModal = useCallback(() => {
     setIsWhatsAppModalOpen(true)
   }, [])
@@ -138,23 +270,117 @@ export function CustomerTableSection({
     setIsWhatsAppModalOpen(false)
   }, [])
 
-  // Determinar o componente usar baseado no env
   const isWhiteLabel = import.meta.env.VITE_THEME_ID !== 'default'
   const CustomerModal = isWhiteLabel
     ? WhiteLabelCustomerDetailsModal
     : CustomerDetailsModal
 
+  const showClearFilters =
+    searchQuery.trim().length > 0 ||
+    filters.hasEmail.length > 0 ||
+    filters.hasBirthDate.length > 0 ||
+    filters.whatsappOptin.length > 0 ||
+    filters.whatsappVerified.length > 0 ||
+    filters.hasOrders.length > 0 ||
+    filters.orderBy.length > 0 ||
+    filters.orderDirection.length > 0
+
   return (
-    <>
+    <Stack gap={3}>
+      <Flex
+        align="center"
+        gap={2}
+        wrap="wrap"
+      >
+        <MultiSelectFilter
+          icon={<LuMail size={14} />}
+          label="E-mail"
+          onChange={(next) => updateExclusiveFilter('hasEmail', next)}
+          options={EMAIL_OPTIONS}
+          placeholder="Todos"
+          value={filters.hasEmail}
+        />
+        <MultiSelectFilter
+          icon={<LuCake size={14} />}
+          label="Aniversário"
+          onChange={(next) => updateExclusiveFilter('hasBirthDate', next)}
+          options={BIRTHDATE_OPTIONS}
+          placeholder="Todos"
+          value={filters.hasBirthDate}
+        />
+        <MultiSelectFilter
+          icon={<LuMessageCircle size={14} />}
+          label="Opt-in"
+          onChange={(next) => updateExclusiveFilter('whatsappOptin', next)}
+          options={OPTIN_OPTIONS}
+          placeholder="Todos"
+          value={filters.whatsappOptin}
+        />
+        <MultiSelectFilter
+          icon={<RiWhatsappLine size={14} />}
+          label="WhatsApp"
+          onChange={(next) => updateExclusiveFilter('whatsappVerified', next)}
+          options={VERIFIED_OPTIONS}
+          placeholder="Todos"
+          value={filters.whatsappVerified}
+        />
+        <MultiSelectFilter
+          icon={<LuShoppingBag size={14} />}
+          label="Pedidos"
+          onChange={(next) => updateExclusiveFilter('hasOrders', next)}
+          options={ORDERS_OPTIONS}
+          placeholder="Todos"
+          value={filters.hasOrders}
+        />
+        <MultiSelectFilter
+          icon={<LuArrowDownUp size={14} />}
+          label="Ordenar"
+          onChange={(next) => updateExclusiveFilter('orderBy', next)}
+          options={ORDER_BY_OPTIONS}
+          placeholder="Cadastro"
+          value={filters.orderBy}
+        />
+        <MultiSelectFilter
+          icon={<LuArrowUpDown size={14} />}
+          label="Direção"
+          onChange={(next) => updateExclusiveFilter('orderDirection', next)}
+          options={ORDER_DIRECTION_OPTIONS}
+          placeholder="Decrescente"
+          value={filters.orderDirection}
+        />
+
+        {showClearFilters && (
+          <Box
+            _hover={{ color: 'fg' }}
+            as="button"
+            color="fg.muted"
+            fontSize="xs"
+            fontWeight="medium"
+            onClick={handleClearFilters}
+            px={2}
+            py={1}
+            rounded="md"
+            textDecoration="underline"
+            transition="color 120ms ease"
+          >
+            Limpar filtros
+          </Box>
+        )}
+      </Flex>
+
       <Flex
         alignItems="center"
         flexDirection={{ base: 'column', md: 'row' }}
         gap={2}
       >
-        <InputGroup>
+        <InputGroup flex={1}>
           <Input
+            bg="bg.panel"
+            borderColor="border.emphasized"
             onChange={handleSearchChange}
-            placeholder="Pesquisar cliente..."
+            placeholder="Buscar por nome, telefone ou e-mail..."
+            rounded="lg"
+            shadow="xs"
             value={searchQuery}
           />
         </InputGroup>
@@ -180,6 +406,7 @@ export function CustomerTableSection({
         <ImportCustomersWizard />
         <CreateCustomerForm />
       </Flex>
+
       <CustomTable<Customer>
         data={customers}
         emptyStateMessage="Nenhum cliente encontrado"
@@ -234,10 +461,15 @@ export function CustomerTableSection({
             </Table.Cell>
             <Table.Cell>
               <Badge
-                colorPalette="gray"
+                colorPalette={!item.firstOrderDate ? 'blue' : 'gray'}
                 variant="solid"
               >
-                {displayValue(clientTypeMap[item.rfvClassification], EMPTY_PLACEHOLDER)}
+                {displayValue(
+                  !item.firstOrderDate
+                    ? LEAD_SEGMENT_LABEL
+                    : clientTypeMap[item.rfvClassification],
+                  EMPTY_PLACEHOLDER
+                )}
               </Badge>
             </Table.Cell>
             <Table.Cell>
@@ -265,7 +497,7 @@ export function CustomerTableSection({
           onClose={handleCloseWhatsAppModal}
         />
       )}
-    </>
+    </Stack>
   )
 }
 
@@ -283,14 +515,6 @@ export function DetailClientsPage() {
         : [...prev, categoryId]
     )
   }, [])
-
-  const rfvClassifications = useMemo(() => {
-    if (selectedCategories.length === 0) return undefined
-    return selectedCategories.flatMap(
-      (catId) =>
-        RFV_SEGMENT_CATEGORIES.find((c) => c.id === catId)?.segments ?? []
-    )
-  }, [selectedCategories])
 
   return (
     <AppContentLayout

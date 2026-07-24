@@ -1,0 +1,437 @@
+import {
+  Box,
+  Button,
+  Field,
+  HStack,
+  Input,
+  NativeSelect,
+  Stack,
+  Text,
+} from '@chakra-ui/react'
+import { type ReactNode, useMemo } from 'react'
+
+import { clientTypesOptions } from '@/utils/constants/clientType'
+import type {
+  ComparisonOperator,
+  Criterion,
+  CriterionType,
+} from '@/types'
+
+import {
+  CRITERION_HELPERS,
+  CRITERION_LABELS,
+  OPERATOR_LABELS,
+} from './audienceCopy'
+
+type Props = {
+  criterion: Criterion
+  onChange: (criterion: Criterion) => void
+  productOptions?: string[]
+  neighborhoodOptions?: string[]
+  cityOptions?: string[]
+}
+
+export function CriterionEditor({
+  criterion,
+  onChange,
+  productOptions = [],
+  neighborhoodOptions = [],
+  cityOptions = [],
+}: Props) {
+  const operators = useMemo(() => {
+    switch (criterion.type) {
+      case 'rfv_classification':
+        return ['in', 'not_in'] as ComparisonOperator[]
+      case 'last_order_days':
+        return ['eq', 'gt', 'gte', 'lt', 'lte', 'between'] as ComparisonOperator[]
+      case 'neighborhood':
+      case 'city':
+        return ['eq', 'in', 'contains'] as ComparisonOperator[]
+      case 'purchased_product':
+        return ['ever', 'within_days', 'not_within_days'] as ComparisonOperator[]
+      case 'total_orders':
+        return ['eq', 'gt', 'gte', 'lt', 'lte'] as ComparisonOperator[]
+      case 'average_ticket':
+        return ['gt', 'gte', 'lt', 'lte'] as ComparisonOperator[]
+      default:
+        return ['eq'] as ComparisonOperator[]
+    }
+  }, [criterion.type])
+
+  const helper = CRITERION_HELPERS[criterion.type]
+
+  const handleTypeChange = (type: CriterionType) => {
+    switch (type) {
+      case 'rfv_classification':
+        onChange({ type, operator: 'in', value: ['campeao'] })
+        break
+      case 'purchased_product':
+        onChange({ type, operator: 'ever', value: { productName: '' } })
+        break
+      case 'whatsapp_verified':
+      case 'has_orders':
+        onChange({ type, operator: 'eq', value: true })
+        break
+      default:
+        onChange({ type, operator: 'gte', value: 30 })
+    }
+  }
+
+  return (
+    <Stack
+      borderWidth="1px"
+      borderRadius="md"
+      gap={3}
+      p={3}
+    >
+      <HStack align="flex-end">
+        <Field.Root flex={1}>
+          <Field.Label>O que filtrar</Field.Label>
+          <NativeSelect.Root>
+            <NativeSelect.Field
+              onChange={(event) =>
+                handleTypeChange(event.currentTarget.value as CriterionType)
+              }
+              value={criterion.type}
+            >
+              {Object.entries(CRITERION_LABELS).map(([value, label]) => (
+                <option
+                  key={value}
+                  value={value}
+                >
+                  {label}
+                </option>
+              ))}
+            </NativeSelect.Field>
+          </NativeSelect.Root>
+        </Field.Root>
+
+        {!['whatsapp_verified', 'has_orders'].includes(criterion.type) && (
+          <Field.Root flex={1}>
+            <Field.Label>Como filtrar</Field.Label>
+            <NativeSelect.Root>
+              <NativeSelect.Field
+                onChange={(event) =>
+                  onChange({
+                    ...criterion,
+                    operator: event.currentTarget.value as ComparisonOperator,
+                  })
+                }
+                value={criterion.operator}
+              >
+                {operators.map((operator) => (
+                  <option
+                    key={operator}
+                    value={operator}
+                  >
+                    {OPERATOR_LABELS[operator] ?? operator}
+                  </option>
+                ))}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+          </Field.Root>
+        )}
+      </HStack>
+
+      {helper ? (
+        <Text
+          color="fg.muted"
+          fontSize="sm"
+        >
+          {helper}
+        </Text>
+      ) : null}
+
+      {criterion.type === 'rfv_classification' && (
+        <Field.Root>
+          <Field.Label>Tipos de cliente</Field.Label>
+          <NativeSelect.Root multiple>
+            <NativeSelect.Field
+              onChange={(event) => {
+                const selected = Array.from(event.currentTarget.selectedOptions).map(
+                  (option) => option.value,
+                )
+                onChange({ ...criterion, value: selected })
+              }}
+              value={(criterion.value as string[]) ?? []}
+            >
+              {clientTypesOptions.items.map((item) => (
+                <option
+                  key={item.value}
+                  value={item.value}
+                >
+                  {item.label}
+                </option>
+              ))}
+            </NativeSelect.Field>
+          </NativeSelect.Root>
+          <Field.HelperText>
+            Segure Ctrl (ou Cmd) para escolher mais de um tipo.
+          </Field.HelperText>
+        </Field.Root>
+      )}
+
+      {['last_order_days', 'total_orders', 'average_ticket'].includes(criterion.type) && (
+        <Field.Root>
+          <Field.Label>
+            {criterion.type === 'last_order_days'
+              ? 'Dias'
+              : criterion.type === 'average_ticket'
+                ? 'Valor (R$)'
+                : 'Quantidade'}
+          </Field.Label>
+          <Input
+            onChange={(event) =>
+              onChange({ ...criterion, value: Number(event.currentTarget.value) })
+            }
+            type="number"
+            value={Number(criterion.value ?? 0)}
+          />
+        </Field.Root>
+      )}
+
+      {criterion.type === 'neighborhood' && (
+        <Field.Root>
+          <Field.Label>Bairro</Field.Label>
+          <NativeSelect.Root>
+            <NativeSelect.Field
+              onChange={(event) =>
+                onChange({ ...criterion, value: event.currentTarget.value })
+              }
+              value={String(criterion.value ?? '')}
+            >
+              <option value="">Selecione</option>
+              {neighborhoodOptions.map((option) => (
+                <option
+                  key={option}
+                  value={option}
+                >
+                  {option}
+                </option>
+              ))}
+            </NativeSelect.Field>
+          </NativeSelect.Root>
+        </Field.Root>
+      )}
+
+      {criterion.type === 'city' && (
+        <Field.Root>
+          <Field.Label>Cidade</Field.Label>
+          <NativeSelect.Root>
+            <NativeSelect.Field
+              onChange={(event) =>
+                onChange({ ...criterion, value: event.currentTarget.value })
+              }
+              value={String(criterion.value ?? '')}
+            >
+              <option value="">Selecione</option>
+              {cityOptions.map((option) => (
+                <option
+                  key={option}
+                  value={option}
+                >
+                  {option}
+                </option>
+              ))}
+            </NativeSelect.Field>
+          </NativeSelect.Root>
+        </Field.Root>
+      )}
+
+      {criterion.type === 'purchased_product' && (
+        <Stack gap={3}>
+          <Field.Root>
+            <Field.Label>Produto</Field.Label>
+            <NativeSelect.Root>
+              <NativeSelect.Field
+                onChange={(event) => {
+                  const current =
+                    typeof criterion.value === 'object' && criterion.value
+                      ? (criterion.value as Record<string, unknown>)
+                      : {}
+                  onChange({
+                    ...criterion,
+                    value: { ...current, productName: event.currentTarget.value },
+                  })
+                }}
+                value={
+                  typeof criterion.value === 'object' && criterion.value
+                    ? String((criterion.value as { productName?: string }).productName ?? '')
+                    : String(criterion.value ?? '')
+                }
+              >
+                <option value="">Selecione ou digite abaixo</option>
+                {productOptions.map((option) => (
+                  <option
+                    key={option}
+                    value={option}
+                  >
+                    {option}
+                  </option>
+                ))}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+            <Input
+              mt={2}
+              onChange={(event) => {
+                const current =
+                  typeof criterion.value === 'object' && criterion.value
+                    ? (criterion.value as Record<string, unknown>)
+                    : {}
+                onChange({
+                  ...criterion,
+                  value: { ...current, productName: event.currentTarget.value },
+                })
+              }}
+              placeholder="Nome do produto"
+              value={
+                typeof criterion.value === 'object' && criterion.value
+                  ? String((criterion.value as { productName?: string }).productName ?? '')
+                  : ''
+              }
+            />
+          </Field.Root>
+
+          {['within_days', 'not_within_days'].includes(criterion.operator) && (
+            <Field.Root>
+              <Field.Label>Nos últimos quantos dias?</Field.Label>
+              <Input
+                onChange={(event) => {
+                  const current =
+                    typeof criterion.value === 'object' && criterion.value
+                      ? (criterion.value as Record<string, unknown>)
+                      : {}
+                  onChange({
+                    ...criterion,
+                    value: { ...current, days: Number(event.currentTarget.value) },
+                  })
+                }}
+                type="number"
+                value={
+                  typeof criterion.value === 'object' && criterion.value
+                    ? Number((criterion.value as { days?: number }).days ?? 30)
+                    : 30
+                }
+              />
+            </Field.Root>
+          )}
+        </Stack>
+      )}
+
+      {['whatsapp_verified', 'has_orders'].includes(criterion.type) && (
+        <Field.Root>
+          <Field.Label>Resposta</Field.Label>
+          <NativeSelect.Root>
+            <NativeSelect.Field
+              onChange={(event) =>
+                onChange({ ...criterion, value: event.currentTarget.value === 'true' })
+              }
+              value={String(Boolean(criterion.value))}
+            >
+              <option value="true">Sim</option>
+              <option value="false">Não</option>
+            </NativeSelect.Field>
+          </NativeSelect.Root>
+        </Field.Root>
+      )}
+    </Stack>
+  )
+}
+
+export function PreviewBox({
+  count,
+  isLoading,
+  compact = false,
+}: {
+  count?: number
+  isLoading?: boolean
+  compact?: boolean
+}) {
+  return (
+    <Box
+      bg="bg.subtle"
+      borderRadius="md"
+      p={compact ? 3 : 4}
+    >
+      <Text fontWeight="medium">Quantos clientes entram nessa lista?</Text>
+      <Text
+        color="fg.muted"
+        fontSize={compact ? 'sm' : 'md'}
+      >
+        {isLoading
+          ? 'Contando clientes...'
+          : `${count ?? 0} cliente${(count ?? 0) === 1 ? '' : 's'} no momento`}
+      </Text>
+    </Box>
+  )
+}
+
+export function StepIntro({
+  title,
+  description,
+}: {
+  title: string
+  description: string
+}) {
+  return (
+    <Stack gap={1}>
+      <Text fontWeight="semibold">{title}</Text>
+      <Text
+        color="fg.muted"
+        fontSize="sm"
+      >
+        {description}
+      </Text>
+    </Stack>
+  )
+}
+
+export function WizardNav({
+  onBack,
+  onNext,
+  backLabel = 'Voltar',
+  nextLabel = 'Continuar',
+  nextDisabled = false,
+  nextLoading = false,
+  showBack = true,
+  secondaryAction,
+}: {
+  onBack?: () => void
+  onNext?: () => void
+  backLabel?: string
+  nextLabel?: string
+  nextDisabled?: boolean
+  nextLoading?: boolean
+  showBack?: boolean
+  secondaryAction?: ReactNode
+}) {
+  return (
+    <HStack
+      justify="space-between"
+      pt={2}
+    >
+      <Box>
+        {showBack && onBack ? (
+          <Button
+            onClick={onBack}
+            variant="ghost"
+          >
+            {backLabel}
+          </Button>
+        ) : null}
+      </Box>
+      <HStack>
+        {secondaryAction}
+        {onNext ? (
+          <Button
+            disabled={nextDisabled}
+            loading={nextLoading}
+            onClick={onNext}
+          >
+            {nextLabel}
+          </Button>
+        ) : null}
+      </HStack>
+    </HStack>
+  )
+}

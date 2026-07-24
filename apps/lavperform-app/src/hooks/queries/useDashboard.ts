@@ -3,7 +3,11 @@ import { useQuery } from '@tanstack/react-query'
 import { dateRangeToParams, type DateRangeValue } from '@/components'
 import { queryKeys } from '@/lib/react-query'
 import { dashboardService } from '@/services'
-import type { DashCampaignsProps, DashCustomersProps } from '@/types'
+import type {
+  DashCampaignsProps,
+  DashCustomersInsightsProps,
+  DashCustomersProps,
+} from '@/types'
 
 /**
  * Serializa um `DateRangeValue` em uma chave estável para o React Query.
@@ -23,6 +27,22 @@ export function useDashboardCustomers(companyId: string | undefined) {
     queryFn: async () => {
       if (!companyId) throw new Error('Company ID is required')
       const response = await dashboardService.getCustomers(companyId)
+      return response.data
+    },
+    enabled: !!companyId,
+    staleTime: 1000 * 60 * 5,
+  })
+}
+
+/**
+ * Hook para buscar inteligência de CRM da base de clientes
+ */
+export function useDashboardCustomersInsights(companyId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.dashboard.customersInsights(companyId || ''),
+    queryFn: async () => {
+      if (!companyId) throw new Error('Company ID is required')
+      const response = await dashboardService.getCustomersInsights(companyId)
       return response.data
     },
     enabled: !!companyId,
@@ -61,4 +81,5 @@ export function useDashboardCampaigns(
  * Tipagens para retorno dos hooks
  */
 export type DashboardCustomersData = DashCustomersProps
+export type DashboardCustomersInsightsData = DashCustomersInsightsProps
 export type DashboardCampaignsData = DashCampaignsProps

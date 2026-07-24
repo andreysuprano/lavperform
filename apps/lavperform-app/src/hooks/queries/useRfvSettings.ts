@@ -132,6 +132,39 @@ type UseUpdateRfvSettingsVariables = {
   settings: RFVSettings
 }
 
+type UseAutoConfigureRfvParams = {
+  companyId: string
+}
+
+export function useAutoConfigureRfv({ companyId }: UseAutoConfigureRfvParams) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async () => {
+      const response = await rfvSettingsService.autoConfigure(companyId)
+      return response.data
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customers.rfvSettings(companyId),
+      })
+      toaster.create({
+        title: 'Configuração automática iniciada!',
+        description:
+          'Estamos analisando seus dados e recalculando a matriz. Isso pode levar alguns minutos.',
+        type: 'success',
+      })
+    },
+    onError: () => {
+      toaster.create({
+        title: 'Erro ao iniciar configuração automática',
+        description: 'Verifique sua conexão e tente novamente.',
+        type: 'error',
+      })
+    },
+  })
+}
+
 export function useUpdateRfvSettings({ companyId }: UseUpdateRfvSettingsParams) {
   const queryClient = useQueryClient()
 

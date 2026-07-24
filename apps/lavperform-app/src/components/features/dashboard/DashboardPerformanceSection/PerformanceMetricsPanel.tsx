@@ -8,16 +8,22 @@ import { MetricCard } from '../MetricCard/MetricCard'
 import { PerformanceChart } from './PerformanceChart'
 import { Props } from './PerformanceMetricsPanel.types'
 
-function PerformanceMetricsSkeleton() {
+function PerformanceMetricsSkeleton({
+  showDailyCards,
+}: {
+  showDailyCards: boolean
+}) {
   return (
     <Stack gap={4}>
-      <SimpleGrid
-        columns={{ base: 1, md: 2 }}
-        gap={4}
-      >
-        <Skeleton height="96px" />
-        <Skeleton height="96px" />
-      </SimpleGrid>
+      {showDailyCards ? (
+        <SimpleGrid
+          columns={{ base: 1, md: 2 }}
+          gap={4}
+        >
+          <Skeleton height="96px" />
+          <Skeleton height="96px" />
+        </SimpleGrid>
+      ) : null}
       <Skeleton
         borderRadius="xl"
         height="380px"
@@ -30,9 +36,10 @@ function PerformanceMetricsPanelBase({
   isError = false,
   isLoading = false,
   performance,
+  showDailyCards = true,
 }: Props) {
   if (isLoading) {
-    return <PerformanceMetricsSkeleton />
+    return <PerformanceMetricsSkeleton showDailyCards={showDailyCards} />
   }
 
   if (isError) {
@@ -68,18 +75,20 @@ function PerformanceMetricsPanelBase({
       gap={4}
       h="full"
     >
-      <SimpleGrid
-        columns={{ base: 1, md: 2 }}
-        gap={4}
-      >
-        {cards.map((card) => (
-          <MetricCard
-            key={card.label}
-            {...card}
-            size="sm"
-          />
-        ))}
-      </SimpleGrid>
+      {showDailyCards ? (
+        <SimpleGrid
+          columns={{ base: 1, md: 2 }}
+          gap={4}
+        >
+          {cards.map((card) => (
+            <MetricCard
+              key={card.label}
+              {...card}
+              size="sm"
+            />
+          ))}
+        </SimpleGrid>
+      ) : null}
 
       <PerformanceChart data={performance.chartData} />
     </Stack>

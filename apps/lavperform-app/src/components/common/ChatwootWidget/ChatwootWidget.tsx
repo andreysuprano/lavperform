@@ -63,7 +63,7 @@ export function ChatwootWidget() {
     script.async = true
     script.onload = () => {
       ;(window as any).chatwootSettings = {
-        position: 'right',
+        position: 'left',
         type: 'standard',
       }
 

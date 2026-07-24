@@ -4,6 +4,7 @@ import { RiSaveLine } from 'react-icons/ri'
 
 import { CustomDrawer } from '@/components'
 import { clientTypesOptions } from '@/utils/constants/clientType'
+import { LEAD_SEGMENT_LABEL } from '@/utils/constants/rfvMatrix'
 
 import { CustomerOrderList } from '../CustomerOrderList/CustomerOrderList'
 import { EditCustomerForm } from '../EditCustomerForm/EditCustomerForm'
@@ -45,11 +46,11 @@ function CustomerDetailsDrawer({ data, onClose }: Props) {
         <Text>
           Cliente: {data.name}{' '}
           <Badge variant="solid">
-            {
-              clientTypesOptions.items.find(
-                (option) => option.value === data.rfvClassification
-              )?.label
-            }
+            {!data.firstOrderDate
+              ? LEAD_SEGMENT_LABEL
+              : clientTypesOptions.items.find(
+                  (option) => option.value === data.rfvClassification
+                )?.label}
           </Badge>
         </Text>
       }

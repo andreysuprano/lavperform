@@ -1,6 +1,9 @@
 // Banner
 export * from './CampaignPageBanner'
 
+// Analytics (home de campanhas)
+export * from './analytics'
+
 // Cupons (campanhas)
 export * from './coupons/CampaignCouponCard/CampaignCouponCard'
 export * from './coupons/CompanyCouponsList/CompanyCouponsList'

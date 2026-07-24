@@ -1,11 +1,11 @@
-import { Box, Tabs } from '@chakra-ui/react'
+import { Box, Button, Flex, Icon } from '@chakra-ui/react'
 import { useState } from 'react'
 import { LuLayoutTemplate, LuPlus } from 'react-icons/lu'
 import { Link } from 'react-router-dom'
 
-import { AppContentLayout } from '@/components'
-import { CreateMetaTemplateForm } from '@/components/features/campaigns/meta-templates/CreateMetaTemplateForm'
+import { AppContentLayout, CustomDialog } from '@/components'
 import { MetaTemplatesList } from '@/components/features/campaigns/meta-templates/MetaTemplatesList'
+import { MetaTemplateWizard } from '@/components/features/campaigns/meta-templates/MetaTemplateWizard'
 import { useAuth } from '@/context/AuthContext'
 import { useMetaIntegrationAvailability } from '@/hooks/queries'
 
@@ -14,7 +14,7 @@ export function CreativesPage() {
   const { data: metaAvailability, isLoading } = useMetaIntegrationAvailability(
     selectedCompany?.id
   )
-  const [activeTab, setActiveTab] = useState('list')
+  const [isWizardOpen, setIsWizardOpen] = useState(false)
 
   if (isLoading) {
     return (
@@ -61,31 +61,36 @@ export function CreativesPage() {
       icon={<LuLayoutTemplate />}
       title="Templates"
     >
-      <Tabs.Root
-        onValueChange={(details) => setActiveTab(details.value)}
-        value={activeTab}
+      <Flex
+        justify="flex-end"
+        mb={4}
       >
-        <Tabs.List mb={4}>
-          <Tabs.Trigger value="list">
-            <LuLayoutTemplate />
-            Templates
-          </Tabs.Trigger>
-          <Tabs.Trigger value="create">
-            <LuPlus />
-            Criar template
-          </Tabs.Trigger>
-        </Tabs.List>
+        <Button onClick={() => setIsWizardOpen(true)}>
+          <Icon as={LuPlus} />
+          Criar template
+        </Button>
+      </Flex>
 
-        <Tabs.Content value="list">
-          <MetaTemplatesList />
-        </Tabs.Content>
+      <MetaTemplatesList />
 
-        <Tabs.Content value="create">
-          <CreateMetaTemplateForm
-            onSuccess={() => setActiveTab('list')}
-          />
-        </Tabs.Content>
-      </Tabs.Root>
+      {isWizardOpen && (
+        <CustomDialog
+          content={
+            <Box p={6}>
+              <MetaTemplateWizard
+                onCancel={() => setIsWizardOpen(false)}
+                onSuccess={() => setIsWizardOpen(false)}
+              />
+            </Box>
+          }
+          contentMaxW="4xl"
+          isOpen
+          onOpenChange={(details) => {
+            if (!details.open) setIsWizardOpen(false)
+          }}
+          title="Criar template"
+        />
+      )}
     </AppContentLayout>
   )
 }

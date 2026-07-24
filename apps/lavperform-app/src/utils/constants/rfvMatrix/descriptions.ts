@@ -23,4 +23,6 @@ export const RFV_SEGMENT_DESCRIPTIONS: Record<keyof RfvMatrixData, string> = {
     'Clientes inativos há muito tempo, mas que ainda podem ser recuperados com estratégias adequadas.',
   perdido:
     'Clientes que provavelmente não retornarão. Podem ser alvos de campanhas de reativação, mas com expectativas baixas.',
+  lead:
+    'Clientes cadastrados que ainda não realizaram nenhum pedido. Requerem ações de conversão e primeiro contato.',
 }

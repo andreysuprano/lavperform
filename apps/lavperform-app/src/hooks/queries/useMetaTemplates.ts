@@ -67,6 +67,35 @@ export function useCreateMetaTemplate(companyId: string | undefined) {
   })
 }
 
+export function useUpdateMetaTemplate(companyId: string | undefined) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      templateId,
+      payload,
+    }: {
+      templateId: string
+      payload: CreateMetaTemplatePayload
+    }) => {
+      if (!companyId) throw new Error('Company ID is required')
+      const response = await metaTemplatesService.update(
+        companyId,
+        templateId,
+        payload
+      )
+      return response.data
+    },
+    onSuccess: () => {
+      if (companyId) {
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.metaTemplates.list(companyId),
+        })
+      }
+    },
+  })
+}
+
 export function useSyncMetaTemplate(companyId: string | undefined) {
   const queryClient = useQueryClient()
 

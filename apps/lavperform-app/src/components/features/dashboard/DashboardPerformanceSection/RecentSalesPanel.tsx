@@ -50,9 +50,9 @@ function RecentSalesPanelBase({ companyId }: Props) {
         >
           <Heading
             flexShrink={0}
-            size="lg"
+            size="md"
           >
-            Últimas Vendas
+            Últimas vendas
           </Heading>
           {!isLoading && !isError && (
             <RecentSalesPagination
@@ -65,7 +65,7 @@ function RecentSalesPanelBase({ companyId }: Props) {
           color="fg.muted"
           fontSize="sm"
         >
-          Acompanhe as vendas mais recentes da operação.
+          Pedidos mais recentes do restaurante.
         </Text>
       </Stack>
 

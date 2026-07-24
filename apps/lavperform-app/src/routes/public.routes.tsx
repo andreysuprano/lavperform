@@ -16,6 +16,11 @@ const RegisterCompany = lazy(() =>
     default: module.RegisterCompanyPage,
   }))
 )
+const SignupPage = lazy(() =>
+  import('@/pages/organization/SignupPage').then((module) => ({
+    default: module.SignupPage,
+  }))
+)
 const RedirectPage = lazy(() =>
   import('@/pages/utils/RedirectPage').then((module) => ({
     default: module.RedirectPage,
@@ -67,6 +72,14 @@ export function PublicRoutes() {
       <Route
         element={<RegisterCompany />}
         path="/register-company/:id"
+      />
+      <Route
+        element={<SignupPage />}
+        path="/signup"
+      />
+      <Route
+        element={<SignupPage />}
+        path="/signup/:id"
       />
       <Route
         element={<RedirectWhatsAppPage />}

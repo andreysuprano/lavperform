@@ -1,7 +1,9 @@
 import { Badge, Card, HStack, Text, VStack } from '@chakra-ui/react'
 import { useMemo } from 'react'
 
+import { useAuth } from '@/context/AuthContext'
 import { useCustomerSummary } from '@/context/CustomerSummaryContext'
+import { useAudiences } from '@/hooks/queries/useAudiences'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { convertISOToDate } from '@/utils/convertISOToDate'
 
@@ -10,30 +12,57 @@ import { FormStepsProps } from './FormSteps/FormSteps.types'
 
 export function CardResume(props: FormStepsProps) {
   const { customersSummary } = useCustomerSummary()
+  const { selectedCompany } = useAuth()
+  const { data: audiencesData } = useAudiences(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
 
   const campaign = useMemo(
     () =>
       props.formData
         ? campaignTypeItems.find(
-            (item) => item.value === props.formData.campaignType
+            (item) => item.value === props.formData!.campaignType
           )
         : undefined,
     [props.formData]
   )
 
+  const isAudienceMode = props.formData?.targetingMode === 'AUDIENCE'
+
+  const selectedAudience = useMemo(() => {
+    if (!isAudienceMode || !props.formData?.audienceId) return null
+    return (
+      audiencesData?.data?.find(
+        (audience) => audience.id === props.formData!.audienceId
+      ) ?? null
+    )
+  }, [audiencesData?.data, isAudienceMode, props.formData?.audienceId])
+
   const totalCustomers = useMemo(() => {
+    if (isAudienceMode) {
+      return selectedAudience?.customerCount ?? 0
+    }
+
     if (
       !props.formData?.segmentation ||
       !Array.isArray(props.formData.segmentation)
     ) {
       return 0
     }
+
     return customersSummary
       .filter((customer) =>
-        props.formData.segmentation.includes(customer.segmentation)
+        props.formData!.segmentation.includes(customer.segmentation)
       )
       .reduce((total, customer) => total + (customer.count || 0), 0)
-  }, [customersSummary, props.formData])
+  }, [customersSummary, isAudienceMode, props.formData, selectedAudience])
+
+  const hasRfvSegmentation =
+    !isAudienceMode &&
+    props.formData?.segmentation &&
+    Array.isArray(props.formData.segmentation) &&
+    props.formData.segmentation.length > 0
 
   if (props.id === 0 || props.id === 1) return null
 
@@ -59,24 +88,31 @@ export function CardResume(props: FormStepsProps) {
               {campaign.title}
             </Text>
           )}
-          {props.formData.name && (
+          {props.formData?.name && (
             <Text lineClamp={1}>{props.formData.name}</Text>
           )}
-          {props.formData.segmentation && (
+          {isAudienceMode && selectedAudience ? (
             <>
               <Text fontWeight={500}>Público selecionado:</Text>
               <HStack wrap="wrap">
-                {Array.isArray(props.formData.segmentation) &&
-                  props.formData.segmentation.map((segmentationItem) => (
-                    <Badge key={segmentationItem}>
-                      {clientTypesOptions.items.find(
-                        (item) => item.value === segmentationItem
-                      )?.label ?? segmentationItem}
-                    </Badge>
-                  ))}
+                <Badge>{selectedAudience.name}</Badge>
               </HStack>
             </>
-          )}
+          ) : null}
+          {hasRfvSegmentation ? (
+            <>
+              <Text fontWeight={500}>Público selecionado:</Text>
+              <HStack wrap="wrap">
+                {props.formData!.segmentation.map((segmentationItem) => (
+                  <Badge key={segmentationItem}>
+                    {clientTypesOptions.items.find(
+                      (item) => item.value === segmentationItem
+                    )?.label ?? segmentationItem}
+                  </Badge>
+                ))}
+              </HStack>
+            </>
+          ) : null}
         </VStack>
         <VStack alignItems="flex-end">
           <Badge
@@ -91,10 +127,10 @@ export function CardResume(props: FormStepsProps) {
               fontSize="2xl"
               fontWeight={700}
             >
-              {totalCustomers}
+              {totalCustomers.toLocaleString('pt-BR')}
             </Text>
           </Badge>
-          {props.formData.startDate && (
+          {props.formData?.startDate && (
             <Text fontSize="xs">
               {convertISOToDate(props.formData.startDate, {
                 timeZone: 'UTC',

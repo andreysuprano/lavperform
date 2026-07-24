@@ -1,5 +1,6 @@
 import type { ChannelKey } from '@/components/features/channels/channelCatalog.constants'
 import type {
+  AudienceTargetingMode,
   AutomaticCampaignApiChannel,
   CreateAutomaticCampaignCreativeRequest,
   CreateAutomaticCampaignGift,
@@ -100,6 +101,7 @@ export function buildAutomaticCampaignPayload({
   const segmentationArray =
     form.segmentation?.length ? form.segmentation : (form.target ?? [])
   const segmentation = segmentationArray.join(',')
+  const targetingMode: AudienceTargetingMode = form.targetingMode ?? 'RFV'
 
   const sendSchedule = buildSendScheduleApiFields(
     form.sendScheduleMode ?? 'establishment',
@@ -112,7 +114,10 @@ export function buildAutomaticCampaignPayload({
       name: form.name,
       type: form.campaignType,
       channel,
-      segmentation,
+      targetingMode,
+      ...(targetingMode === 'AUDIENCE'
+        ? { audienceId: form.audienceId ?? null }
+        : { segmentation }),
       maxDailySends,
       active: true,
       images: '[]',
@@ -139,7 +144,10 @@ export function buildAutomaticCampaignPayload({
     name: form.name,
     type: form.campaignType,
     channel,
-    segmentation,
+    targetingMode,
+    ...(targetingMode === 'AUDIENCE'
+      ? { audienceId: form.audienceId ?? null }
+      : { segmentation }),
     maxDailySends,
     active: true,
     images,

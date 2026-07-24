@@ -32,6 +32,7 @@ export type MetaMessageTemplate = {
   language: string
   category: MetaTemplateCategory
   components: MetaTemplateComponent[]
+  headerMediaUrl: string | null
   status: MetaTemplateStatus
   rejectedReason: string | null
   qualityScore: unknown | null

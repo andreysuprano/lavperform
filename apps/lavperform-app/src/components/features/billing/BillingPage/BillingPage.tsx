@@ -23,6 +23,10 @@ export function BillingPage() {
     isLastInvoiceBoletoOrPix,
     subscriptionCard,
     hasCard,
+    allowBoleto,
+    allowPix,
+    planAllowsAlternativePayments,
+    alternativePaymentLabel,
     register,
     control,
     handleSubmit,
@@ -91,9 +95,13 @@ export function BillingPage() {
           w={['100%', '100%', '100%', '30%']}
         >
           <PaymentMethodCard
+            allowBoleto={allowBoleto}
+            allowPix={allowPix}
+            alternativePaymentLabel={alternativePaymentLabel}
             hasCard={!!hasCard}
             isLoading={isLoading}
             onAddCard={() => setIsAddCardFormOpen(true)}
+            planAllowsAlternativePayments={planAllowsAlternativePayments}
             subscriptionCard={subscriptionCard}
           />
           <BillingInfoCard company={company} />
@@ -102,9 +110,13 @@ export function BillingPage() {
 
       {/* Modais/Drawers */}
       <InvoiceDetailsDrawer
+        allowBoleto={allowBoleto}
+        allowPix={allowPix}
+        alternativePaymentLabel={alternativePaymentLabel}
         company={company}
         data={selectedInvoice}
         onClose={() => setSelectedInvoice(null)}
+        planAllowsAlternativePayments={planAllowsAlternativePayments}
       />
 
       <AddCreditCardForm
