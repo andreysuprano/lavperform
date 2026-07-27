@@ -166,7 +166,7 @@ function DashboardIncentivizedSalesPanelBase() {
               notation="compact"
               value={data?.totalCount ?? 0}
             />{' '}
-            {(data?.totalCount ?? 0) === 1 ? 'pedido' : 'pedidos'}
+            {(data?.totalCount ?? 0) === 1 ? 'venda' : 'vendas'}
           </Text>
         )}
       </HStack>

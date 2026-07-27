@@ -23,7 +23,9 @@ export type CriterionType =
   | 'total_orders'
   | 'average_ticket'
   | 'whatsapp_verified'
-  | 'has_orders';
+  | 'has_orders'
+  | 'birthday_within_days'
+  | 'top_customers_month';
 
 export interface Criterion {
   type: CriterionType;
@@ -56,6 +58,8 @@ const VALID_CRITERION_TYPES: CriterionType[] = [
   'average_ticket',
   'whatsapp_verified',
   'has_orders',
+  'birthday_within_days',
+  'top_customers_month',
 ];
 
 const VALID_OPERATORS_BY_TYPE: Record<CriterionType, ComparisonOperator[]> = {
@@ -68,6 +72,8 @@ const VALID_OPERATORS_BY_TYPE: Record<CriterionType, ComparisonOperator[]> = {
   average_ticket: ['gt', 'gte', 'lt', 'lte'],
   whatsapp_verified: ['eq'],
   has_orders: ['eq'],
+  birthday_within_days: ['within_days'],
+  top_customers_month: ['eq'],
 };
 
 export function validateAudienceDefinition(definition: unknown): AudienceDefinition {
@@ -186,5 +192,17 @@ export const CRITERIA_METADATA = [
     label: 'Possui pedidos',
     operators: ['eq'],
     valueType: 'boolean',
+  },
+  {
+    type: 'birthday_within_days' as const,
+    label: 'Aniversário nos próximos dias',
+    operators: ['within_days'],
+    valueType: 'number',
+  },
+  {
+    type: 'top_customers_month' as const,
+    label: 'Top clientes do mês',
+    operators: ['eq'],
+    valueType: 'number',
   },
 ];

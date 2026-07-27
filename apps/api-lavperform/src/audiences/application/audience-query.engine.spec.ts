@@ -61,4 +61,68 @@ describe('AudienceQueryEngine', () => {
     const ids = await engine.resolveCustomerIds('company-1', definition);
     expect(ids).toEqual(['a']);
   });
+
+  it('validates birthday_within_days and top_customers_month criteria', () => {
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'birthday_within_days', operator: 'within_days', value: 30 }],
+        },
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'top_customers_month', operator: 'eq', value: 10 }],
+        },
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'birthday_within_days', operator: 'eq', value: 30 }],
+        },
+      }),
+    ).toThrow('Operador inválido');
+  });
+
+  it('resolves birthday_within_days via raw query', async () => {
+    prisma.$queryRaw.mockResolvedValueOnce([{ id: 'b1' }, { id: 'b2' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [{ type: 'birthday_within_days', operator: 'within_days', value: 7 }],
+      },
+    };
+
+    const ids = await engine.resolveCustomerIds('company-1', definition);
+    expect(ids).toEqual(['b1', 'b2']);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves top_customers_month via raw query with limit', async () => {
+    prisma.$queryRaw.mockResolvedValueOnce([{ id: 't1' }, { id: 't2' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [{ type: 'top_customers_month', operator: 'eq', value: 10 }],
+      },
+    };
+
+    const ids = await engine.resolveCustomerIds('company-1', definition);
+    expect(ids).toEqual(['t1', 't2']);
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
 });

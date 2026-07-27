@@ -136,6 +136,14 @@ export class OverAgentApiService {
     return this.request<Record<string, unknown>>('patch', `/agents/${agentId}/filter-config`, dto);
   }
 
+  async updateNotificationConfig(agentId: string, dto: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(
+      'patch',
+      `/agents/${agentId}/notification-config`,
+      dto,
+    );
+  }
+
   // ─── MCP Servers ──────────────────────────────────────────────────────────
 
   async createMcpServer(agentId: string, dto: Record<string, unknown>) {

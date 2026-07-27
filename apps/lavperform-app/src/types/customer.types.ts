@@ -138,7 +138,7 @@ export interface CustomerImport {
 // ==================== CustomerDetailsModal Types ====================
 
 /**
- * Desconto aplicado em um pedido
+ * Desconto aplicado em uma venda
  */
 export interface OrderDiscount {
   id?: string
@@ -149,7 +149,7 @@ export interface OrderDiscount {
 }
 
 /**
- * Pedido completo retornado pela API de comportamento
+ * Venda completa retornada pela API de comportamento
  */
 export interface CustomerBehaviorOrder {
   id: string
@@ -275,7 +275,7 @@ export interface CustomerSegment {
 }
 
 /**
- * Pedido simplificado para exibição na tab de comportamento
+ * Venda simplificada para exibição na tab de comportamento
  */
 export interface CustomerOrderSummary {
   id: string

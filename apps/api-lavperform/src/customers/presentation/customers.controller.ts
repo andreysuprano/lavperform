@@ -4,6 +4,7 @@ import { CreateCustomerDto } from '../application/dto/create-customer.dto';
 import { UpdateCustomerDto } from '../application/dto/update-customer.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CustomerPaginationDto } from '../application/dto/customer-pagination.dto';
+import { TopBuyersQueryDto } from '../application/dto/top-buyers-query.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Company } from '../../common/decorators/company.decorator';
@@ -61,27 +62,20 @@ export class CustomersController {
   @Get('top')
   @ApiOperation({ summary: 'Ranking de clientes que mais compram' })
   @ApiParam({ name: 'companyId', description: 'ID da empresa' })
-  @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Quantidade de clientes (padrão 10, máx 50)' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({
     name: 'sortBy',
     required: false,
     enum: ['totalSpent', 'orderCount'],
-    description: 'Ordenação: totalSpent (padrão) ou orderCount',
   })
-  @ApiResponse({ status: 200, description: 'Ranking de clientes por valor total gasto ou número de pedidos' })
-  findTopBuyers(
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Ranking de top clientes' })
+  getTopBuyers(
     @Param('companyId') companyId: string,
-    @Query('limit') limit?: string,
-    @Query('sortBy') sortBy?: string,
+    @Query() query: TopBuyersQueryDto,
   ) {
-    const parsedLimit = limit ? Number(limit) : 10;
-    const parsedSortBy =
-      sortBy === 'orderCount' ? 'orderCount' : 'totalSpent';
-    return this.customersService.findTopBuyers(
-      companyId,
-      Number.isFinite(parsedLimit) ? parsedLimit : 10,
-      parsedSortBy,
-    );
+    return this.customersService.getTopBuyers(companyId, query);
   }
 
   @Get(':id')

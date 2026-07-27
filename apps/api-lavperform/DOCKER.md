@@ -19,14 +19,21 @@ npm run start:dev
 
 ## Production Setup
 
-Run the complete stack (API + Database + Redis):
+O `Dockerfile` da API usa o **próprio diretório** `apps/api-lavperform` como build context
+(compatível com Coolify/Dokploy quando Base Directory = `apps/api-lavperform`).
 
 ```bash
-# Build and start all services
+# A partir de apps/api-lavperform
 docker compose up --build
 
-# Or run in detached mode
-docker compose up -d --build
+# Build manual
+docker build -f Dockerfile .
+```
+
+Frontend (contexto = raiz do monorepo):
+
+```bash
+docker build -f apps/lavperform-app/Dockerfile .
 ```
 
 ## Useful Commands

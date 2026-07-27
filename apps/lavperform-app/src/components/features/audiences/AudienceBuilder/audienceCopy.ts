@@ -17,26 +17,30 @@ export const WIZARD_STEPS = [
 
 export const CRITERION_LABELS: Record<CriterionType, string> = {
   rfv_classification: 'Tipo de cliente',
-  last_order_days: 'Há quanto tempo não pede',
+  last_order_days: 'Há quanto tempo não compra',
   neighborhood: 'Bairro',
   city: 'Cidade',
   purchased_product: 'Produto que comprou',
-  total_orders: 'Quantidade de pedidos',
+  total_orders: 'Quantidade de vendas',
   average_ticket: 'Quanto costuma gastar',
   whatsapp_verified: 'Tem WhatsApp confirmado',
-  has_orders: 'Já fez pedido',
+  has_orders: 'Já fez venda',
+  birthday_within_days: 'Faz aniversário em breve',
+  top_customers_month: 'Top clientes do mês',
 }
 
 export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   rfv_classification: 'Use os tipos que o sistema já calcula, como Campeão, Novo ou Hibernando.',
-  last_order_days: 'Filtra pela quantidade de dias desde o último pedido.',
+  last_order_days: 'Filtra pela quantidade de dias desde a última venda.',
   neighborhood: 'Inclui clientes de um bairro específico.',
   city: 'Inclui clientes de uma cidade específica.',
   purchased_product: 'Filtra quem já comprou determinado produto.',
-  total_orders: 'Filtra pela quantidade total de pedidos feitos.',
+  total_orders: 'Filtra pela quantidade total de vendas feitas.',
   average_ticket: 'Filtra pelo valor médio que o cliente costuma gastar.',
   whatsapp_verified: 'Filtra quem tem ou não o WhatsApp confirmado.',
-  has_orders: 'Filtra quem já pediu alguma vez ou ainda não.',
+  has_orders: 'Filtra quem já comprou alguma vez ou ainda não.',
+  birthday_within_days: 'Inclui quem faz aniversário nos próximos dias informados.',
+  top_customers_month: 'Inclui os clientes com mais pedidos no mês atual.',
 }
 
 export const OPERATOR_LABELS: Partial<Record<ComparisonOperator, string>> = {
@@ -130,7 +134,11 @@ function formatCriterionSummary(criterion: Criterion): string {
         ? 'Tem WhatsApp confirmado'
         : 'Não tem WhatsApp confirmado'
     case 'has_orders':
-      return Boolean(criterion.value) ? 'Já fez pedido' : 'Ainda não fez pedido'
+      return Boolean(criterion.value) ? 'Já fez venda' : 'Ainda não fez venda'
+    case 'birthday_within_days':
+      return `Faz aniversário nos próximos ${Number(criterion.value ?? 0)} dias`
+    case 'top_customers_month':
+      return `Está entre os ${Number(criterion.value ?? 0)} com mais pedidos no mês`
     default:
       return label
   }

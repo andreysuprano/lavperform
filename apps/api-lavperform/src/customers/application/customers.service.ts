@@ -234,6 +234,30 @@ export class CustomersService {
     };
   }
 
+  async getTopBuyers(
+    companyId: string,
+    options: {
+      limit?: number;
+      sortBy?: 'totalSpent' | 'orderCount';
+      startDate?: string;
+      endDate?: string;
+    } = {},
+  ) {
+    const limit = options.limit ?? 10;
+    const sortBy = options.sortBy ?? 'totalSpent';
+    const startDate = options.startDate ? new Date(options.startDate) : undefined;
+    const endDate = options.endDate ? new Date(options.endDate) : undefined;
+
+    const items = await this.customerRepository.getTopBuyers(companyId, {
+      limit,
+      sortBy,
+      startDate,
+      endDate,
+    });
+
+    return { items };
+  }
+
   async totalCustomersBySegmentation(companyId: string) {
     const [rawCounts, leadCount] = await Promise.all([
       this.customerRepository.totalCustomersBySegmentation(companyId),

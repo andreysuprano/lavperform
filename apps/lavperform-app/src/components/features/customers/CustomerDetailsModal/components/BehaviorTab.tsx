@@ -143,26 +143,26 @@ export function BehaviorTab({ customer }: Props) {
           accent
           icon={RiShoppingBag3Line}
           label="Gasto total (LTV)"
-          sub={`${behavior.totalOrders} pedidos no total`}
+          sub={`${behavior.totalOrders} vendas no total`}
           value={formatCurrency(behavior.lifeTimeValue)}
         />
         <MetricCard
           icon={RiReceiptLine}
           label="Ticket médio"
-          sub={`Calculado sobre ${behavior.totalOrders} pedidos`}
+          sub={`Calculado sobre ${behavior.totalOrders} vendas`}
           value={formatCurrency(behavior.averageTicket)}
         />
         <MetricCard
           icon={RiRepeatLine}
-          label="Total de pedidos"
-          sub="Pedidos registrados"
+          label="Total de vendas"
+          sub="Vendas registradas"
           value={String(behavior.totalOrders)}
         />
       </Flex>
 
       <Separator mb={6} />
 
-      {/* Últimos Pedidos */}
+      {/* Últimas Vendas */}
       <Flex
         alignItems="center"
         gap={2}
@@ -184,7 +184,7 @@ export function BehaviorTab({ customer }: Props) {
           fontSize="md"
           fontWeight="semibold"
         >
-          Últimos 5 Pedidos
+          Últimas 5 Vendas
         </Text>
       </Flex>
 
@@ -347,7 +347,7 @@ export function BehaviorTab({ customer }: Props) {
                         color="fg.muted"
                         fontSize="sm"
                       >
-                        Nenhum pedido encontrado
+                        Nenhuma venda encontrada
                       </Text>
                     </Flex>
                   </Table.Cell>

@@ -5,8 +5,9 @@ RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
 FROM base AS deps
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json ./
+# Sem package-lock no monorepo Yarn — npm install resolve as deps do admin standalone
+RUN npm install
 
 FROM base AS builder
 COPY --from=deps /app/node_modules ./node_modules

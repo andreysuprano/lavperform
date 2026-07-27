@@ -41,4 +41,30 @@ export interface ICustomerRepository extends IRepository<Customer> {
         updatedAt: Date;
         birthDate: Date | null;
     }>>;
+    getTopBuyers(
+        companyId: string,
+        options: {
+            limit: number;
+            sortBy: 'totalSpent' | 'orderCount';
+            startDate?: Date;
+            endDate?: Date;
+        },
+    ): Promise<
+        Array<{
+            customerId: string;
+            name: string;
+            phone: string | null;
+            email: string | null;
+            rfvClassification: string | null;
+            averageTicket: number;
+            lastOrderDate: Date | null;
+            totalSpent: number;
+            orderCount: number;
+            companyId: string;
+            whatsappOptin: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            birthDate: Date | null;
+        }>
+    >;
 }

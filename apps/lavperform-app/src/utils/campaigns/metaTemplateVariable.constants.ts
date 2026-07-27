@@ -27,7 +27,7 @@ export const META_TEMPLATE_VARIABLE_OPTIONS: ReadonlyArray<{
   },
   {
     value: META_TEMPLATE_VARIABLE_SOURCE.DAYS_SINCE_LAST_ORDER,
-    label: 'Dias desde o último pedido',
+    label: 'Dias desde a última venda',
   },
   {
     value: META_TEMPLATE_VARIABLE_SOURCE.STORE_NAME,

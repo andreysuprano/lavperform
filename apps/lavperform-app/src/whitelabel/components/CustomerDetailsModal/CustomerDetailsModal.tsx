@@ -43,7 +43,7 @@ export function CustomerDetailsModal({ data, isOpen, onClose }: Props) {
     return data?.whatsappOptin ?? true
   }, [data])
 
-  // Formatar informações do cliente (primeiro pedido ou data de criação)
+  // Formatar informações do cliente (primeira venda ou data de criação)
   const clientSince = useMemo(() => {
     const baseDate = data?.firstOrderDate ?? data?.createdAt
     return formatClientSince(baseDate)

@@ -1,32 +1,32 @@
+# Build context: apps/api-lavperform
+# (plataformas tipo Coolify/Dokploy costumam usar o diretório do app como context)
+
 # Build stage
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+# Sem package-lock no monorepo Yarn — npm install resolve a partir do package.json
+COPY package.json ./
 COPY prisma ./prisma/
+COPY prisma.config.js ./
 
-# Install dependencies
-RUN npm ci
+RUN npm install
 
-# Copy source code
 COPY . .
 
-# Generate Prisma Client
 ENV DATABASE_URL="postgres://lavperform:lavperform@localhost:5432/lavperform"
-ENV JWT_SECRET="change-me"
+ENV JWT_SECRET="build-time-placeholder"
 ENV WHITELABEL="lavperform"
-RUN npx prisma generate
 
-# Build the application
+RUN npx prisma generate
 RUN npm run build
 
 # Production stage
 FROM node:20-alpine
 
-# Configurar timezone para UTC
 ENV TZ=UTC
+
 RUN apk add --no-cache tzdata && \
     cp /usr/share/zoneinfo/UTC /etc/localtime && \
     echo "UTC" > /etc/timezone && \
@@ -34,19 +34,17 @@ RUN apk add --no-cache tzdata && \
 
 WORKDIR /app
 
-# Copy package files
-COPY package*.json ./
+COPY package.json ./
 COPY prisma ./prisma/
 COPY prisma.config.js ./
 
-# Install only production dependencies
-RUN npm ci --only=production
+RUN npm install --omit=dev
 
-# Copy built application from builder
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
-# Expose port
+ENV NODE_ENV=production
+
 EXPOSE 3000
-# Start the application
+
 CMD ["sh", "-c", "npm run db:deploy && npm run start:prod"]

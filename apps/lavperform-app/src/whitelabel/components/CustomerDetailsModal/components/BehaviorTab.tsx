@@ -131,7 +131,7 @@ export function BehaviorTab({ customer }: Props) {
           </Card.Body>
         </Card.Root>
 
-        {/* Card 3 - Total de Pedidos */}
+        {/* Card 3 - Total de Ciclos */}
         <Card.Root
           flex={1}
         >
@@ -163,7 +163,7 @@ export function BehaviorTab({ customer }: Props) {
         </Card.Root>
       </Flex>
 
-      {/* Últimos Pedidos */}
+      {/* Últimos Ciclos */}
       <Flex
         alignItems="center"
         gap={2}
@@ -275,7 +275,7 @@ export function BehaviorTab({ customer }: Props) {
                     color="gray.500"
                     py={4}
                   >
-                    Nenhum pedido encontrado
+                    Nenhuma venda encontrada
                   </Text>
                 </Table.Cell>
               </Table.Row>

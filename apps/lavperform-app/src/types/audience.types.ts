@@ -26,6 +26,8 @@ export type CriterionType =
   | 'average_ticket'
   | 'whatsapp_verified'
   | 'has_orders'
+  | 'birthday_within_days'
+  | 'top_customers_month'
 
 export interface Criterion {
   type: CriterionType
@@ -114,6 +116,10 @@ export function createEmptyCriterion(type: CriterionType = 'last_order_days'): C
     case 'whatsapp_verified':
     case 'has_orders':
       return { type, operator: 'eq', value: true }
+    case 'birthday_within_days':
+      return { type, operator: 'within_days', value: 30 }
+    case 'top_customers_month':
+      return { type, operator: 'eq', value: 10 }
     case 'neighborhood':
     case 'city':
       return { type, operator: 'eq', value: '' }

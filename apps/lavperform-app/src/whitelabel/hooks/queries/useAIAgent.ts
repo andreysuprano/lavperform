@@ -9,6 +9,7 @@ import type {
   UpdateAIAgentPayload,
   UpdateAIAgentPersonaPayload,
   UpdateAIAgentMediaConfigPayload,
+  UpdateAIAgentNotificationConfigPayload,
 } from '@/whitelabel/types'
 
 export function useAIAgents(companyId: string | undefined) {
@@ -245,6 +246,45 @@ export function useUpdateAIAgentMediaConfig() {
       toaster.create({
         title: 'Erro',
         description: 'Não foi possível atualizar a configuração de mídia. Tente novamente.',
+        type: 'error',
+      })
+    },
+  })
+}
+
+export function useUpdateAIAgentNotificationConfig() {
+  const { selectedCompany } = useAuth()
+
+  return useMutation({
+    mutationFn: async ({
+      agentId,
+      data,
+    }: {
+      agentId: string
+      data: UpdateAIAgentNotificationConfigPayload
+    }) => {
+      const response = await aiAgentService.updateAgentNotificationConfig(
+        agentId,
+        data
+      )
+      return response.data
+    },
+    onSuccess: (_data, variables) => {
+      if (selectedCompany) {
+        invalidateQueries.aiAgentsList(selectedCompany.id)
+        invalidateQueries.aiAgentDetail(selectedCompany.id, variables.agentId)
+      }
+      toaster.create({
+        title: 'Sucesso',
+        description: 'Configuração de notificação atualizada com sucesso!',
+        type: 'success',
+      })
+    },
+    onError: () => {
+      toaster.create({
+        title: 'Erro',
+        description:
+          'Não foi possível atualizar a configuração de notificação. Tente novamente.',
         type: 'error',
       })
     },

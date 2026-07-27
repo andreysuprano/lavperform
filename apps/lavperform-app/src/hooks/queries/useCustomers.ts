@@ -58,21 +58,31 @@ export function useCustomersSummary(companyId: string | undefined) {
 }
 
 /**
- * Ranking de clientes que mais compram (por valor ou número de pedidos)
+ * Ranking de clientes que mais compram (por valor ou número de vendas)
  */
 export function useTopBuyers(
   companyId: string | undefined,
   limit = 10,
-  sortBy: 'totalSpent' | 'orderCount' = 'totalSpent'
+  sortBy: 'totalSpent' | 'orderCount' = 'totalSpent',
+  startDate?: string,
+  endDate?: string
 ) {
   return useQuery({
-    queryKey: queryKeys.customers.topBuyers(companyId || '', limit, sortBy),
+    queryKey: queryKeys.customers.topBuyers(
+      companyId || '',
+      limit,
+      sortBy,
+      startDate,
+      endDate
+    ),
     queryFn: async () => {
       if (!companyId) throw new Error('Company ID is required')
       const response = await customerService.getTopBuyers(
         companyId,
         limit,
-        sortBy
+        sortBy,
+        startDate,
+        endDate
       )
       return response.data.items
     },
@@ -82,7 +92,7 @@ export function useTopBuyers(
 }
 
 /**
- * Hook para buscar pedidos de um cliente
+ * Hook para buscar vendas de um cliente
  */
 export function useCustomerOrders(customerId: string | undefined) {
   return useQuery({

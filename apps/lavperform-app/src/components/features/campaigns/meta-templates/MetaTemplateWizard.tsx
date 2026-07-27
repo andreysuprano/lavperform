@@ -1022,7 +1022,7 @@ function StepFooterButtons({
                             next[index] = { ...next[index], url: e.target.value }
                             updateField('buttons', next)
                           }}
-                          placeholder="https://seusite.com/pedido/{{1}}"
+                          placeholder="https://seusite.com/venda/{{1}}"
                           value={button.url ?? ''}
                         />
                       </Field.Root>

@@ -466,7 +466,7 @@ export function CustomerDetailsModal({ data, isOpen, onClose }: Props) {
                     {data.lastOrderDate && (
                       <InfoItem
                         icon={RiShoppingBagLine}
-                        label="Último pedido"
+                        label="Última venda"
                         value={formatShortDate(data.lastOrderDate)}
                       />
                     )}

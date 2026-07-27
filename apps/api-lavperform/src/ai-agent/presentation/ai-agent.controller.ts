@@ -18,6 +18,7 @@ import { UpdateModelConfigDto } from '../application/dto/update-model-config.dto
 import { UpdateMemoryConfigDto } from '../application/dto/update-memory-config.dto';
 import { UpdateMediaConfigDto } from '../application/dto/update-media-config.dto';
 import { UpdateFilterConfigDto } from '../application/dto/update-filter-config.dto';
+import { UpdateNotificationConfigDto } from '../application/dto/update-notification-config.dto';
 import { CreateMcpServerDto } from '../application/dto/create-mcp-server.dto';
 import { UpdateMcpServerDto } from '../application/dto/update-mcp-server.dto';
 
@@ -127,6 +128,18 @@ export class AiAgentController {
     @Body() dto: UpdateFilterConfigDto,
   ) {
     return this.aiAgentService.updateFilterConfig(agentId, dto);
+  }
+
+  @Patch('ai-agents/:agentId/notification-config')
+  @ApiOperation({
+    summary: 'Atualizar configuração de notificação quando o cliente pedir ajuda',
+  })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no over-agent' })
+  updateNotificationConfig(
+    @Param('agentId') agentId: string,
+    @Body() dto: UpdateNotificationConfigDto,
+  ) {
+    return this.aiAgentService.updateNotificationConfig(agentId, dto);
   }
 
   // ─── MCP Servers ─────────────────────────────────────────────────────────

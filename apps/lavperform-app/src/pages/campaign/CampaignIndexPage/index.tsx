@@ -255,7 +255,7 @@ export function CampaignIndexPage() {
           />
           <MetricCard
             icon={LuShoppingCart}
-            label="Pedidos"
+            label="Vendas"
             size="sm"
             value={salesQty}
           />

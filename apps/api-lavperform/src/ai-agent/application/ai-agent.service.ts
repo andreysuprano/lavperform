@@ -14,6 +14,7 @@ import { UpdateModelConfigDto } from './dto/update-model-config.dto';
 import { UpdateMemoryConfigDto } from './dto/update-memory-config.dto';
 import { UpdateMediaConfigDto } from './dto/update-media-config.dto';
 import { UpdateFilterConfigDto } from './dto/update-filter-config.dto';
+import { UpdateNotificationConfigDto } from './dto/update-notification-config.dto';
 import { CreateMcpServerDto } from './dto/create-mcp-server.dto';
 import { UpdateMcpServerDto } from './dto/update-mcp-server.dto';
 
@@ -220,6 +221,13 @@ export class AiAgentService {
 
   async updateFilterConfig(agentId: string, dto: UpdateFilterConfigDto) {
     return this.overAgentApi.updateFilterConfig(agentId, dto as unknown as Record<string, unknown>);
+  }
+
+  async updateNotificationConfig(agentId: string, dto: UpdateNotificationConfigDto) {
+    return this.overAgentApi.updateNotificationConfig(
+      agentId,
+      dto as unknown as Record<string, unknown>,
+    );
   }
 
   // ─── MCP Servers ─────────────────────────────────────────────────────────────

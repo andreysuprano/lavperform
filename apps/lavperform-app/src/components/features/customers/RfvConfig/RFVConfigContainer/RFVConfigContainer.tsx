@@ -152,14 +152,14 @@ function RFVConfigContainerBase({ companyId }: Props) {
         gap={6}
       >
         <RFVSection
-          description="Configure em quantos dias os clientes são considerados mais ou menos recentes com base no último pedido."
+          description="Configure em quantos dias os clientes são considerados mais ou menos recentes com base na última venda."
           dimension="RECENCY"
           levels={recencyLevels}
           onLevelChange={handleLevelChange('recencyLevels')}
           title="Recência"
         />
         <RFVSection
-          description="Ajuste a quantidade de pedidos em um período para classificar a frequência de compra dos clientes."
+          description="Ajuste a quantidade de vendas em um período para classificar a frequência de compra dos clientes."
           dimension="FREQUENCY"
           levels={frequencyDisplayLevels}
           onLevelChange={handleLevelChange('frequencyLevels')}
@@ -176,7 +176,7 @@ function RFVConfigContainerBase({ companyId }: Props) {
 
       <InfoCard
         title="Configurações da Matriz RFV/RFM"
-        description="A classificação RFV analisa o comportamento dos clientes a partir de três dimensões: Recência (dias desde a última compra), Frequência (quantidade de pedidos realizados) e Valor Monetário (ticket médio). Com base nessas informações, os clientes são distribuídos em 11 grupos, tornando mais fácil direcionar ofertas e campanhas personalizadas para cada perfil.
+        description="A classificação RFV analisa o comportamento dos clientes a partir de três dimensões: Recência (dias desde a última compra), Frequência (quantidade de vendas realizadas) e Valor Monetário (ticket médio). Com base nessas informações, os clientes são distribuídos em 11 grupos, tornando mais fácil direcionar ofertas e campanhas personalizadas para cada perfil.
 
 Cada dimensão é avaliada em uma escala de 1 a 5, onde 1 representa o menor valor e 5 o maior. Na tela de Análise da base de clientes, você encontra a matriz RFV com a distribuição completa dos seus clientes entre os grupos.
 

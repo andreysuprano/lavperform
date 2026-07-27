@@ -74,8 +74,8 @@ function RfvMatrixBase({
         </Flex>
       ) : (
         <Empty
-          description="Ainda não há clientes com pedidos para exibir a matriz RFV. Os leads cadastrados aparecem na legenda abaixo."
-          title="Matriz RFV sem dados de pedidos"
+          description="Ainda não há clientes com vendas para exibir a matriz RFV. Os leads cadastrados aparecem na legenda abaixo."
+          title="Matriz RFV sem dados de vendas"
         />
       )}
 

@@ -141,7 +141,7 @@ function ScheduledDispatchList() {
             <Table.ColumnHeader>Nome</Table.ColumnHeader>
             <Table.ColumnHeader>Segmentação</Table.ColumnHeader>
             <Table.ColumnHeader>Envios</Table.ColumnHeader>
-            <Table.ColumnHeader>Pedidos</Table.ColumnHeader>
+            <Table.ColumnHeader>Vendas</Table.ColumnHeader>
             <Table.ColumnHeader>Status</Table.ColumnHeader>
             <Table.ColumnHeader>Data de Envio</Table.ColumnHeader>
           </>

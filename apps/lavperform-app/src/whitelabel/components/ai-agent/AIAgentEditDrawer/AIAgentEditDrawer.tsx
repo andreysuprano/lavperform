@@ -18,6 +18,7 @@ import {
   useAIAgent,
   useUpdateAIAgent,
   useUpdateAIAgentMediaConfig,
+  useUpdateAIAgentNotificationConfig,
   useUpdateAIAgentPersona,
 } from '@/whitelabel/hooks'
 import type { AIAgent, CommunicationStyleType, VoiceToneType } from '@/whitelabel/types'
@@ -71,8 +72,14 @@ interface MediaFormData {
   videoDefaultMessage: string
 }
 
+interface NotificationFormData {
+  helpNotificationEnabled: boolean
+  helpNotificationPhone: string
+}
+
 function buildFormsFromAgent(a: AIAgent) {
   const mc = a.mediaConfig
+  const nc = a.notificationConfig
   return {
     basic: {
       name: a.name,
@@ -97,6 +104,10 @@ function buildFormsFromAgent(a: AIAgent) {
       videoExtractionPrompt: mc?.videoExtractionPrompt ?? '',
       videoDefaultMessage: mc?.videoDefaultMessage ?? '',
     },
+    notification: {
+      helpNotificationEnabled: nc?.helpNotificationEnabled ?? false,
+      helpNotificationPhone: nc?.helpNotificationPhone ?? '',
+    },
   }
 }
 
@@ -113,6 +124,7 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
   const updateAgent = useUpdateAIAgent()
   const updatePersona = useUpdateAIAgentPersona()
   const updateMediaConfig = useUpdateAIAgentMediaConfig()
+  const updateNotificationConfig = useUpdateAIAgentNotificationConfig()
 
   const voiceToneCollection = useMemo(
     () => createListCollection({ items: voiceToneItems }),
@@ -158,6 +170,16 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
     },
   })
 
+  // ─── Form: notificação ──────────────────────────────────────────────────────
+  const notificationForm = useForm<NotificationFormData>({
+    defaultValues: {
+      helpNotificationEnabled:
+        agent.notificationConfig?.helpNotificationEnabled ?? false,
+      helpNotificationPhone:
+        agent.notificationConfig?.helpNotificationPhone || '',
+    },
+  })
+
   const {
     field: { value: audioEnabled, onChange: setAudioEnabled },
   } = useController({ control: mediaForm.control, name: 'audioEnabled' })
@@ -170,13 +192,24 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
     field: { value: videoEnabled, onChange: setVideoEnabled },
   } = useController({ control: mediaForm.control, name: 'videoEnabled' })
 
+  const {
+    field: {
+      value: helpNotificationEnabled,
+      onChange: setHelpNotificationEnabled,
+    },
+  } = useController({
+    control: notificationForm.control,
+    name: 'helpNotificationEnabled',
+  })
+
   useEffect(() => {
     const src = agentDetail ?? agent
     const f = buildFormsFromAgent(src)
     basicForm.reset(f.basic)
     personaForm.reset(f.persona)
     mediaForm.reset(f.media)
-  }, [agentDetail, agent, basicForm, personaForm, mediaForm])
+    notificationForm.reset(f.notification)
+  }, [agentDetail, agent, basicForm, personaForm, mediaForm, notificationForm])
 
   const showDetailLoading =
     isOpen &&
@@ -226,6 +259,18 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
       },
     })
   }, [mediaForm, updateMediaConfig, agent.id])
+
+  const handleSaveNotification = useCallback(async () => {
+    const values = notificationForm.getValues()
+    const phoneDigits = values.helpNotificationPhone.replace(/\D/g, '')
+    await updateNotificationConfig.mutateAsync({
+      agentId: agent.id,
+      data: {
+        helpNotificationEnabled: values.helpNotificationEnabled,
+        helpNotificationPhone: phoneDigits || undefined,
+      },
+    })
+  }, [notificationForm, updateNotificationConfig, agent.id])
 
   return (
     <CustomDrawer
@@ -462,6 +507,61 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
               loading={updateMediaConfig.isPending}
             >
               Salvar configuração de mídia
+            </Button>
+          </Card.Footer>
+        </Card.Root>
+
+        {/* ─── Notificações ──────────────────────────────────────────────────── */}
+        <Card.Root variant="outline">
+          <Card.Header>
+            <Text fontWeight="semibold">Notificações</Text>
+          </Card.Header>
+          <Card.Body>
+            <Stack gap={4}>
+              <Fieldset.Root>
+                <HStack justify="space-between" align="flex-start">
+                  <Stack gap={0.5}>
+                    <Fieldset.Legend fontSize="sm">
+                      Notificar quando o cliente pedir ajuda
+                    </Fieldset.Legend>
+                    <Text fontSize="xs" color="fg.muted">
+                      Envia um alerta para o telefone cadastrado quando o
+                      cliente solicitar atendimento humano.
+                    </Text>
+                  </Stack>
+                  <Switch.Root
+                    checked={!!helpNotificationEnabled}
+                    onCheckedChange={(e) =>
+                      setHelpNotificationEnabled(e.checked)
+                    }
+                    size="md"
+                  >
+                    <Switch.HiddenInput />
+                    <Switch.Control>
+                      <Switch.Thumb />
+                    </Switch.Control>
+                  </Switch.Root>
+                </HStack>
+                <Fieldset.Content>
+                  {helpNotificationEnabled && (
+                    <Input
+                      control={notificationForm.control}
+                      name="helpNotificationPhone"
+                      label="Telefone para notificação"
+                      placeholder="Ex: 5511999999999"
+                    />
+                  )}
+                </Fieldset.Content>
+              </Fieldset.Root>
+            </Stack>
+          </Card.Body>
+          <Card.Footer justifyContent="flex-end">
+            <Button
+              size="sm"
+              onClick={handleSaveNotification}
+              loading={updateNotificationConfig.isPending}
+            >
+              Salvar notificações
             </Button>
           </Card.Footer>
         </Card.Root>
