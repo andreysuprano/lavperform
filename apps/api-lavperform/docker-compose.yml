@@ -20,8 +20,8 @@ services:
 
   api:
     build:
-      context: .
-      dockerfile: Dockerfile
+      context: ../..
+      dockerfile: apps/api-lavperform/Dockerfile
     container_name: lavperform_api
     ports:
       - "3000:3000"
@@ -38,7 +38,6 @@ services:
     networks:
       - lavperform_network
     restart: unless-stopped
-    command: sh -c "npx prisma migrate deploy && npm run start:prod"
 
 volumes:
   postgres_data:

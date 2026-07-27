@@ -19,14 +19,16 @@ npm run start:dev
 
 ## Production Setup
 
-Run the complete stack (API + Database + Redis):
+O `Dockerfile` da API espera o **contexto na raiz do monorepo** (Yarn workspaces).
+O `docker-compose.yml` já aponta `context: ../..`.
 
 ```bash
-# Build and start all services
+# A partir de apps/api-lavperform
 docker compose up --build
 
-# Or run in detached mode
-docker compose up -d --build
+# Ou build manual a partir da raiz do monorepo
+docker build -f apps/api-lavperform/Dockerfile .
+docker build -f apps/lavperform-app/Dockerfile .
 ```
 
 ## Useful Commands

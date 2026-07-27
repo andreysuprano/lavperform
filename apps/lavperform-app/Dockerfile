@@ -1,3 +1,6 @@
+# Build from monorepo root:
+#   docker build -f apps/lavperform-app/Dockerfile .
+
 # Etapa 1: Build da aplicação
 FROM node:22-alpine AS builder
 
@@ -24,10 +27,10 @@ ENV VITE_PRO_URL=$VITE_PRO_URL
 ENV VITE_LOGIN_LEFT_IMAGE=$VITE_LOGIN_LEFT_IMAGE
 ENV VITE_USE_TANSTACK_LOGGER=$VITE_USE_TANSTACK_LOGGER
 
-# Copia os arquivos de dependências do monorepo
+# Copia os arquivos de dependências do monorepo (Yarn via Corepack — sem pasta .yarn)
 COPY package.json yarn.lock .yarnrc.yml ./
-COPY .yarn ./.yarn
 COPY apps/lavperform-app/package.json ./apps/lavperform-app/package.json
+COPY apps/api-lavperform/package.json ./apps/api-lavperform/package.json
 COPY packages ./packages
 
 # Instala as dependências usando yarn
