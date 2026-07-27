@@ -5,13 +5,22 @@ import { InjectQueue } from '@nestjs/bull';
 import { AutomaticCampaignStatus } from '@prisma/client';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { PrismaService } from '../../prisma/prisma.service';
-import { nowUTC, startOfDayInTz } from '../../common/utils/date.utils';
+import {
+  campaignEndDateMinInclusive,
+  getOpeningHoursTimezone,
+  nowUTC,
+  startOfDayInTz,
+} from '../../common/utils/date.utils';
 
 @Injectable()
 export class AutomaticCampaignTasks {
   private readonly logger = new Logger(AutomaticCampaignTasks.name);
 
-  constructor(private readonly prisma: PrismaService, @InjectQueue(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE) private readonly automaticCampaignsQueue: Queue) { }
+  constructor(
+    private readonly prisma: PrismaService,
+    @InjectQueue(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
+    private readonly automaticCampaignsQueue: Queue,
+  ) {}
 
   @Cron(CronExpression.EVERY_5_MINUTES)
   async handleAutomaticCampaign() {
@@ -22,16 +31,18 @@ export class AutomaticCampaignTasks {
     // turno noturno (após 21h SP), quando UTC já avançou para o dia seguinte.
     const startOfToday = startOfDayInTz(now);
 
-    // Para o filtro de endDate usamos meia-noite UTC, pois as datas são
-    // salvas como 00:00:00 UTC no banco. Usar startOfToday (SP = 03:00 UTC)
-    // excluiria campanhas cujo endDate é hoje mas foi salvo às 00:00 UTC.
-    const startOfTodayUTC = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()));
+    // endDate legado (T00:00:00.000Z) e novo (fim do dia SP) são tratados
+    // pelo limite inclusivo baseado no dia civil em America/Sao_Paulo.
+    const endDateMinInclusive = campaignEndDateMinInclusive(now);
 
-    this.logger.log(`Buscando campanhas automáticas ativas para hoje (${startOfToday.toISOString()})`);
+    this.logger.log(
+      `Buscando campanhas automáticas ativas para hoje (${startOfToday.toISOString()})`,
+    );
 
     try {
       const automaticCampaigns = await this.prisma.automaticCampaign.findMany({
         where: {
+          active: true,
           status: {
             in: [
               AutomaticCampaignStatus.PROCESSING,
@@ -43,7 +54,7 @@ export class AutomaticCampaignTasks {
           AND: [
             {
               OR: [
-                { endDate: { gte: startOfTodayUTC } },
+                { endDate: { gte: endDateMinInclusive } },
                 { endDate: null },
               ],
             },
@@ -57,56 +68,69 @@ export class AutomaticCampaignTasks {
         },
       });
 
-      this.logger.log(`Foram encontradas ${automaticCampaigns.length} campanhas automaticas ativas a não processadas hoje!`);
+      this.logger.log(
+        `Foram encontradas ${automaticCampaigns.length} campanhas automaticas ativas a não processadas hoje!`,
+      );
 
       await this.prisma.cron_automatic_campaign.create({
         data: {
           campaignsFound: automaticCampaigns.length,
-        }
+        },
       });
 
       if (automaticCampaigns.length > 0) {
-
         const todayStr = startOfToday.toISOString().slice(0, 10);
 
         for (const campaign of automaticCampaigns) {
           const jobId = `automatic-campaign:${campaign.id}:${todayStr}`;
 
-          await this.prisma.automaticCampaign.update({
-            where: { id: campaign.id },
-            data: { lastProcessedAt: nowUTC() }
-          });
+          // lastProcessedAt é marcado no processor apenas em decisões definitivas
+          // do dia (sucesso, dia da semana fora, limite diário). Sem janela de
+          // horário, a campanha fica elegível para retry no mesmo dia.
+          try {
+            await this.automaticCampaignsQueue.add(
+              QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE,
+              { automaticCampaignId: campaign.id },
+              {
+                jobId,
+                removeOnComplete: true,
+                removeOnFail: true,
+              },
+            );
 
-          await this.automaticCampaignsQueue.add(
-            QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE,
-            { automaticCampaignId: campaign.id },
-            { jobId }
-          );
-
-          this.logger.log(`Campanha ${campaign.name} (ID: ${campaign.id}) enviada para processamento`);
+            this.logger.log(
+              `Campanha ${campaign.name} (ID: ${campaign.id}) enviada para processamento`,
+            );
+          } catch (error) {
+            // Job com o mesmo jobId ainda na fila / em processamento.
+            this.logger.debug(
+              `Campanha ${campaign.id} já possui job ${jobId} na fila: ${error}`,
+            );
+          }
         }
 
         this.logger.log('Todas as campanhas foram enviadas para processamento');
       }
-
     } catch (error) {
       this.logger.error('Erro ao processar campanhas automáticas:', error);
     }
   }
 
   /**
-   * Todo dia 00:30 marca como COMPLETED e desativa campanhas cujo endDate já venceu.
+   * Todo dia 00:30 (America/Sao_Paulo) marca como COMPLETED e desativa
+   * campanhas cujo dia civil de endDate já passou.
    */
-  @Cron('30 0 * * *')
+  @Cron('30 0 * * *', { timeZone: 'America/Sao_Paulo' })
   async handleEndedCampaigns() {
     this.logger.log('Verificando campanhas automáticas encerradas');
 
     try {
       const now = nowUTC();
+      const startOfTodaySp = startOfDayInTz(now, getOpeningHoursTimezone());
 
       const { count } = await this.prisma.automaticCampaign.updateMany({
         where: {
-          endDate: { lt: now },
+          endDate: { lt: startOfTodaySp },
           status: { not: AutomaticCampaignStatus.COMPLETED },
           deletedAt: null,
         },

@@ -21,8 +21,8 @@ async function bootstrap() {
   }));
 
   const config = new DocumentBuilder()
-    .setTitle('LavPerform API')
-    .setDescription('CRM para lavanderias')
+    .setTitle('FoodCRM API')
+    .setDescription('CRM Para Deliverys e Restaurantes')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

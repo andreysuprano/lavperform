@@ -2,6 +2,7 @@ import { CreateCustomerDto } from '../../../customers/application/dto/create-cus
 import { UpdateCustomerDto } from '../../../customers/application/dto/update-customer.dto';
 import { CreateOrderDto } from '../../../orders/application/dto/create-order.dto';
 import { safeFormatPhoneNumber } from '../../../common/utils/formatters';
+import { isPlaceholderCustomerName } from '../../../common/utils/name-similarity';
 import { PublicApiContext } from '../../auth/interfaces/api-context.interface';
 import { IngestCustomerDto } from './dto/ingest-customer.dto';
 import { IngestOrderDto } from './dto/ingest-order.dto';
@@ -10,6 +11,28 @@ function normalizeCpf(cpf?: string): string | undefined {
   if (!cpf) return undefined;
   const digits = cpf.replace(/\D/g, '');
   return digits.length > 0 ? digits : undefined;
+}
+
+/** Prefere nome mais completo; nao troca "Thais Oliveira" por "Thais". */
+function shouldUpdateCustomerName(
+  existingName: string | null | undefined,
+  incomingName: string,
+): boolean {
+  const existing = existingName?.trim() ?? '';
+  if (!existing || isPlaceholderCustomerName(existing)) return true;
+
+  const existingTokens = existing.split(/\s+/).filter(Boolean);
+  const incomingTokens = incomingName.split(/\s+/).filter(Boolean);
+
+  // Nome incoming mais completo (mais tokens) ou do mesmo tamanho e mais longo.
+  if (incomingTokens.length > existingTokens.length) return true;
+  if (
+    incomingTokens.length === existingTokens.length &&
+    incomingName.length > existing.length
+  ) {
+    return true;
+  }
+  return false;
 }
 
 export function mapIngestCustomerToCreateDto(customer: IngestCustomerDto): CreateCustomerDto {
@@ -32,8 +55,9 @@ export function mapIngestCustomerToUpdateDto(
   const formattedPhone = safeFormatPhoneNumber(incoming.phone);
   const dto: UpdateCustomerDto = {};
 
-  if (incoming.name?.trim()) {
-    dto.name = incoming.name.trim();
+  const incomingName = incoming.name?.trim();
+  if (incomingName && shouldUpdateCustomerName(existing.name, incomingName)) {
+    dto.name = incomingName;
   }
   if (formattedPhone) {
     dto.phone = formattedPhone;

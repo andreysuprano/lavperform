@@ -17,7 +17,14 @@ import {
 } from './dto/campaign-messages-filter.dto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
-import { nowUTC, startOfDayInTz, endOfDayInTz, getOpeningHoursTimezone } from '../../common/utils/date.utils';
+import {
+  nowUTC,
+  startOfDayInTz,
+  endOfDayInTz,
+  getOpeningHoursTimezone,
+  parseCampaignStartDate,
+  parseCampaignEndDate,
+} from '../../common/utils/date.utils';
 import {
   MetaMessageTemplateRow,
   MetaTemplatesService,
@@ -84,8 +91,10 @@ export class AutomaticCampaignService {
         couponId: couponId ?? null,
         metaMessageTemplateId: metaMessageTemplateId ?? null,
         metaTemplateVariableMappings: metaTemplateVariableMappings ?? null,
-        startDate: new Date(createAutomaticCampaignDto.startDate),
-        endDate: createAutomaticCampaignDto.endDate ? new Date(createAutomaticCampaignDto.endDate) : null,
+        startDate: parseCampaignStartDate(createAutomaticCampaignDto.startDate),
+        endDate: createAutomaticCampaignDto.endDate
+          ? parseCampaignEndDate(createAutomaticCampaignDto.endDate)
+          : null,
         ...normalizeSendScheduleFields(
           createAutomaticCampaignDto.sendTimeStart,
           createAutomaticCampaignDto.sendTimeEnd,
@@ -327,11 +336,11 @@ export class AutomaticCampaignService {
 
     const updateData: any = { ...campaignData };
     if (updateAutomaticCampaignDto.startDate) {
-      updateData.startDate = new Date(updateAutomaticCampaignDto.startDate);
+      updateData.startDate = parseCampaignStartDate(updateAutomaticCampaignDto.startDate);
     }
     if ('endDate' in updateAutomaticCampaignDto) {
       updateData.endDate = updateAutomaticCampaignDto.endDate
-        ? new Date(updateAutomaticCampaignDto.endDate)
+        ? parseCampaignEndDate(updateAutomaticCampaignDto.endDate)
         : null;
     }
     if (couponProvided) {
@@ -477,7 +486,7 @@ export class AutomaticCampaignService {
     }
 
     const todayStr = startOfToday.toISOString().slice(0, 10);
-    const jobId = `automatic-campaign:${campaignId}:${todayStr}:edit`;
+    const jobId = `automatic-campaign:${campaignId}:${todayStr}`;
 
     try {
       const t0 = Date.now();
@@ -728,25 +737,35 @@ export class AutomaticCampaignService {
           }
         : null;
 
-      const templates = await this.prisma.metaMessageTemplate.findMany({
-        where: {
-          companyId: campaign.companyId,
-          automaticCampaignCreativeId: {
-            in: (campaign.creatives ?? []).map(
-              (c: { id: string }) => c.id,
-            ),
-          },
-        },
-        select: {
-          id: true,
-          name: true,
-          status: true,
-          rejectedReason: true,
-          metaTemplateId: true,
-          automaticCampaignCreativeId: true,
-        },
-      });
-      templateStates = templates;
+      const creativeIds = (campaign.creatives ?? []).map(
+        (c: { id: string }) => c.id,
+      );
+      const templateOrFilters = [
+        ...(creativeIds.length > 0
+          ? [{ automaticCampaignCreativeId: { in: creativeIds } }]
+          : []),
+        ...(campaign.metaMessageTemplateId
+          ? [{ id: campaign.metaMessageTemplateId }]
+          : []),
+      ];
+
+      templateStates =
+        templateOrFilters.length === 0
+          ? []
+          : await this.prisma.metaMessageTemplate.findMany({
+              where: {
+                companyId: campaign.companyId,
+                OR: templateOrFilters,
+              },
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                rejectedReason: true,
+                metaTemplateId: true,
+                automaticCampaignCreativeId: true,
+              },
+            });
     }
 
     return {

@@ -2,17 +2,16 @@ import { Injectable, OnModuleInit, OnModuleDestroy } from '@nestjs/common';
 import { PrismaClient } from '@prisma/client';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { createDatabasePool } from './database-pool';
 
 @Injectable()
 export class PrismaService extends PrismaClient implements OnModuleInit, OnModuleDestroy {
+  private readonly pool: Pool;
+
   constructor() {
-    const poolMax = Number(process.env.DATABASE_POOL_MAX ?? 20);
-    const pool = new Pool({
-      connectionString: process.env.DATABASE_URL,
-      max: Number.isFinite(poolMax) && poolMax > 0 ? poolMax : 20,
-    });
-    const adapter = new PrismaPg(pool);
-    super({ adapter });
+    const pool = createDatabasePool();
+    super({ adapter: new PrismaPg(pool) });
+    this.pool = pool;
   }
 
   async onModuleInit() {
@@ -24,5 +23,6 @@ export class PrismaService extends PrismaClient implements OnModuleInit, OnModul
 
   async onModuleDestroy() {
     await this.$disconnect();
+    await this.pool.end();
   }
 } 

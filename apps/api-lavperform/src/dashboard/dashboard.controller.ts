@@ -19,6 +19,18 @@ export class DashboardController {
     return this.dashboardService.getCustomersSummary(companyId);
   }
 
+  @Get('customers-insights/:companyId')
+  @ApiOperation({
+    summary: 'Obter inteligência de CRM da base de clientes',
+    description:
+      'Retorna resumo, segmentos RFV, oportunidades (retenção, reconquista, fidelização), ' +
+      'saúde da base e padrões (ticket médio, melhores dias, aniversariantes).',
+  })
+  @ApiParam({ name: 'companyId', description: 'ID da empresa' })
+  getCustomersInsights(@Param('companyId') companyId: string) {
+    return this.dashboardService.getCustomersInsights(companyId);
+  }
+
   @Get('campaigns-summary/:companyId')
   @ApiOperation({ summary: 'Obter dados do dashboard de campanhas' })
   @ApiParam({ name: 'companyId', description: 'ID da empresa' })

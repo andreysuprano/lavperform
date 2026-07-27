@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsDateString, IsOptional, IsBoolean, IsEnum, IsArray, ValidateNested, IsInt, Min, ValidateIf, IsUUID, Matches } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { AudienceTargetingMode, AutomaticCampaignType, CampaignChannel } from '@prisma/client';
 import { CreateGiftDto } from './create-gift.dto';
 import { CreateCreativeDto } from './create-creative.dto';
@@ -171,6 +171,12 @@ export class UpdateAutomaticCampaignDto {
     required: false,
     nullable: true,
   })
+  @Transform(({ value }) => {
+    if (value == null || value === '') return value ?? null;
+    if (typeof value !== 'string') return value;
+    const match = value.trim().match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+    return match ? `${match[1]}:${match[2]}` : value.trim().slice(0, 5);
+  })
   @ValidateIf((o) => o.sendTimeStart != null && o.sendTimeStart !== '')
   @Matches(/^\d{2}:\d{2}$/, { message: 'sendTimeStart deve estar no formato HH:mm' })
   @IsOptional()
@@ -181,6 +187,12 @@ export class UpdateAutomaticCampaignDto {
     example: '16:00',
     required: false,
     nullable: true,
+  })
+  @Transform(({ value }) => {
+    if (value == null || value === '') return value ?? null;
+    if (typeof value !== 'string') return value;
+    const match = value.trim().match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+    return match ? `${match[1]}:${match[2]}` : value.trim().slice(0, 5);
   })
   @ValidateIf((o) => o.sendTimeEnd != null && o.sendTimeEnd !== '')
   @Matches(/^\d{2}:\d{2}$/, { message: 'sendTimeEnd deve estar no formato HH:mm' })

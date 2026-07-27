@@ -1,0 +1,10 @@
+{
+  "name": "@lavperform/food-ai",
+  "private": true,
+  "version": "0.0.0",
+  "description": "Placeholder — FoodAI ainda sem acesso ao repositório fonte. Ver docs/migration/05-foodai-inventory.md",
+  "scripts": {
+    "dev": "node -e \"console.log('FoodAI bloqueado: configure acesso ao repo e rode Sprint 5')\"",
+    "build": "node -e \"console.log('FoodAI placeholder — skip build')\""
+  }
+}

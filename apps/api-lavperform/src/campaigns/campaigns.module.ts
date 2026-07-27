@@ -1,7 +1,6 @@
 import { Module } from '@nestjs/common';
 import { CampaignsService } from './application/campaigns.service';
 import { CampaignsController } from './presentation/campaigns.controller';
-import { PrismaService } from '../prisma/prisma.service';
 import { ScheduledCampaignTasks } from './crons/scheduled-campaign-tasks';
 import { QUEUE_NAMES } from '../common/queue/queue.constants';
 import { BullBoardModule } from '@bull-board/nestjs';
@@ -56,7 +55,6 @@ import { workerProviders } from '../common/queue/worker-runtime.config';
   controllers: [CampaignsController],
   providers: [
     CampaignsService,
-    PrismaService,
     ...workerProviders(
       ScheduledCampaignTasks,
       CampaignsProcessor,

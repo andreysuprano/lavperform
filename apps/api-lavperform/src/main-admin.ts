@@ -25,8 +25,8 @@ async function bootstrap() {
   );
 
   const config = new DocumentBuilder()
-    .setTitle('LavPerform Admin API')
-    .setDescription('API administrativa da plataforma LavPerform')
+    .setTitle('FoodCRM Admin API')
+    .setDescription('API administrativa da plataforma FoodCRM')
     .setVersion('1.0')
     .addBearerAuth()
     .build();

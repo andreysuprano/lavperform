@@ -61,17 +61,47 @@ export function formatDateTime(dateString: string): string {
   })
 }
 
+const CAMPAIGN_CALENDAR_TIMEZONE = 'America/Sao_Paulo'
+
 /**
  * Converte uma string de data (ISO 8601 ou qualquer formato válido) para o
  * valor aceito pelo input[type="date"] do HTML: "YYYY-MM-DD".
- * Retorna string vazia se o valor for nulo/inválido.
+ *
+ * Regras (alinhadas ao backend):
+ * - Meia-noite UTC exata (legado `T00:00:00.000Z`): usa a data UTC (date-only).
+ * - Demais instantes: usa o dia civil em America/Sao_Paulo (início/fim do dia SP).
  */
 export function toHtmlDateInputValue(dateStr: string | null | undefined): string {
   if (!dateStr || !String(dateStr).trim()) return ''
   const d = new Date(dateStr)
   if (isNaN(d.getTime())) return ''
-  const year = d.getUTCFullYear()
-  const month = String(d.getUTCMonth() + 1).padStart(2, '0')
-  const day = String(d.getUTCDate()).padStart(2, '0')
-  return `${year}-${month}-${day}`
+
+  const isUtcMidnight =
+    d.getUTCHours() === 0 &&
+    d.getUTCMinutes() === 0 &&
+    d.getUTCSeconds() === 0 &&
+    d.getUTCMilliseconds() === 0
+
+  if (isUtcMidnight) {
+    const year = d.getUTCFullYear()
+    const month = String(d.getUTCMonth() + 1).padStart(2, '0')
+    const day = String(d.getUTCDate()).padStart(2, '0')
+    return `${year}-${month}-${day}`
+  }
+
+  // en-CA → YYYY-MM-DD
+  return d.toLocaleDateString('en-CA', { timeZone: CAMPAIGN_CALENDAR_TIMEZONE })
+}
+
+/**
+ * Formata a data civil da campanha para exibição pt-BR (DD/MM/YYYY).
+ * Usa as mesmas regras de `toHtmlDateInputValue` (legado UTC midnight vs dia SP).
+ */
+export function formatCampaignCalendarDateBr(
+  dateStr: string | null | undefined,
+): string {
+  const ymd = toHtmlDateInputValue(dateStr)
+  if (!ymd) return ''
+  const [year, month, day] = ymd.split('-')
+  return `${day}/${month}/${year}`
 }

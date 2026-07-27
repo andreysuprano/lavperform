@@ -1,6 +1,7 @@
 import { Injectable, BadRequestException, NotFoundException, Inject, Logger } from '@nestjs/common';
 import { CreateCustomerDto } from './dto/create-customer.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { CustomerPaginationDto } from './dto/customer-pagination.dto';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
@@ -39,6 +40,19 @@ export class CustomersService {
           typeof incomingPhone === 'string' && incomingPhone.startsWith('cpf:')
             ? incomingPhone
             : formatPhoneNumber(incomingPhone);
+      }
+
+      // Evita INSERT desnecessário; a unicidade real fica no índice (phone, companyId).
+      if (formattedPhone) {
+        const existingByPhone = await this.customerRepository.findByPhone(
+          companyId,
+          formattedPhone,
+        );
+        if (existingByPhone) {
+          throw new BadRequestException(
+            'Já existe um cliente cadastrado com este telefone nesta empresa',
+          );
+        }
       }
 
       const { address, ...customerData } = createCustomerDto;
@@ -89,7 +103,7 @@ export class CustomersService {
     }
   }
 
-  async findAll(companyId: string, paginationDto: PaginationDto) {
+  async findAll(companyId: string, paginationDto: CustomerPaginationDto) {
     const result = await this.customerRepository.findAll({
       ...paginationDto,
       companyId,
@@ -109,6 +123,19 @@ export class CustomersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async findTopBuyers(
+    companyId: string,
+    limit = 10,
+    sortBy: 'totalSpent' | 'orderCount' = 'totalSpent',
+  ) {
+    const items = await this.customerRepository.findTopBuyers(
+      companyId,
+      limit,
+      sortBy,
+    );
+    return { items };
   }
 
   async findOne(companyId: string, id: string) {

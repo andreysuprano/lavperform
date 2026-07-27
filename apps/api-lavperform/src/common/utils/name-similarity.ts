@@ -65,14 +65,28 @@ function levenshteinSimilarity(a: string, b: string): number {
 }
 
 /**
+ * Nomes genericos gerados por importadores ("Cliente Brendi", "Cliente Anota AI")
+ * nao devem contar como evidencia contra um match por telefone/CPF.
+ */
+export function isPlaceholderCustomerName(
+  name: string | null | undefined,
+): boolean {
+  const normalized = normalizeName(name);
+  if (!normalized) return true;
+  return normalized === 'cliente' || normalized.startsWith('cliente ');
+}
+
+/**
  * Compara similaridade considerando que nomes podem estar abreviados ou ter
  * ordem de tokens trocada (ex: "Joao Silva" vs "J. Silva" vs "Silva, Joao").
  *
  * Estrategia:
- * 1. Match exato dos primeiros nomes vale como similaridade 1.
- * 2. Se o nome curto for prefixo/abreviatura do longo (ex: "j" para "joao"),
+ * 1. Se um lado tem so o primeiro nome e ele coincide com o primeiro token do
+ *    outro (padrao Brendi/PDV: "Thais" vs "Thais Oliveira"), considera match.
+ * 2. Match exato dos primeiros nomes soma bonus.
+ * 3. Se o nome curto for prefixo/abreviatura do longo (ex: "j" para "joao"),
  *    consideramos como token equivalente.
- * 3. Caso contrario, usamos a similaridade Levenshtein da string inteira.
+ * 4. Caso contrario, usamos a similaridade Levenshtein da string inteira.
  */
 function tokenAwareSimilarity(a: string, b: string): number {
   const tokensA = a.split(' ').filter(Boolean);
@@ -84,6 +98,11 @@ function tokenAwareSimilarity(a: string, b: string): number {
   const firstB = tokensB[0];
   const lastA = tokensA[tokensA.length - 1];
   const lastB = tokensB[tokensB.length - 1];
+
+  // "Thais" vs "Thais Oliveira" — mesmo primeiro nome, um dos lados incompleto.
+  if (firstA === firstB && (tokensA.length === 1 || tokensB.length === 1)) {
+    return 0.9;
+  }
 
   let bonus = 0;
 
@@ -137,6 +156,8 @@ export function isSimilarName(
   const a = normalizeName(nameA);
   const b = normalizeName(nameB);
   if (!a || !b) return true;
+  // Placeholder de importacao nao deve forcar criacao de duplicata.
+  if (isPlaceholderCustomerName(a) || isPlaceholderCustomerName(b)) return true;
   return nameSimilarity(a, b) >= threshold;
 }
 
