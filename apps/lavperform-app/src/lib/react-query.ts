@@ -51,8 +51,19 @@ export const queryKeys = {
     topBuyers: (
       companyId: string,
       limit: number,
-      sortBy: 'totalSpent' | 'orderCount' = 'totalSpent'
-    ) => ['customers', 'top-buyers', companyId, limit, sortBy] as const,
+      sortBy: 'totalSpent' | 'orderCount' = 'totalSpent',
+      startDate?: string,
+      endDate?: string
+    ) =>
+      [
+        'customers',
+        'top-buyers',
+        companyId,
+        limit,
+        sortBy,
+        startDate ?? null,
+        endDate ?? null,
+      ] as const,
     orders: (customerId: string) =>
       ['customers', 'orders', customerId] as const,
     rfvMatrix: (companyId: string) =>

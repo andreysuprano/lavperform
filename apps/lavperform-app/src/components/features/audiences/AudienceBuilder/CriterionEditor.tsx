@@ -53,6 +53,10 @@ export function CriterionEditor({
         return ['eq', 'gt', 'gte', 'lt', 'lte'] as ComparisonOperator[]
       case 'average_ticket':
         return ['gt', 'gte', 'lt', 'lte'] as ComparisonOperator[]
+      case 'birthday_within_days':
+        return ['within_days'] as ComparisonOperator[]
+      case 'top_customers_month':
+        return ['eq'] as ComparisonOperator[]
       default:
         return ['eq'] as ComparisonOperator[]
     }
@@ -71,6 +75,12 @@ export function CriterionEditor({
       case 'whatsapp_verified':
       case 'has_orders':
         onChange({ type, operator: 'eq', value: true })
+        break
+      case 'birthday_within_days':
+        onChange({ type, operator: 'within_days', value: 30 })
+        break
+      case 'top_customers_month':
+        onChange({ type, operator: 'eq', value: 10 })
         break
       default:
         onChange({ type, operator: 'gte', value: 30 })
@@ -106,7 +116,9 @@ export function CriterionEditor({
           </NativeSelect.Root>
         </Field.Root>
 
-        {!['whatsapp_verified', 'has_orders'].includes(criterion.type) && (
+        {!['whatsapp_verified', 'has_orders', 'birthday_within_days', 'top_customers_month'].includes(
+          criterion.type,
+        ) && (
           <Field.Root flex={1}>
             <Field.Label>Como filtrar</Field.Label>
             <NativeSelect.Root>
@@ -186,6 +198,34 @@ export function CriterionEditor({
             }
             type="number"
             value={Number(criterion.value ?? 0)}
+          />
+        </Field.Root>
+      )}
+
+      {criterion.type === 'birthday_within_days' && (
+        <Field.Root>
+          <Field.Label>Próximos quantos dias?</Field.Label>
+          <Input
+            min={0}
+            onChange={(event) =>
+              onChange({ ...criterion, value: Number(event.currentTarget.value) })
+            }
+            type="number"
+            value={Number(criterion.value ?? 30)}
+          />
+        </Field.Root>
+      )}
+
+      {criterion.type === 'top_customers_month' && (
+        <Field.Root>
+          <Field.Label>Quantos clientes no ranking?</Field.Label>
+          <Input
+            min={1}
+            onChange={(event) =>
+              onChange({ ...criterion, value: Number(event.currentTarget.value) })
+            }
+            type="number"
+            value={Number(criterion.value ?? 10)}
           />
         </Field.Root>
       )}

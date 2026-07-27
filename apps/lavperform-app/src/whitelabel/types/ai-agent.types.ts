@@ -89,6 +89,11 @@ export interface AIAgentMediaConfig {
   videoDefaultMessage?: string
 }
 
+export interface AIAgentNotificationConfig {
+  helpNotificationEnabled?: boolean
+  helpNotificationPhone?: string
+}
+
 // ─── AIAgent entity ──────────────────────────────────────────────────────────
 
 export interface AIAgent {
@@ -102,6 +107,7 @@ export interface AIAgent {
   modelConfig?: AIAgentModelConfig
   memoryConfig?: AIAgentMemoryConfig
   mediaConfig?: AIAgentMediaConfig
+  notificationConfig?: AIAgentNotificationConfig
   createdAt?: string
   updatedAt?: string
 }
@@ -139,6 +145,9 @@ export interface UpdateAIAgentPayload {
 export type UpdateAIAgentPersonaPayload = Partial<AIAgentPersona>
 
 export type UpdateAIAgentMediaConfigPayload = Partial<AIAgentMediaConfig>
+
+export type UpdateAIAgentNotificationConfigPayload =
+  Partial<AIAgentNotificationConfig>
 
 // ─── Knowledge base ──────────────────────────────────────────────────────────
 

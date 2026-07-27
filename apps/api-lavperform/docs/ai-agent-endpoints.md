@@ -14,9 +14,10 @@
 4. [Configuração de Memória](#4-configuração-de-memória)
 5. [Configuração de Mídia](#5-configuração-de-mídia)
 6. [Filtros de Mensagens](#6-filtros-de-mensagens)
-7. [MCP Servers](#7-mcp-servers)
-8. [Modelos LLM Disponíveis](#8-modelos-llm-disponíveis)
-9. [Tabela de Referência Rápida](#9-tabela-de-referência-rápida)
+7. [Configuração de Notificação](#7-configuração-de-notificação)
+8. [MCP Servers](#8-mcp-servers)
+9. [Modelos LLM Disponíveis](#9-modelos-llm-disponíveis)
+10. [Tabela de Referência Rápida](#10-tabela-de-referência-rápida)
 
 ---
 
@@ -163,6 +164,10 @@ GET /ai-agents/:agentId
   "memoryConfig": { "...": "..." },
   "mediaConfig": { "...": "..." },
   "filterConfig": { "...": "..." },
+  "notificationConfig": {
+    "helpNotificationEnabled": true,
+    "helpNotificationPhone": "5511999999999"
+  },
   "createdAt": "2026-04-19T10:01:00.000Z",
   "updatedAt": "2026-04-19T10:05:00.000Z"
 }
@@ -482,13 +487,41 @@ Define quais mensagens e remetentes o agente processa. Útil para limitar o agen
 
 ---
 
-## 7. MCP Servers
+## 7. Configuração de Notificação
+
+```
+PATCH /ai-agents/:agentId/notification-config
+```
+
+Define o telefone que recebe um alerta quando o cliente pede ajuda humana no atendimento automatizado. A detecção do pedido e o envio da mensagem são responsabilidade do over-agent.
+
+**Body**
+
+```json
+{
+  "helpNotificationEnabled": true,
+  "helpNotificationPhone": "5511999999999"
+}
+```
+
+**Campos**
+
+| Campo | Tipo | Descrição |
+|-------|------|-----------|
+| `helpNotificationEnabled` | boolean | Se `true`, o over-agent notifica o telefone configurado quando o cliente pedir ajuda |
+| `helpNotificationPhone` | string | Telefone destino (apenas dígitos, sem `+`). Ex: `5511999999999`. Vazio / desabilitado = sem notificação |
+
+**Response 200**   objeto da configuração de notificação atualizada.
+
+---
+
+## 8. MCP Servers
 
 MCP Servers estendem o agente com ferramentas externas (CRM, banco de dados, APIs, sistema de arquivos, etc.) via Model Context Protocol.
 
 ---
 
-### 7.1 Adicionar MCP Server
+### 8.1 Adicionar MCP Server
 
 ```
 POST /ai-agents/:agentId/mcp-servers
@@ -553,7 +586,7 @@ POST /ai-agents/:agentId/mcp-servers
 
 ---
 
-### 7.2 Listar MCP Servers do Agente
+### 8.2 Listar MCP Servers do Agente
 
 ```
 GET /ai-agents/:agentId/mcp-servers
@@ -563,7 +596,7 @@ GET /ai-agents/:agentId/mcp-servers
 
 ---
 
-### 7.3 Buscar MCP Server por ID
+### 8.3 Buscar MCP Server por ID
 
 ```
 GET /mcp-servers/:mcpServerId
@@ -573,7 +606,7 @@ GET /mcp-servers/:mcpServerId
 
 ---
 
-### 7.4 Atualizar MCP Server
+### 8.4 Atualizar MCP Server
 
 ```
 PATCH /mcp-servers/:mcpServerId
@@ -597,7 +630,7 @@ Todos os campos são opcionais (partial update).
 
 ---
 
-### 7.5 Habilitar / Desabilitar MCP Server
+### 8.5 Habilitar / Desabilitar MCP Server
 
 ```
 PATCH /mcp-servers/:mcpServerId/toggle
@@ -620,7 +653,7 @@ Sem body. Inverte o campo `enabled`.
 
 ---
 
-### 7.6 Remover MCP Server
+### 8.6 Remover MCP Server
 
 ```
 DELETE /mcp-servers/:mcpServerId
@@ -630,7 +663,7 @@ DELETE /mcp-servers/:mcpServerId
 
 ---
 
-## 8. Modelos LLM Disponíveis
+## 9. Modelos LLM Disponíveis
 
 ```
 GET /llm/models
@@ -665,7 +698,7 @@ Retorna a lista de modelos disponíveis no OpenRouter, consultada em tempo real 
 
 ---
 
-## 9. Tabela de Referência Rápida
+## 10. Tabela de Referência Rápida
 
 ### Agentes
 
@@ -687,6 +720,7 @@ Retorna a lista de modelos disponíveis no OpenRouter, consultada em tempo real 
 | `PATCH` | `/ai-agents/:agentId/memory-config` | Tipo e tamanho de memória |
 | `PATCH` | `/ai-agents/:agentId/media-config` | Áudio, imagem e vídeo |
 | `PATCH` | `/ai-agents/:agentId/filter-config` | Filtros de remetente e gatilho |
+| `PATCH` | `/ai-agents/:agentId/notification-config` | Notificação ao pedir ajuda |
 
 ### MCP Servers
 

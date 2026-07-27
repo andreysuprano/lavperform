@@ -111,6 +111,14 @@ export class AudienceQueryEngine {
       return this.resolveAverageTicketIds(criterion, companyId);
     }
 
+    if (criterion.type === 'birthday_within_days') {
+      return this.resolveBirthdayWithinDaysIds(criterion, companyId);
+    }
+
+    if (criterion.type === 'top_customers_month') {
+      return this.resolveTopCustomersMonthIds(criterion, companyId);
+    }
+
     const where = this.buildCriterionWhere(criterion, companyId);
     const customers = await this.prisma.customer.findMany({
       where,
@@ -396,6 +404,86 @@ export class AudienceQueryEngine {
     `;
 
     return rows.map((row) => row.id);
+  }
+
+  private async resolveBirthdayWithinDaysIds(
+    criterion: Criterion,
+    companyId: string,
+  ): Promise<string[]> {
+    const days = Math.max(0, Math.floor(Number(criterion.value)));
+    const monthDayPairs = this.buildUpcomingMonthDayPairs(days);
+
+    if (monthDayPairs.length === 0) {
+      return [];
+    }
+
+    const pairConditions = Prisma.join(
+      monthDayPairs.map(
+        ([month, day]) =>
+          Prisma.sql`(EXTRACT(MONTH FROM c."birthDate") = ${month} AND EXTRACT(DAY FROM c."birthDate") = ${day})`,
+      ),
+      ' OR ',
+    );
+
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT c.id
+      FROM "Customer" c
+      WHERE c."companyId" = ${companyId}
+        AND c."birthDate" IS NOT NULL
+        AND (${pairConditions})
+    `;
+
+    return rows.map((row) => row.id);
+  }
+
+  private async resolveTopCustomersMonthIds(
+    criterion: Criterion,
+    companyId: string,
+  ): Promise<string[]> {
+    const limit = Math.max(1, Math.floor(Number(criterion.value)));
+    const { start, end } = this.getCurrentCalendarMonthRange();
+
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT c.id
+      FROM "Customer" c
+      INNER JOIN "Order" o ON o."customerId" = c.id
+      WHERE c."companyId" = ${companyId}
+        AND o."createdAt" >= ${start}
+        AND o."createdAt" < ${end}
+      GROUP BY c.id
+      ORDER BY COUNT(o.id) DESC
+      LIMIT ${limit}
+    `;
+
+    return rows.map((row) => row.id);
+  }
+
+  private buildUpcomingMonthDayPairs(days: number): Array<[number, number]> {
+    const pairs: Array<[number, number]> = [];
+    const seen = new Set<string>();
+    const cursor = new Date();
+    cursor.setUTCHours(0, 0, 0, 0);
+
+    for (let offset = 0; offset <= days; offset++) {
+      const date = new Date(cursor);
+      date.setUTCDate(cursor.getUTCDate() + offset);
+      const month = date.getUTCMonth() + 1;
+      const day = date.getUTCDate();
+      const key = `${month}-${day}`;
+      if (!seen.has(key)) {
+        seen.add(key);
+        pairs.push([month, day]);
+      }
+    }
+
+    return pairs;
+  }
+
+  private getCurrentCalendarMonthRange(): { start: Date; end: Date } {
+    const now = new Date();
+    const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+    const end = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 1));
+    return { start, end };
   }
 
   private parseBetween(value: unknown): [number, number] {

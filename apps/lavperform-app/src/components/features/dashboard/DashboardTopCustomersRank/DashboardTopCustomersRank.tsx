@@ -27,6 +27,7 @@ import { getInitials } from '@/utils/strings'
 
 const RANK_LIMIT = 10
 const VISIBLE_ITEMS = 5
+const MONTHLY_CARD_MIN_W = '168px'
 
 const RANK_STYLES = [
   { bg: 'yellow.subtle', color: 'yellow.fg', icon: LuCrown },
@@ -35,6 +36,20 @@ const RANK_STYLES = [
 ] as const
 
 type RankSortBy = 'totalSpent' | 'orderCount'
+
+function getCurrentMonthRange() {
+  const now = new Date()
+  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
+  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
+  return {
+    startDate: start.toISOString(),
+    endDate: end.toISOString(),
+    label: new Intl.DateTimeFormat('pt-BR', {
+      month: 'long',
+      year: 'numeric',
+    }).format(now),
+  }
+}
 
 function getRfvLabel(classification: string | null) {
   if (!classification) return null
@@ -78,6 +93,176 @@ function formatMetric(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
     return `${buyer.orderCount} ${buyer.orderCount === 1 ? 'venda' : 'vendas'}`
   }
   return formatCurrency(buyer.totalSpent)
+}
+
+type MonthlyTopStripProps = {
+  data: TopBuyerCustomer[] | undefined
+  isLoading: boolean
+  isError: boolean
+  monthLabel: string
+  colorPalette: string
+  onOpenDetails: (buyer: TopBuyerCustomer) => void
+}
+
+function MonthlyTopStrip({
+  data,
+  isLoading,
+  isError,
+  monthLabel,
+  colorPalette,
+  onOpenDetails,
+}: MonthlyTopStripProps) {
+  const capitalizedMonth =
+    monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+
+  return (
+    <Box
+      bg="bg.panel"
+      borderColor="border"
+      borderRadius="lg"
+      borderWidth="1px"
+      colorPalette={colorPalette}
+      overflow="hidden"
+      p={3}
+      w="full"
+    >
+      <Stack
+        gap={0.5}
+        mb={3}
+      >
+        <Heading
+          fontWeight="semibold"
+          size="sm"
+        >
+          Top Clientes do mês
+        </Heading>
+        <Text
+          color="fg.muted"
+          fontSize="xs"
+        >
+          Quem mais comprou em {capitalizedMonth}
+        </Text>
+      </Stack>
+
+      {isLoading ? (
+        <HStack
+          gap={2}
+          overflowX="auto"
+          pb={1}
+        >
+          {Array.from({ length: 5 }).map((_, idx) => (
+            <Skeleton
+              borderRadius="md"
+              flexShrink={0}
+              h="112px"
+              key={idx}
+              minW={MONTHLY_CARD_MIN_W}
+            />
+          ))}
+        </HStack>
+      ) : isError ? (
+        <Empty
+          description="Não foi possível carregar o ranking do mês."
+          title="Erro ao carregar"
+        />
+      ) : !data || data.length === 0 ? (
+        <Empty
+          description="Nenhuma compra neste mês."
+          title="Sem vendas no período"
+        />
+      ) : (
+        <HStack
+          align="stretch"
+          css={{
+            '&::-webkit-scrollbar': { height: '6px' },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'var(--chakra-colors-border)',
+              borderRadius: '999px',
+            },
+          }}
+          gap={2}
+          overflowX="auto"
+          pb={1}
+        >
+          {data.map((buyer, index) => {
+            const rank = index + 1
+            const rankStyle = RANK_STYLES[index]
+            const RankIcon = rankStyle?.icon
+
+            return (
+              <Box
+                _hover={{
+                  borderColor: 'colorPalette.solid',
+                  bg: 'bg.subtle',
+                }}
+                bg="bg"
+                borderColor="border"
+                borderRadius="md"
+                borderWidth="1px"
+                cursor="pointer"
+                flexShrink={0}
+                key={buyer.customerId}
+                minW={MONTHLY_CARD_MIN_W}
+                onClick={() => onOpenDetails(buyer)}
+                px={2.5}
+                py={2.5}
+                transition="border-color 0.15s ease, background 0.15s ease"
+                w={MONTHLY_CARD_MIN_W}
+              >
+                <Stack
+                  align="center"
+                  gap={2}
+                  textAlign="center"
+                >
+                  <Flex
+                    align="center"
+                    bg={rankStyle?.bg ?? 'bg.muted'}
+                    borderRadius="md"
+                    color={rankStyle?.color ?? 'fg.muted'}
+                    fontSize="xs"
+                    fontWeight="bold"
+                    h={7}
+                    justify="center"
+                    w={7}
+                  >
+                    {RankIcon && rank <= 3 ? (
+                      <RankIcon size={14} />
+                    ) : (
+                      rank
+                    )}
+                  </Flex>
+
+                  <Avatar.Root size="sm">
+                    <Avatar.Fallback name={buyer.name}>
+                      {getInitials(buyer.name)}
+                    </Avatar.Fallback>
+                  </Avatar.Root>
+
+                  <Text
+                    fontSize="xs"
+                    fontWeight="semibold"
+                    lineClamp={1}
+                    w="full"
+                  >
+                    {buyer.name}
+                  </Text>
+
+                  <Badge
+                    colorPalette={colorPalette}
+                    size="sm"
+                    variant="subtle"
+                  >
+                    {buyer.orderCount}{' '}
+                    {buyer.orderCount === 1 ? 'venda' : 'vendas'}
+                  </Badge>
+                </Stack>
+              </Box>
+            )
+          })}
+        </HStack>
+      )}
+    </Box>
+  )
 }
 
 type RankListProps = {
@@ -429,10 +614,22 @@ function RankList({
 function DashboardTopCustomersRankBase() {
   const { colorPalette } = useWhiteLabel()
   const { selectedCompany } = useAuth()
+  const monthRange = useMemo(() => getCurrentMonthRange(), [])
   const bySpent = useTopBuyers(selectedCompany?.id, RANK_LIMIT, 'totalSpent')
   const byOrders = useTopBuyers(selectedCompany?.id, RANK_LIMIT, 'orderCount')
+  const byMonth = useTopBuyers(
+    selectedCompany?.id,
+    RANK_LIMIT,
+    'orderCount',
+    monthRange.startDate,
+    monthRange.endDate
+  )
   const [selected, setSelected] = useState<Customer | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
+
+  const openDetails = (buyer: TopBuyerCustomer) => {
+    setSelected(toCustomer(buyer))
+  }
 
   return (
     <Box
@@ -458,35 +655,46 @@ function DashboardTopCustomersRankBase() {
         </Text>
       </Stack>
 
-      <SimpleGrid
-        columns={{ base: 1, lg: 2 }}
-        gap={3}
-      >
-        <RankList
+      <Stack gap={3}>
+        <MonthlyTopStrip
           colorPalette={colorPalette}
-          data={bySpent.data}
-          expandedId={expandedId}
-          isError={bySpent.isError}
-          isLoading={bySpent.isLoading}
-          onExpand={setExpandedId}
-          onOpenDetails={(buyer) => setSelected(toCustomer(buyer))}
-          sortBy="totalSpent"
-          subtitle="Ordenado pelo valor total gasto"
-          title="Quem mais gasta"
+          data={byMonth.data}
+          isError={byMonth.isError}
+          isLoading={byMonth.isLoading}
+          monthLabel={monthRange.label}
+          onOpenDetails={openDetails}
         />
-        <RankList
-          colorPalette={colorPalette}
-          data={byOrders.data}
-          expandedId={expandedId}
-          isError={byOrders.isError}
-          isLoading={byOrders.isLoading}
-          onExpand={setExpandedId}
-          onOpenDetails={(buyer) => setSelected(toCustomer(buyer))}
-          sortBy="orderCount"
-          subtitle="Ordenado pelo número de vendas"
-          title="Quem mais compra"
-        />
-      </SimpleGrid>
+
+        <SimpleGrid
+          columns={{ base: 1, lg: 2 }}
+          gap={3}
+        >
+          <RankList
+            colorPalette={colorPalette}
+            data={bySpent.data}
+            expandedId={expandedId}
+            isError={bySpent.isError}
+            isLoading={bySpent.isLoading}
+            onExpand={setExpandedId}
+            onOpenDetails={openDetails}
+            sortBy="totalSpent"
+            subtitle="Ordenado pelo valor total gasto"
+            title="Quem mais gasta"
+          />
+          <RankList
+            colorPalette={colorPalette}
+            data={byOrders.data}
+            expandedId={expandedId}
+            isError={byOrders.isError}
+            isLoading={byOrders.isLoading}
+            onExpand={setExpandedId}
+            onOpenDetails={openDetails}
+            sortBy="orderCount"
+            subtitle="Ordenado pelo número de vendas"
+            title="Quem mais compra"
+          />
+        </SimpleGrid>
+      </Stack>
 
       <CustomerDetailsModal
         data={selected}

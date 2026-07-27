@@ -25,6 +25,8 @@ export const CRITERION_LABELS: Record<CriterionType, string> = {
   average_ticket: 'Quanto costuma gastar',
   whatsapp_verified: 'Tem WhatsApp confirmado',
   has_orders: 'Já fez venda',
+  birthday_within_days: 'Faz aniversário em breve',
+  top_customers_month: 'Top clientes do mês',
 }
 
 export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
@@ -37,6 +39,8 @@ export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   average_ticket: 'Filtra pelo valor médio que o cliente costuma gastar.',
   whatsapp_verified: 'Filtra quem tem ou não o WhatsApp confirmado.',
   has_orders: 'Filtra quem já comprou alguma vez ou ainda não.',
+  birthday_within_days: 'Inclui quem faz aniversário nos próximos dias informados.',
+  top_customers_month: 'Inclui os clientes com mais pedidos no mês atual.',
 }
 
 export const OPERATOR_LABELS: Partial<Record<ComparisonOperator, string>> = {
@@ -131,6 +135,10 @@ function formatCriterionSummary(criterion: Criterion): string {
         : 'Não tem WhatsApp confirmado'
     case 'has_orders':
       return Boolean(criterion.value) ? 'Já fez venda' : 'Ainda não fez venda'
+    case 'birthday_within_days':
+      return `Faz aniversário nos próximos ${Number(criterion.value ?? 0)} dias`
+    case 'top_customers_month':
+      return `Está entre os ${Number(criterion.value ?? 0)} com mais pedidos no mês`
     default:
       return label
   }

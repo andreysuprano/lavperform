@@ -4,6 +4,7 @@ import type {
   CreateAIAgentPayload,
   CreateKnowledgeFilePayload,
   UpdateAIAgentMediaConfigPayload,
+  UpdateAIAgentNotificationConfigPayload,
   UpdateAIAgentPayload,
   UpdateAIAgentPersonaPayload,
   UpdateKnowledgeFilePayload,
@@ -56,6 +57,16 @@ export const aiAgentService = {
   ) {
     return await client.patch<AIAgent>(
       `/ai-agents/${agentId}/media-config`,
+      data
+    )
+  },
+
+  async updateAgentNotificationConfig(
+    agentId: string,
+    data: UpdateAIAgentNotificationConfigPayload
+  ) {
+    return await client.patch<AIAgent>(
+      `/ai-agents/${agentId}/notification-config`,
       data
     )
   },

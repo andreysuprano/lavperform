@@ -63,16 +63,26 @@ export function useCustomersSummary(companyId: string | undefined) {
 export function useTopBuyers(
   companyId: string | undefined,
   limit = 10,
-  sortBy: 'totalSpent' | 'orderCount' = 'totalSpent'
+  sortBy: 'totalSpent' | 'orderCount' = 'totalSpent',
+  startDate?: string,
+  endDate?: string
 ) {
   return useQuery({
-    queryKey: queryKeys.customers.topBuyers(companyId || '', limit, sortBy),
+    queryKey: queryKeys.customers.topBuyers(
+      companyId || '',
+      limit,
+      sortBy,
+      startDate,
+      endDate
+    ),
     queryFn: async () => {
       if (!companyId) throw new Error('Company ID is required')
       const response = await customerService.getTopBuyers(
         companyId,
         limit,
-        sortBy
+        sortBy,
+        startDate,
+        endDate
       )
       return response.data.items
     },

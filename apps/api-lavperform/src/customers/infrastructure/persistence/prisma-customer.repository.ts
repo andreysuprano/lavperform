@@ -339,4 +339,114 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                 typeof row.phone === 'string' && row.phone.length > 0,
         );
     }
+
+    async getTopBuyers(
+        companyId: string,
+        options: {
+            limit: number;
+            sortBy: 'totalSpent' | 'orderCount';
+            startDate?: Date;
+            endDate?: Date;
+        },
+    ): Promise<
+        Array<{
+            customerId: string;
+            name: string;
+            phone: string | null;
+            email: string | null;
+            rfvClassification: string | null;
+            averageTicket: number;
+            lastOrderDate: Date | null;
+            totalSpent: number;
+            orderCount: number;
+            companyId: string;
+            whatsappOptin: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            birthDate: Date | null;
+        }>
+    > {
+        const { limit, sortBy, startDate, endDate } = options;
+
+        const createdAtFilter =
+            startDate || endDate
+                ? {
+                      ...(startDate ? { gte: startDate } : {}),
+                      ...(endDate ? { lte: endDate } : {}),
+                  }
+                : undefined;
+
+        const grouped = await this.prisma.order.groupBy({
+            by: ['customerId'],
+            where: {
+                companyId,
+                ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
+            },
+            _count: { _all: true },
+            _sum: { total: true },
+            _max: { createdAt: true },
+            orderBy:
+                sortBy === 'orderCount'
+                    ? { _count: { _all: 'desc' } }
+                    : { _sum: { total: 'desc' } },
+            take: limit,
+        });
+
+        if (grouped.length === 0) {
+            return [];
+        }
+
+        const customerIds = grouped.map((group) => group.customerId);
+        const customers = await this.prisma.customer.findMany({
+            where: {
+                companyId,
+                id: { in: customerIds },
+            },
+            select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+                rfvClassification: true,
+                companyId: true,
+                whatsappOptin: true,
+                createdAt: true,
+                updatedAt: true,
+                birthDate: true,
+            },
+        });
+
+        const customersById = new Map(
+            customers.map((customer) => [customer.id, customer]),
+        );
+
+        return grouped
+            .map((group) => {
+                const customer = customersById.get(group.customerId);
+                if (!customer) return null;
+
+                const orderCount = group._count._all;
+                const totalSpent = Number(group._sum.total ?? 0);
+                const averageTicket =
+                    orderCount > 0 ? totalSpent / orderCount : 0;
+
+                return {
+                    customerId: customer.id,
+                    name: customer.name,
+                    phone: customer.phone,
+                    email: customer.email,
+                    rfvClassification: customer.rfvClassification,
+                    averageTicket,
+                    lastOrderDate: group._max.createdAt,
+                    totalSpent,
+                    orderCount,
+                    companyId: customer.companyId,
+                    whatsappOptin: customer.whatsappOptin,
+                    createdAt: customer.createdAt,
+                    updatedAt: customer.updatedAt,
+                    birthDate: customer.birthDate,
+                };
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
+    }
 }

@@ -21,4 +21,30 @@ export interface ICustomerRepository extends IRepository<Customer> {
     getLastOrdersByCustomer(customerId: string): Promise<Order[]>;
     getLastMessagesSentToCustomer(customerId: string, pagination?: PaginationDto): Promise<{ data: Message[]; total: number; page: number; limit: number }>;
     findWhatsappValidationCandidates(companyId: string, skip: number, take: number): Promise<Array<{ id: string; phone: string; companyId: string }>>;
+    getTopBuyers(
+        companyId: string,
+        options: {
+            limit: number;
+            sortBy: 'totalSpent' | 'orderCount';
+            startDate?: Date;
+            endDate?: Date;
+        },
+    ): Promise<
+        Array<{
+            customerId: string;
+            name: string;
+            phone: string | null;
+            email: string | null;
+            rfvClassification: string | null;
+            averageTicket: number;
+            lastOrderDate: Date | null;
+            totalSpent: number;
+            orderCount: number;
+            companyId: string;
+            whatsappOptin: boolean;
+            createdAt: Date;
+            updatedAt: Date;
+            birthDate: Date | null;
+        }>
+    >;
 }

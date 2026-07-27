@@ -208,12 +208,19 @@ export const customerService = {
   async getTopBuyers(
     companyId: string,
     limit = 10,
-    sortBy: 'totalSpent' | 'orderCount' = 'totalSpent'
+    sortBy: 'totalSpent' | 'orderCount' = 'totalSpent',
+    startDate?: string,
+    endDate?: string
   ) {
     return await client.get<TopBuyersResponse>(
       `/companies/${companyId}/customers/top`,
       {
-        params: { limit, sortBy },
+        params: {
+          limit,
+          sortBy,
+          ...(startDate ? { startDate } : {}),
+          ...(endDate ? { endDate } : {}),
+        },
       }
     )
   },

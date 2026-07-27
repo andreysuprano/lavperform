@@ -4,6 +4,7 @@ import { CreateCustomerDto } from '../application/dto/create-customer.dto';
 import { UpdateCustomerDto } from '../application/dto/update-customer.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { CustomerPaginationDto } from '../application/dto/customer-pagination.dto';
+import { TopBuyersQueryDto } from '../application/dto/top-buyers-query.dto';
 import { ApiTags, ApiOperation, ApiResponse, ApiBearerAuth, ApiBody, ApiQuery, ApiParam } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
 import { Company } from '../../common/decorators/company.decorator';
@@ -51,6 +52,25 @@ export class CustomersController {
   @ApiResponse({ status: 200, description: 'Resumo de segmentação de clientes' })
   summary(@Param('companyId') companyId: string) {
     return this.customersService.totalCustomersBySegmentation(companyId);
+  }
+
+  @Get('top')
+  @ApiOperation({ summary: 'Ranking de clientes que mais compram' })
+  @ApiParam({ name: 'companyId', description: 'ID da empresa' })
+  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'sortBy',
+    required: false,
+    enum: ['totalSpent', 'orderCount'],
+  })
+  @ApiQuery({ name: 'startDate', required: false, type: String })
+  @ApiQuery({ name: 'endDate', required: false, type: String })
+  @ApiResponse({ status: 200, description: 'Ranking de top clientes' })
+  getTopBuyers(
+    @Param('companyId') companyId: string,
+    @Query() query: TopBuyersQueryDto,
+  ) {
+    return this.customersService.getTopBuyers(companyId, query);
   }
 
   @Get(':id')
