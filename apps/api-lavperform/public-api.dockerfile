@@ -1,27 +1,23 @@
-# Build from monorepo root:
-#   docker build -f apps/api-lavperform/public-api.dockerfile .
+# Build context: apps/api-lavperform
 
 FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare yarn@4.3.0 --activate
+COPY package.json ./
+COPY prisma ./prisma/
+COPY prisma.config.js ./
 
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY apps/api-lavperform/package.json ./apps/api-lavperform/package.json
-COPY apps/lavperform-app/package.json ./apps/lavperform-app/package.json
-COPY packages ./packages
+RUN npm install
 
-RUN yarn install --immutable
-
-COPY apps/api-lavperform ./apps/api-lavperform
+COPY . .
 
 ENV DATABASE_URL="postgres://lavperform:lavperform@localhost:5432/lavperform"
-ENV JWT_SECRET="change-me"
+ENV JWT_SECRET="build-time-placeholder"
 ENV WHITELABEL="lavperform"
 
-RUN yarn workspace @lavperform/api exec prisma generate
-RUN yarn workspace @lavperform/api build
+RUN npx prisma generate
+RUN npm run build
 
 FROM node:20-alpine
 
@@ -34,24 +30,17 @@ RUN apk add --no-cache tzdata && \
 
 WORKDIR /app
 
-RUN corepack enable && corepack prepare yarn@4.3.0 --activate
+COPY package.json ./
+COPY prisma ./prisma/
+COPY prisma.config.js ./
 
-COPY package.json yarn.lock .yarnrc.yml ./
-COPY apps/api-lavperform/package.json ./apps/api-lavperform/package.json
-COPY apps/lavperform-app/package.json ./apps/lavperform-app/package.json
-COPY packages ./packages
+RUN npm install --omit=dev
 
-RUN yarn install --immutable
-
-COPY apps/api-lavperform/prisma ./apps/api-lavperform/prisma
-COPY apps/api-lavperform/prisma.config.js ./apps/api-lavperform/prisma.config.js
-COPY --from=builder /app/apps/api-lavperform/dist ./apps/api-lavperform/dist
+COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/node_modules/.prisma ./node_modules/.prisma
 
 ENV NODE_ENV=production
 
-WORKDIR /app/apps/api-lavperform
-
 EXPOSE 3003
 
-CMD ["sh", "-c", "yarn db:deploy && yarn start:public-api:prod"]
+CMD ["sh", "-c", "npm run db:deploy && npm run start:public-api:prod"]

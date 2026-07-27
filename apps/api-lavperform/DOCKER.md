@@ -19,15 +19,20 @@ npm run start:dev
 
 ## Production Setup
 
-O `Dockerfile` da API espera o **contexto na raiz do monorepo** (Yarn workspaces).
-O `docker-compose.yml` já aponta `context: ../..`.
+O `Dockerfile` da API usa o **próprio diretório** `apps/api-lavperform` como build context
+(compatível com Coolify/Dokploy quando Base Directory = `apps/api-lavperform`).
 
 ```bash
 # A partir de apps/api-lavperform
 docker compose up --build
 
-# Ou build manual a partir da raiz do monorepo
-docker build -f apps/api-lavperform/Dockerfile .
+# Build manual
+docker build -f Dockerfile .
+```
+
+Frontend (contexto = raiz do monorepo):
+
+```bash
 docker build -f apps/lavperform-app/Dockerfile .
 ```
 

@@ -10,4 +10,4 @@ Itens identificados para etapas futuras:
 6. CORS `origin: '*'` → `CORS_ORIGINS` explícito.
 7. Limpeza de rows `Partner` food no DB compartilhado (operação coordenada, não via migrate no monorepo).
 8. Dívidas de arquitetura (Clean Architecture incompleta) — fora do escopo da separação.
-9. ~~Dockerfiles da API ainda usam `npm ci` (legado); adaptar para Yarn workspaces do monorepo.~~ (feito)
+9. Dockerfiles da API usam `npm install` no context `apps/api-lavperform` (sem package-lock). Ideal futuro: build monorepo com Yarn na raiz quando o deploy permitir.
