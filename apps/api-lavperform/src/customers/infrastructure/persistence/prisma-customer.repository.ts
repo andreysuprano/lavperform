@@ -547,6 +547,8 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                   }
                 : undefined;
 
+        // groupBy + orderBy por _count no Prisma pode falhar na tipagem/ordenação;
+        // ordenamos em memória para garantir.
         const grouped = await this.prisma.order.groupBy({
             by: ['customerId'],
             where: {
@@ -556,18 +558,31 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             _count: { _all: true },
             _sum: { total: true },
             _max: { createdAt: true },
-            orderBy:
-                sortBy === 'orderCount'
-                    ? { _count: { _all: 'desc' } }
-                    : { _sum: { total: 'desc' } },
-            take: limit,
         });
 
         if (grouped.length === 0) {
             return [];
         }
 
-        const customerIds = grouped.map((group) => group.customerId);
+        const take = Math.min(Math.max(limit, 1), 50);
+        const ranked = [...grouped]
+            .sort((a, b) => {
+                const aSpent = Number(a._sum?.total || 0);
+                const bSpent = Number(b._sum?.total || 0);
+                const aOrders = Number(a._count?._all || 0);
+                const bOrders = Number(b._count?._all || 0);
+
+                if (sortBy === 'orderCount') {
+                    if (bOrders !== aOrders) return bOrders - aOrders;
+                    return bSpent - aSpent;
+                }
+
+                if (bSpent !== aSpent) return bSpent - aSpent;
+                return bOrders - aOrders;
+            })
+            .slice(0, take);
+
+        const customerIds = ranked.map((group) => group.customerId);
         const customers = await this.prisma.customer.findMany({
             where: {
                 companyId,
@@ -591,13 +606,13 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             customers.map((customer) => [customer.id, customer]),
         );
 
-        return grouped
+        return ranked
             .map((group) => {
                 const customer = customersById.get(group.customerId);
                 if (!customer) return null;
 
-                const orderCount = group._count._all;
-                const totalSpent = Number(group._sum.total ?? 0);
+                const orderCount = Number(group._count?._all || 0);
+                const totalSpent = Number(group._sum?.total ?? 0);
                 const averageTicket =
                     orderCount > 0 ? totalSpent / orderCount : 0;
 
@@ -608,7 +623,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                     email: customer.email,
                     rfvClassification: customer.rfvClassification,
                     averageTicket,
-                    lastOrderDate: group._max.createdAt,
+                    lastOrderDate: group._max?.createdAt ?? null,
                     totalSpent,
                     orderCount,
                     companyId: customer.companyId,
