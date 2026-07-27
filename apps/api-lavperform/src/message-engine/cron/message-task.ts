@@ -114,9 +114,12 @@ export class MessageTasks {
                     } else {
                         await this.prisma.message.update({
                             where: { id: message.id },
-                            data: { status: MessageStatus.ABORTED }
+                            data: {
+                                status: MessageStatus.PENDING,
+                                error: 'Campanha pausada no momento do envio; mensagem mantida para reenvio quando a campanha for reativada.',
+                            },
                         });
-                        this.logger.log(`Mensagem ${message.id} abortada (campanha inativa)`);
+                        this.logger.log(`Mensagem ${message.id} mantida como PENDING (campanha inativa)`);
                     }
                 }
 

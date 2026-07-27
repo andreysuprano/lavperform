@@ -9,7 +9,7 @@ interface VmLavSaleProcessJobData {
   companyId: string;
   sale: VmLavSale;
   apiKey: string;
-  cnpj: string;
+  partnerId: string;
 }
 
 @Processor(QUEUE_NAMES.VMLAV_SALE_PROCESS)
@@ -22,12 +22,15 @@ export class VmLavSaleProcessor {
 
   @Process({ name: QUEUE_NAMES.VMLAV_SALE_PROCESS, concurrency: 50 })
   async processSale(job: Job<VmLavSaleProcessJobData>) {
-    const { companyId, sale, apiKey } = job.data;
+    const { companyId, sale, apiKey, partnerId } = job.data;
 
     try {
-
-      await this.vmLavSalesService.processSale(companyId, sale, apiKey);
-
+      await this.vmLavSalesService.processSale(
+        companyId,
+        sale,
+        apiKey,
+        partnerId,
+      );
     } catch (error) {
       this.logger.error(
         `Erro ao processar venda ${sale.idVenda} da empresa ${companyId}:`,

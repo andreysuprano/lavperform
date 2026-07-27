@@ -41,6 +41,11 @@ export class CustomersController {
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Data inicial para filtro' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'Data final para filtro' })
   @ApiQuery({ name: 'rfvClassification', required: false, isArray: true, type: String, description: 'Filtrar por categoria(s) RFV ou lead (ex: campeao, fiel, lead)' })
+  @ApiQuery({ name: 'hasEmail', required: false, type: Boolean, description: 'Filtrar clientes com ou sem e-mail' })
+  @ApiQuery({ name: 'hasBirthDate', required: false, type: Boolean, description: 'Filtrar clientes com ou sem data de nascimento' })
+  @ApiQuery({ name: 'whatsappOptin', required: false, type: Boolean, description: 'Filtrar por opt-in de WhatsApp' })
+  @ApiQuery({ name: 'whatsappVerified', required: false, type: Boolean, description: 'Filtrar por WhatsApp verificado' })
+  @ApiQuery({ name: 'hasOrders', required: false, type: Boolean, description: 'Filtrar leads (sem pedidos) ou clientes com pedidos' })
   @ApiResponse({ status: 200, description: 'Lista de clientes' })
   findAll(@Param('companyId') companyId: string, @Query() paginationDto: CustomerPaginationDto) {
     return this.customersService.findAll(companyId, paginationDto);

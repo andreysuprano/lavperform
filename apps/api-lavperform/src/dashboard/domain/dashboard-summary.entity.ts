@@ -23,5 +23,24 @@ export class CampaignSummaryEntity {
     public readonly totalCustomers: number,
     public readonly totalCost: number = 0,
     public readonly messageTypeBreakdown: CampaignMessageTypeBreakdown[] = [],
+    public readonly interactions: number = 0,
+    public readonly messagesError: number = 0,
+    public readonly ctr: number = 0,
+    public readonly clickToSaleRate: number = 0,
+    public readonly averageTicket: number = 0,
+    public readonly errorRate: number = 0,
   ) {}
 }
+
+export type TopCampaignSummary = {
+  id: string;
+  name: string;
+  messagesSent: number;
+  interactions: number;
+  salesTotalQuantity: number;
+  salesTotalAmount: number;
+  totalCost: number;
+  ctr: number;
+  conversionRate: number;
+  roi: number | null;
+};

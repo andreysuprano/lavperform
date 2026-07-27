@@ -5,6 +5,7 @@ import { Logger } from '@nestjs/common';
 import { AutomaticCampaignStatus, CampaignChannel, MessageStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { getDayOfWeekPtBr, nowUTC, startOfDayInTz, endOfDayInTz } from '../../../common/utils/date.utils';
+import { extractErrorMessage } from '../../../common/utils/error.utils';
 import { CampaignChannelStrategyFactory } from '../strategies/campaign-channel-strategy.factory';
 import { RenitencyEvaluatorService } from '../../../renitency/application/renitency-evaluator.service';
 import { resolveSendTimeWindow } from '../../application/campaign-send-schedule.utils';
@@ -39,11 +40,21 @@ export class AutomaticCampaignsProcessor {
       });
 
       if (!campaign) throw new Error('Campanha automática não encontrada');
+
+      if (!campaign.active) {
+        this.logger.log(
+          `Campanha ${automaticCampaignId} está pausada (active=false) — nenhuma mensagem será gerada`,
+        );
+        // Não marca lastProcessedAt: ao reativar no mesmo dia, pode processar.
+        return;
+      }
+
       const maxDailySends = (campaign as any).maxDailySends ?? 50;
 
       const hoje = getDayOfWeekPtBr();
 
       if (!campaign.daysOfWeek.includes(hoje)) {
+        await this.markLastProcessedAt(automaticCampaignId);
         return;
       }
 
@@ -57,6 +68,10 @@ export class AutomaticCampaignsProcessor {
       const sendTimeWindow = resolveSendTimeWindow(campaign, openingHours);
 
       if (!sendTimeWindow) {
+        this.logger.log(
+          `Campanha ${automaticCampaignId}: sem janela de envio (loja fechada ou sem horário) — retry permitido no mesmo dia`,
+        );
+        // Não marca lastProcessedAt para permitir novo enqueue quando houver janela.
         return;
       }
 
@@ -84,8 +99,9 @@ export class AutomaticCampaignsProcessor {
 
       if (remainingSlots <= 0) {
         this.logger.log(
-          `Campanha ${automaticCampaignId}: limite diário atingido (${alreadyScheduledToday}/${maxDailySends} agendadas)   nenhuma nova mensagem será criada`,
+          `Campanha ${automaticCampaignId}: limite diário atingido (${alreadyScheduledToday}/${maxDailySends} agendadas) — nenhuma nova mensagem será criada`,
         );
+        await this.markLastProcessedAt(automaticCampaignId);
         return;
       }
 
@@ -145,29 +161,59 @@ export class AutomaticCampaignsProcessor {
         }
       });
 
+      await this.prisma.automaticCampaign.update({
+        where: { id: campaign.id },
+        data: {
+          lastProcessedAt: nowUTC(),
+          lastProcessingError: null,
+          lastProcessingErrorAt: null,
+          ...(campaign.status === AutomaticCampaignStatus.PROCESSING
+            ? { status: AutomaticCampaignStatus.IN_PROGRESS }
+            : {}),
+        },
+      });
+
       if (campaign.status === AutomaticCampaignStatus.PROCESSING) {
-        await this.prisma.automaticCampaign.update({
-          where: { id: campaign.id },
-          data: { status: AutomaticCampaignStatus.IN_PROGRESS },
-        });
         this.logger.log(
           `Campanha ${campaign.id}: status atualizado de PROCESSING para IN_PROGRESS`,
         );
       }
 
     } catch (error) {
-      this.logger.error(`Erro ao processar campanha ${automaticCampaignId}: ${error}`);
+      const errorMessage = extractErrorMessage(error);
+      this.logger.error(
+        `Erro ao processar campanha ${automaticCampaignId}: ${errorMessage}`,
+      );
 
       const current = await this.prisma.automaticCampaign.findUnique({
         where: { id: automaticCampaignId },
         select: { status: true },
       });
-      if (current?.status === AutomaticCampaignStatus.PROCESSING) {
-        await this.prisma.automaticCampaign.update({
-          where: { id: automaticCampaignId },
-          data: { status: AutomaticCampaignStatus.FAILED },
-        });
+
+      if (!current) {
+        return;
       }
+
+      const shouldMarkFailed =
+        current.status === AutomaticCampaignStatus.PROCESSING;
+
+      await this.prisma.automaticCampaign.update({
+        where: { id: automaticCampaignId },
+        data: {
+          lastProcessingError: errorMessage,
+          lastProcessingErrorAt: nowUTC(),
+          ...(shouldMarkFailed
+            ? { status: AutomaticCampaignStatus.FAILED }
+            : {}),
+        },
+      });
     }
+  }
+
+  private async markLastProcessedAt(automaticCampaignId: string): Promise<void> {
+    await this.prisma.automaticCampaign.update({
+      where: { id: automaticCampaignId },
+      data: { lastProcessedAt: nowUTC() },
+    });
   }
 }

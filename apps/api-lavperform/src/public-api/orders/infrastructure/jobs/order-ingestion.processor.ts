@@ -22,7 +22,7 @@ import {
 import { isMarketplaceChannel } from '../../constants/marketplace-channels';
 
 /** Cada job abre várias queries + transação pesada; alinhar com o pool do Postgres. */
-const ORDER_INGESTION_CONCURRENCY = 5;
+const ORDER_INGESTION_CONCURRENCY = 100;
 
 type IncomingCustomer = PublicApiOrderIngestionJobData['payload']['customer'];
 
@@ -131,9 +131,11 @@ export class OrderIngestionProcessor {
           `o campo ${matchedBy ?? 'identificador'} para evitar conflito.`,
       );
       const createDto = this.buildCreateDtoSkippingMatch(incoming, matchedBy, marketplace);
+      // Nao fazer lookup pelo campo conflitante: senao reaproveitariamos o
+      // cliente que acabamos de rejeitar por nome divergente.
       return this.createWithRaceProtection(companyId, createDto, {
-        phone: marketplace ? null : formattedPhone,
-        cpf,
+        phone: matchedBy === 'phone' || marketplace ? null : formattedPhone,
+        cpf: matchedBy === 'cpf' ? undefined : cpf,
       });
     }
 
@@ -192,12 +194,25 @@ export class OrderIngestionProcessor {
    * Cria um cliente protegendo contra race conditions: se outro job concorrente
    * tiver criado um cliente com o mesmo telefone/CPF entre o lookup e o create,
    * recuperamos esse cliente em vez de propagar o erro.
+   *
+   * Depende do unique parcial/NULL-friendly em (phone, companyId): sem ele,
+   * creates paralelos (fila de ingestão) geram vários clientes com o mesmo telefone.
    */
   private async createWithRaceProtection(
     companyId: string,
     dto: CreateCustomerDto,
     lookupHints: { phone: string | null | undefined; cpf: string | undefined },
   ): Promise<Customer> {
+    // Segundo lookup estreita a janela de race antes do INSERT.
+    const preCreate = await this.lookupExisting(
+      companyId,
+      lookupHints.phone,
+      lookupHints.cpf,
+    );
+    if (preCreate) {
+      return preCreate.customer;
+    }
+
     try {
       return await this.customersService.create(companyId, dto);
     } catch (error) {

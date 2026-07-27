@@ -39,6 +39,18 @@ export class AdminAutomaticCampaignsController {
     return this.service.findAll(filterDto);
   }
 
+  @Get(':id/diagnostic')
+  @ApiOperation({
+    summary: 'Diagnóstico de processamento e mensagens da campanha automática',
+    description:
+      'Retorna contagens por status, mensagens atrasadas/travadas, estado da integração Meta, ' +
+      'templates e o último erro de processamento da campanha (lastProcessingError).',
+  })
+  @ApiParam({ name: 'id', description: 'ID da campanha automática' })
+  getDiagnostic(@Param('id') id: string) {
+    return this.service.getDiagnostic(id);
+  }
+
   @Get(':id')
   @ApiOperation({ summary: 'Buscar campanha automática por ID com criativos, métricas, erros e templates Meta' })
   @ApiParam({ name: 'id', description: 'ID da campanha automática' })

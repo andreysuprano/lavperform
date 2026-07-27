@@ -1,37 +1,45 @@
 # LavPerform Monorepo
 
-Monorepo oficial da LavPerform.
+Monorepo oficial do WhiteLabel LavPerform (SaaS desacoplado do FoodCRM).
 
 ## Estrutura
 
 ```
 apps/
-  lavperform-app/   # Frontend (Vite + React)
-  api-lavperform/   # Backend (NestJS + Prisma)
+  lavperform-app/    # CRM frontend (Vite + React) — @lavperform/app
+  api-lavperform/    # Backend (NestJS + Prisma) — @lavperform/api
+  client-landing/    # Landing por slug (Next.js) — @lavperform/client-landing
+  food-ai/           # Placeholder FoodAI (acesso ao repo pendente)
+packages/
+  tsconfig/          # Bases TypeScript compartilhadas
 docs/
-  infra/            # Runbooks e backlog de limpeza
-packages/           # Bibliotecas compartilhadas (futuro)
+  infra/             # Runbooks
+  migration/         # Inventário e diffs da reestruturação
 ```
 
 ## Pré-requisitos
 
 - Node.js 20+
 - Yarn 4.3 (`packageManager` no `package.json`)
-- PostgreSQL e Redis (para a API)
+- PostgreSQL e Redis (para a API local)
 
 ## Scripts
 
 | Comando | Descrição |
 |---------|-----------|
-| `yarn dev:app` | Frontend em desenvolvimento |
-| `yarn dev:api` | API em desenvolvimento |
-| `yarn build:app` | Build do frontend |
-| `yarn build:api` | Build da API |
-| `yarn build` | Build do frontend (compat) |
+| `yarn dev:app` | CRM frontend |
+| `yarn dev:api` | API NestJS |
+| `yarn dev:landing` | Client landing Next.js |
+| `yarn build:app` / `build:api` / `build:landing` | Builds |
+| `yarn start:api` | API produção |
 
-## Apps
+## Política WhiteLabel
 
-- Frontend: `yarn workspace @lavperform/app …`
-- API: `yarn workspace @lavperform/api …`
+- **Keep:** laundry partners (VmLav, Cicclo, Maxlav, L2, Consumer), temas `seld`/`example`
+- **Drop:** integrações food e branding FoodCRM
+- Migração: ver [docs/migration](docs/migration)
 
-Documentação de infra: [docs/infra](docs/infra).
+## Documentação
+
+- Infra: [docs/infra](docs/infra)
+- Migração: [docs/migration/01-inventory.md](docs/migration/01-inventory.md)

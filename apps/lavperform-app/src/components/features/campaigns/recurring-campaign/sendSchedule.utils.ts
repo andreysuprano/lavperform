@@ -1,5 +1,16 @@
 export type SendScheduleMode = 'establishment' | 'fixed' | 'range'
 
+/** Normaliza valor de input[type=time] (HH:mm ou HH:mm:ss) para HH:mm. */
+export function normalizeTimeToHHmm(
+  value?: string | null,
+): string | null {
+  if (!value || !String(value).trim()) return null
+  const trimmed = String(value).trim()
+  const match = trimmed.match(/^(\d{2}):(\d{2})(?::\d{2})?$/)
+  if (!match) return trimmed.slice(0, 5)
+  return `${match[1]}:${match[2]}`
+}
+
 export function inferSendScheduleMode(
   sendTimeStart?: string | null,
   sendTimeEnd?: string | null,
@@ -20,11 +31,11 @@ export function formatSendScheduleLabel(
   }
 
   if (mode === 'fixed' && sendTimeStart) {
-    return `Horário fixo às ${sendTimeStart}`
+    return `Horário fixo às ${normalizeTimeToHHmm(sendTimeStart) ?? sendTimeStart}`
   }
 
   if (mode === 'range' && sendTimeStart && sendTimeEnd) {
-    return `Intervalo das ${sendTimeStart} às ${sendTimeEnd}`
+    return `Intervalo das ${normalizeTimeToHHmm(sendTimeStart) ?? sendTimeStart} às ${normalizeTimeToHHmm(sendTimeEnd) ?? sendTimeEnd}`
   }
 
   return 'Horário de funcionamento do estabelecimento'
@@ -41,14 +52,14 @@ export function buildSendScheduleApiFields(
 
   if (mode === 'fixed') {
     return {
-      sendTimeStart: sendTimeStart?.trim() || null,
+      sendTimeStart: normalizeTimeToHHmm(sendTimeStart),
       sendTimeEnd: null,
     }
   }
 
   return {
-    sendTimeStart: sendTimeStart?.trim() || null,
-    sendTimeEnd: sendTimeEnd?.trim() || null,
+    sendTimeStart: normalizeTimeToHHmm(sendTimeStart),
+    sendTimeEnd: normalizeTimeToHHmm(sendTimeEnd),
   }
 }
 

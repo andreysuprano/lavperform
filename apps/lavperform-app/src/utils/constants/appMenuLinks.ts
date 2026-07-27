@@ -9,6 +9,7 @@ import {
   LuLayoutTemplate,
   LuPlug,
   LuRadio,
+  LuTimer,
   LuUserRound,
   LuWallet,
 } from 'react-icons/lu'
@@ -119,6 +120,11 @@ export const MENU_ITEMS = [
         label: 'Parâmetros Matriz RFV/RFM',
         href: '/settings/rfv-attribution',
         icon: GrTarget,
+      },
+      {
+        label: 'Renitência',
+        href: '/settings/renitency',
+        icon: LuTimer,
       },
     ],
   },

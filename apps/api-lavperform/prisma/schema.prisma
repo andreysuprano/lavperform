@@ -344,6 +344,7 @@ model Customer {
   messages           Message[]
   rfvHistory         CustomerRfvHistory[]
 
+  @@unique([phone, companyId])
   @@index([companyId])
   @@index([phone])
   @@index([email])
@@ -459,6 +460,10 @@ model AutomaticCampaign {
   lastProcessedAt DateTime?
   sendTimeStart   String?
   sendTimeEnd     String?
+
+  /// Motivo da última falha de processamento (exceção no job da campanha).
+  lastProcessingError   String?   @db.Text
+  lastProcessingErrorAt DateTime?
 
   /// Template Meta aprovado selecionado para campanhas de API Oficial (sem criativo).
   metaMessageTemplateId String?

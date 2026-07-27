@@ -4,6 +4,7 @@ import { Queue } from 'bull';
 import { AutomaticCampaignStatus, MessageStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
+import { AutomaticCampaignService } from '../../automatic-campaign/application/automatic-campaign.service';
 import { AutomaticCampaignAdminFilterDto } from './dto/automatic-campaign-admin-filter.dto';
 import { UpdateAutomaticCampaignAdminDto } from './dto/update-automatic-campaign-admin.dto';
 import { MessagesAdminFilterDto } from './dto/messages-admin-filter.dto';
@@ -20,6 +21,7 @@ export class AdminAutomaticCampaignsService {
 
   constructor(
     private readonly prisma: PrismaService,
+    private readonly automaticCampaignService: AutomaticCampaignService,
     @InjectQueue(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
     private readonly automaticCampaignsQueue: Queue,
   ) {}
@@ -126,6 +128,16 @@ export class AdminAutomaticCampaignsService {
     });
 
     return { ...campaign, errorSample };
+  }
+
+  async getDiagnostic(id: string) {
+    const campaign = await this.findOne(id);
+    const diagnostic = await this.automaticCampaignService.getMessagesDiagnostic(id);
+    return {
+      ...diagnostic,
+      lastProcessingError: campaign.lastProcessingError,
+      lastProcessingErrorAt: campaign.lastProcessingErrorAt,
+    };
   }
 
   async create(createDto: CreateAutomaticCampaignDto & { companyId: string }) {
@@ -300,6 +312,15 @@ export class AdminAutomaticCampaignsService {
         status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING] },
       },
       data: { status: MessageStatus.ABORTED },
+    });
+
+    await this.prisma.automaticCampaign.update({
+      where: { id },
+      data: {
+        status: AutomaticCampaignStatus.PROCESSING,
+        lastProcessingError: null,
+        lastProcessingErrorAt: null,
+      },
     });
 
     const jobId = `automatic-campaign:${id}:admin-reprocess:${Date.now()}`;

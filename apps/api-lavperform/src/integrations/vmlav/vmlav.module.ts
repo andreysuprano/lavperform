@@ -9,20 +9,18 @@ import { VmLavSalesTasks } from './crons/vmlav-sales-tasks';
 import { VmLavController } from './presentation/vmlav.controller';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { PartnersModule } from '../../partners/partners.module';
-import { CustomersModule } from '../../customers/customers.module';
-import { OrderModule } from '../../orders/order.module';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { BullBoardModule } from '@bull-board/nestjs';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { workerProviders } from '../../common/queue/worker-runtime.config';
+import { PublicApiOrderIngestionModule } from '../../public-api/orders/public-api-order-ingestion.module';
 
 @Module({
   imports: [
     HttpModule,
     PrismaModule,
     PartnersModule,
-    CustomersModule,
-    OrderModule,
+    PublicApiOrderIngestionModule,
     BullModule.registerQueue(
       {
         name: QUEUE_NAMES.VMLAV_SALES_IMPORT,

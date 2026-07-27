@@ -13,6 +13,7 @@ import {
     normalizeMetaTemplateVariableMappings,
     type TemplateVariableContext,
 } from '../../../integrations/meta/application/meta-template-variables.utils';
+import { createAutomaticCampaignMessageIfAbsentToday } from './campaign-message-create.utils';
 import {
     GenerateMessagesContext,
     ICampaignChannelStrategy,
@@ -48,10 +49,9 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
         });
 
         if (!template) {
-            this.logger.warn(
-                `Campanha ${campaign.id}: template Meta ${campaign.metaMessageTemplateId} não encontrado ou não aprovado   mensagens não serão criadas`,
+            throw new Error(
+                `Template Meta ${campaign.metaMessageTemplateId} não encontrado ou não aprovado — mensagens não serão criadas`,
             );
-            return;
         }
 
         const mappings = normalizeMetaTemplateVariableMappings(
@@ -75,21 +75,6 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
                     return;
                 }
 
-                const existingMessage = await this.prisma.message.findFirst({
-                    where: {
-                        customerId: customer.id,
-                        automaticCampaignId: campaign.id,
-                        createdAt: { gte: startOfToday, lte: endOfToday },
-                    },
-                });
-
-                if (existingMessage) {
-                    this.logger.warn(
-                        `Mensagem já existe hoje para o cliente ${customer.name} (ID: ${customer.id})   pulando`,
-                    );
-                    return;
-                }
-
                 const scheduleDate = getScheduleDateForSendWindow(sendTimeWindow);
                 const token = generateUniqueToken(campaign.companyId, customer.id, randomUUID());
                 const messageText = this.buildPreviewMessageText(
@@ -102,28 +87,41 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
                     },
                 );
 
-                await this.prisma.message.create({
-                    data: {
+                const result = await createAutomaticCampaignMessageIfAbsentToday(
+                    this.prisma,
+                    {
+                        campaignId: campaign.id,
                         customerId: customer.id,
-                        automaticCampaignId: campaign.id,
-                        segmentation: campaign.segmentation,
-                        messageText,
-                        mediaUrl: null,
-                        customerName: customer.name,
-                        phone: customer.phone,
-                        companyId: campaign.companyId,
-                        channel: this.channel,
-                        status: MessageStatus.PENDING,
-                        attempts: 0,
-                        scheduledDate: scheduleDate,
-                        token,
-                        redirectUrl: null,
-                        couponCode: null,
-                        metaMessageTemplateId: template.id,
+                        startOfToday,
+                        endOfToday,
+                        data: {
+                            customerId: customer.id,
+                            automaticCampaignId: campaign.id,
+                            segmentation: campaign.segmentation,
+                            messageText,
+                            mediaUrl: template.headerMediaUrl ?? null,
+                            customerName: customer.name,
+                            phone: customer.phone,
+                            companyId: campaign.companyId,
+                            channel: this.channel,
+                            status: MessageStatus.PENDING,
+                            attempts: 0,
+                            scheduledDate: scheduleDate,
+                            token,
+                            redirectUrl: null,
+                            couponCode: null,
+                            metaMessageTemplateId: template.id,
+                        },
                     },
-                });
+                );
 
-                this.logger.log(`Mensagem API Oficial criada para o cliente ${customer.name}`);
+                if (result === 'created') {
+                    this.logger.log(`Mensagem API Oficial criada para o cliente ${customer.name}`);
+                } else {
+                    this.logger.warn(
+                        `Mensagem já existe hoje para o cliente ${customer.name} (ID: ${customer.id})   pulando`,
+                    );
+                }
             }),
         );
     }
@@ -169,30 +167,14 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
         });
 
         if (templates.length === 0) {
-            this.logger.warn(
-                `Campanha ${campaign.id}: nenhum template Meta aprovado encontrado   mensagens não serão criadas`,
+            throw new Error(
+                `Nenhum template Meta aprovado encontrado nos criativos da campanha ${campaign.id} — mensagens não serão criadas`,
             );
-            return;
         }
 
         await Promise.all(
             customers.map(async (customer) => {
                 if (!customer.phone) {
-                    return;
-                }
-
-                const existingMessage = await this.prisma.message.findFirst({
-                    where: {
-                        customerId: customer.id,
-                        automaticCampaignId: campaign.id,
-                        createdAt: { gte: startOfToday, lte: endOfToday },
-                    },
-                });
-
-                if (existingMessage) {
-                    this.logger.warn(
-                        `Mensagem já existe hoje para o cliente ${customer.name} (ID: ${customer.id})   pulando`,
-                    );
                     return;
                 }
 
@@ -211,28 +193,41 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
                 const token = generateUniqueToken(campaign.companyId, customer.id, randomUUID());
                 const messageText = creative.message.replace(/\{\{1\}\}/g, customer.name);
 
-                await this.prisma.message.create({
-                    data: {
+                const result = await createAutomaticCampaignMessageIfAbsentToday(
+                    this.prisma,
+                    {
+                        campaignId: campaign.id,
                         customerId: customer.id,
-                        automaticCampaignId: campaign.id,
-                        segmentation: campaign.segmentation,
-                        messageText,
-                        mediaUrl: creative.imageUrls[0] ?? null,
-                        customerName: customer.name,
-                        phone: customer.phone,
-                        companyId: campaign.companyId,
-                        channel: this.channel,
-                        status: MessageStatus.PENDING,
-                        attempts: 0,
-                        scheduledDate: scheduleDate,
-                        token,
-                        redirectUrl: creative.link?.trim() || null,
-                        couponCode: null,
-                        metaMessageTemplateId: template.id,
+                        startOfToday,
+                        endOfToday,
+                        data: {
+                            customerId: customer.id,
+                            automaticCampaignId: campaign.id,
+                            segmentation: campaign.segmentation,
+                            messageText,
+                            mediaUrl: creative.imageUrls[0] ?? null,
+                            customerName: customer.name,
+                            phone: customer.phone,
+                            companyId: campaign.companyId,
+                            channel: this.channel,
+                            status: MessageStatus.PENDING,
+                            attempts: 0,
+                            scheduledDate: scheduleDate,
+                            token,
+                            redirectUrl: creative.link?.trim() || null,
+                            couponCode: null,
+                            metaMessageTemplateId: template.id,
+                        },
                     },
-                });
+                );
 
-                this.logger.log(`Mensagem API Oficial criada para o cliente ${customer.name}`);
+                if (result === 'created') {
+                    this.logger.log(`Mensagem API Oficial criada para o cliente ${customer.name}`);
+                } else {
+                    this.logger.warn(
+                        `Mensagem já existe hoje para o cliente ${customer.name} (ID: ${customer.id})   pulando`,
+                    );
+                }
             }),
         );
     }

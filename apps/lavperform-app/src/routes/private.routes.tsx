@@ -89,6 +89,11 @@ const WalletPage = lazy(() =>
     default: module.WalletPage,
   }))
 )
+const RenitencyPage = lazy(() =>
+  import('@/pages/settings/RenitencyPage').then((module) => ({
+    default: module.RenitencyPage,
+  }))
+)
 const IntegrationPage = lazy(() =>
   import('@/pages/settings/IntegrationPage').then((module) => ({
     default: module.IntegrationPage,
@@ -328,6 +333,10 @@ export function PrivateRoutes() {
         <Route
           element={<WalletPage />}
           path="/settings/wallet"
+        />
+        <Route
+          element={<RenitencyPage />}
+          path="/settings/renitency"
         />
         <Route
           element={<MyPage />}

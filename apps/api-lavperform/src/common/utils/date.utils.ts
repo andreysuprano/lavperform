@@ -195,6 +195,85 @@ export function endOfDayInTz(date: Date = nowUTC(), timeZone: string = getOpenin
 }
 
 /**
+ * Extrai YYYY-MM-DD de um input de campanha (date-only ou ISO).
+ * Usa os primeiros 10 caracteres quando o valor começa com data ISO.
+ */
+export function extractCalendarDateString(input: string | Date): string {
+  if (typeof input === 'string') {
+    const trimmed = input.trim();
+    if (/^\d{4}-\d{2}-\d{2}/.test(trimmed)) {
+      return trimmed.slice(0, 10);
+    }
+    const parsed = new Date(trimmed);
+    if (!isNaN(parsed.getTime())) {
+      return campaignCalendarDate(parsed);
+    }
+    throw new Error(`Data de campanha inválida: ${input}`);
+  }
+
+  return campaignCalendarDate(input);
+}
+
+/**
+ * Dia civil de vigência da campanha (YYYY-MM-DD).
+ *
+ * - Meia-noite UTC exata (legado `T00:00:00.000Z`): usa a data UTC (date-only).
+ * - Demais instantes (início/fim do dia em SP): usa o calendário no fuso do estabelecimento.
+ */
+export function campaignCalendarDate(
+  date: Date | string,
+  timeZone: string = getOpeningHoursTimezone(),
+): string {
+  const jsDate = typeof date === 'string' ? new Date(date) : date;
+  const dt = DateTime.fromJSDate(jsDate, { zone: 'utc' });
+
+  if (
+    dt.hour === 0 &&
+    dt.minute === 0 &&
+    dt.second === 0 &&
+    dt.millisecond === 0
+  ) {
+    return dt.toISODate()!;
+  }
+
+  return dt.setZone(timeZone).toISODate()!;
+}
+
+/**
+ * Início do dia civil da campanha no fuso do estabelecimento (UTC instant).
+ */
+export function parseCampaignStartDate(
+  input: string | Date,
+  timeZone: string = getOpeningHoursTimezone(),
+): Date {
+  const calendar = extractCalendarDateString(input);
+  return DateTime.fromISO(calendar, { zone: timeZone }).startOf('day').toUTC().toJSDate();
+}
+
+/**
+ * Fim do dia civil da campanha no fuso do estabelecimento (UTC instant).
+ */
+export function parseCampaignEndDate(
+  input: string | Date,
+  timeZone: string = getOpeningHoursTimezone(),
+): Date {
+  const calendar = extractCalendarDateString(input);
+  return DateTime.fromISO(calendar, { zone: timeZone }).endOf('day').toUTC().toJSDate();
+}
+
+/**
+ * Limite inferior inclusivo para filtrar endDate ainda válido "hoje" em SP.
+ * Compatível com legado (meia-noite UTC da data civil) e novo (fim do dia SP).
+ */
+export function campaignEndDateMinInclusive(
+  now: Date = nowUTC(),
+  timeZone: string = getOpeningHoursTimezone(),
+): Date {
+  const todaySp = DateTime.fromJSDate(now, { zone: 'utc' }).setZone(timeZone).toISODate()!;
+  return new Date(`${todaySp}T00:00:00.000Z`);
+}
+
+/**
  * Horário aleatório entre abertura e fechamento no fuso do estabelecimento.
  * Os horários do cadastro são relógio local (não UTC). O retorno é instante UTC para o banco/cron.
  * Fechamento antes da abertura no mesmo dia (ex.: 22:00–02:00) estende o fechamento para o dia seguinte.

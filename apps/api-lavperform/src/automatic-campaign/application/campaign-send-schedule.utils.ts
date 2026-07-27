@@ -48,17 +48,34 @@ export function resolveSendTimeWindow(
   };
 }
 
+/** Normaliza HH:mm ou HH:mm:ss para HH:mm. Retorna null se vazio. */
+export function normalizeTimeToHHmm(value?: string | null): string | null {
+  if (value == null || String(value).trim() === '') {
+    return null;
+  }
+
+  const trimmed = String(value).trim();
+  const match = trimmed.match(/^(\d{2}):(\d{2})(?::\d{2})?$/);
+  if (!match) {
+    return trimmed.length >= 5 ? trimmed.slice(0, 5) : trimmed;
+  }
+
+  return `${match[1]}:${match[2]}`;
+}
+
 export function normalizeSendScheduleFields(
   sendTimeStart?: string | null,
   sendTimeEnd?: string | null,
 ): { sendTimeStart: string | null; sendTimeEnd: string | null } {
-  if (!sendTimeStart) {
+  const normalizedStart = normalizeTimeToHHmm(sendTimeStart);
+
+  if (!normalizedStart) {
     return { sendTimeStart: null, sendTimeEnd: null };
   }
 
   return {
-    sendTimeStart,
-    sendTimeEnd: sendTimeEnd ?? null,
+    sendTimeStart: normalizedStart,
+    sendTimeEnd: normalizeTimeToHHmm(sendTimeEnd),
   };
 }
 

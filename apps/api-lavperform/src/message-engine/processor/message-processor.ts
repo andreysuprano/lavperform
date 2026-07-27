@@ -20,6 +20,8 @@ import {
     CreditsConsumeRequestedPayload,
 } from 'src/credits/domain/credits.events';
 import { RenitencyEvaluatorService } from 'src/renitency/application/renitency-evaluator.service';
+import { endOfDayInTz, nowUTC, startOfDayInTz } from 'src/common/utils/date.utils';
+import { extractErrorMessage } from 'src/common/utils/error.utils';
 
 interface MessageProcessorData {
     message: Message;
@@ -58,6 +60,60 @@ export class MessageProcessor {
                 weatherAlertHistoryId: message.weatherAlertHistoryId,
             });
             if (!check.allowed) {
+                const now = nowUTC();
+                const startOfToday = startOfDayInTz(now);
+                const endOfToday = endOfDayInTz(now);
+
+                const duplicateForSameCampaign = message.automaticCampaignId
+                    ? await this.prisma.message.findFirst({
+                        where: {
+                            id: { not: message.id },
+                            automaticCampaignId: message.automaticCampaignId,
+                            customerId: message.customerId,
+                            createdAt: { gte: startOfToday, lte: endOfToday },
+                            status: {
+                                in: [
+                                    MessageStatus.SENT,
+                                    MessageStatus.PROCESSING,
+                                    MessageStatus.PENDING,
+                                ],
+                            },
+                        },
+                        select: { id: true },
+                    })
+                    : null;
+
+                if (duplicateForSameCampaign) {
+                    this.logger.warn(
+                        `Mensagem ${message.id} abortada por duplicidade na campanha ${message.automaticCampaignId}`,
+                    );
+                    await this.prisma.message.update({
+                        where: { id: message.id },
+                        data: {
+                            status: MessageStatus.ABORTED,
+                            error: 'Mensagem duplicada para o mesmo cliente na campanha hoje',
+                            updatedAt: new Date(),
+                        },
+                    });
+                    return;
+                }
+
+                if (check.nextEligibleAt) {
+                    this.logger.warn(
+                        `Mensagem ${message.id} reagendada por renitência para ${check.nextEligibleAt.toISOString()}: ${check.reason}`,
+                    );
+                    await this.prisma.message.update({
+                        where: { id: message.id },
+                        data: {
+                            status: MessageStatus.PENDING,
+                            scheduledDate: check.nextEligibleAt,
+                            error: check.reason,
+                            updatedAt: new Date(),
+                        },
+                    });
+                    return;
+                }
+
                 this.logger.warn(`Mensagem ${message.id} bloqueada por renitência: ${check.reason}`);
                 await this.prisma.message.update({
                     where: { id: message.id },
@@ -147,7 +203,7 @@ export class MessageProcessor {
                     id: message.id
                 },
                 data: {
-                    error: error.message,
+                    error: extractErrorMessage(error),
                     status: MessageStatus.ERROR,
                     updatedAt: new Date()
                 }
@@ -316,6 +372,7 @@ export class MessageProcessor {
             campaign,
             customer,
             company?.name ?? null,
+            template.headerMediaUrl,
         );
 
         await this.metaMessagingService.sendTemplateMessage(
@@ -363,6 +420,7 @@ export class MessageProcessor {
         campaign: AutomaticCampaign,
         customer: Customer,
         companyName: string | null,
+        templateHeaderMediaUrl?: string | null,
     ): Promise<MetaTemplateMessageComponent[]> {
         if (!Array.isArray(components)) {
             return [];
@@ -376,14 +434,16 @@ export class MessageProcessor {
             return record.type === 'HEADER' && record.format === 'IMAGE';
         });
 
-        if (hasImageHeader && message.mediaUrl) {
+        const headerMediaUrl = message.mediaUrl ?? templateHeaderMediaUrl ?? null
+
+        if (hasImageHeader && headerMediaUrl) {
             if (!this.metaMessagingService) {
                 throw new Error('MetaMessagingService não configurado no MessageProcessor');
             }
 
             const mediaId = await this.metaMessagingService.uploadMediaIdFromUrl(
                 campaign.companyId,
-                message.mediaUrl,
+                headerMediaUrl,
             );
 
             runtimeComponents.push({

@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main, develop, feat-**]
+  pull_request:
+
+jobs:
+  app:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn build:app
+
+  api:
+    runs-on: ubuntu-latest
+    env:
+      DATABASE_URL: postgres://ci:ci@localhost:5432/ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn build:api
+
+  landing:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - run: corepack enable
+      - run: yarn install --immutable
+      - run: yarn build:landing

@@ -3,29 +3,25 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { VmLavService } from '../api/vmlav.service';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { VmLavSale } from '../api/vmlav.types';
+import { VmLavCustomerDetail, VmLavSale } from '../api/vmlav.types';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { IDigitalMenuIntegrationRepository } from '../../../partners/domain/digital-menu-integration.repository.interface';
-import { CustomersService } from '../../../customers/application/customers.service';
-import { Customer } from '../../../customers/domain/customer.entity';
-import { OrderService } from '../../../orders/application/order.service';
-import { formatPhoneNumber } from '../../../common/utils/formatters';
-import { parseUTCDate, toDateOnlyString } from '../../../common/utils/date.utils';
+import { toDateOnlyString } from '../../../common/utils/date.utils';
 import {
   buildUtcDateOnlyRange,
   resolveImportDateRange,
 } from '../../import-date-range.util';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
-import { VmLavSaleMapping } from '../mappings/vmlav-sale-mapping';
-import {
-  VmLavCustomerMapping,
-  cpfPhonePlaceholder,
-  digitsOnly,
-  normalizeVmLavPhone,
-  resolveVmLavCustomerPhone,
-  VMLAV_CPF_PHONE_PREFIX,
-} from '../mappings/vmlav-customer-mapping';
 import { ImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
+import { OrderIngestionService } from '../../../public-api/orders/application/order-ingestion.service';
+import {
+  isVmLavSaleReadyForIngestion,
+  mapVmLavSaleToIngestOrder,
+} from '../mappings/vmlav-to-ingest-order.mapper';
+import {
+  VMLAV_INGESTION_API_KEY_ID,
+  VMLAV_PARTNER_SLUG,
+} from '../vmlav.constants';
 
 @Injectable()
 export class VmLavSalesService {
@@ -36,8 +32,7 @@ export class VmLavSalesService {
     private readonly prisma: PrismaService,
     @Inject('IDigitalMenuIntegrationRepository')
     private readonly digitalMenuIntegrationRepository: IDigitalMenuIntegrationRepository,
-    private readonly customersService: CustomersService,
-    private readonly orderService: OrderService,
+    private readonly orderIngestionService: OrderIngestionService,
     @InjectQueue(QUEUE_NAMES.VMLAV_SALES_IMPORT)
     private readonly vmLavSalesQueue: Queue,
     @InjectQueue(QUEUE_NAMES.VMLAV_SALE_PROCESS)
@@ -56,7 +51,6 @@ export class VmLavSalesService {
         `Iniciando processamento de vendas para empresa ${companyId} - ${date}`,
       );
 
-      // Busca a empresa no banco
       const company = await this.prisma.company.findUnique({
         where: { id: companyId },
       });
@@ -65,16 +59,14 @@ export class VmLavSalesService {
         throw new Error(`Empresa ${companyId} não encontrada`);
       }
 
-      // Busca partner VM Lav pelo slug
       const partner = await this.prisma.partner.findUnique({
-        where: { partnerSlug: 'VMLAV' },
+        where: { partnerSlug: VMLAV_PARTNER_SLUG },
       });
 
       if (!partner) {
         throw new Error('Partner VMLAV não encontrado no sistema');
       }
 
-      // Busca integração VM Lav da empresa
       const integration = await this.digitalMenuIntegrationRepository.findByCompanyAndPartner(
         companyId,
         partner.id,
@@ -97,18 +89,14 @@ export class VmLavSalesService {
 
       this.logger.log(`Integração encontrada. Buscando vendas na API...`);
 
-      // Busca vendas do dia na API VM Lav
       const sales = await this.vmLavService.getDailySales(
         integration.apiKey,
         company.cnpj,
         date,
       );
 
-      this.logger.log(
-        `Encontradas ${sales.length} vendas para processar`,
-      );
+      this.logger.log(`Encontradas ${sales.length} vendas para processar`);
 
-      // Adiciona cada venda na fila para processamento individual
       for (const sale of sales) {
         await this.vmLavSaleProcessQueue.add(
           QUEUE_NAMES.VMLAV_SALE_PROCESS,
@@ -116,7 +104,7 @@ export class VmLavSalesService {
             companyId,
             sale,
             apiKey: integration.apiKey,
-            cnpj: company.cnpj,
+            partnerId: partner.id,
           },
           {
             attempts: 3,
@@ -141,177 +129,75 @@ export class VmLavSalesService {
   }
 
   /**
-   * Processa uma venda individual e salva os dados do cliente e pedido
-   * @param companyId - ID da empresa
-   * @param sale - Dados da venda
-   * @param apiKey - API Key para buscar dados adicionais (opcional)
+   * Enriquece a venda (quando possível) e enfileira na ingestão da API aberta,
+   * reutilizando as mesmas regras de cliente/pedido.
    */
-  async processSale(companyId: string, sale: VmLavSale, apiKey?: string): Promise<void> {
+  async processSale(
+    companyId: string,
+    sale: VmLavSale,
+    apiKey?: string,
+    partnerId?: string,
+  ): Promise<void> {
     try {
       this.logger.log(`Processando venda ${sale.idVenda} - Cliente: ${sale.nomeCliente}`);
 
-      const rawPhone = normalizeVmLavPhone(sale.telefoneCliente);
-      const cpfDigits = digitsOnly(sale.cpfCliente);
-
-      if (rawPhone.length === 0 && cpfDigits.length === 0) {
+      if (!isVmLavSaleReadyForIngestion(sale)) {
         this.logger.warn(
-          `Venda ${sale.idVenda} sem telefone e sem CPF do cliente, ignorando`,
+          `Venda ${sale.idVenda} incompleta para ingestão (sem telefone/CPF ou nome), ignorando`,
         );
         return;
       }
 
-      let customer: Customer | null = null;
-
-      if (rawPhone.length > 0) {
-        const phoneFormatted = formatPhoneNumber(rawPhone);
-        customer = await this.customersService.findByPhone(companyId, phoneFormatted);
+      let resolvedPartnerId = partnerId;
+      if (!resolvedPartnerId) {
+        const partner = await this.prisma.partner.findUnique({
+          where: { partnerSlug: VMLAV_PARTNER_SLUG },
+          select: { id: true },
+        });
+        if (!partner) {
+          throw new Error('Partner VMLAV não encontrado no sistema');
+        }
+        resolvedPartnerId = partner.id;
       }
 
-      if (!customer && cpfDigits.length > 0) {
-        customer = await this.customersService.findByCpf(companyId, cpfDigits);
-      }
-
-      if (!customer && cpfDigits.length > 0 && rawPhone.length === 0) {
-        customer = await this.customersService.findByPhone(
-          companyId,
-          cpfPhonePlaceholder(cpfDigits),
+      let customerDetail: VmLavCustomerDetail | null = null;
+      if (sale.cpfCliente && apiKey) {
+        customerDetail = await this.vmLavService.getCustomerByCpf(
+          apiKey,
+          sale.cpfCliente,
         );
-      }
-
-      if (!customer) {
-        this.logger.log(`Cliente não encontrado, buscando dados completos na API...`);
-
-        // Tenta buscar dados detalhados do cliente na API se tiver CPF e API Key
-        let customerData: any = null;
-        if (sale.cpfCliente && apiKey) {
-          const customerDetail = await this.vmLavService.getCustomerByCpf(apiKey, sale.cpfCliente);
-          
-          if (customerDetail) {
-            this.logger.log(`Dados detalhados do cliente encontrados na API: ${customerDetail.nome}`);
-            this.logger.log(`  - Data Cadastro (dataCadastro): ${customerDetail.dataCadastro}`);
-            this.logger.log(`  - Primeira Compra (primeiraCompra): ${customerDetail.primeiraCompra}`);
-            customerData = VmLavCustomerMapping.toCreateCustomerDto(customerDetail);
-          } else {
-            this.logger.log(`Dados detalhados não encontrados na API, usando dados da venda`);
-          }
-        }
-
-        // Se não conseguiu buscar dados detalhados, usa os dados da venda
-        if (!customerData) {
-          this.logger.log(`Usando dados da venda como fallback (sem dataCadastro disponível na venda)`);
-          const saleDate = parseUTCDate(sale.data);
-          const phone = resolveVmLavCustomerPhone(sale.telefoneCliente, sale.cpfCliente);
-          customerData = {
-            name: sale.nomeCliente,
-            phone,
-            email: sale.emailCliente || undefined,
-            cpf: cpfDigits.length > 0 ? cpfDigits : undefined,
-            birthDate: sale.dtaNascimento || undefined,
-            firstOrderDate: saleDate ? toDateOnlyString(saleDate) : undefined,
-            createdAt: saleDate,
-          };
-          this.logger.log(`  - Usando data da venda como createdAt/firstOrderDate: ${sale.data} -> ${saleDate?.toISOString()}`);
-        }
-
-        this.logger.log(`Criando novo cliente: ${customerData.name}`);
-
-        // Cria novo cliente
-        customer = await this.customersService.create(companyId, customerData);
-
-        this.logger.log(`Cliente criado com sucesso: ${customer.id}`);
-      } else {
-        this.logger.log(`Cliente já existe: ${customer.id} - ${customer.name}`);
-
-        const shouldUpgradePhone =
-          rawPhone.length > 0 &&
-          typeof customer.phone === 'string' &&
-          customer.phone.startsWith(VMLAV_CPF_PHONE_PREFIX);
-
-        // Atualiza informações do cliente se necessário
-        const needsUpdate =
-          shouldUpgradePhone ||
-          (sale.emailCliente && !customer.email) ||
-          (sale.cpfCliente && !customer.cpf) ||
-          (sale.dtaNascimento && !customer.birthDate);
-
-        if (needsUpdate) {
-          this.logger.log(`Atualizando informações do cliente ${customer.id}`);
-
-          // Se tiver CPF e API Key, busca dados detalhados para atualização mais completa
-          let updateData: any = null;
-          if (sale.cpfCliente && apiKey && !customer.cpf) {
-            const customerDetail = await this.vmLavService.getCustomerByCpf(apiKey, sale.cpfCliente);
-            
-            if (customerDetail) {
-              this.logger.log(`Usando dados detalhados da API para atualização`);
-              updateData = VmLavCustomerMapping.toUpdateData(
-                customerDetail,
-                customer.phone,
-              );
-            }
-          }
-
-          // Se não conseguiu buscar dados detalhados, usa os dados da venda
-          if (!updateData) {
-            updateData = {
-              email: sale.emailCliente || customer.email || undefined,
-              cpf: cpfDigits.length > 0 ? cpfDigits : customer.cpf || undefined,
-              birthDate: sale.dtaNascimento || undefined,
-            };
-          }
-
-          if (shouldUpgradePhone) {
-            updateData.phone = formatPhoneNumber(rawPhone);
-          }
-
-          await this.customersService.update(companyId, customer.id, updateData);
-
-          this.logger.log(`Cliente ${customer.id} atualizado com sucesso`);
+        if (customerDetail) {
+          this.logger.log(
+            `Dados detalhados do cliente encontrados na API: ${customerDetail.nome}`,
+          );
         }
       }
 
-      // Verifica se o pedido já existe
-      const existingOrder = await this.orderService.findByIntegratorOrderId(
-        companyId,
-        sale.idVenda,
+      const ingestPayload = mapVmLavSaleToIngestOrder(
+        sale,
+        resolvedPartnerId,
+        customerDetail,
       );
 
-      if (existingOrder) {
-        // Valida também se o displayId do pedido existente corresponde à venda atual
-        if (existingOrder.displayId !== sale.idVenda) {
-          this.logger.warn(
-            `Inconsistência encontrada ao processar venda ${sale.idVenda}: ` +
-              `pedido ${existingOrder.id} possui displayId ${existingOrder.displayId}, ` +
-              `diferente do esperado (${sale.idVenda}).`,
-          );
-        } else {
-          this.logger.log(`Pedido ${sale.idVenda} já existe com displayId correspondente, ignorando`);
-        }
+      if (!ingestPayload) {
+        this.logger.warn(
+          `Falha ao mapear venda ${sale.idVenda} para ingestão; ignorando`,
+        );
         return;
       }
 
-      // Cria o pedido usando o mapping
-      this.logger.log(`Criando pedido para venda ${sale.idVenda}`);
+      const result = await this.orderIngestionService.enqueue(
+        {
+          apiKeyId: VMLAV_INGESTION_API_KEY_ID,
+          companyId,
+        },
+        ingestPayload,
+      );
 
-      const orderData = VmLavSaleMapping.toOrder(sale, customer.id, companyId);
-      const { integratorOrderId, items, discounts, payments, deliveryAddress, schedule, ...orderCreateData } = orderData;
-
-      const saleDate = parseUTCDate(sale.data);
-      this.logger.log(`  - Data da venda: ${sale.data} -> ${saleDate?.toISOString()}`);
-
-      const order = await this.orderService.create({
-        ...orderCreateData,
-        createdAt: saleDate!,
-        updatedAt: saleDate!,
-        items,
-        discounts,
-        payments,
-        deliveryAddress,
-        schedule,
-      });
-
-      this.logger.log(`Pedido ${order.id} criado com sucesso para venda ${sale.idVenda}`);
-      this.logger.log(`Venda ${sale.idVenda} processada com sucesso para cliente ${customer.id}`);
+      this.logger.log(
+        `Venda VM Lav ${sale.idVenda} ${result.status} na fila public-api-order-ingestion ` +
+          `para empresa ${companyId}`,
+      );
     } catch (error) {
       this.logger.error(`Erro ao processar venda ${sale.idVenda}:`, error.message);
       throw error;
@@ -352,7 +238,7 @@ export class VmLavSalesService {
         }
 
         const partner = await this.prisma.partner.findUnique({
-          where: { partnerSlug: 'VMLAV' },
+          where: { partnerSlug: VMLAV_PARTNER_SLUG },
         });
 
         if (!partner) {
@@ -388,7 +274,6 @@ export class VmLavSalesService {
 
       this.logger.log(`Total de ${dates.length} dias para importar`);
 
-      // Adiciona cada dia na fila para processamento
       let jobsCreated = 0;
       for (const date of dates) {
         await this.vmLavSalesQueue.add(

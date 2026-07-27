@@ -120,6 +120,8 @@ export const queryKeys = {
     },
     plans: () => ['company', 'plans'] as const,
     partner: (partnerId: string) => ['company', 'partner', partnerId] as const,
+    renitency: (companyId: string) =>
+      ['company', 'renitency', companyId] as const,
   },
 
   subscription: {

@@ -2,7 +2,6 @@ import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { AutomaticCampaignService } from './application/automatic-campaign.service';
 import { AutomaticCampaignController } from './presentation/automatic-campaign.controller';
-import { PrismaService } from '../prisma/prisma.service';
 import { AutomaticCampaignTasks } from './crons/automatic-campaign-tasks';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { BullModule } from '@nestjs/bull';
@@ -51,7 +50,6 @@ import { MessageCostModule } from '../message-engine/pricing/message-cost.module
   controllers: [AutomaticCampaignController],
   providers: [
     AutomaticCampaignService,
-    PrismaService,
     OpenAIService,
     CampaignChannelStrategyFactory,
     WhatsappWebStrategy,

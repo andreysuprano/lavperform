@@ -148,10 +148,35 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         return result ? CustomerMapper.toDomain(result) : null;
     }
 
-    async findAll(options?: PaginationDto & { companyId: string; rfvClassification?: string[] }): Promise<{ items: Customer[], total: number }> {
-        const { page = 1, limit = 10, orderBy = 'createdAt', orderDirection = 'desc', id, startDate, endDate, name, companyId, rfvClassification } = options || {};
+    async findAll(options?: PaginationDto & {
+        companyId: string;
+        rfvClassification?: string[];
+        hasEmail?: boolean;
+        hasBirthDate?: boolean;
+        whatsappOptin?: boolean;
+        whatsappVerified?: boolean;
+        hasOrders?: boolean;
+    }): Promise<{ items: Customer[], total: number }> {
+        const {
+            page = 1,
+            limit = 10,
+            orderBy = 'createdAt',
+            orderDirection = 'desc',
+            id,
+            startDate,
+            endDate,
+            name,
+            companyId,
+            rfvClassification,
+            hasEmail,
+            hasBirthDate,
+            whatsappOptin,
+            whatsappVerified,
+            hasOrders,
+        } = options || {};
 
         const where: any = { companyId };
+        const andFilters: any[] = [];
 
         if (id) where.id = id;
 
@@ -162,7 +187,13 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         }
 
         if (name) {
-            where.name = { contains: name, mode: 'insensitive' };
+            andFilters.push({
+                OR: [
+                    { name: { contains: name, mode: 'insensitive' } },
+                    { phone: { contains: name, mode: 'insensitive' } },
+                    { email: { contains: name, mode: 'insensitive' } },
+                ],
+            });
         }
 
         if (rfvClassification && rfvClassification.length > 0) {
@@ -170,25 +201,73 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             const rfvSegments = rfvClassification.filter((c) => c !== 'lead');
 
             if (includesLead && rfvSegments.length === 0) {
-                where.orders = { none: {} };
+                andFilters.push({ orders: { none: {} } });
             } else if (includesLead && rfvSegments.length > 0) {
-                where.OR = [
-                    { orders: { none: {} } },
-                    {
-                        orders: { some: {} },
-                        rfvClassification: { in: rfvSegments },
-                    },
-                ];
+                andFilters.push({
+                    OR: [
+                        { orders: { none: {} } },
+                        {
+                            orders: { some: {} },
+                            rfvClassification: { in: rfvSegments },
+                        },
+                    ],
+                });
             } else {
-                where.rfvClassification = { in: rfvSegments };
-                where.orders = { some: {} };
+                andFilters.push({
+                    rfvClassification: { in: rfvSegments },
+                    orders: { some: {} },
+                });
             }
         }
+
+        if (hasEmail === true) {
+            andFilters.push({
+                email: { not: null },
+                NOT: { email: '' },
+            });
+        } else if (hasEmail === false) {
+            andFilters.push({
+                OR: [{ email: null }, { email: '' }],
+            });
+        }
+
+        if (hasBirthDate === true) {
+            andFilters.push({ birthDate: { not: null } });
+        } else if (hasBirthDate === false) {
+            andFilters.push({ birthDate: null });
+        }
+
+        if (typeof whatsappOptin === 'boolean') {
+            andFilters.push({ whatsappOptin });
+        }
+
+        if (typeof whatsappVerified === 'boolean') {
+            andFilters.push({ whatsappVerified });
+        }
+
+        if (hasOrders === true) {
+            andFilters.push({ orders: { some: {} } });
+        } else if (hasOrders === false) {
+            andFilters.push({ orders: { none: {} } });
+        }
+
+        if (andFilters.length > 0) {
+            where.AND = andFilters;
+        }
+
+        const allowedOrderBy = new Set([
+            'createdAt',
+            'name',
+            'lastOrderDate',
+            'averageTicket',
+            'updatedAt',
+        ]);
+        const safeOrderBy = allowedOrderBy.has(orderBy) ? orderBy : 'createdAt';
 
         const [items, total] = await Promise.all([
             this.prisma.customer.findMany({
                 where,
-                orderBy: { [orderBy]: orderDirection },
+                orderBy: { [safeOrderBy]: orderDirection },
                 skip: (page - 1) * limit,
                 take: limit,
                 include: { address: true },
@@ -309,6 +388,98 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         };
     }
 
+    async findTopBuyers(
+        companyId: string,
+        limit = 10,
+        sortBy: 'totalSpent' | 'orderCount' = 'totalSpent',
+    ) {
+        const take = Math.min(Math.max(limit, 1), 50);
+
+        // groupBy + orderBy por _count no Prisma pode não aplicar a ordenação
+        // corretamente em alguns casos; ordenamos em memória para garantir.
+        const grouped = await this.prisma.order.groupBy({
+            by: ['customerId'],
+            where: { companyId },
+            _sum: { total: true },
+            _count: { _all: true },
+        });
+
+        if (grouped.length === 0) {
+            return [];
+        }
+
+        const ranked = [...grouped].sort((a, b) => {
+            const aSpent = Number(a._sum?.total || 0);
+            const bSpent = Number(b._sum?.total || 0);
+            const aOrders = Number(a._count?._all || 0);
+            const bOrders = Number(b._count?._all || 0);
+
+            if (sortBy === 'orderCount') {
+                if (bOrders !== aOrders) return bOrders - aOrders;
+                return bSpent - aSpent;
+            }
+
+            if (bSpent !== aSpent) return bSpent - aSpent;
+            return bOrders - aOrders;
+        }).slice(0, take);
+
+        const customerIds = ranked.map((row) => row.customerId);
+
+        const customers = await this.prisma.customer.findMany({
+            where: {
+                companyId,
+                id: { in: customerIds },
+            },
+            select: {
+                id: true,
+                name: true,
+                phone: true,
+                email: true,
+                rfvClassification: true,
+                averageTicket: true,
+                lastOrderDate: true,
+                companyId: true,
+                whatsappOptin: true,
+                createdAt: true,
+                updatedAt: true,
+                birthDate: true,
+            },
+        });
+
+        const customerMap = new Map(customers.map((customer) => [customer.id, customer]));
+
+        return ranked
+            .map((row) => {
+                const customer = customerMap.get(row.customerId);
+                if (!customer) return null;
+
+                const totalSpent = Number(row._sum?.total || 0);
+                const orderCount = Number(row._count?._all || 0);
+                const averageTicket =
+                    orderCount > 0
+                        ? totalSpent / orderCount
+                        : Number(customer.averageTicket || 0);
+
+                return {
+                    customerId: customer.id,
+                    name: customer.name,
+                    phone: customer.phone,
+                    email: customer.email,
+                    rfvClassification: customer.rfvClassification,
+                    averageTicket,
+                    lastOrderDate: customer.lastOrderDate,
+                    totalSpent,
+                    orderCount,
+                    companyId: customer.companyId,
+                    whatsappOptin: customer.whatsappOptin,
+                    createdAt: customer.createdAt,
+                    updatedAt: customer.updatedAt,
+                    birthDate: customer.birthDate,
+                };
+            })
+            .filter((item): item is NonNullable<typeof item> => item !== null);
+    }
+
     async findWhatsappValidationCandidates(
         companyId: string,
         skip: number,
@@ -376,6 +547,8 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                   }
                 : undefined;
 
+        // groupBy + orderBy por _count no Prisma pode falhar na tipagem/ordenação;
+        // ordenamos em memória para garantir.
         const grouped = await this.prisma.order.groupBy({
             by: ['customerId'],
             where: {
@@ -385,18 +558,31 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             _count: { _all: true },
             _sum: { total: true },
             _max: { createdAt: true },
-            orderBy:
-                sortBy === 'orderCount'
-                    ? { _count: { _all: 'desc' } }
-                    : { _sum: { total: 'desc' } },
-            take: limit,
         });
 
         if (grouped.length === 0) {
             return [];
         }
 
-        const customerIds = grouped.map((group) => group.customerId);
+        const take = Math.min(Math.max(limit, 1), 50);
+        const ranked = [...grouped]
+            .sort((a, b) => {
+                const aSpent = Number(a._sum?.total || 0);
+                const bSpent = Number(b._sum?.total || 0);
+                const aOrders = Number(a._count?._all || 0);
+                const bOrders = Number(b._count?._all || 0);
+
+                if (sortBy === 'orderCount') {
+                    if (bOrders !== aOrders) return bOrders - aOrders;
+                    return bSpent - aSpent;
+                }
+
+                if (bSpent !== aSpent) return bSpent - aSpent;
+                return bOrders - aOrders;
+            })
+            .slice(0, take);
+
+        const customerIds = ranked.map((group) => group.customerId);
         const customers = await this.prisma.customer.findMany({
             where: {
                 companyId,
@@ -420,13 +606,13 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             customers.map((customer) => [customer.id, customer]),
         );
 
-        return grouped
+        return ranked
             .map((group) => {
                 const customer = customersById.get(group.customerId);
                 if (!customer) return null;
 
-                const orderCount = group._count._all;
-                const totalSpent = Number(group._sum.total ?? 0);
+                const orderCount = Number(group._count?._all || 0);
+                const totalSpent = Number(group._sum?.total ?? 0);
                 const averageTicket =
                     orderCount > 0 ? totalSpent / orderCount : 0;
 
@@ -437,7 +623,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                     email: customer.email,
                     rfvClassification: customer.rfvClassification,
                     averageTicket,
-                    lastOrderDate: group._max.createdAt,
+                    lastOrderDate: group._max?.createdAt ?? null,
                     totalSpent,
                     orderCount,
                     companyId: customer.companyId,
