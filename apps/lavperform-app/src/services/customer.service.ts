@@ -250,7 +250,7 @@ export const customerService = {
   // ==================== CustomerDetailsModal Methods ====================
 
   /**
-   * Busca os pedidos resumidos do cliente para exibição
+   * Busca as vendas resumidas do cliente para exibição
    */
   async getCustomerOrdersSummary(
     customerId: string

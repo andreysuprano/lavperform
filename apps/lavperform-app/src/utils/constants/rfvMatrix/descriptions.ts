@@ -24,5 +24,5 @@ export const RFV_SEGMENT_DESCRIPTIONS: Record<keyof RfvMatrixData, string> = {
   perdido:
     'Clientes que provavelmente não retornarão. Podem ser alvos de campanhas de reativação, mas com expectativas baixas.',
   lead:
-    'Clientes cadastrados que ainda não realizaram nenhum pedido. Requerem ações de conversão e primeiro contato.',
+    'Clientes cadastrados que ainda não realizaram nenhuma venda. Requerem ações de conversão e primeiro contato.',
 }

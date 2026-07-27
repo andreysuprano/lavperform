@@ -47,7 +47,10 @@ export function ImportCustomersWizard() {
       phone: customer.telefone || null,
       email: customer.email || null,
       birthDate: customer.data_nascimento || null,
-      firstOrderDate: customer.data_primeiro_pedido || null,
+      firstOrderDate:
+        customer.data_primeira_venda ||
+        customer.data_primeiro_pedido ||
+        null,
       rfvClassification: ClientTypes.Novo,
       gender: customer.genero || null,
       observations: customer.observacoes || null,
@@ -174,7 +177,7 @@ export function ImportCustomersWizard() {
 
   const handleDownloadTemplate = () => {
     const csvContent =
-      'nome,telefone,email,data_nascimento,data_primeiro_pedido,genero,observacoes,valor_medio_ticket,rua,numero,complemento,bairro,cidade,estado,cep\nJoão Silva,(14) 99299-9909,joao@exemplo.com,1990-01-01,2023-01-01,M,Cliente prefere entrega após as 18h,,Av. Paulista,1000,Apto 123,Bela Vista,São Paulo,SP,01310-100'
+      'nome,telefone,email,data_nascimento,data_primeira_venda,genero,observacoes,valor_medio_ticket,rua,numero,complemento,bairro,cidade,estado,cep\nJoão Silva,(14) 99299-9909,joao@exemplo.com,1990-01-01,2023-01-01,M,Cliente prefere entrega após as 18h,,Av. Paulista,1000,Apto 123,Bela Vista,São Paulo,SP,01310-100'
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -271,7 +274,7 @@ export function ImportCustomersWizard() {
                   <Code>telefone</Code>
                   <Code>email</Code>
                   <Code>data_nascimento</Code>
-                  <Code>data_primeiro_pedido</Code>
+                  <Code>data_primeira_venda</Code>
                   <Code>genero</Code>
                   <Code>observacoes</Code>
                   <Code>valor_medio_ticket</Code>

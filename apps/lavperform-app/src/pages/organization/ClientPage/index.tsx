@@ -292,7 +292,7 @@ function ClientPage({ isPreview = false }: { isPreview?: boolean }) {
                       flex={1}
                       textAlign="center"
                     >
-                      Faça o seu Pedido!
+                      Faça a sua compra!
                     </Text>
                   </Link>
                 </Button>
@@ -300,19 +300,19 @@ function ClientPage({ isPreview = false }: { isPreview?: boolean }) {
                 <>
                   <CustomDrawer
                     placement="bottom"
-                    title="Faça o seu pedido"
+                    title="Faça a sua compra"
                     trigger={
                       <Button
                         flex={1}
                         size="lg"
                       >
-                        Faça o seu Pedido!
+                        Faça a sua compra!
                       </Button>
                     }
                   >
                     <Text mb={4}>
-                      Selecione um dos nossos serviços para realizar o seu
-                      pedido.
+                      Selecione um dos nossos serviços para realizar a sua
+                      compra.
                     </Text>
                     <Box
                       display="flex"

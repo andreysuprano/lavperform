@@ -36,15 +36,15 @@ function buildRowCopy(params: {
   const min = formatMinValue(dimension, level.minValue)
 
   if (dimension === 'RECENCY') {
-    if (badgeLevel === 5) return { beforeInput: 'Até', afterInput: 'dias desde o último pedido' }
-    if (badgeLevel === 1) return { beforeInput: 'Acima de', afterInput: 'dias desde o último pedido' }
-    return { beforeInput: `De ${min} a`, afterInput: 'dias desde o último pedido' }
+    if (badgeLevel === 5) return { beforeInput: 'Até', afterInput: 'dias desde a última venda' }
+    if (badgeLevel === 1) return { beforeInput: 'Acima de', afterInput: 'dias desde a última venda' }
+    return { beforeInput: `De ${min} a`, afterInput: 'dias desde a última venda' }
   }
 
   if (dimension === 'FREQUENCY') {
-    if (badgeLevel === 5) return { beforeInput: 'A partir de', afterInput: 'pedidos feitos.' }
-    if (badgeLevel === 1) return { beforeInput: 'Até', afterInput: 'pedidos feitos.' }
-    return { beforeInput: `De ${min} a`, afterInput: 'pedidos feitos.' }
+    if (badgeLevel === 5) return { beforeInput: 'A partir de', afterInput: 'vendas feitas.' }
+    if (badgeLevel === 1) return { beforeInput: 'Até', afterInput: 'vendas feitas.' }
+    return { beforeInput: `De ${min} a`, afterInput: 'vendas feitas.' }
   }
 
   // MONETARY (ticket médio)

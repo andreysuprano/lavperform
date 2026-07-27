@@ -38,7 +38,7 @@ function DashboardOpsMetricsBase() {
       },
       {
         icon: LuShoppingCart,
-        label: 'Pedidos do dia',
+        label: 'Vendas do dia',
         value: performance?.summary.dailySalesCount ?? 0,
         valueType: 'number' as const,
       },

@@ -64,7 +64,7 @@ export function getCustomerCrmInsights(
         id: 'empty-base',
         title: 'Base ainda vazia',
         message:
-          'Importe ou sincronize pedidos para começar a gerar inteligência de clientes, segmentos RFV e oportunidades de campanha.',
+          'Importe ou sincronize vendas para começar a gerar inteligência de clientes, segmentos RFV e oportunidades de campanha.',
         priority: 'high',
         action: {
           label: 'Ir para base de clientes',
@@ -179,7 +179,7 @@ export function getCustomerCrmInsights(
   if (opportunities.leads > 0) {
     insights.push({
       id: 'leads',
-      title: 'Leads sem primeiro pedido',
+      title: 'Leads sem primeira venda',
       message: `${opportunities.leads} contatos ainda não compraram. Uma oferta de primeira compra pode converter essa lista em clientes ativos.`,
       priority: 'medium',
       action: {
@@ -193,7 +193,7 @@ export function getCustomerCrmInsights(
     insights.push({
       id: 'ticket',
       title: 'Ticket médio da base',
-      message: `O ticket médio dos clientes com pedidos é ${formatCurrency(patterns.averageTicket)}. Use isso como referência para cupons e metas de upsell.`,
+      message: `O ticket médio dos clientes com vendas é ${formatCurrency(patterns.averageTicket)}. Use isso como referência para cupons e metas de upsell.`,
       priority: 'opportunity',
     })
   }
@@ -202,7 +202,7 @@ export function getCustomerCrmInsights(
     const top = patterns.topOrderDays[0]
     insights.push({
       id: 'peak-day',
-      title: 'Dia com mais pedidos',
+      title: 'Dia com mais vendas',
       message: `O dia mais forte da base é ${formatOrderDay(top.day)} (${top.count} clientes com esse padrão). Programe campanhas 1 dia antes para antecipar a demanda.`,
       priority: 'opportunity',
       action: {

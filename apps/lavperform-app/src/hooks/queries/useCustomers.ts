@@ -58,7 +58,7 @@ export function useCustomersSummary(companyId: string | undefined) {
 }
 
 /**
- * Ranking de clientes que mais compram (por valor ou número de pedidos)
+ * Ranking de clientes que mais compram (por valor ou número de vendas)
  */
 export function useTopBuyers(
   companyId: string | undefined,
@@ -82,7 +82,7 @@ export function useTopBuyers(
 }
 
 /**
- * Hook para buscar pedidos de um cliente
+ * Hook para buscar vendas de um cliente
  */
 export function useCustomerOrders(customerId: string | undefined) {
   return useQuery({

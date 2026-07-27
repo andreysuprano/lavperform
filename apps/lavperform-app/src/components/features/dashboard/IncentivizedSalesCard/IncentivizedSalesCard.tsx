@@ -191,7 +191,7 @@ export function IncentivizedSalesCard() {
                 </HStack>
               )}
               <Text color="green.400" fontSize="xs" mt={0.5}>
-                pedidos gerados
+                vendas geradas
               </Text>
             </VStack>
           </HStack>

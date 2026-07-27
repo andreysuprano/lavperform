@@ -65,7 +65,7 @@ function RecentSalesPanelBase({ companyId }: Props) {
           color="fg.muted"
           fontSize="sm"
         >
-          Pedidos mais recentes do restaurante.
+          Vendas mais recentes.
         </Text>
       </Stack>
 

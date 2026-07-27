@@ -28,8 +28,8 @@ function mapSalesChannel(salesChannel: string): string {
 }
 
 /**
- * Combina orderType e salesChannel para exibir origem completa do pedido
- * @param orderType Tipo do pedido (delivery, takeout, etc.)
+ * Combina orderType e salesChannel para exibir origem completa da venda
+ * @param orderType Tipo da venda (delivery, takeout, etc.)
  * @param salesChannel Canal de vendas (catalog, ifood, etc.)
  * @returns Nome legível da origem (ex: "Cardápio Web", "iFood", etc.)
  */

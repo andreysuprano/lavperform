@@ -42,8 +42,8 @@ const CustomerOrderListComponent = ({ customerId }: Props) => {
   if (customerOrders.length === 0) {
     return (
       <Empty
-        description="Não localizamos nenhum pedido gerado por esse cliente."
-        title="Nenhum pedido encontrado"
+        description="Não localizamos nenhuma venda gerada por esse cliente."
+        title="Nenhuma venda encontrada"
       />
     )
   }
@@ -65,7 +65,7 @@ const CustomerOrderListComponent = ({ customerId }: Props) => {
               <strong>{formatCurrency(Number(order.deliveryFee))}</strong>
             </p>
             <p>
-              Total do pedido:{' '}
+              Total da venda:{' '}
               <strong>{formatCurrency(Number(order.total))}</strong>
             </p>
             <p>
@@ -82,7 +82,7 @@ const CustomerOrderListComponent = ({ customerId }: Props) => {
               </strong>
             </p>
             <p>
-              Data do pedido:{' '}
+              Data da venda:{' '}
               <strong>
                 {convertISOToDate(order.createdAt, {
                   timeZone: 'UTC',
@@ -93,7 +93,7 @@ const CustomerOrderListComponent = ({ customerId }: Props) => {
             </p>
           </Card.Header>
           <Card.Body gap={2}>
-            <p>Items do pedidos:</p>
+            <p>Itens da venda:</p>
             {order.items.map((item, index) => (
               <Card.Root
                 key={index}

@@ -75,7 +75,7 @@ function getMetricValue(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
 
 function formatMetric(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
   if (sortBy === 'orderCount') {
-    return `${buyer.orderCount} ${buyer.orderCount === 1 ? 'pedido' : 'pedidos'}`
+    return `${buyer.orderCount} ${buyer.orderCount === 1 ? 'venda' : 'vendas'}`
   }
   return formatCurrency(buyer.totalSpent)
 }
@@ -164,7 +164,7 @@ function RankList({
         w="full"
       >
         <Empty
-          description="Quando houver pedidos, o ranking aparece aqui."
+          description="Quando houver vendas, o ranking aparece aqui."
           title="Nenhum ranking ainda"
         />
       </Box>
@@ -329,7 +329,7 @@ function RankList({
                           <LuShoppingBag size={10} />
                           <Text as="span">
                             {buyer.orderCount}{' '}
-                            {buyer.orderCount === 1 ? 'pedido' : 'pedidos'}
+                            {buyer.orderCount === 1 ? 'venda' : 'vendas'}
                           </Text>
                         </HStack>
                       ) : (
@@ -383,7 +383,7 @@ function RankList({
                           color="fg.muted"
                           fontSize="2xs"
                         >
-                          Último pedido
+                          Última venda
                         </Text>
                         <Text fontSize="xs" fontWeight="medium">
                           {formatLastOrder(buyer.lastOrderDate)}
@@ -453,7 +453,7 @@ function DashboardTopCustomersRankBase() {
           color="fg.muted"
           fontSize="sm"
         >
-          Top {RANK_LIMIT} por valor gasto e por número de pedidos. Clique para
+          Top {RANK_LIMIT} por valor gasto e por número de vendas. Clique para
           ver detalhes.
         </Text>
       </Stack>
@@ -483,8 +483,8 @@ function DashboardTopCustomersRankBase() {
           onExpand={setExpandedId}
           onOpenDetails={(buyer) => setSelected(toCustomer(buyer))}
           sortBy="orderCount"
-          subtitle="Ordenado pelo número de pedidos"
-          title="Quem mais pede"
+          subtitle="Ordenado pelo número de vendas"
+          title="Quem mais compra"
         />
       </SimpleGrid>
 

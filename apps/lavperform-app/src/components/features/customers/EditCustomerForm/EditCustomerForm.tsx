@@ -201,7 +201,7 @@ function EditCustomerForm({ data, onClose }: Props) {
           <Flex gap={4}>
             <Input
               control={control}
-              label="Primeiro pedido"
+              label="Primeira venda"
               placeholder="DD/MM/AAAA"
               {...maskedRegister('firstOrderDate', '99/99/9999')}
             />

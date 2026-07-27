@@ -58,7 +58,7 @@ function CustomerDetailsDrawer({ data, onClose }: Props) {
       <Tabs.RootProvider value={tabs}>
         <Tabs.List>
           <Tabs.Trigger value="data">Dados do Cliente</Tabs.Trigger>
-          <Tabs.Trigger value="orders">Pedidos</Tabs.Trigger>
+          <Tabs.Trigger value="orders">Vendas</Tabs.Trigger>
         </Tabs.List>
         <Tabs.Content value="data">
           <EditCustomerForm

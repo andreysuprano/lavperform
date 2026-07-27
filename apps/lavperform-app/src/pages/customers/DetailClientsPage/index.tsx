@@ -116,16 +116,16 @@ const VERIFIED_OPTIONS = [
 const ORDERS_OPTIONS = [
   {
     value: 'true' as const,
-    label: 'Com pedidos',
+    label: 'Com vendas',
     icon: <LuShoppingBag size={14} />,
   },
-  { value: 'false' as const, label: 'Leads (sem pedidos)' },
+  { value: 'false' as const, label: 'Leads (sem vendas)' },
 ]
 
 const ORDER_BY_OPTIONS = [
   { value: 'createdAt' as const, label: 'Data de cadastro' },
   { value: 'name' as const, label: 'Nome' },
-  { value: 'lastOrderDate' as const, label: 'Último pedido' },
+  { value: 'lastOrderDate' as const, label: 'Última venda' },
   { value: 'averageTicket' as const, label: 'Ticket médio' },
   { value: 'updatedAt' as const, label: 'Atualização' },
 ]
@@ -326,7 +326,7 @@ export function CustomerTableSection({
         />
         <MultiSelectFilter
           icon={<LuShoppingBag size={14} />}
-          label="Pedidos"
+          label="Vendas"
           onChange={(next) => updateExclusiveFilter('hasOrders', next)}
           options={ORDERS_OPTIONS}
           placeholder="Todos"

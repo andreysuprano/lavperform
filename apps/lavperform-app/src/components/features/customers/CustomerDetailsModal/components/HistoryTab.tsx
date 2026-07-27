@@ -34,7 +34,7 @@ export function HistoryTab({ customerId }: Props) {
         id: '2',
         type: 'purchase',
         timestamp: '2025-12-28T18:28:00',
-        title: 'Realizou um pedido',
+        title: 'Realizou uma venda',
         purchase: {
           channel: 'Alloy',
           amount: 75.79,
@@ -49,7 +49,7 @@ export function HistoryTab({ customerId }: Props) {
           channel: 'whatsapp',
           preview: 'Olá Thiago, sentimos sua falta por aq...',
           fullContent:
-            'Olá *Thiago*, como vai? ❤️ Está com saudades? Volte e ganhe um cupom especial de 20% OFF em qualquer pedido!',
+            'Olá *Thiago*, como vai? ❤️ Está com saudades? Volte e ganhe um cupom especial de 20% OFF em qualquer venda!',
         },
         campaign: {
           id: 'c01',

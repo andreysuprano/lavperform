@@ -26,7 +26,7 @@ function PerformanceChartBase({ data = [] }: Props) {
   const series = useMemo(
     () => ({
       count: {
-        label: 'Pedidos',
+        label: 'Vendas',
         color: color(`${colorPalette}.400`),
       },
       revenue: {
@@ -53,7 +53,7 @@ function PerformanceChartBase({ data = [] }: Props) {
             color="fg.muted"
             fontSize="sm"
           >
-            Quantidade de pedidos e faturamento por mês.
+            Quantidade de vendas e faturamento por mês.
           </Text>
         </Stack>
 
