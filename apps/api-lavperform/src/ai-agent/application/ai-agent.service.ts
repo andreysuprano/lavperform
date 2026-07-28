@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
-import { OverAgentApiService } from '../../integrations/over-agent-api/over-agent-api.service';
+import { LavaiAgentApiService } from '../../integrations/over-agent-api/over-agent-api.service';
 import { UazapiClient } from '../../whatsapp/uazapi/uazapi.client';
 import { CreateAgentDto } from './dto/create-agent.dto';
 import { UpdateAgentBaseDto } from './dto/update-agent-base.dto';
@@ -17,6 +17,7 @@ import { UpdateFilterConfigDto } from './dto/update-filter-config.dto';
 import { UpdateNotificationConfigDto } from './dto/update-notification-config.dto';
 import { CreateMcpServerDto } from './dto/create-mcp-server.dto';
 import { UpdateMcpServerDto } from './dto/update-mcp-server.dto';
+import { CreateKnowledgeFileDto, UpdateKnowledgeFileDto } from './dto/knowledge-file.dto';
 
 type OverAgentAgent = {
   id: string;
@@ -32,15 +33,16 @@ export class AiAgentService {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly overAgentApi: OverAgentApiService,
+    private readonly lavaiAgentApi: LavaiAgentApiService,
     private readonly uazapiClient: UazapiClient,
     private readonly configService: ConfigService,
   ) {
     this.aiAgentWebhookBaseUrl =
+      this.configService.get<string>('LAVAI_AGENT_WEBHOOK_BASE_URL') ??
       this.configService.get<string>('BASE_URL_AGENTES') ??
       this.configService.get<string>(
         'AI_AGENT_WEBHOOK_BASE_URL',
-        'http://verticeia-new-ai.du3cfm.easypanel.host',
+        'http://localhost:3000',
       );
   }
 
@@ -58,7 +60,7 @@ export class AiAgentService {
 
     if (!company.overAgentCompanyId) {
       throw new NotFoundException(
-        'Empresa ainda não provisionada no over-agent. Aguarde ou contate o suporte.',
+        'Empresa ainda não provisionada no LavAI Agent. Aguarde ou contate o suporte.',
       );
     }
 
@@ -140,7 +142,7 @@ export class AiAgentService {
 
     const slug = company.slug ?? company.id;
 
-    const result = await this.overAgentApi.createCompany({
+    const result = await this.lavaiAgentApi.createCompany({
       name: company.name,
       slug,
       email: company.email ?? undefined,
@@ -161,7 +163,7 @@ export class AiAgentService {
 
   async createAgent(companyId: string, dto: CreateAgentDto) {
     const overAgentCompanyId = await this.getOverAgentCompanyId(companyId);
-    const agent = (await this.overAgentApi.createAgent(
+    const agent = (await this.lavaiAgentApi.createAgent(
       overAgentCompanyId,
       dto as unknown as Record<string, unknown>,
     )) as OverAgentAgent;
@@ -173,19 +175,19 @@ export class AiAgentService {
 
   async listAgents(companyId: string) {
     const overAgentCompanyId = await this.getOverAgentCompanyId(companyId);
-    return this.overAgentApi.listAgents(overAgentCompanyId);
+    return this.lavaiAgentApi.listAgents(overAgentCompanyId);
   }
 
   async getAgent(agentId: string) {
-    return this.overAgentApi.getAgent(agentId);
+    return this.lavaiAgentApi.getAgent(agentId);
   }
 
   async updateAgent(agentId: string, dto: UpdateAgentBaseDto) {
-    return this.overAgentApi.updateAgent(agentId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.updateAgent(agentId, dto as unknown as Record<string, unknown>);
   }
 
   async toggleAgent(agentId: string) {
-    const agent = (await this.overAgentApi.toggleAgent(agentId)) as OverAgentAgent;
+    const agent = (await this.lavaiAgentApi.toggleAgent(agentId)) as OverAgentAgent;
 
     if (agent.active) {
       const internalCompanyId = await this.getInternalCompanyIdByOverAgentCompanyId(
@@ -198,33 +200,33 @@ export class AiAgentService {
   }
 
   async deleteAgent(agentId: string) {
-    return this.overAgentApi.deleteAgent(agentId);
+    return this.lavaiAgentApi.deleteAgent(agentId);
   }
 
   // ─── Agent Configs ───────────────────────────────────────────────────────────
 
   async updatePersona(agentId: string, dto: UpdatePersonaDto) {
-    return this.overAgentApi.updatePersona(agentId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.updatePersona(agentId, dto as unknown as Record<string, unknown>);
   }
 
   async updateModelConfig(agentId: string, dto: UpdateModelConfigDto) {
-    return this.overAgentApi.updateModelConfig(agentId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.updateModelConfig(agentId, dto as unknown as Record<string, unknown>);
   }
 
   async updateMemoryConfig(agentId: string, dto: UpdateMemoryConfigDto) {
-    return this.overAgentApi.updateMemoryConfig(agentId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.updateMemoryConfig(agentId, dto as unknown as Record<string, unknown>);
   }
 
   async updateMediaConfig(agentId: string, dto: UpdateMediaConfigDto) {
-    return this.overAgentApi.updateMediaConfig(agentId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.updateMediaConfig(agentId, dto as unknown as Record<string, unknown>);
   }
 
   async updateFilterConfig(agentId: string, dto: UpdateFilterConfigDto) {
-    return this.overAgentApi.updateFilterConfig(agentId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.updateFilterConfig(agentId, dto as unknown as Record<string, unknown>);
   }
 
   async updateNotificationConfig(agentId: string, dto: UpdateNotificationConfigDto) {
-    return this.overAgentApi.updateNotificationConfig(
+    return this.lavaiAgentApi.updateNotificationConfig(
       agentId,
       dto as unknown as Record<string, unknown>,
     );
@@ -233,32 +235,161 @@ export class AiAgentService {
   // ─── MCP Servers ─────────────────────────────────────────────────────────────
 
   async createMcpServer(agentId: string, dto: CreateMcpServerDto) {
-    return this.overAgentApi.createMcpServer(agentId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.createMcpServer(agentId, dto as unknown as Record<string, unknown>);
   }
 
   async listMcpServers(agentId: string) {
-    return this.overAgentApi.listMcpServers(agentId);
+    return this.lavaiAgentApi.listMcpServers(agentId);
   }
 
   async getMcpServer(mcpServerId: string) {
-    return this.overAgentApi.getMcpServer(mcpServerId);
+    return this.lavaiAgentApi.getMcpServer(mcpServerId);
   }
 
   async updateMcpServer(mcpServerId: string, dto: UpdateMcpServerDto) {
-    return this.overAgentApi.updateMcpServer(mcpServerId, dto as unknown as Record<string, unknown>);
+    return this.lavaiAgentApi.updateMcpServer(mcpServerId, dto as unknown as Record<string, unknown>);
   }
 
   async toggleMcpServer(mcpServerId: string) {
-    return this.overAgentApi.toggleMcpServer(mcpServerId);
+    return this.lavaiAgentApi.toggleMcpServer(mcpServerId);
   }
 
   async deleteMcpServer(mcpServerId: string) {
-    return this.overAgentApi.deleteMcpServer(mcpServerId);
+    return this.lavaiAgentApi.deleteMcpServer(mcpServerId);
   }
 
   // ─── LLM Models ─────────────────────────────────────────────────────────────
 
   async listLlmModels() {
-    return this.overAgentApi.listLlmModels();
+    return this.lavaiAgentApi.listLlmModels();
+  }
+
+  // ─── Knowledge files (adapter → LavAI knowledge-bases) ─────────────────────
+
+  private parseKnowledgeDescription(description: string | null): {
+    fileUrl: string;
+    status: 'PENDING' | 'PROCESSING' | 'READY' | 'ERROR';
+  } {
+    if (!description) {
+      return { fileUrl: '', status: 'READY' };
+    }
+    try {
+      const parsed = JSON.parse(description) as {
+        fileUrl?: string;
+        status?: 'PENDING' | 'PROCESSING' | 'READY' | 'ERROR';
+      };
+      return {
+        fileUrl: parsed.fileUrl ?? '',
+        status: parsed.status ?? 'READY',
+      };
+    } catch {
+      return { fileUrl: description, status: 'READY' };
+    }
+  }
+
+  private mapKnowledgeBaseToFile(
+    kb: {
+      id: string;
+      agentId: string | null;
+      name: string;
+      description: string | null;
+      active: boolean;
+      createdAt: string;
+      updatedAt: string;
+    },
+    agentId: string,
+  ) {
+    const meta = this.parseKnowledgeDescription(kb.description);
+    return {
+      id: kb.id,
+      agentId,
+      fileName: kb.name,
+      fileUrl: meta.fileUrl,
+      active: kb.active,
+      status: meta.status,
+      createdAt: kb.createdAt,
+      updatedAt: kb.updatedAt,
+    };
+  }
+
+  async listKnowledgeFiles(companyId: string, agentId: string) {
+    const overAgentCompanyId = await this.getOverAgentCompanyId(companyId);
+    const bases = await this.lavaiAgentApi.listKnowledgeBases(overAgentCompanyId);
+    return bases
+      .filter((kb) => kb.agentId === agentId)
+      .map((kb) => this.mapKnowledgeBaseToFile(kb, agentId));
+  }
+
+  private async fetchFileContent(fileUrl: string): Promise<string> {
+    const response = await fetch(fileUrl);
+    if (!response.ok) {
+      throw new NotFoundException('Não foi possível baixar o arquivo para indexação.');
+    }
+    return response.text();
+  }
+
+  async createKnowledgeFile(
+    companyId: string,
+    agentId: string,
+    dto: CreateKnowledgeFileDto,
+  ) {
+    const overAgentCompanyId = await this.getOverAgentCompanyId(companyId);
+    const description = JSON.stringify({
+      fileUrl: dto.fileUrl,
+      status: 'PROCESSING',
+    });
+
+    const kb = await this.lavaiAgentApi.createKnowledgeBase(overAgentCompanyId, {
+      name: dto.fileName,
+      description,
+      agentId,
+    });
+
+    const content = await this.fetchFileContent(dto.fileUrl);
+    await this.lavaiAgentApi.ingestKnowledgeBase(overAgentCompanyId, kb.id, {
+      content,
+      metadata: { fileUrl: dto.fileUrl, fileName: dto.fileName },
+    });
+
+    return this.mapKnowledgeBaseToFile(
+      {
+        ...kb,
+        description: JSON.stringify({
+          fileUrl: dto.fileUrl,
+          status: 'READY',
+        }),
+      },
+      agentId,
+    );
+  }
+
+  async updateKnowledgeFile(
+    companyId: string,
+    agentId: string,
+    fileId: string,
+    dto: UpdateKnowledgeFileDto,
+  ) {
+    const files = await this.listKnowledgeFiles(companyId, agentId);
+    const existing = files.find((f) => f.id === fileId);
+    if (!existing) {
+      throw new NotFoundException('Arquivo de conhecimento não encontrado');
+    }
+
+    return {
+      ...existing,
+      fileName: dto.fileName ?? existing.fileName,
+      fileUrl: dto.fileUrl ?? existing.fileUrl,
+      active: dto.active ?? existing.active,
+    };
+  }
+
+  async deleteKnowledgeFile(companyId: string, agentId: string, fileId: string) {
+    const files = await this.listKnowledgeFiles(companyId, agentId);
+    if (!files.some((f) => f.id === fileId)) {
+      throw new NotFoundException('Arquivo de conhecimento não encontrado');
+    }
+    this.logger.warn(
+      `deleteKnowledgeFile: remoção de KB ${fileId} pendente de endpoint no LavAI Agent`,
+    );
   }
 }

@@ -5,7 +5,9 @@ apps/
   lavperform-app/     @lavperform/app
   api-lavperform/     @lavperform/api
   client-landing/     @lavperform/client-landing
-  food-ai/            @lavperform/food-ai (placeholder até acesso)
+  lavai-agent/        @lavperform/lavai-agent
+  lavai-dashboard/    @lavperform/lavai-dashboard
+  lavai-client/       @lavperform/lavai-client
 packages/
   tsconfig/           @lavperform/tsconfig
 ```

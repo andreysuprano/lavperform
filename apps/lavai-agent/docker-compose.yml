@@ -1,0 +1,69 @@
+services:
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      target: production
+    image: lavai-agent:latest
+    container_name: lavai-agent-api
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    env_file:
+      - .env
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgresql://lavai:lavai@postgres:5432/lavai?schema=public
+      REDIS_URL: redis://redis:6379
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    networks:
+      - lavai-agent-net
+
+  postgres:
+    image: pgvector/pgvector:pg16
+    container_name: lavai-agent-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: lavai
+      POSTGRES_PASSWORD: lavai
+      POSTGRES_DB: lavai
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U lavai -d lavai"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lavai-agent-net
+
+  redis:
+    image: redis:7-alpine
+    container_name: lavai-agent-redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    networks:
+      - lavai-agent-net
+    ports:
+      - "127.0.0.1:6379:6379"
+
+volumes:
+  postgres-data:
+  redis-data:
+
+networks:
+  lavai-agent-net:
+    driver: bridge

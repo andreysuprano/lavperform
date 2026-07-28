@@ -3,6 +3,7 @@ import {
   Get,
   Post,
   Patch,
+  Put,
   Delete,
   Body,
   Param,
@@ -21,6 +22,10 @@ import { UpdateFilterConfigDto } from '../application/dto/update-filter-config.d
 import { UpdateNotificationConfigDto } from '../application/dto/update-notification-config.dto';
 import { CreateMcpServerDto } from '../application/dto/create-mcp-server.dto';
 import { UpdateMcpServerDto } from '../application/dto/update-mcp-server.dto';
+import {
+  CreateKnowledgeFileDto,
+  UpdateKnowledgeFileDto,
+} from '../application/dto/knowledge-file.dto';
 
 @ApiTags('Agentes de IA')
 @Controller()
@@ -196,8 +201,51 @@ export class AiAgentController {
   // ─── LLM Models ──────────────────────────────────────────────────────────
 
   @Get('llm/models')
-  @ApiOperation({ summary: 'Listar modelos LLM disponíveis (OpenRouter via over-agent)' })
+  @ApiOperation({ summary: 'Listar modelos LLM disponíveis (OpenRouter via LavAI Agent)' })
   listLlmModels() {
     return this.aiAgentService.listLlmModels();
+  }
+
+  // ─── Knowledge files ─────────────────────────────────────────────────────
+
+  @Get('companies/:companyId/ai-agents/:agentId/knowledge-files')
+  @ApiOperation({ summary: 'Listar arquivos da base de conhecimento do agente' })
+  listKnowledgeFiles(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.aiAgentService.listKnowledgeFiles(companyId, agentId);
+  }
+
+  @Post('companies/:companyId/ai-agents/:agentId/knowledge-files')
+  @ApiOperation({ summary: 'Adicionar arquivo à base de conhecimento' })
+  createKnowledgeFile(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Body() dto: CreateKnowledgeFileDto,
+  ) {
+    return this.aiAgentService.createKnowledgeFile(companyId, agentId, dto);
+  }
+
+  @Put('companies/:companyId/ai-agents/:agentId/knowledge-files/:fileId')
+  @ApiOperation({ summary: 'Atualizar metadados do arquivo de conhecimento' })
+  updateKnowledgeFile(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Param('fileId') fileId: string,
+    @Body() dto: UpdateKnowledgeFileDto,
+  ) {
+    return this.aiAgentService.updateKnowledgeFile(companyId, agentId, fileId, dto);
+  }
+
+  @Delete('companies/:companyId/ai-agents/:agentId/knowledge-files/:fileId')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Remover arquivo da base de conhecimento' })
+  async deleteKnowledgeFile(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Param('fileId') fileId: string,
+  ) {
+    await this.aiAgentService.deleteKnowledgeFile(companyId, agentId, fileId);
   }
 }
