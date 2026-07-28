@@ -1,0 +1,86 @@
+{
+  "name": "@lavperform/lavai-client",
+  "version": "0.1.0",
+  "description": "LavAI Client — alertas de atendimento humano",
+  "main": "out/main/index.js",
+  "private": true,
+  "scripts": {
+    "dev": "electron-vite dev",
+    "build": "electron-vite build",
+    "preview": "electron-vite preview",
+    "package": "yarn build && electron-builder",
+    "package:win": "yarn build && electron-builder --win --x64",
+    "package:win:zip": "yarn build && electron-builder --win zip --x64",
+    "package:mac": "yarn build && electron-builder --mac"
+  },
+  "dependencies": {
+    "electron-store": "^8.2.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "socket.io-client": "^4.8.3"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^34.0.0",
+    "electron-builder": "^25.1.8",
+    "electron-vite": "^2.3.0",
+    "typescript": "^5.7.3",
+    "vite": "^5.4.11"
+  },
+  "build": {
+    "appId": "com.lavperform.lavai",
+    "productName": "LavAI Client",
+    "directories": {
+      "output": "release",
+      "buildResources": "assets"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "mac": {
+      "category": "public.app-category.business",
+      "icon": "icon.png",
+      "target": [
+        "dmg",
+        "zip"
+      ]
+    },
+    "win": {
+      "icon": "icon.png",
+      "target": [
+        {
+          "target": "nsis",
+          "arch": [
+            "x64"
+          ]
+        },
+        {
+          "target": "zip",
+          "arch": [
+            "x64"
+          ]
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "LavAI Client"
+    },
+    "extraResources": [
+      {
+        "from": "assets/icon.png",
+        "to": "icon.png"
+      },
+      {
+        "from": "assets/sounds",
+        "to": "sounds"
+      }
+    ]
+  }
+}

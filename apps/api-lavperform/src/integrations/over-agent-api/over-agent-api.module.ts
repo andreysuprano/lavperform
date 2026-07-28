@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { ConfigModule } from '@nestjs/config';
-import { OverAgentApiService } from './over-agent-api.service';
+import { LavaiAgentApiService, OverAgentApiService } from './over-agent-api.service';
 
 @Module({
   imports: [
@@ -11,7 +11,10 @@ import { OverAgentApiService } from './over-agent-api.service';
     }),
     ConfigModule,
   ],
-  providers: [OverAgentApiService],
-  exports: [OverAgentApiService],
+  providers: [
+    LavaiAgentApiService,
+    { provide: OverAgentApiService, useExisting: LavaiAgentApiService },
+  ],
+  exports: [LavaiAgentApiService, OverAgentApiService],
 })
 export class OverAgentApiModule {}

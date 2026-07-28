@@ -1,0 +1,547 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum WebhookEventStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+}
+
+enum AgentRunStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+enum AgentRunStepType {
+  LLM_CALL
+  TOOL_CALL
+  MCP_TOOL_CALL
+  RAG_SEARCH
+  ERROR
+}
+
+// ─── Agent enums ──────────────────────────────────────────────────────────────
+
+enum AgentVoiceTone {
+  FORMAL
+  INFORMAL
+  FRIENDLY
+  PROFESSIONAL
+  EMPATHETIC
+  ASSERTIVE
+}
+
+enum AgentCommunicationStyle {
+  CONCISE
+  DETAILED
+  TECHNICAL
+  SIMPLIFIED
+  BALANCED
+}
+
+enum AgentLanguage {
+  PT_BR
+  EN_US
+  ES_ES
+}
+
+enum LlmProvider {
+  OPENAI
+  ANTHROPIC
+  GOOGLE
+  GROQ
+}
+
+enum AgentMemoryType {
+  BUFFER
+  SUMMARY
+  VECTOR
+  NONE
+}
+
+enum McpTransport {
+  STDIO
+  SSE
+}
+
+enum MessageRole {
+  USER
+  ASSISTANT
+  SYSTEM
+}
+
+enum CustomerJourneyStatus {
+  ACTIVE
+  PURCHASED
+  HELP_REQUESTED
+  ESCALATED
+  CLOSED
+}
+
+enum JourneyTrigger {
+  FIRST_MESSAGE
+  MENU_LINK_SENT
+  MANUAL
+}
+
+enum HelpRequestStatus {
+  PENDING
+  CLAIMED
+  RESOLVED
+  DISMISSED
+}
+
+// ─── Company ──────────────────────────────────────────────────────────────────
+
+model Company {
+  id        String   @id @default(uuid())
+  name      String
+  slug      String   @unique
+  email     String?
+  phone     String?
+  active    Boolean  @default(true)
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  agents         Agent[]
+  webhookEvents  WebhookEvent[]
+  conversations  Conversation[]
+  knowledgeBases KnowledgeBase[]
+
+  @@map("companies")
+}
+
+// ─── Agent ────────────────────────────────────────────────────────────────────
+
+model Agent {
+  id           String   @id @default(uuid())
+  companyId    String   @map("company_id")
+  name         String
+  description  String?
+  active       Boolean  @default(true)
+  /// Nome da instância WhatsApp (UAZAPI instanceName) vinculada a este agente.
+  /// Usado para rotear o webhook ao agente correto quando a empresa tem múltiplos agentes.
+  instanceName String?  @unique @map("instance_name")
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+
+  company        Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  persona        AgentPersona?
+  modelConfig    AgentModelConfig?
+  memoryConfig   AgentMemoryConfig?
+  mediaConfig    AgentMediaConfig?
+  filterConfig   AgentFilterConfig?
+  journeyConfig  AgentJourneyConfig?
+  conversations  Conversation[]
+  knowledgeBases KnowledgeBase[]
+  mcpServers     AgentMcpServer[]
+  agentRuns      AgentRun[]
+  customerJourneys CustomerJourney[]
+  helpRequests   HelpRequest[]
+
+  @@map("agents")
+}
+
+/// Personalidade e prompt do agente — controla como o agente se comunica.
+model AgentPersona {
+  id                 String                  @id @default(uuid())
+  agentId            String                  @unique @map("agent_id")
+  /// Nome pelo qual o agente se apresenta nas conversas.
+  personaName        String                  @map("persona_name")
+  /// Descrição interna do papel do agente (não exposta ao usuário).
+  personaDescription String?                 @map("persona_description")
+  /// Prompt de sistema principal injetado no LLM.
+  systemPrompt       String                  @map("system_prompt")
+  /// Regras de comportamento e conduta do agente.
+  behaviorGuidelines String?                 @map("behavior_guidelines")
+  /// O que o agente NÃO deve fazer (guardrails).
+  guardrails         String?
+  /// Contexto adicional sobre o negócio/domínio injetado no prompt.
+  contextPrompt      String?                 @map("context_prompt")
+  /// Mensagem de boas-vindas enviada ao iniciar uma conversa.
+  welcomeMessage     String?                 @map("welcome_message")
+  /// Texto fixo concatenado ao final de todas as mensagens enviadas pelo agente (ex: "Atenciosamente, Aria 🤖").
+  messageSignature   String?                 @map("message_signature")
+  voiceTone          AgentVoiceTone          @default(PROFESSIONAL) @map("voice_tone")
+  communicationStyle AgentCommunicationStyle @default(BALANCED) @map("communication_style")
+  language           AgentLanguage           @default(PT_BR) @map("language")
+  createdAt          DateTime                @default(now()) @map("created_at")
+  updatedAt          DateTime                @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_personas")
+}
+
+/// Parâmetros do modelo LLM (LangChain ChatModel config).
+model AgentModelConfig {
+  id               String      @id @default(uuid())
+  agentId          String      @unique @map("agent_id")
+  provider         LlmProvider @default(OPENAI)
+  /// Slug do modelo no OpenRouter (ex: "openai/gpt-4o", "anthropic/claude-3-5-sonnet").
+  modelName        String      @default("openai/gpt-4o") @map("model_name")
+  /// 0.0 = determinístico, 2.0 = mais criativo.
+  temperature      Float       @default(0.7)
+  /// Limite máximo de tokens na resposta.
+  maxTokens        Int         @default(1024) @map("max_tokens")
+  /// Nucleus sampling — 1.0 considera todos os tokens.
+  topP             Float       @default(1.0) @map("top_p")
+  /// Penalidade de frequência para reduzir repetições.
+  frequencyPenalty Float       @default(0.0) @map("frequency_penalty")
+  /// Penalidade de presença para incentivar novos tópicos.
+  presencePenalty  Float       @default(0.0) @map("presence_penalty")
+  /// Ativa streaming de tokens na resposta.
+  streaming        Boolean     @default(false)
+  createdAt        DateTime    @default(now()) @map("created_at")
+  updatedAt        DateTime    @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_model_configs")
+}
+
+/// Configuração de memória/contexto (LangChain Memory config).
+model AgentMemoryConfig {
+  id               String          @id @default(uuid())
+  agentId          String          @unique @map("agent_id")
+  /// Tipo de memória: BUFFER (janela fixa), SUMMARY (resumo), VECTOR (busca semântica), NONE.
+  memoryType       AgentMemoryType @default(BUFFER) @map("memory_type")
+  /// Quantidade de mensagens mantidas na janela (BUFFER).
+  windowSize       Int             @default(10) @map("window_size")
+  /// Limite de tokens do resumo gerado (SUMMARY).
+  maxSummaryTokens Int             @default(2000) @map("max_summary_tokens")
+  /// Habilita memória de longo prazo (vector store persistente).
+  useLongTermMemory Boolean        @default(false) @map("use_long_term_memory")
+  createdAt        DateTime        @default(now()) @map("created_at")
+  updatedAt        DateTime        @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_memory_configs")
+}
+
+/// Filtros que controlam quais mensagens o agente processa.
+model AgentFilterConfig {
+  id                    String   @id @default(uuid())
+  agentId               String   @unique @map("agent_id")
+
+  /// Lista de telefones permitidos (formato E.164). Vazio = todos.
+  allowedPhones         String[] @map("allowed_phones")
+  /// Lista de chatIds de grupos permitidos. Vazio = todos.
+  allowedGroups         String[] @map("allowed_groups")
+
+  /// Habilita o gatilho textual: agente só responde se encontrar uma palavra-chave.
+  triggerEnabled        Boolean  @default(false) @map("trigger_enabled")
+  /// Palavras/frases que ativam o agente (qualquer uma basta).
+  triggerWords          String[] @map("trigger_words")
+  /// Sensibilidade a maiúsculas/minúsculas na verificação do gatilho.
+  triggerCaseSensitive  Boolean  @default(false) @map("trigger_case_sensitive")
+  /// Remove a palavra de gatilho do texto antes de enviar ao agente.
+  triggerRemoveFromText Boolean  @default(false) @map("trigger_remove_from_text")
+
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_filter_configs")
+}
+
+/// Configuração de processamento de mídia (áudio, imagem, vídeo).
+model AgentMediaConfig {
+  id                    String   @id @default(uuid())
+  agentId               String   @unique @map("agent_id")
+
+  /// Habilita transcrição de mensagens de áudio via Whisper.
+  audioEnabled          Boolean  @default(true) @map("audio_enabled")
+  /// Mensagem enviada ao usuário quando áudio está desabilitado.
+  audioDefaultMessage   String?  @map("audio_default_message")
+
+  /// Habilita interpretação de imagens via Vision.
+  imageEnabled          Boolean  @default(true) @map("image_enabled")
+  /// Prompt que define o que extrair da imagem enviada pelo usuário.
+  imageExtractionPrompt String?  @map("image_extraction_prompt")
+  /// Mensagem enviada ao usuário quando imagem está desabilitada.
+  imageDefaultMessage   String?  @map("image_default_message")
+
+  /// Habilita interpretação de vídeos via Vision (thumbnail).
+  videoEnabled          Boolean  @default(true) @map("video_enabled")
+  /// Prompt que define o que extrair do vídeo enviado pelo usuário.
+  videoExtractionPrompt String?  @map("video_extraction_prompt")
+  /// Mensagem enviada ao usuário quando vídeo está desabilitado.
+  videoDefaultMessage   String?  @map("video_default_message")
+
+  createdAt             DateTime @default(now()) @map("created_at")
+  updatedAt             DateTime @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_media_configs")
+}
+
+/// Configuração da jornada do cliente (follow-ups, escalação, webhook de compra).
+model AgentJourneyConfig {
+  id                     String         @id @default(uuid())
+  agentId                String         @unique @map("agent_id")
+  enabled                Boolean        @default(false)
+  journeyTrigger         JourneyTrigger @default(FIRST_MESSAGE) @map("journey_trigger")
+  followUpEnabled        Boolean        @default(true) @map("follow_up_enabled")
+  cancelOnReply          Boolean        @default(true) @map("cancel_on_reply")
+  followUpSteps          Json           @default("[]") @map("follow_up_steps")
+  helpKeywords           String[]       @default(["atendente", "humano", "ajuda"]) @map("help_keywords")
+  helpAutoEscalate       Boolean        @default(true) @map("help_auto_escalate")
+  helpAckMessage         String?        @map("help_ack_message")
+  purchaseWebhookEnabled Boolean        @default(true) @map("purchase_webhook_enabled")
+  createdAt              DateTime       @default(now()) @map("created_at")
+  updatedAt              DateTime       @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_journey_configs")
+}
+
+/// Estado da jornada de um cliente em uma conversa.
+model CustomerJourney {
+  id              String                @id @default(uuid())
+  agentId         String                @map("agent_id")
+  conversationId  String                @unique @map("conversation_id")
+  userPhone       String                @map("user_phone")
+  status          CustomerJourneyStatus @default(ACTIVE)
+  startedAt       DateTime              @default(now()) @map("started_at")
+  purchaseAt      DateTime?             @map("purchase_at")
+  helpRequestedAt DateTime?             @map("help_requested_at")
+  metadata        Json                  @default("{}")
+
+  agent        Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, userPhone])
+  @@index([agentId, status])
+  @@map("customer_journeys")
+}
+
+/// Pedido de ajuda humano emitido pelo cliente.
+model HelpRequest {
+  id             String            @id @default(uuid())
+  agentId        String            @map("agent_id")
+  companyId      String            @map("company_id")
+  conversationId String            @map("conversation_id")
+  userName       String            @map("user_name")
+  userPhone      String            @map("user_phone")
+  chatId         String            @map("chat_id")
+  lastMessage    String?           @map("last_message")
+  status         HelpRequestStatus @default(PENDING)
+  requestedAt    DateTime          @default(now()) @map("requested_at")
+  claimedAt      DateTime?         @map("claimed_at")
+  resolvedAt     DateTime?         @map("resolved_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@index([agentId, status])
+  @@map("help_requests")
+}
+
+/**
+ * Contexto de conversa por usuário × chat × agente.
+ *
+ * Em grupos: chatId = grupo, userId = remetente individual.
+ * Cada par (chatId, userId) tem memória independente, mas as respostas
+ * são enviadas ao chatId (o grupo).
+ */
+model Conversation {
+  id            String   @id @default(uuid())
+  agentId       String   @map("agent_id")
+  companyId     String   @map("company_id")
+
+  /// ID do chat destino (grupo ou conversa individual no WhatsApp).
+  chatId        String   @map("chat_id")
+  /// ID único do remetente (indivíduo dentro do grupo ou conversa direta).
+  userId        String   @map("user_id")
+
+  userPhone     String   @map("user_phone")
+  userName      String   @map("user_name")
+  isGroup       Boolean  @default(false) @map("is_group")
+  groupName     String?  @map("group_name")
+
+  /// Nome da instância UAZAPI — necessário para enviar respostas.
+  instanceName  String   @map("instance_name")
+  /// Token de autenticação da instância UAZAPI — necessário para enviar respostas.
+  instanceToken String   @map("instance_token")
+
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  agent           Agent                @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  company         Company              @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  messages        ConversationMessage[]
+  customerJourney CustomerJourney?
+
+  @@unique([agentId, chatId, userId], name: "agent_chat_user")
+  @@map("conversations")
+}
+
+/// Histórico de mensagens de uma conversa (contexto para a IA).
+model ConversationMessage {
+  id             String      @id @default(uuid())
+  conversationId String      @map("conversation_id")
+
+  role           MessageRole
+  /// Conteúdo normalizado que foi enviado ao LLM.
+  content        String
+
+  /// Tipo original da mensagem antes da normalização (TEXT, AUDIO, IMAGE, VIDEO).
+  originalType   String?     @map("original_type")
+
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@map("conversation_messages")
+}
+
+// ─── Knowledge Base (RAG) ────────────────────────────────────────────────────
+
+model KnowledgeBase {
+  id          String   @id @default(uuid())
+  companyId   String   @map("company_id")
+  agentId     String?  @map("agent_id")
+  name        String
+  description String?
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  company Company        @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  agent   Agent?         @relation(fields: [agentId], references: [id], onDelete: SetNull)
+  chunks  KnowledgeChunk[]
+
+  @@map("knowledge_bases")
+}
+
+/// Chunk de texto indexado com embedding vetorial (pgvector).
+/// A coluna `embedding vector(1536)` é adicionada via migration SQL raw.
+model KnowledgeChunk {
+  id              String   @id @default(uuid())
+  knowledgeBaseId String   @map("knowledge_base_id")
+  companyId       String   @map("company_id")
+  content         String
+  metadata        Json     @default("{}")
+  embeddingModel  String   @default("text-embedding-3-small") @map("embedding_model")
+  createdAt       DateTime @default(now()) @map("created_at")
+
+  knowledgeBase KnowledgeBase @relation(fields: [knowledgeBaseId], references: [id], onDelete: Cascade)
+
+  @@map("knowledge_chunks")
+}
+
+// ─── MCP Servers ─────────────────────────────────────────────────────────────
+
+/// Servidor MCP (Model Context Protocol) vinculado a um agente.
+/// Cada agente pode ter múltiplos servidores MCP que expõem tools extras.
+model AgentMcpServer {
+  id        String       @id @default(uuid())
+  agentId   String       @map("agent_id")
+  /// Nome de exibição do servidor (ex: "Filesystem", "Slack").
+  name      String
+  /// Tipo de transporte: STDIO (processo local) ou SSE (HTTP remoto).
+  transport McpTransport
+  /// Habilitado/desabilitado sem precisar deletar.
+  enabled   Boolean      @default(true)
+
+  // ── STDIO ──────────────────────────────────────────────────────────────────
+  /// Executável a ser lançado (ex: "npx", "python", "/usr/local/bin/my-server").
+  command   String?
+  /// Argumentos passados ao comando (ex: ["-y", "@modelcontextprotocol/server-filesystem", "/data"]).
+  args      String[]     @default([])
+  /// Variáveis de ambiente injetadas no processo filho (ex: {"API_KEY": "..."}).
+  env       Json         @default("{}")
+
+  // ── SSE / HTTP ─────────────────────────────────────────────────────────────
+  /// URL do endpoint SSE do servidor MCP remoto (ex: "http://localhost:3001/sse").
+  url       String?
+  /// Cabeçalhos HTTP extras (ex: {"Authorization": "Bearer ..."}).
+  headers   Json         @default("{}")
+
+  createdAt DateTime     @default(now()) @map("created_at")
+  updatedAt DateTime     @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_mcp_servers")
+}
+
+// ─── Agent Trace ──────────────────────────────────────────────────────────────
+
+/// Registro de uma execução completa do agente (um ciclo do AgentRunnerService).
+model AgentRun {
+  id             String         @id @default(uuid())
+  agentId        String         @map("agent_id")
+  companyId      String         @map("company_id")
+  conversationId String         @map("conversation_id")
+  status         AgentRunStatus @default(RUNNING)
+  /// Prompt/mensagem de entrada que originou esta execução.
+  inputPrompt    String?        @map("input_prompt")
+  /// Resposta final gerada pelo agente.
+  outputText     String?        @map("output_text")
+  errorMessage   String?        @map("error_message")
+  startedAt      DateTime       @default(now()) @map("started_at")
+  finishedAt     DateTime?      @map("finished_at")
+  /// Duração total em milissegundos.
+  durationMs     Int?           @map("duration_ms")
+  /// Número de iterações do loop tool_calls.
+  iterations     Int            @default(0)
+  /// Total de chamadas de tools realizadas.
+  totalToolCalls Int            @default(0) @map("total_tool_calls")
+
+  agent Agent        @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  steps AgentRunStep[]
+
+  @@map("agent_runs")
+}
+
+/// Cada passo individual dentro de uma execução do agente.
+model AgentRunStep {
+  id           String           @id @default(uuid())
+  agentRunId   String           @map("agent_run_id")
+  stepType     AgentRunStepType @map("step_type")
+  /// Nome da tool (preenchido para TOOL_CALL, MCP_TOOL_CALL e RAG_SEARCH).
+  toolName     String?          @map("tool_name")
+  /// Entrada do passo (argumentos da tool ou query RAG).
+  input        Json?
+  /// Saída do passo (resultado da tool ou chunks recuperados).
+  output       Json?
+  errorMessage String?          @map("error_message")
+  /// Duração do passo em milissegundos.
+  durationMs   Int?             @map("duration_ms")
+  /// Iteração do loop em que este step ocorreu (começa em 1).
+  iteration    Int              @default(0)
+  createdAt    DateTime         @default(now()) @map("created_at")
+
+  agentRun AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
+
+  @@map("agent_run_steps")
+}
+
+model WebhookEvent {
+  id                  String             @id @default(uuid())
+  companyId           String?            @map("company_id")
+  agentId             String?            @map("agent_id")
+  rawPayload          String             @map("raw_payload")
+  status              WebhookEventStatus @default(PENDING)
+  processingStartedAt DateTime?          @map("processing_started_at")
+  completedAt         DateTime?          @map("completed_at")
+  errorMessage        String?            @map("error_message")
+  createdAt           DateTime           @default(now()) @map("created_at")
+  updatedAt           DateTime           @updatedAt @map("updated_at")
+
+  company Company? @relation(fields: [companyId], references: [id], onDelete: SetNull)
+
+  @@map("webhook_events")
+}

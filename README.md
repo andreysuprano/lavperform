@@ -9,7 +9,9 @@ apps/
   lavperform-app/    # CRM frontend (Vite + React) — @lavperform/app
   api-lavperform/    # Backend (NestJS + Prisma) — @lavperform/api
   client-landing/    # Landing por slug (Next.js) — @lavperform/client-landing
-  food-ai/           # Placeholder FoodAI (acesso ao repo pendente)
+  lavai-agent/       # Motor IA LavAI (NestJS) — @lavperform/lavai-agent
+  lavai-dashboard/   # Painel admin LavAI (Next.js) — @lavperform/lavai-dashboard
+  lavai-client/      # Client Electron alertas — @lavperform/lavai-client
 packages/
   tsconfig/          # Bases TypeScript compartilhadas
 docs/
@@ -30,7 +32,10 @@ docs/
 | `yarn dev:app` | CRM frontend |
 | `yarn dev:api` | API NestJS |
 | `yarn dev:landing` | Client landing Next.js |
-| `yarn build:app` / `build:api` / `build:landing` | Builds |
+| `yarn dev:lavai-agent` | Motor LavAI |
+| `yarn dev:lavai-dashboard` | Dashboard admin LavAI |
+| `yarn dev:lavai-client` | Client Electron LavAI |
+| `yarn build:app` / `build:api` / `build:landing` / `build:lavai-*` | Builds |
 | `yarn start:api` | API produção |
 
 ## Política WhiteLabel

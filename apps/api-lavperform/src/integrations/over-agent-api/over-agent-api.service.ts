@@ -12,21 +12,21 @@ import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
 
 @Injectable()
-export class OverAgentApiService {
-  private readonly logger = new Logger(OverAgentApiService.name);
+export class LavaiAgentApiService {
+  private readonly logger = new Logger(LavaiAgentApiService.name);
   private readonly baseUrl: string;
 
   constructor(
     private readonly httpService: HttpService,
     private readonly configService: ConfigService,
   ) {
-    this.baseUrl = this.configService.get<string>('OVER_AGENT_BASE_URL', 'http://over-agent:3000');
+    this.baseUrl =
+      this.configService.get<string>('LAVAI_AGENT_BASE_URL') ??
+      this.configService.get<string>('OVER_AGENT_BASE_URL', 'http://lavai-agent:3000');
   }
 
-  // ─── Helpers ──────────────────────────────────────────────────────────────
-
   private async request<T>(
-    method: 'get' | 'post' | 'patch' | 'delete',
+    method: 'get' | 'post' | 'patch' | 'delete' | 'put',
     path: string,
     data?: unknown,
   ): Promise<T> {
@@ -39,7 +39,9 @@ export class OverAgentApiService {
             ? this.httpService.delete<T>(url)
             : method === 'patch'
               ? this.httpService.patch<T>(url, data)
-              : this.httpService.post<T>(url, data),
+              : method === 'put'
+                ? this.httpService.put<T>(url, data)
+                : this.httpService.post<T>(url, data),
       );
       return response.data;
     } catch (err) {
@@ -53,20 +55,18 @@ export class OverAgentApiService {
     const responseData = axiosError.response?.data;
     const message = Array.isArray(responseData?.message)
       ? responseData.message
-      : responseData?.message ?? 'Erro ao comunicar com over-agent-api';
+      : responseData?.message ?? 'Erro ao comunicar com LavAI Agent';
 
-    this.logger.error(`over-agent-api error [${status}] ${path}: ${JSON.stringify(message)}`);
+    this.logger.error(`lavai-agent error [${status}] ${path}: ${JSON.stringify(message)}`);
 
     if (status === 404) throw new NotFoundException(message);
     if (status === 409) throw new ConflictException(message);
     if (status === 400) throw new BadRequestException(message);
 
     throw new InternalServerErrorException(
-      `Falha na integração com over-agent-api: ${JSON.stringify(message)}`,
+      `Falha na integração com LavAI Agent: ${JSON.stringify(message)}`,
     );
   }
-
-  // ─── Companies ────────────────────────────────────────────────────────────
 
   async createCompany(dto: {
     name: string;
@@ -80,8 +80,6 @@ export class OverAgentApiService {
   async getCompany(overAgentCompanyId: string) {
     return this.request<Record<string, unknown>>('get', `/companies/${overAgentCompanyId}`);
   }
-
-  // ─── Agents ───────────────────────────────────────────────────────────────
 
   async createAgent(overAgentCompanyId: string, dto: Record<string, unknown>) {
     return this.request<Record<string, unknown>>(
@@ -114,8 +112,6 @@ export class OverAgentApiService {
     return this.request<void>('delete', `/agents/${agentId}`);
   }
 
-  // ─── Agent Configs ────────────────────────────────────────────────────────
-
   async updatePersona(agentId: string, dto: Record<string, unknown>) {
     return this.request<Record<string, unknown>>('patch', `/agents/${agentId}/persona`, dto);
   }
@@ -143,8 +139,6 @@ export class OverAgentApiService {
       dto,
     );
   }
-
-  // ─── MCP Servers ──────────────────────────────────────────────────────────
 
   async createMcpServer(agentId: string, dto: Record<string, unknown>) {
     return this.request<Record<string, unknown>>(
@@ -174,9 +168,54 @@ export class OverAgentApiService {
     return this.request<void>('delete', `/mcp-servers/${mcpServerId}`);
   }
 
-  // ─── LLM Models ───────────────────────────────────────────────────────────
-
   async listLlmModels() {
     return this.request<Record<string, unknown>[]>('get', '/llm/models');
   }
+
+  async listKnowledgeBases(overAgentCompanyId: string) {
+    return this.request<
+      Array<{
+        id: string;
+        companyId: string;
+        agentId: string | null;
+        name: string;
+        description: string | null;
+        active: boolean;
+        createdAt: string;
+        updatedAt: string;
+      }>
+    >('get', `/companies/${overAgentCompanyId}/knowledge-bases`);
+  }
+
+  async createKnowledgeBase(
+    overAgentCompanyId: string,
+    dto: { name: string; description?: string; agentId?: string },
+  ) {
+    return this.request<{
+      id: string;
+      companyId: string;
+      agentId: string | null;
+      name: string;
+      description: string | null;
+      active: boolean;
+      createdAt: string;
+      updatedAt: string;
+    }>('post', `/companies/${overAgentCompanyId}/knowledge-bases`, dto);
+  }
+
+  async ingestKnowledgeBase(
+    overAgentCompanyId: string,
+    knowledgeBaseId: string,
+    dto: { content: string; metadata?: Record<string, unknown> },
+  ) {
+    return this.request<Record<string, unknown>>(
+      'post',
+      `/companies/${overAgentCompanyId}/knowledge-bases/${knowledgeBaseId}/ingest`,
+      dto,
+    );
+  }
 }
+
+/** @deprecated Use LavaiAgentApiService */
+@Injectable()
+export class OverAgentApiService extends LavaiAgentApiService {}
