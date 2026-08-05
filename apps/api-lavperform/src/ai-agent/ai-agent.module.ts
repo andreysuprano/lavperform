@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { AiAgentService } from './application/ai-agent.service';
 import { AiAgentController } from './presentation/ai-agent.controller';
@@ -7,7 +7,12 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
 
 @Module({
-  imports: [PrismaModule, ConfigModule, OverAgentApiModule, WhatsappModule],
+  imports: [
+    PrismaModule,
+    ConfigModule,
+    OverAgentApiModule,
+    forwardRef(() => WhatsappModule),
+  ],
   controllers: [AiAgentController],
   providers: [AiAgentService],
   exports: [AiAgentService],

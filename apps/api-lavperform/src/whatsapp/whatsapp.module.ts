@@ -9,6 +9,7 @@ import { MessageReceivedListener } from './listeners/message-received.listener';
 import { WhatsappInstancePrismaRepository } from './infrastructure/persistence/prisma-whatsapp-instance.repository';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CompaniesModule } from '../companies/companies.module';
+import { AiAgentModule } from '../ai-agent/ai-agent.module';
 import { UazapiClient } from './uazapi/uazapi.client';
 import { WhatsappInstanceCleanupTasks } from './crons/whatsapp-instance-cleanup-tasks';
 import { workerProviders } from '../common/queue/worker-runtime.config';
@@ -18,6 +19,7 @@ import { workerProviders } from '../common/queue/worker-runtime.config';
     HttpModule,
     PrismaModule,
     forwardRef(() => CompaniesModule),
+    forwardRef(() => AiAgentModule),
   ],
   controllers: [
     WhatsappController,
