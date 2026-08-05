@@ -90,16 +90,52 @@ export class AiAgentService {
 
     const webhookUrl = this.buildAgentWebhookUrl(overAgentCompanyId, agentId);
 
+    const existingWebhooks = await this.uazapiClient.getWebhooks(whatsappInstance.token);
+    if (existingWebhooks.some((webhook) => webhook.url === webhookUrl)) {
+      this.logger.log(
+        `Webhook do agente ${agentId} já existe na instância ${whatsappInstance.name}: ${webhookUrl}`,
+      );
+      return;
+    }
+
     await this.uazapiClient.setWebhook(
       whatsappInstance.token,
       webhookUrl,
       ['messages'],
-      { excludeMessages: ['wasSentByApi', 'isGroupYes'] },
+      {
+        action: 'add',
+        excludeMessages: ['wasSentByApi', 'isGroupYes'],
+      },
     );
 
     this.logger.log(
-      `Webhook do agente ${agentId} configurado na instância ${whatsappInstance.name}: ${webhookUrl}`,
+      `Webhook do agente ${agentId} criado na instância ${whatsappInstance.name}: ${webhookUrl}`,
     );
+  }
+
+  /**
+   * Reaplica setupAgentWebhook quando a instância fica CONNECTED e já existe agente ativo.
+   * Erros são logados e não propagados para não interromper o fluxo de conexão.
+   */
+  async ensureActiveAgentWebhook(companyId: string): Promise<void> {
+    try {
+      const agents = (await this.listAgents(companyId)) as OverAgentAgent[];
+      const activeAgent = agents.find((agent) => agent.active === true);
+
+      if (!activeAgent) {
+        this.logger.log(
+          `Nenhum agente ativo para company ${companyId}; webhook da IA não reconfigurado`,
+        );
+        return;
+      }
+
+      await this.setupAgentWebhook(companyId, activeAgent);
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `Falha ao garantir webhook da IA para company ${companyId}: ${message}`,
+      );
+    }
   }
 
   private async getInternalCompanyIdByOverAgentCompanyId(

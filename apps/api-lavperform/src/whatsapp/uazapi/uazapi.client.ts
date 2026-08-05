@@ -160,23 +160,51 @@ export class UazapiClient {
     }
   }
 
+  async getWebhooks(token: string): Promise<Array<{ id?: string; url?: string }>> {
+    try {
+      const response = await firstValueFrom(
+        this.httpService.get(`${this.baseUrl}/webhook`, {
+          headers: { token: `${token}` },
+        }),
+      );
+      return Array.isArray(response.data) ? response.data : [];
+    } catch (error) {
+      const errorMessage = formatError(error);
+      this.logger.error(`Erro ao listar webhooks: \n${errorMessage} `);
+      throw new Error(`Erro ao listar webhooks: \n${errorMessage} `);
+    }
+  }
+
   async setWebhook(
     token: string,
     url: string,
     events: string[],
-    options?: { excludeMessages?: string[] },
+    options?: {
+      excludeMessages?: string[];
+      action?: 'add' | 'update' | 'delete';
+      id?: string;
+    },
   ): Promise<any> {
     try {
+      const payload: Record<string, unknown> = {
+        enabled: true,
+        url,
+        events,
+        excludeMessages: options?.excludeMessages ?? ['wasSentByApi'],
+      };
+
+      if (options?.action) {
+        payload.action = options.action;
+      }
+
+      if (options?.id) {
+        payload.id = options.id;
+      }
+
       const response = await firstValueFrom(
-        this.httpService.post(`${this.baseUrl}/webhook`,
-          {
-            "enabled": true,
-            "url": url,
-            "events": events,
-            "excludeMessages": options?.excludeMessages ?? ["wasSentByApi"],
-          },
-          { headers: { 'token': `${token}` } }
-        )
+        this.httpService.post(`${this.baseUrl}/webhook`, payload, {
+          headers: { token: `${token}` },
+        }),
       );
       return response.data;
     } catch (error) {
