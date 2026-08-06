@@ -10,9 +10,11 @@ type MediaOutgoingMessage = Exclude<OutgoingMessage, { type: 'text' }>;
 /**
  * Adapter UAZAPI para envio de mensagens.
  *
- * Endpoints utilizados:
- *   POST /message/sendText/{instanceName}  — texto simples
- *   POST /message/sendMedia/{instanceName} — imagem, vídeo, áudio, ptt, documento, sticker
+ * Endpoints utilizados (docs oficiais):
+ *   POST /send/text   — texto simples
+ *   POST /send/media  — imagem, vídeo, áudio, ptt, documento, sticker
+ *
+ * Auth: header `token` (spec) + query `?token=` (compatibilidade com runtime atual).
  *
  * Para trocar de provider, basta criar um novo adapter que implemente
  * MessageSenderPort e substituir o binding em MessagingModule.
@@ -74,7 +76,7 @@ export class UazapiMessageSender implements MessageSenderPort {
     messageType: string,
   ): Promise<void> {
     const baseUrl = (process.env.UAZAPI_BASE_URL ?? 'https://free.uazapi.com').replace(/\/+$/, '');
-    // UAZAPI v2: autenticação via query string ?token=...
+    // Query mantida por compatibilidade; header `token` alinhado à documentação oficial.
     const url = `${baseUrl}/${path}?token=${encodeURIComponent(token)}`;
 
     this.logger.log(
@@ -83,7 +85,10 @@ export class UazapiMessageSender implements MessageSenderPort {
 
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        token,
+      },
       body: JSON.stringify(body),
     });
 

@@ -9,6 +9,7 @@ import { UpdateAgentJourneyConfigUseCase } from '../../application/agent/use-cas
 import { UpdateAgentMediaConfigUseCase } from '../../application/agent/use-cases/update-agent-media-config.use-case';
 import { UpdateAgentMemoryConfigUseCase } from '../../application/agent/use-cases/update-agent-memory-config.use-case';
 import { UpdateAgentModelConfigUseCase } from '../../application/agent/use-cases/update-agent-model-config.use-case';
+import { UpdateAgentNotificationConfigUseCase } from '../../application/agent/use-cases/update-agent-notification-config.use-case';
 import { UpdateAgentPersonaUseCase } from '../../application/agent/use-cases/update-agent-persona.use-case';
 import { ToggleAgentActiveUseCase } from '../../application/agent/use-cases/toggle-agent-active.use-case';
 import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-agent.use-case';
@@ -31,6 +32,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     UpdateAgentMediaConfigUseCase,
     UpdateAgentFilterConfigUseCase,
     UpdateAgentJourneyConfigUseCase,
+    UpdateAgentNotificationConfigUseCase,
     DeleteAgentUseCase,
   ],
   exports: [FindAgentByIdUseCase, PrismaAgentRepository],

@@ -9,6 +9,7 @@ import {
   AgentMemoryConfigData,
   AgentMemoryType,
   AgentModelConfigData,
+  AgentNotificationConfigData,
   AgentPersonaData,
   AgentRepositoryPort,
   AgentVoiceTone,
@@ -23,6 +24,7 @@ import {
   UpdateAgentMediaConfigInput,
   UpdateAgentMemoryConfigInput,
   UpdateAgentModelConfigInput,
+  UpdateAgentNotificationConfigInput,
   UpdateAgentPersonaInput,
 } from '../../../application/agent/ports/agent.repository.port';
 import { PrismaService } from '../prisma/prisma.service';
@@ -34,6 +36,7 @@ const includeConfigs = {
   mediaConfig: true,
   filterConfig: true,
   journeyConfig: true,
+  notificationConfig: true,
 } as const;
 
 @Injectable()
@@ -213,6 +216,29 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
     return this.mapJourneyConfig(row);
   }
 
+  async updateNotificationConfig(
+    agentId: string,
+    input: UpdateAgentNotificationConfigInput,
+  ): Promise<AgentNotificationConfigData> {
+    const row = await this.prisma.agentNotificationConfig.upsert({
+      where: { agentId },
+      update: {
+        ...(input.helpNotificationEnabled !== undefined
+          ? { helpNotificationEnabled: input.helpNotificationEnabled }
+          : {}),
+        ...(input.helpNotificationPhone !== undefined
+          ? { helpNotificationPhone: input.helpNotificationPhone }
+          : {}),
+      },
+      create: {
+        agentId,
+        helpNotificationEnabled: input.helpNotificationEnabled ?? false,
+        helpNotificationPhone: input.helpNotificationPhone ?? null,
+      },
+    });
+    return this.mapNotificationConfig(row);
+  }
+
   async delete(id: string): Promise<void> {
     await this.prisma.agent.delete({ where: { id } });
   }
@@ -376,6 +402,24 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
     };
   }
 
+  private mapNotificationConfig(row: {
+    id: string;
+    agentId: string;
+    helpNotificationEnabled: boolean;
+    helpNotificationPhone: string | null;
+    createdAt: Date;
+    updatedAt: Date;
+  }): AgentNotificationConfigData {
+    return {
+      id: row.id,
+      agentId: row.agentId,
+      helpNotificationEnabled: row.helpNotificationEnabled,
+      helpNotificationPhone: row.helpNotificationPhone,
+      createdAt: row.createdAt,
+      updatedAt: row.updatedAt,
+    };
+  }
+
   private mapWithConfigs(row: {
     id: string; companyId: string; name: string; description: string | null;
     active: boolean; instanceName?: string | null; createdAt: Date; updatedAt: Date;
@@ -385,6 +429,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
     mediaConfig: Parameters<PrismaAgentRepository['mapMediaConfig']>[0] | null;
     filterConfig: Parameters<PrismaAgentRepository['mapFilterConfig']>[0] | null;
     journeyConfig: Parameters<PrismaAgentRepository['mapJourneyConfig']>[0] | null;
+    notificationConfig: Parameters<PrismaAgentRepository['mapNotificationConfig']>[0] | null;
   }): AgentWithConfigsData {
     return {
       ...this.mapBase(row),
@@ -394,6 +439,9 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
       mediaConfig: row.mediaConfig ? this.mapMediaConfig(row.mediaConfig) : null,
       filterConfig: row.filterConfig ? this.mapFilterConfig(row.filterConfig) : null,
       journeyConfig: row.journeyConfig ? this.mapJourneyConfig(row.journeyConfig) : null,
+      notificationConfig: row.notificationConfig
+        ? this.mapNotificationConfig(row.notificationConfig)
+        : null,
     };
   }
 }

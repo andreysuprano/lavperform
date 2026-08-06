@@ -161,6 +161,15 @@ export interface AgentJourneyConfigData {
   updatedAt: Date;
 }
 
+export interface AgentNotificationConfigData {
+  id: string;
+  agentId: string;
+  helpNotificationEnabled: boolean;
+  helpNotificationPhone: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+}
+
 export interface AgentData {
   id: string;
   companyId: string;
@@ -180,6 +189,7 @@ export interface AgentWithConfigsData extends AgentData {
   mediaConfig: AgentMediaConfigData | null;
   filterConfig: AgentFilterConfigData | null;
   journeyConfig: AgentJourneyConfigData | null;
+  notificationConfig: AgentNotificationConfigData | null;
 }
 
 // ─── Input types ──────────────────────────────────────────────────────────────
@@ -248,6 +258,11 @@ export interface UpdateAgentJourneyConfigInput {
   purchaseWebhookEnabled?: boolean;
 }
 
+export interface UpdateAgentNotificationConfigInput {
+  helpNotificationEnabled?: boolean;
+  helpNotificationPhone?: string | null;
+}
+
 export interface CreateAgentInput {
   companyId: string;
   name: string;
@@ -293,5 +308,9 @@ export interface AgentRepositoryPort {
   updateMediaConfig(agentId: string, input: UpdateAgentMediaConfigInput): Promise<AgentMediaConfigData>;
   updateFilterConfig(agentId: string, input: UpdateAgentFilterConfigInput): Promise<AgentFilterConfigData>;
   updateJourneyConfig(agentId: string, input: UpdateAgentJourneyConfigInput): Promise<AgentJourneyConfigData>;
+  updateNotificationConfig(
+    agentId: string,
+    input: UpdateAgentNotificationConfigInput,
+  ): Promise<AgentNotificationConfigData>;
   delete(id: string): Promise<void>;
 }
