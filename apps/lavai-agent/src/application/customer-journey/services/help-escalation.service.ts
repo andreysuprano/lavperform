@@ -79,14 +79,21 @@ export class HelpEscalationService {
 
     const ack = agent.journeyConfig?.helpAckMessage?.trim();
     if (ack) {
-      await this.messageSender.send(
-        {
-          instanceName: conversation.instanceName,
-          instanceToken: conversation.instanceToken,
-          chatId: conversation.chatId,
-        },
-        { type: 'text', text: ack },
-      );
+      try {
+        await this.messageSender.send(
+          {
+            instanceName: conversation.instanceName,
+            instanceToken: conversation.instanceToken,
+            chatId: conversation.chatId,
+          },
+          { type: 'text', text: ack },
+        );
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Escalation] Falha ao enviar ACK ao cliente | agent=${agent.id}: ${message}`,
+        );
+      }
     }
 
     this.attendantGateway.emitHelpRequested(agent.id, {
@@ -101,10 +108,56 @@ export class HelpEscalationService {
       requestedAt: helpRequest.requestedAt.toISOString(),
     });
 
+    await this.notifyStaffIfConfigured(agent, conversation, lastMessage, helpRequest.requestedAt);
+
     this.logger.log(
       `[Escalation] Ajuda solicitada | helpRequest=${helpRequest.id} | phone=${conversation.userPhone}`,
     );
 
     return { helpRequestId: helpRequest.id, alreadyEscalated: false };
+  }
+
+  private async notifyStaffIfConfigured(
+    agent: AgentWithConfigsData,
+    conversation: ConversationData,
+    lastMessage: string | undefined,
+    requestedAt: Date,
+  ): Promise<void> {
+    const config = agent.notificationConfig;
+    const staffPhone = config?.helpNotificationPhone?.trim();
+
+    if (!config?.helpNotificationEnabled || !staffPhone) {
+      return;
+    }
+
+    const text = [
+      'Um cliente solicitou atendimento humano.',
+      '',
+      `Nome: ${conversation.userName?.trim() || '—'}`,
+      `Telefone: ${conversation.userPhone}`,
+      `Última mensagem: ${lastMessage?.trim() || '—'}`,
+      `Horário: ${requestedAt.toISOString()}`,
+      '',
+      'Responda esta conversa pelo WhatsApp do agente ou pelo painel de atendimento.',
+    ].join('\n');
+
+    try {
+      await this.messageSender.send(
+        {
+          instanceName: conversation.instanceName,
+          instanceToken: conversation.instanceToken,
+          chatId: staffPhone,
+        },
+        { type: 'text', text },
+      );
+      this.logger.log(
+        `[Escalation] Alerta enviado ao staff ${staffPhone} | agent=${agent.id}`,
+      );
+    } catch (error: unknown) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[Escalation] Falha ao notificar staff ${staffPhone} | agent=${agent.id}: ${message}`,
+      );
+    }
   }
 }

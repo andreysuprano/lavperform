@@ -3,6 +3,34 @@ export function cleanNumber(value?: string | null): string {
   return value.replace(/\D/g, '')
 }
 
+/**
+ * Normaliza telefone BR para WhatsApp (dígitos com DDI 55).
+ * - Aceita com ou sem 55, com máscara, etc.
+ * - Prefixa 55 quando faltar e o número tiver 10–11 dígitos (DDD + local).
+ * - Retorna null se vazio ou inválido.
+ */
+export function normalizeBrazilianWhatsAppPhone(
+  value?: string | null
+): string | null {
+  const digits = cleanNumber(value)
+  if (!digits) return null
+
+  let normalized = digits
+  if (!normalized.startsWith('55') && (normalized.length === 10 || normalized.length === 11)) {
+    normalized = `55${normalized}`
+  }
+
+  // 55 + DDD(2) + 8 (fixo) = 12 | 55 + DDD(2) + 9 + 8 (celular) = 13
+  if (
+    normalized.startsWith('55') &&
+    (normalized.length === 12 || normalized.length === 13)
+  ) {
+    return normalized
+  }
+
+  return null
+}
+
 /** Extrai o DDD brasileiro (2 dígitos) a partir do telefone com ou sem código 55. */
 export function extractBrazilianDdd(phone?: string | null): string | null {
   if (!phone) return null

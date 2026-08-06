@@ -24,6 +24,7 @@ import { UpdateAgentJourneyConfigDto } from '../../../application/agent/dtos/upd
 import { UpdateAgentMediaConfigDto } from '../../../application/agent/dtos/update-agent-media-config.dto';
 import { UpdateAgentMemoryConfigDto } from '../../../application/agent/dtos/update-agent-memory-config.dto';
 import { UpdateAgentModelConfigDto } from '../../../application/agent/dtos/update-agent-model-config.dto';
+import { UpdateAgentNotificationConfigDto } from '../../../application/agent/dtos/update-agent-notification-config.dto';
 import { UpdateAgentPersonaDto } from '../../../application/agent/dtos/update-agent-persona.dto';
 import type {
   AgentData,
@@ -32,6 +33,7 @@ import type {
   AgentMediaConfigData,
   AgentMemoryConfigData,
   AgentModelConfigData,
+  AgentNotificationConfigData,
   AgentPersonaData,
   AgentWithConfigsData,
 } from '../../../application/agent/ports/agent.repository.port';
@@ -45,6 +47,7 @@ import { UpdateAgentJourneyConfigUseCase } from '../../../application/agent/use-
 import { UpdateAgentMediaConfigUseCase } from '../../../application/agent/use-cases/update-agent-media-config.use-case';
 import { UpdateAgentMemoryConfigUseCase } from '../../../application/agent/use-cases/update-agent-memory-config.use-case';
 import { UpdateAgentModelConfigUseCase } from '../../../application/agent/use-cases/update-agent-model-config.use-case';
+import { UpdateAgentNotificationConfigUseCase } from '../../../application/agent/use-cases/update-agent-notification-config.use-case';
 import { UpdateAgentPersonaUseCase } from '../../../application/agent/use-cases/update-agent-persona.use-case';
 import { UpdateAgentUseCase } from '../../../application/agent/use-cases/update-agent.use-case';
 
@@ -63,6 +66,7 @@ export class AgentController {
     private readonly updateAgentMediaConfig: UpdateAgentMediaConfigUseCase,
     private readonly updateAgentFilterConfig: UpdateAgentFilterConfigUseCase,
     private readonly updateAgentJourneyConfig: UpdateAgentJourneyConfigUseCase,
+    private readonly updateAgentNotificationConfig: UpdateAgentNotificationConfigUseCase,
     private readonly deleteAgent: DeleteAgentUseCase,
   ) {}
 
@@ -208,5 +212,19 @@ export class AgentController {
     @Body() dto: UpdateAgentJourneyConfigDto,
   ): Promise<AgentJourneyConfigData> {
     return this.updateAgentJourneyConfig.execute(id, dto);
+  }
+
+  @Patch('agents/:id/notification-config')
+  @ApiOperation({
+    summary: 'Atualizar configuração de notificação ao pedir ajuda',
+    description:
+      'Define o telefone que recebe alerta WhatsApp quando o cliente solicita atendimento humano.',
+  })
+  @ApiNotFoundResponse()
+  updateNotificationConfig(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: UpdateAgentNotificationConfigDto,
+  ): Promise<AgentNotificationConfigData> {
+    return this.updateAgentNotificationConfig.execute(id, dto);
   }
 }

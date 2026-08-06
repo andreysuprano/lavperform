@@ -10,9 +10,11 @@ import {
 } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useMemo } from 'react'
 import { useController, useForm } from 'react-hook-form'
+import { useHookFormMask } from 'use-mask-input'
 
 import { CustomDrawer, LoadingState } from '@/components'
 import { Input, Select, Textarea } from '@/components/forms'
+import { toaster } from '@/components/ui/toaster'
 import { useAuth } from '@/context/AuthContext'
 import {
   useAIAgent,
@@ -26,6 +28,10 @@ import {
   DEFAULT_BEHAVIOR_GUIDELINES,
   DEFAULT_GUARDRAILS,
 } from '@/whitelabel/constants/aiAgentPersonaDefaults'
+import {
+  formatTelefone,
+  normalizeBrazilianWhatsAppPhone,
+} from '@/utils/mask'
 import type { Props } from './AIAgentEditDrawer.types'
 
 // ─── Tom de voz e estilo ───────────────────────────────────────────────────────
@@ -106,7 +112,9 @@ function buildFormsFromAgent(a: AIAgent) {
     },
     notification: {
       helpNotificationEnabled: nc?.helpNotificationEnabled ?? false,
-      helpNotificationPhone: nc?.helpNotificationPhone ?? '',
+      helpNotificationPhone: nc?.helpNotificationPhone
+        ? formatTelefone(nc.helpNotificationPhone)
+        : '',
     },
   }
 }
@@ -175,10 +183,13 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
     defaultValues: {
       helpNotificationEnabled:
         agent.notificationConfig?.helpNotificationEnabled ?? false,
-      helpNotificationPhone:
-        agent.notificationConfig?.helpNotificationPhone || '',
+      helpNotificationPhone: agent.notificationConfig?.helpNotificationPhone
+        ? formatTelefone(agent.notificationConfig.helpNotificationPhone)
+        : '',
     },
   })
+  const notificationRegister = notificationForm.register
+  const maskedNotificationRegister = useHookFormMask(notificationRegister)
 
   const {
     field: { value: audioEnabled, onChange: setAudioEnabled },
@@ -262,12 +273,35 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
 
   const handleSaveNotification = useCallback(async () => {
     const values = notificationForm.getValues()
-    const phoneDigits = values.helpNotificationPhone.replace(/\D/g, '')
+    const rawPhone = values.helpNotificationPhone?.trim() || ''
+
+    if (!rawPhone) {
+      await updateNotificationConfig.mutateAsync({
+        agentId: agent.id,
+        data: {
+          helpNotificationEnabled: false,
+          helpNotificationPhone: undefined,
+        },
+      })
+      return
+    }
+
+    const normalizedPhone = normalizeBrazilianWhatsAppPhone(rawPhone)
+    if (!normalizedPhone) {
+      toaster.create({
+        title: 'Telefone inválido',
+        description:
+          'Informe um número válido com DDD. Ex: +55 (11) 99999-9999 ou 11999999999.',
+        type: 'error',
+      })
+      return
+    }
+
     await updateNotificationConfig.mutateAsync({
       agentId: agent.id,
       data: {
         helpNotificationEnabled: values.helpNotificationEnabled,
-        helpNotificationPhone: phoneDigits || undefined,
+        helpNotificationPhone: normalizedPhone,
       },
     })
   }, [notificationForm, updateNotificationConfig, agent.id])
@@ -544,12 +578,21 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
                 </HStack>
                 <Fieldset.Content>
                   {helpNotificationEnabled && (
-                    <Input
-                      control={notificationForm.control}
-                      name="helpNotificationPhone"
-                      label="Telefone para notificação"
-                      placeholder="Ex: 5511999999999"
-                    />
+                    <Stack gap={1}>
+                      <Input
+                        control={notificationForm.control}
+                        label="Telefone para notificação"
+                        placeholder="+55 (11) 99999-9999"
+                        type="tel"
+                        {...maskedNotificationRegister(
+                          'helpNotificationPhone',
+                          '+99 (99) 99999-9999'
+                        )}
+                      />
+                      <Text fontSize="xs" color="fg.muted">
+                        Com ou sem DDI. Se faltar o 55, adicionamos automaticamente.
+                      </Text>
+                    </Stack>
                   )}
                 </Fieldset.Content>
               </Fieldset.Root>

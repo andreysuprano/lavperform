@@ -136,9 +136,10 @@ model Agent {
   persona        AgentPersona?
   modelConfig    AgentModelConfig?
   memoryConfig   AgentMemoryConfig?
-  mediaConfig    AgentMediaConfig?
-  filterConfig   AgentFilterConfig?
-  journeyConfig  AgentJourneyConfig?
+  mediaConfig         AgentMediaConfig?
+  filterConfig        AgentFilterConfig?
+  journeyConfig       AgentJourneyConfig?
+  notificationConfig  AgentNotificationConfig?
   conversations  Conversation[]
   knowledgeBases KnowledgeBase[]
   mcpServers     AgentMcpServer[]
@@ -284,6 +285,22 @@ model AgentMediaConfig {
   agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
 
   @@map("agent_media_configs")
+}
+
+/// Notificação WhatsApp ao responsável quando o cliente pede ajuda humana.
+model AgentNotificationConfig {
+  id                       String   @id @default(uuid())
+  agentId                  String   @unique @map("agent_id")
+  /// Se true, envia alerta WhatsApp ao telefone configurado na escalação.
+  helpNotificationEnabled  Boolean  @default(false) @map("help_notification_enabled")
+  /// Telefone destino (apenas dígitos, com DDI). Ex: 5511999999999.
+  helpNotificationPhone    String?  @map("help_notification_phone")
+  createdAt                DateTime @default(now()) @map("created_at")
+  updatedAt                DateTime @updatedAt @map("updated_at")
+
+  agent Agent @relation(fields: [agentId], references: [id], onDelete: Cascade)
+
+  @@map("agent_notification_configs")
 }
 
 /// Configuração da jornada do cliente (follow-ups, escalação, webhook de compra).
