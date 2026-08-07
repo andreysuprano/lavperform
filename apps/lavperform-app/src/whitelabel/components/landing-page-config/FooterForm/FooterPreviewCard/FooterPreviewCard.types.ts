@@ -1,8 +1,7 @@
-import type { BrandingData, FooterData } from '../../../types'
+import type { BrandingData, FooterData } from '../../../../types'
 
 export interface Props {
   data: FooterData
-  onChange: (data: FooterData) => void
   branding?: Pick<
     BrandingData,
     'name' | 'slogan' | 'logo' | 'primaryColor' | 'secondaryColor' | 'tertiaryColor'

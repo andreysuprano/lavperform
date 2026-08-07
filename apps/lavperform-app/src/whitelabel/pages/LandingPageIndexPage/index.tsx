@@ -1,16 +1,44 @@
 import { Button, Stack, Text, VStack } from '@chakra-ui/react'
-import { memo } from 'react'
+import { memo, useCallback, useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { RiPagesLine, RiArrowRightLine } from 'react-icons/ri'
 
 import { AppContentLayout, LoadingState } from '@/components'
-import { useLandingPageConfig } from '@/whitelabel/hooks'
+import { TemplatePicker } from '@/whitelabel/components/landing-page-config/TemplatePicker'
+import {
+  useLandingPageConfig,
+  useUpdateLandingPageConfig,
+} from '@/whitelabel/hooks'
+import type { LandingPageTemplate } from '@/whitelabel/types'
 
 import { LandingPageEmptyState } from './LandingPageEmptyState'
 
 function LandingPageIndexPageBase() {
   const { data, isLoading, isError } = useLandingPageConfig()
+  const updateConfig = useUpdateLandingPageConfig()
   const navigate = useNavigate()
+
+  const [selectedTemplate, setSelectedTemplate] =
+    useState<LandingPageTemplate>('default')
+
+  useEffect(() => {
+    if (data?.template) {
+      setSelectedTemplate(data.template)
+    }
+  }, [data?.template])
+
+  const persistedTemplate = data?.template ?? 'default'
+  const isDirty = selectedTemplate !== persistedTemplate
+
+  const handleSaveTemplate = useCallback(async () => {
+    if (!isDirty) return
+
+    try {
+      await updateConfig.mutateAsync({ template: selectedTemplate })
+    } catch {
+      // Erro já tratado no hook
+    }
+  }, [isDirty, selectedTemplate, updateConfig])
 
   if (isLoading) {
     return (
@@ -47,6 +75,14 @@ function LandingPageIndexPageBase() {
         <Text color="fg.muted">
           Personalize cada seção da sua Landing Page. Clique em uma seção para começar a editar.
         </Text>
+
+        <TemplatePicker
+          isDirty={isDirty}
+          isSaving={updateConfig.isPending}
+          onChange={setSelectedTemplate}
+          onSave={handleSaveTemplate}
+          value={selectedTemplate}
+        />
 
         <Stack gap={3}>
           {sections.map((section) => (

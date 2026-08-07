@@ -3,23 +3,26 @@ import {
   Button,
   Card,
   Fieldset,
+  Grid,
+  GridItem,
   HStack,
   Input as ChakraInput,
   Stack,
   Text,
   VStack,
 } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { RiAddLine, RiDeleteBinLine, RiEditLine } from 'react-icons/ri'
 
 import { Input, Textarea } from '@/components/forms'
 import type { ServiceItem } from '../../../types'
 
+import { ServicesPreviewCard } from './ServicesPreviewCard'
 import { Props } from './ServicesForm.types'
 
-function ServicesFormBase({ data, onChange }: Props) {
-  const { control, watch, setValue } = useForm({
+function ServicesFormBase({ data, onChange, branding }: Props) {
+  const { control, watch } = useForm({
     defaultValues: {
       title: data.title,
       description: data.description,
@@ -83,105 +86,130 @@ function ServicesFormBase({ data, onChange }: Props) {
     [editingIndex]
   )
 
+  const previewData = useMemo(
+    () => ({
+      title: watchedData.title,
+      description: watchedData.description,
+      items: services,
+    }),
+    [watchedData.title, watchedData.description, services]
+  )
+
   return (
-    <Stack gap={6}>
-      <Fieldset.Root>
-        <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
-        <Fieldset.Content>
-          <Input
-            control={control}
-            label="Título da seção"
-            name="title"
-            placeholder="Ex: Serviços"
-            required
-          />
+    <Grid
+      gap={6}
+      templateColumns={{ base: '1fr', lg: 'minmax(0, 520px) minmax(360px, 1fr)' }}
+    >
+      <GridItem order={{ base: 1, lg: 1 }}>
+        <Stack gap={6}>
+          <Fieldset.Root>
+            <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
+            <Fieldset.Content>
+              <Input
+                control={control}
+                label="Título da seção"
+                name="title"
+                placeholder="Ex: Serviços"
+                required
+              />
 
-          <Textarea
-            control={control}
-            label="Descrição"
-            name="description"
-            placeholder="Digite a descrição"
-            rows={3}
-          />
-        </Fieldset.Content>
-      </Fieldset.Root>
+              <Textarea
+                control={control}
+                label="Descrição"
+                name="description"
+                placeholder="Digite a descrição"
+                rows={3}
+              />
+            </Fieldset.Content>
+          </Fieldset.Root>
 
-      <Fieldset.Root>
-        <Fieldset.Legend>Serviços</Fieldset.Legend>
-        <Fieldset.Content>
-          <VStack gap={4} w="full">
-            {services.map((service, index) => (
-              <>
-                <Card.Root key={index} w="full">
-                  <Card.Body p={4}>
-                    <HStack justifyContent="space-between" mb={4}>
-                      <Text fontWeight="bold">{service.title}</Text>
-                      <HStack gap={2}>
-                        <Button
-                          onClick={() => handleEditService(index)}
-                          size="sm"
-                          variant="ghost"
+          <Fieldset.Root>
+            <Fieldset.Legend>Serviços</Fieldset.Legend>
+            <Fieldset.Content>
+              <VStack gap={4} w="full">
+                {services.map((service, index) => (
+                  <Box key={`${service.title}-${index}`} w="full">
+                    <Card.Root w="full">
+                      <Card.Body p={4}>
+                        <HStack justifyContent="space-between" mb={4}>
+                          <Text fontWeight="bold">{service.title}</Text>
+                          <HStack gap={2}>
+                            <Button
+                              onClick={() => handleEditService(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiEditLine />
+                              Editar
+                            </Button>
+                            <Button
+                              colorScheme="red"
+                              onClick={() => handleDeleteService(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiDeleteBinLine />
+                              Remover
+                            </Button>
+                          </HStack>
+                        </HStack>
+                        <Text color="fg.muted" fontSize="sm">
+                          {service.description}
+                        </Text>
+                        <Text
+                          color="primary.500"
+                          fontSize="lg"
+                          fontWeight="bold"
+                          mt={2}
                         >
-                          <RiEditLine />
-                          Editar
-                        </Button>
-                        <Button
-                          colorScheme="red"
-                          onClick={() => handleDeleteService(index)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <RiDeleteBinLine />
-                          Remover
-                        </Button>
-                      </HStack>
-                    </HStack>
-                    <Text color="fg.muted" fontSize="sm">
-                      {service.description}
-                    </Text>
-                    <Text color="primary.500" fontSize="lg" fontWeight="bold" mt={2}>
-                      {service.price}
-                    </Text>
-                  </Card.Body>
-                </Card.Root>
+                          {service.price}
+                        </Text>
+                      </Card.Body>
+                    </Card.Root>
 
-                {/* Formulário de edição aparece logo abaixo do card específico */}
-                {editingIndex === index && (
+                    {editingIndex === index && (
+                      <Box mt={4}>
+                        <ServiceFormComponent
+                          initialData={services[editingIndex]}
+                          onCancel={() => {
+                            setEditingIndex(null)
+                          }}
+                          onSave={handleSaveService}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+
+                {isAdding && (
                   <ServiceFormComponent
-                    initialData={services[editingIndex]}
                     onCancel={() => {
-                      setEditingIndex(null)
+                      setIsAdding(false)
                     }}
                     onSave={handleSaveService}
                   />
                 )}
-              </>
-            ))}
 
-            {/* Formulário de adicionar aparece no final */}
-            {isAdding && (
-              <ServiceFormComponent
-                onCancel={() => {
-                  setIsAdding(false)
-                }}
-                onSave={handleSaveService}
-              />
-            )}
+                {!isAdding && editingIndex === null && (
+                  <Button
+                    leftIcon={<RiAddLine />}
+                    onClick={handleAddService}
+                    variant="outline"
+                    w="full"
+                  >
+                    Adicionar Serviço
+                  </Button>
+                )}
+              </VStack>
+            </Fieldset.Content>
+          </Fieldset.Root>
+        </Stack>
+      </GridItem>
 
-            {!isAdding && editingIndex === null && (
-              <Button
-                leftIcon={<RiAddLine />}
-                onClick={handleAddService}
-                variant="outline"
-                w="full"
-              >
-                Adicionar Serviço
-              </Button>
-            )}
-          </VStack>
-        </Fieldset.Content>
-      </Fieldset.Root>
-    </Stack>
+      <GridItem order={{ base: 2, lg: 2 }}>
+        <ServicesPreviewCard branding={branding} data={previewData} />
+      </GridItem>
+    </Grid>
   )
 }
 

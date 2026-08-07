@@ -113,6 +113,31 @@ export interface NavigationItem {
   href: string
 }
 
+/** Templates disponíveis no client-landing (TemplateRenderer) */
+export type LandingPageTemplate = 'default' | 'modern' | 'elegant'
+
+export const LANDING_PAGE_TEMPLATES: {
+  value: LandingPageTemplate
+  label: string
+  description: string
+}[] = [
+  {
+    value: 'default',
+    label: 'Padrão',
+    description: 'Layout clássico e equilibrado para a maioria das lavanderias',
+  },
+  {
+    value: 'modern',
+    label: 'Moderno',
+    description: 'Visual contemporâneo com ênfase em cards e espaçamento',
+  },
+  {
+    value: 'elegant',
+    label: 'Elegante',
+    description: 'Estilo sofisticado com tipografia e detalhes refinados',
+  },
+]
+
 export interface LandingPageData {
   branding: BrandingData
   hero: HeroData
@@ -140,6 +165,7 @@ export interface LandingPageFormData {
 export interface LandingPageConfig {
   id: string
   companyId: string
+  template?: LandingPageTemplate
   data: LandingPageData
   createdAt?: string
   updatedAt?: string
@@ -155,6 +181,7 @@ export interface PublicLandingPageResponse {
   slug: string
   customDomain?: string
   active: boolean
+  template?: LandingPageTemplate | string
   branding: BrandingData
   hero: HeroData
   services: ServicesData
@@ -182,6 +209,7 @@ export interface UpdateLandingPagePayload {
   cta?: CtaData
   footer?: FooterData
   navigation?: NavigationItem[]
+  template?: LandingPageTemplate | string
   customDomain?: string
   active?: boolean
 }

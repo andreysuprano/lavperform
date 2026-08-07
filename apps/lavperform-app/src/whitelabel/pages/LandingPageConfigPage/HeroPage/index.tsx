@@ -69,6 +69,7 @@ function HeroPageBase() {
         title="Banner"
       >
         <HeroForm
+          branding={data?.data.branding}
           data={formData}
           onChange={handleChange}
         />

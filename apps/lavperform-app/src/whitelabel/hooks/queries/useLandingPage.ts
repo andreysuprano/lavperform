@@ -6,8 +6,18 @@ import { landingPageService } from '@/whitelabel/services'
 import { getMockLandingPageConfig } from '@/whitelabel/utils'
 import type {
   LandingPageConfig,
+  LandingPageTemplate,
   UpdateLandingPagePayload,
 } from '@/whitelabel/types'
+
+function normalizeLandingPageTemplate(
+  template?: string | null
+): LandingPageTemplate {
+  if (template === 'modern' || template === 'elegant' || template === 'default') {
+    return template
+  }
+  return 'default'
+}
 
 /**
  * Hook para buscar configuração da Landing Page
@@ -36,6 +46,7 @@ export function useLandingPageConfig() {
       const config: LandingPageConfig = {
         id: publicData.id,
         companyId: publicData.companyId,
+        template: normalizeLandingPageTemplate(publicData.template),
         data: {
           branding: publicData.branding,
           hero: publicData.hero,

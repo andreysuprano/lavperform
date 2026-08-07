@@ -62,6 +62,7 @@ function ServicesPageBase() {
         title="Serviços"
       >
         <ServicesForm
+          branding={data?.data.branding}
           data={formData}
           onChange={handleChange}
         />

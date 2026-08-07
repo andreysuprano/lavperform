@@ -3,22 +3,25 @@ import {
   Button,
   Card,
   Fieldset,
+  Grid,
+  GridItem,
   HStack,
   Stack,
   Text,
   VStack,
 } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { RiAddLine, RiDeleteBinLine, RiEditLine } from 'react-icons/ri'
 
 import { Input, Textarea } from '@/components/forms'
 import type { FaqItem } from '../../../types'
 
+import { FaqPreviewCard } from './FaqPreviewCard'
 import { Props } from './FaqForm.types'
 
-function FaqFormBase({ data, onChange }: Props) {
-  const { control, watch, setValue } = useForm({
+function FaqFormBase({ data, onChange, branding }: Props) {
+  const { control, watch } = useForm({
     defaultValues: {
       title: data.title,
       description: data.description,
@@ -79,105 +82,125 @@ function FaqFormBase({ data, onChange }: Props) {
     [editingIndex]
   )
 
+  const previewData = useMemo(
+    () => ({
+      title: watchedData.title,
+      description: watchedData.description,
+      items: faqs,
+    }),
+    [watchedData.title, watchedData.description, faqs]
+  )
+
   return (
-    <Stack gap={6}>
-      <Fieldset.Root>
-        <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
-        <Fieldset.Content>
-          <Input
-            control={control}
-            label="Título da seção"
-            name="title"
-            placeholder="Ex: Perguntas Frequentes"
-            required
-          />
+    <Grid
+      gap={6}
+      templateColumns={{ base: '1fr', lg: 'minmax(0, 520px) minmax(360px, 1fr)' }}
+    >
+      <GridItem order={{ base: 1, lg: 1 }}>
+        <Stack gap={6}>
+          <Fieldset.Root>
+            <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
+            <Fieldset.Content>
+              <Input
+                control={control}
+                label="Título da seção"
+                name="title"
+                placeholder="Ex: Perguntas Frequentes"
+                required
+              />
 
-          <Textarea
-            control={control}
-            label="Descrição"
-            name="description"
-            placeholder="Digite a descrição"
-            rows={3}
-          />
-        </Fieldset.Content>
-      </Fieldset.Root>
+              <Textarea
+                control={control}
+                label="Descrição"
+                name="description"
+                placeholder="Digite a descrição"
+                rows={3}
+              />
+            </Fieldset.Content>
+          </Fieldset.Root>
 
-      <Fieldset.Root>
-        <Fieldset.Legend>Perguntas e Respostas</Fieldset.Legend>
-        <Fieldset.Content>
-          <VStack gap={4} w="full">
-            {faqs.map((faq, index) => (
-              <>
-                <Card.Root key={faq.value} w="full">
-                  <Card.Body p={4}>
-                    <HStack justifyContent="space-between" mb={4}>
-                      <Text fontWeight="bold">{faq.title}</Text>
-                      <HStack gap={2}>
-                        <Button
-                          onClick={() => handleEditFaq(index)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <RiEditLine />
-                          Editar
-                        </Button>
-                        <Button
-                          colorScheme="red"
-                          onClick={() => handleDeleteFaq(index)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <RiDeleteBinLine />
-                          Remover
-                        </Button>
-                      </HStack>
-                    </HStack>
-                    <Box
-                      dangerouslySetInnerHTML={{ __html: faq.text }}
-                      fontSize="sm"
-                      maxH="100px"
-                      overflow="hidden"
-                    />
-                  </Card.Body>
-                </Card.Root>
+          <Fieldset.Root>
+            <Fieldset.Legend>Perguntas e Respostas</Fieldset.Legend>
+            <Fieldset.Content>
+              <VStack gap={4} w="full">
+                {faqs.map((faq, index) => (
+                  <Box key={faq.value || `${faq.title}-${index}`} w="full">
+                    <Card.Root w="full">
+                      <Card.Body p={4}>
+                        <HStack justifyContent="space-between" mb={4}>
+                          <Text fontWeight="bold">{faq.title}</Text>
+                          <HStack gap={2}>
+                            <Button
+                              onClick={() => handleEditFaq(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiEditLine />
+                              Editar
+                            </Button>
+                            <Button
+                              colorScheme="red"
+                              onClick={() => handleDeleteFaq(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiDeleteBinLine />
+                              Remover
+                            </Button>
+                          </HStack>
+                        </HStack>
+                        <Box
+                          dangerouslySetInnerHTML={{ __html: faq.text }}
+                          fontSize="sm"
+                          maxH="100px"
+                          overflow="hidden"
+                        />
+                      </Card.Body>
+                    </Card.Root>
 
-                {/* Formulário de edição aparece logo abaixo do card específico */}
-                {editingIndex === index && (
+                    {editingIndex === index && (
+                      <Box mt={4}>
+                        <FaqFormComponent
+                          initialData={faqs[editingIndex]}
+                          onCancel={() => {
+                            setEditingIndex(null)
+                          }}
+                          onSave={handleSaveFaq}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+
+                {isAdding && (
                   <FaqFormComponent
-                    initialData={faqs[editingIndex]}
                     onCancel={() => {
-                      setEditingIndex(null)
+                      setIsAdding(false)
                     }}
                     onSave={handleSaveFaq}
                   />
                 )}
-              </>
-            ))}
 
-            {/* Formulário de adicionar aparece no final */}
-            {isAdding && (
-              <FaqFormComponent
-                onCancel={() => {
-                  setIsAdding(false)
-                }}
-                onSave={handleSaveFaq}
-              />
-            )}
+                {!isAdding && editingIndex === null && (
+                  <Button
+                    leftIcon={<RiAddLine />}
+                    onClick={handleAddFaq}
+                    variant="outline"
+                    w="full"
+                  >
+                    Adicionar Pergunta
+                  </Button>
+                )}
+              </VStack>
+            </Fieldset.Content>
+          </Fieldset.Root>
+        </Stack>
+      </GridItem>
 
-            {!isAdding && editingIndex === null && (
-              <Button
-                leftIcon={<RiAddLine />}
-                onClick={handleAddFaq}
-                variant="outline"
-                w="full"
-              >
-                Adicionar Pergunta
-              </Button>
-            )}
-          </VStack>
-        </Fieldset.Content>
-      </Fieldset.Root>
-    </Stack>
+      <GridItem order={{ base: 2, lg: 2 }}>
+        <FaqPreviewCard branding={branding} data={previewData} />
+      </GridItem>
+    </Grid>
   )
 }
 

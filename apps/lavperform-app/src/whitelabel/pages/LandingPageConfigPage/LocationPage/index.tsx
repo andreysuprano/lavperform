@@ -63,6 +63,7 @@ function LocationPageBase() {
         title="Unidades"
       >
         <LocationForm
+          branding={data?.data.branding}
           data={formData}
           onChange={handleChange}
         />

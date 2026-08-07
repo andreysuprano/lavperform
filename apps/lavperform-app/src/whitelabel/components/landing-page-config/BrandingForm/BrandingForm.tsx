@@ -116,22 +116,175 @@ function BrandingFormBase({ data, onChange }: Props) {
   return (
     <Grid
       gap={6}
-      templateColumns={{ base: '1fr', lg: '400px 1fr' }}
+      templateColumns={{ base: '1fr', lg: 'minmax(0, 520px) minmax(360px, 1fr)' }}
     >
-      <GridItem
-        order={{ base: 1, lg: 1 }}
-        position={{ base: 'relative', lg: 'sticky' }}
-        top={{ lg: 0 }}
-        alignSelf={{ lg: 'flex-start' }}
-        bg={{ lg: 'bg.canvas' }}
-        py={{ lg: 1 }}
-      >
+      <GridItem order={{ base: 1, lg: 1 }}>
         <Stack gap={6}>
-          <BrandPreviewCard
-            logo={brandLogo}
-            name={brandName || ''}
-            slogan={brandSlogan}
-          />
+          <Card.Root variant="elevated">
+            <Card.Header>
+              <Card.Title>Informações da Marca</Card.Title>
+              <Card.Description>
+                Essas informações aparecem no topo da sua Landing Page e definem a
+                primeira impressão dos seus visitantes.
+              </Card.Description>
+            </Card.Header>
+            <Card.Body>
+              <Stack gap={6}>
+                {/* Nome da Marca */}
+                <Stack gap={2}>
+                  <Input
+                    control={control}
+                    label="Nome da marca"
+                    name="name"
+                    placeholder="Digite o nome da marca"
+                    required
+                  />
+                  <HStack gap={2}>
+                    <Badge
+                      colorPalette="blue"
+                      variant="subtle"
+                    >
+                      Obrigatório
+                    </Badge>
+                    <Badge
+                      colorPalette="green"
+                      variant="subtle"
+                    >
+                      Visível na Landing Page
+                    </Badge>
+                  </HStack>
+                  <Text
+                    color="fg.muted"
+                    fontSize="xs"
+                  >
+                    Esse nome aparece no topo da sua Landing Page
+                  </Text>
+                </Stack>
+
+                <Separator />
+
+                {/* Slogan */}
+                <Stack gap={2}>
+                  <Input
+                    control={control}
+                    label="Slogan"
+                    name="slogan"
+                    placeholder="Digite o slogan"
+                  />
+                  <Text
+                    color="fg.muted"
+                    fontSize="xs"
+                  >
+                    Aparece logo abaixo do nome da marca (opcional)
+                  </Text>
+                </Stack>
+
+                <Separator />
+
+                {/* Upload de Logo */}
+                <Stack gap={2}>
+                  <Box>
+                    {/* Preview da imagem existente */}
+                    {watch('logo') && typeof watch('logo') === 'string' && (
+                      <Box
+                        alignItems="center"
+                        borderColor="border.muted"
+                        borderRadius="lg"
+                        borderWidth="1px"
+                        display="flex"
+                        h="160px"
+                        justifyContent="center"
+                        mb={3}
+                        position="relative"
+                        w="160px"
+                      >
+                        <Image
+                          alt="Logo"
+                          h="120px"
+                          objectFit="contain"
+                          src={watch('logo')}
+                          w="120px"
+                        />
+                        <Float
+                          offsetX="-4px"
+                          offsetY="4px"
+                          placement="top-end"
+                        >
+                          <Button
+                            colorPalette="red"
+                            onClick={() => setValue('logo', '')}
+                            size="xs"
+                            variant="solid"
+                            zIndex={10}
+                          >
+                            <LuX />
+                          </Button>
+                        </Float>
+                      </Box>
+                    )}
+
+                    {/* Input de upload */}
+                    <input
+                      accept="image/*"
+                      onChange={handleLogoUpload}
+                      ref={logoInputRef}
+                      style={{ display: 'none' }}
+                      type="file"
+                    />
+                    <Box
+                      _hover={{
+                        background: 'bg.muted',
+                        cursor: 'pointer',
+                      }}
+                      alignItems="center"
+                      borderColor="bg.inverted"
+                      borderRadius="lg"
+                      borderStyle="dashed"
+                      borderWidth={1}
+                      display="flex"
+                      flexDirection="column"
+                      gap={3}
+                      justifyContent="center"
+                      onClick={() => logoInputRef.current?.click()}
+                      py={8}
+                      w="full"
+                    >
+                      <Icon
+                        color="fg.muted"
+                        size="xl"
+                      >
+                        <LuUpload />
+                      </Icon>
+                      <Stack
+                        gap={1}
+                        textAlign="center"
+                      >
+                        <Text fontWeight="medium">
+                          {isUploading
+                            ? 'Enviando logo...'
+                            : 'Arraste seu logo ou clique para enviar'}
+                        </Text>
+                        <Text
+                          color="fg.muted"
+                          fontSize="sm"
+                        >
+                          PNG ou JPG • até 5MB
+                        </Text>
+                      </Stack>
+                    </Box>
+                  </Box>
+                  <Text
+                    color="fg.muted"
+                    fontSize="xs"
+                  >
+                    Seu logo será exibido no topo da Landing Page junto com o nome
+                    da marca
+                  </Text>
+                </Stack>
+              </Stack>
+            </Card.Body>
+          </Card.Root>
+
           <ColorPalettePicker
             control={control}
             primaryColorName="primaryColor"
@@ -141,171 +294,15 @@ function BrandingFormBase({ data, onChange }: Props) {
         </Stack>
       </GridItem>
 
-      <GridItem order={{ base: 2, lg: 2 }}>
-        <Card.Root variant="elevated">
-          <Card.Header>
-            <Card.Title>Informações da Marca</Card.Title>
-            <Card.Description>
-              Essas informações aparecem no topo da sua Landing Page e definem a
-              primeira impressão dos seus visitantes.
-            </Card.Description>
-          </Card.Header>
-          <Card.Body>
-            <Stack gap={6}>
-              {/* Nome da Marca */}
-              <Stack gap={2}>
-                <Input
-                  control={control}
-                  label="Nome da marca"
-                  name="name"
-                  placeholder="Digite o nome da marca"
-                  required
-                />
-                <HStack gap={2}>
-                  <Badge
-                    colorPalette="blue"
-                    variant="subtle"
-                  >
-                    Obrigatório
-                  </Badge>
-                  <Badge
-                    colorPalette="green"
-                    variant="subtle"
-                  >
-                    Visível na Landing Page
-                  </Badge>
-                </HStack>
-                <Text
-                  color="fg.muted"
-                  fontSize="xs"
-                >
-                  Esse nome aparece no topo da sua Landing Page
-                </Text>
-              </Stack>
-
-              <Separator />
-
-              {/* Slogan */}
-              <Stack gap={2}>
-                <Input
-                  control={control}
-                  label="Slogan"
-                  name="slogan"
-                  placeholder="Digite o slogan"
-                />
-                <Text
-                  color="fg.muted"
-                  fontSize="xs"
-                >
-                  Aparece logo abaixo do nome da marca (opcional)
-                </Text>
-              </Stack>
-
-              <Separator />
-
-              {/* Upload de Logo */}
-              <Stack gap={2}>
-                <Box>
-                  {/* Preview da imagem existente */}
-                  {watch('logo') && typeof watch('logo') === 'string' && (
-                    <Box
-                      alignItems="center"
-                      borderColor="border.muted"
-                      borderRadius="lg"
-                      borderWidth="1px"
-                      display="flex"
-                      h="160px"
-                      justifyContent="center"
-                      mb={3}
-                      position="relative"
-                      w="160px"
-                    >
-                      <Image
-                        alt="Logo"
-                        h="120px"
-                        objectFit="contain"
-                        src={watch('logo')}
-                        w="120px"
-                      />
-                      <Float
-                        offsetX="-4px"
-                        offsetY="4px"
-                        placement="top-end"
-                      >
-                        <Button
-                          colorPalette="red"
-                          onClick={() => setValue('logo', '')}
-                          size="xs"
-                          variant="solid"
-                          zIndex={10}
-                        >
-                          <LuX />
-                        </Button>
-                      </Float>
-                    </Box>
-                  )}
-
-                  {/* Input de upload */}
-                  <input
-                    accept="image/*"
-                    onChange={handleLogoUpload}
-                    ref={logoInputRef}
-                    style={{ display: 'none' }}
-                    type="file"
-                  />
-                  <Box
-                    _hover={{
-                      background: 'bg.muted',
-                      cursor: 'pointer',
-                    }}
-                    alignItems="center"
-                    borderColor="bg.inverted"
-                    borderRadius="lg"
-                    borderStyle="dashed"
-                    borderWidth={1}
-                    display="flex"
-                    flexDirection="column"
-                    gap={3}
-                    justifyContent="center"
-                    onClick={() => logoInputRef.current?.click()}
-                    py={8}
-                    w="full"
-                  >
-                    <Icon
-                      color="fg.muted"
-                      size="xl"
-                    >
-                      <LuUpload />
-                    </Icon>
-                    <Stack
-                      gap={1}
-                      textAlign="center"
-                    >
-                      <Text fontWeight="medium">
-                        {isUploading 
-                          ? 'Enviando logo...' 
-                          : 'Arraste seu logo ou clique para enviar'}
-                      </Text>
-                      <Text
-                        color="fg.muted"
-                        fontSize="sm"
-                      >
-                        PNG ou JPG • até 5MB
-                      </Text>
-                    </Stack>
-                  </Box>
-                </Box>
-                <Text
-                  color="fg.muted"
-                  fontSize="xs"
-                >
-                  Seu logo será exibido no topo da Landing Page junto com o nome
-                  da marca
-                </Text>
-              </Stack>
-            </Stack>
-          </Card.Body>
-        </Card.Root>
+      <GridItem
+        alignSelf={{ lg: 'flex-start' }}
+        order={{ base: 2, lg: 2 }}
+      >
+        <BrandPreviewCard
+          logo={brandLogo}
+          name={brandName || ''}
+          slogan={brandSlogan}
+        />
       </GridItem>
     </Grid>
   )

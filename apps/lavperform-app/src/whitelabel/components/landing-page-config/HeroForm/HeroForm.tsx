@@ -29,7 +29,7 @@ import { uploadImage } from '@/utils/upload'
 import { HeroPreviewCard } from './HeroPreviewCard/HeroPreviewCard'
 import { Props } from './HeroForm.types'
 
-function HeroFormBase({ data, onChange }: Props) {
+function HeroFormBase({ data, onChange, branding }: Props) {
   const { control, watch, setValue } = useForm({
     defaultValues: {
       ...data,
@@ -89,15 +89,10 @@ function HeroFormBase({ data, onChange }: Props) {
   return (
     <Grid
       gap={6}
-      templateColumns={{ base: '1fr', lg: '450px 1fr' }}
+      templateColumns={{ base: '1fr', lg: 'minmax(0, 520px) minmax(360px, 1fr)' }}
     >
-      {/* Preview Card - Coluna Esquerda */}
+      {/* Formulário - Coluna Esquerda */}
       <GridItem order={{ base: 1, lg: 1 }}>
-        <HeroPreviewCard data={watchedData} />
-      </GridItem>
-
-      {/* Formulário - Coluna Direita */}
-      <GridItem order={{ base: 2, lg: 2 }}>
         <Stack gap={6}>
           {/* Bloco 1 - Headline Principal */}
           <Card.Root variant="elevated">
@@ -498,6 +493,11 @@ function HeroFormBase({ data, onChange }: Props) {
           </Card.Root>
 
         </Stack>
+      </GridItem>
+
+      {/* Preview Card - Coluna Direita */}
+      <GridItem order={{ base: 2, lg: 2 }}>
+        <HeroPreviewCard branding={branding} data={watchedData} />
       </GridItem>
     </Grid>
   )

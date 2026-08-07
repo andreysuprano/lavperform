@@ -62,6 +62,7 @@ function TestimonialsPageBase() {
         title="Avaliações"
       >
         <TestimonialsForm
+          branding={data?.data.branding}
           data={formData}
           onChange={handleChange}
         />
