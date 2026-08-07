@@ -1,27 +1,22 @@
 import {
-  Badge,
   Box,
   Button,
   Card,
   HStack,
   Icon,
-  Image,
   Stack,
   Text,
 } from '@chakra-ui/react'
 import { memo } from 'react'
-import {
-  LuClock,
-  LuCreditCard,
-  LuMapPin,
-} from 'react-icons/lu'
+import { FaWhatsapp } from 'react-icons/fa'
+import { LuClock, LuCreditCard } from 'react-icons/lu'
 
-import { useWhiteLabel } from '@/config'
+import { getPreviewBrandColors } from '../../shared'
 
 import { Props } from './HeroPreviewCard.types'
 
-function HeroPreviewCardBase({ data }: Props) {
-  const { colorPalette } = useWhiteLabel()
+function HeroPreviewCardBase({ data, branding }: Props) {
+  const colors = getPreviewBrandColors(branding)
 
   const {
     title,
@@ -31,196 +26,162 @@ function HeroPreviewCardBase({ data }: Props) {
     hours,
     payment,
     ctaText,
-    ctaLink,
     backgroundImage,
   } = data
 
-  // Função para destacar a palavra no título
   const renderTitle = () => {
-    if (!title) return 'Título do Hero'
-    if (!highlightWord) return title
+    if (!title) return 'Título do Banner'
+    if (!highlightWord || !title.includes(highlightWord)) return title
 
     const parts = title.split(highlightWord)
-    if (parts.length === 1) return title
-
     return (
       <Text as="span">
         {parts[0]}
-        <Text
-          as="span"
-          color={`${colorPalette}.500`}
-          fontWeight="bold"
-        >
+        <Text as="span" fontWeight="bold" opacity={0.9}>
           {highlightWord}
         </Text>
-        {parts[1]}
+        {parts.slice(1).join(highlightWord)}
       </Text>
     )
   }
 
   return (
     <Card.Root
+      overflow="hidden"
       position={{ base: 'relative', lg: 'sticky' }}
       top={{ base: 0, lg: 6 }}
       variant="elevated"
-      overflow="hidden"
     >
-      {backgroundImage && (
+      <Box position="relative">
         <Box
-          position="absolute"
           inset={0}
+          position="absolute"
+          style={{
+            backgroundImage: backgroundImage
+              ? `url('${backgroundImage}')`
+              : undefined,
+            backgroundPosition: 'center',
+            backgroundSize: 'cover',
+          }}
           zIndex={0}
-        >
-          <Image
-            alt="Background"
-            h="full"
-            objectFit="cover"
-            opacity={0.15}
-            src={backgroundImage}
-            w="full"
-          />
-        </Box>
-      )}
-      <Card.Body
-        bg={backgroundImage ? 'bg.subtle' : 'bg'}
-        position="relative"
-        py={8}
-        zIndex={1}
-      >
-        <Stack
-          gap={6}
-          textAlign="center"
-        >
-          {/* Título com palavra destacada */}
-          <Stack gap={2}>
+        />
+        <Box
+          inset={0}
+          opacity={0.65}
+          position="absolute"
+          style={{
+            backgroundImage: `linear-gradient(135deg, ${colors.tertiary}, ${colors.secondary})`,
+          }}
+          zIndex={1}
+        />
+
+        <Stack gap={5} p={5} position="relative" zIndex={2}>
+          <Stack gap={3}>
             <Text
-              fontSize="2xl"
+              color="white"
+              fontSize="xl"
               fontWeight="bold"
               lineHeight="shorter"
             >
               {renderTitle()}
             </Text>
-            {subtitle && (
-              <Text
-                color="fg.muted"
-                fontSize="md"
-              >
-                {subtitle}
+            {(subtitle || location) && (
+              <Text color="whiteAlpha.900" fontSize="sm">
+                {subtitle || location}
               </Text>
             )}
-          </Stack>
 
-          {/* Localização */}
-          {location && (
-            <HStack
-              gap={2}
-              justifyContent="center"
-            >
-              <Icon
-                as={LuMapPin}
-                color="fg.muted"
-                size="sm"
-              />
-              <Text
-                color="fg.muted"
-                fontSize="sm"
-              >
-                {location}
-              </Text>
-            </HStack>
-          )}
-
-          {/* Cards de Informação */}
-          <HStack
-            flexWrap="wrap"
-            gap={3}
-            justifyContent="center"
-          >
-            {/* Horário */}
-            {(hours?.label || hours?.time || hours?.days) && (
-              <Badge
-                as="div"
-                colorPalette="gray"
-                px={3}
-                py={2}
-                variant="subtle"
-              >
-                <HStack gap={2}>
-                  <Icon
-                    as={LuClock}
-                    size="sm"
-                  />
+            <Stack gap={2}>
+              {(hours?.label || hours?.days || hours?.time) && (
+                <HStack
+                  borderRadius="md"
+                  color="white"
+                  gap={2}
+                  opacity={0.95}
+                  p={3}
+                  style={{ background: colors.secondary }}
+                >
+                  <Icon as={LuClock} boxSize={4} />
                   <Stack gap={0}>
-                    {hours.label && (
-                      <Text
-                        fontSize="xs"
-                        fontWeight="medium"
-                      >
+                    {hours.label ? (
+                      <Text fontSize="xs" fontWeight="bold">
                         {hours.label}
                       </Text>
-                    )}
-                    {(hours.time || hours.days) && (
-                      <Text
-                        color="fg.muted"
-                        fontSize="xs"
-                      >
-                        {hours.time || hours.days}
-                      </Text>
-                    )}
+                    ) : null}
+                    <Text fontSize="xs">{hours.days || hours.time}</Text>
                   </Stack>
                 </HStack>
-              </Badge>
-            )}
+              )}
 
-            {/* Formas de Pagamento */}
-            {(payment?.label || payment?.methods) && (
-              <Badge
-                as="div"
-                colorPalette="gray"
-                px={3}
-                py={2}
-                variant="subtle"
-              >
-                <HStack gap={2}>
-                  <Icon
-                    as={LuCreditCard}
-                    size="sm"
-                  />
+              {(payment?.label || payment?.methods) && (
+                <HStack
+                  borderRadius="md"
+                  color="white"
+                  gap={2}
+                  opacity={0.95}
+                  p={3}
+                  style={{ background: colors.secondary }}
+                >
+                  <Icon as={LuCreditCard} boxSize={4} />
                   <Stack gap={0}>
-                    {payment.label && (
-                      <Text
-                        fontSize="xs"
-                        fontWeight="medium"
-                      >
+                    {payment.label ? (
+                      <Text fontSize="xs" fontWeight="bold">
                         {payment.label}
                       </Text>
-                    )}
-                    {payment.methods && (
-                      <Text
-                        color="fg.muted"
-                        fontSize="xs"
-                      >
-                        {payment.methods}
-                      </Text>
-                    )}
+                    ) : null}
+                    {payment.methods ? (
+                      <Text fontSize="xs">{payment.methods}</Text>
+                    ) : null}
                   </Stack>
                 </HStack>
-              </Badge>
-            )}
-          </HStack>
+              )}
+            </Stack>
+          </Stack>
 
-          {/* CTA Button */}
-          {ctaText && (
-            <Button
-              colorPalette={colorPalette}
-              size="lg"
-              variant="solid"
-            >
-              {ctaText}
-            </Button>
-          )}
+          <Card.Root bg="bg" textAlign="center">
+            <Card.Header p={3}>
+              <Box
+                borderRadius="lg"
+                color="white"
+                p={3}
+                style={{ background: colors.primary }}
+              >
+                <Text fontSize="sm" fontWeight="bold">
+                  {branding?.slogan || 'Slogan da marca'}
+                </Text>
+              </Box>
+            </Card.Header>
+            <Card.Body gap={3} p={4} pt={0}>
+              <Text
+                fontSize="sm"
+                fontWeight="bold"
+                style={{ color: colors.primary }}
+              >
+                {branding?.name
+                  ? `${branding.name} - Lave e seque suas roupas com qualidade`
+                  : 'Nome da marca'}
+              </Text>
+              {ctaText ? (
+                <Button
+                  pointerEvents="none"
+                  rounded="full"
+                  size="sm"
+                  style={{ background: colors.primary, color: 'white' }}
+                  w="full"
+                >
+                  <HStack gap={2}>
+                    <Icon as={FaWhatsapp} />
+                    <Text>{ctaText}</Text>
+                  </HStack>
+                </Button>
+              ) : null}
+              <Text color="fg.muted" fontSize="2xs" textTransform="uppercase">
+                Menos trabalho, mais economia!
+              </Text>
+            </Card.Body>
+          </Card.Root>
         </Stack>
-      </Card.Body>
+      </Box>
     </Card.Root>
   )
 }

@@ -62,6 +62,7 @@ function FooterPageBase() {
         title="Rodapé"
       >
         <FooterForm
+          branding={data?.data.branding}
           data={formData}
           onChange={handleChange}
         />

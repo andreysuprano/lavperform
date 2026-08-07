@@ -62,6 +62,7 @@ function CtaPageBase() {
         title="CTA Final"
       >
         <CtaForm
+          branding={data?.data.branding}
           data={formData}
           onChange={handleChange}
         />

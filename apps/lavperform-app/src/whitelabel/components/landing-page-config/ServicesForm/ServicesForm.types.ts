@@ -1,6 +1,10 @@
-import type { ServicesData } from '../../../types'
+import type { BrandingData, ServicesData } from '../../../types'
 
 export interface Props {
   data: ServicesData
   onChange: (data: ServicesData) => void
+  branding?: Pick<
+    BrandingData,
+    'primaryColor' | 'secondaryColor' | 'tertiaryColor'
+  >
 }

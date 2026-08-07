@@ -62,6 +62,7 @@ function FaqPageBase() {
         title="FAQ"
       >
         <FaqForm
+          branding={data?.data.branding}
           data={formData}
           onChange={handleChange}
         />

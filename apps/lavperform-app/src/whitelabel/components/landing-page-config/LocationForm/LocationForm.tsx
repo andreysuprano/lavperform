@@ -3,22 +3,25 @@ import {
   Button,
   Card,
   Fieldset,
+  Grid,
+  GridItem,
   HStack,
   Link,
   SimpleGrid,
   Stack,
   Text,
 } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { RiAddLine, RiDeleteBinLine, RiEditLine, RiMapPinLine } from 'react-icons/ri'
 
 import { Input, Textarea } from '@/components/forms'
 import type { LocationItem } from '@/whitelabel/types'
 
+import { LocationPreviewCard } from './LocationPreviewCard'
 import { Props } from './LocationForm.types'
 
-function LocationFormBase({ data, onChange }: Props) {
+function LocationFormBase({ data, onChange, branding }: Props) {
   const { control, watch } = useForm({
     defaultValues: {
       title: data.title,
@@ -81,118 +84,134 @@ function LocationFormBase({ data, onChange }: Props) {
   const handleCancelEdit = useCallback(() => setEditingIndex(null), [])
   const handleCancelAdd = useCallback(() => setIsAdding(false), [])
 
+  const previewData = useMemo(
+    () => ({
+      title: watchedData.title,
+      description: watchedData.description,
+      items: locations,
+    }),
+    [watchedData.title, watchedData.description, locations]
+  )
+
   return (
-    <Stack gap={6}>
-      <Fieldset.Root>
-        <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
-        <Fieldset.Content>
-          <Input
-            control={control}
-            label="Título da seção"
-            name="title"
-            placeholder="Ex: Localização"
-            required
-          />
-
-          <Textarea
-            control={control}
-            label="Descrição"
-            name="description"
-            placeholder="Digite a descrição"
-            rows={3}
-          />
-        </Fieldset.Content>
-      </Fieldset.Root>
-
-      <Fieldset.Root>
-        <Fieldset.Legend>Unidades / Lojas</Fieldset.Legend>
-        <Fieldset.Content>
-          <Stack gap={4} w="full">
-            <SimpleGrid columns={{ base: 1, sm: 2, lg: 3 }} gap={4} w="full">
-              {locations.map((location, index) => (
-                <Card.Root key={location.id ?? index} w="full">
-                  <Card.Body p={4}>
-                    <Stack gap={3}>
-                      <Box>
-                        <Text fontWeight="bold" lineClamp={1}>
-                          {location.placeName}
-                        </Text>
-                        <Text color="fg.muted" fontSize="sm" lineClamp={2}>
-                          {location.address}
-                        </Text>
-                        {location.googleMapsLink && (
-                          <Link
-                            alignItems="center"
-                            color="blue.500"
-                            display="inline-flex"
-                            fontSize="sm"
-                            gap={1}
-                            href={location.googleMapsLink}
-                            mt={1}
-                            rel="noopener noreferrer"
-                            target="_blank"
-                          >
-                            <RiMapPinLine />
-                            Ver no Maps
-                          </Link>
-                        )}
-                      </Box>
-                      <HStack gap={2}>
-                        <Button
-                          flex={1}
-                          onClick={() => handleEditLocation(index)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <RiEditLine />
-                          Editar
-                        </Button>
-                        <Button
-                          colorPalette="red"
-                          flex={1}
-                          onClick={() => handleDeleteLocation(index)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <RiDeleteBinLine />
-                          Remover
-                        </Button>
-                      </HStack>
-                    </Stack>
-                  </Card.Body>
-                </Card.Root>
-              ))}
-            </SimpleGrid>
-
-            {editingIndex !== null && (
-              <LocationItemForm
-                initialData={locations[editingIndex]}
-                onCancel={handleCancelEdit}
-                onSave={handleSaveLocation}
+    <Grid
+      gap={6}
+      templateColumns={{ base: '1fr', lg: 'minmax(0, 520px) minmax(360px, 1fr)' }}
+    >
+      <GridItem order={{ base: 1, lg: 1 }}>
+        <Stack gap={6}>
+          <Fieldset.Root>
+            <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
+            <Fieldset.Content>
+              <Input
+                control={control}
+                label="Título da seção"
+                name="title"
+                placeholder="Ex: Localização"
+                required
               />
-            )}
 
-            {isAdding && (
-              <LocationItemForm
-                onCancel={handleCancelAdd}
-                onSave={handleSaveLocation}
+              <Textarea
+                control={control}
+                label="Descrição"
+                name="description"
+                placeholder="Digite a descrição"
+                rows={3}
               />
-            )}
+            </Fieldset.Content>
+          </Fieldset.Root>
 
-            {!isAdding && editingIndex === null && (
-              <Button
-                onClick={handleAddLocation}
-                variant="outline"
-                w="full"
-              >
-                <RiAddLine />
-                Adicionar Unidade
-              </Button>
-            )}
-          </Stack>
-        </Fieldset.Content>
-      </Fieldset.Root>
-    </Stack>
+          <Fieldset.Root>
+            <Fieldset.Legend>Unidades / Lojas</Fieldset.Legend>
+            <Fieldset.Content>
+              <Stack gap={4} w="full">
+                <SimpleGrid columns={{ base: 1, sm: 2, lg: 2 }} gap={4} w="full">
+                  {locations.map((location, index) => (
+                    <Card.Root key={location.id ?? index} w="full">
+                      <Card.Body p={4}>
+                        <Stack gap={3}>
+                          <Box>
+                            <Text fontWeight="bold" lineClamp={1}>
+                              {location.placeName}
+                            </Text>
+                            <Text color="fg.muted" fontSize="sm" lineClamp={2}>
+                              {location.address}
+                            </Text>
+                            {location.googleMapsLink && (
+                              <Link
+                                alignItems="center"
+                                color="blue.500"
+                                display="inline-flex"
+                                fontSize="sm"
+                                gap={1}
+                                href={location.googleMapsLink}
+                                mt={1}
+                                rel="noopener noreferrer"
+                                target="_blank"
+                              >
+                                <RiMapPinLine />
+                                Ver no Maps
+                              </Link>
+                            )}
+                          </Box>
+                          <HStack gap={2}>
+                            <Button
+                              flex={1}
+                              onClick={() => handleEditLocation(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiEditLine />
+                              Editar
+                            </Button>
+                            <Button
+                              colorPalette="red"
+                              flex={1}
+                              onClick={() => handleDeleteLocation(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiDeleteBinLine />
+                              Remover
+                            </Button>
+                          </HStack>
+                        </Stack>
+                      </Card.Body>
+                    </Card.Root>
+                  ))}
+                </SimpleGrid>
+
+                {editingIndex !== null && (
+                  <LocationItemForm
+                    initialData={locations[editingIndex]}
+                    onCancel={handleCancelEdit}
+                    onSave={handleSaveLocation}
+                  />
+                )}
+
+                {isAdding && (
+                  <LocationItemForm
+                    onCancel={handleCancelAdd}
+                    onSave={handleSaveLocation}
+                  />
+                )}
+
+                {!isAdding && editingIndex === null && (
+                  <Button onClick={handleAddLocation} variant="outline" w="full">
+                    <RiAddLine />
+                    Adicionar Unidade
+                  </Button>
+                )}
+              </Stack>
+            </Fieldset.Content>
+          </Fieldset.Root>
+        </Stack>
+      </GridItem>
+
+      <GridItem order={{ base: 2, lg: 2 }}>
+        <LocationPreviewCard branding={branding} data={previewData} />
+      </GridItem>
+    </Grid>
   )
 }
 

@@ -1,22 +1,26 @@
 import {
+  Box,
   Button,
   Card,
   Fieldset,
+  Grid,
+  GridItem,
   HStack,
   Stack,
   Text,
   VStack,
 } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { RiAddLine, RiDeleteBinLine, RiEditLine } from 'react-icons/ri'
 
 import { Input, Textarea } from '@/components/forms'
 import type { TestimonialItem } from '../../../types'
 
+import { TestimonialsPreviewCard } from './TestimonialsPreviewCard'
 import { Props } from './TestimonialsForm.types'
 
-function TestimonialsFormBase({ data, onChange }: Props) {
+function TestimonialsFormBase({ data, onChange, branding }: Props) {
   const { control, watch } = useForm({
     defaultValues: {
       title: data.title,
@@ -80,102 +84,125 @@ function TestimonialsFormBase({ data, onChange }: Props) {
     [editingIndex]
   )
 
+  const previewData = useMemo(
+    () => ({
+      title: watchedData.title,
+      description: watchedData.description,
+      items: testimonials,
+    }),
+    [watchedData.title, watchedData.description, testimonials]
+  )
+
   return (
-    <Stack gap={6}>
-      <Fieldset.Root>
-        <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
-        <Fieldset.Content>
-          <Input
-            control={control}
-            label="Título da seção"
-            name="title"
-            placeholder="Ex: Avaliações"
-            required
-          />
+    <Grid
+      gap={6}
+      templateColumns={{ base: '1fr', lg: 'minmax(0, 520px) minmax(360px, 1fr)' }}
+    >
+      <GridItem order={{ base: 1, lg: 1 }}>
+        <Stack gap={6}>
+          <Fieldset.Root>
+            <Fieldset.Legend>Informações Gerais</Fieldset.Legend>
+            <Fieldset.Content>
+              <Input
+                control={control}
+                label="Título da seção"
+                name="title"
+                placeholder="Ex: Avaliações"
+                required
+              />
 
-          <Textarea
-            control={control}
-            label="Descrição"
-            name="description"
-            placeholder="Digite a descrição"
-            rows={3}
-          />
-        </Fieldset.Content>
-      </Fieldset.Root>
+              <Textarea
+                control={control}
+                label="Descrição"
+                name="description"
+                placeholder="Digite a descrição"
+                rows={3}
+              />
+            </Fieldset.Content>
+          </Fieldset.Root>
 
-      <Fieldset.Root>
-        <Fieldset.Legend>Depoimentos</Fieldset.Legend>
-        <Fieldset.Content>
-          <VStack gap={4} w="full">
-            {testimonials.map((testimonial, index) => (
-              <>
-                <Card.Root key={index} w="full">
-                  <Card.Body p={4}>
-                    <HStack justifyContent="space-between" mb={4}>
-                      <Text fontWeight="bold">{testimonial.author}</Text>
-                      <HStack gap={2}>
-                        <Button
-                          onClick={() => handleEditTestimonial(index)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <RiEditLine />
-                          Editar
-                        </Button>
-                        <Button
-                          colorScheme="red"
-                          onClick={() => handleDeleteTestimonial(index)}
-                          size="sm"
-                          variant="ghost"
-                        >
-                          <RiDeleteBinLine />
-                          Remover
-                        </Button>
-                      </HStack>
-                    </HStack>
-                    <Text color="fg.muted" fontSize="sm" fontStyle="italic">
-                      "{testimonial.quote}"
-                    </Text>
-                  </Card.Body>
-                </Card.Root>
+          <Fieldset.Root>
+            <Fieldset.Legend>Depoimentos</Fieldset.Legend>
+            <Fieldset.Content>
+              <VStack gap={4} w="full">
+                {testimonials.map((testimonial, index) => (
+                  <Box
+                    key={`${testimonial.author}-${index}`}
+                    w="full"
+                  >
+                    <Card.Root w="full">
+                      <Card.Body p={4}>
+                        <HStack justifyContent="space-between" mb={4}>
+                          <Text fontWeight="bold">{testimonial.author}</Text>
+                          <HStack gap={2}>
+                            <Button
+                              onClick={() => handleEditTestimonial(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiEditLine />
+                              Editar
+                            </Button>
+                            <Button
+                              colorScheme="red"
+                              onClick={() => handleDeleteTestimonial(index)}
+                              size="sm"
+                              variant="ghost"
+                            >
+                              <RiDeleteBinLine />
+                              Remover
+                            </Button>
+                          </HStack>
+                        </HStack>
+                        <Text color="fg.muted" fontSize="sm" fontStyle="italic">
+                          &quot;{testimonial.quote}&quot;
+                        </Text>
+                      </Card.Body>
+                    </Card.Root>
 
-                {/* Formulário de edição aparece logo abaixo do card específico */}
-                {editingIndex === index && (
+                    {editingIndex === index && (
+                      <Box mt={4}>
+                        <TestimonialFormComponent
+                          initialData={testimonials[editingIndex]}
+                          onCancel={() => {
+                            setEditingIndex(null)
+                          }}
+                          onSave={handleSaveTestimonial}
+                        />
+                      </Box>
+                    )}
+                  </Box>
+                ))}
+
+                {isAdding && (
                   <TestimonialFormComponent
-                    initialData={testimonials[editingIndex]}
                     onCancel={() => {
-                      setEditingIndex(null)
+                      setIsAdding(false)
                     }}
                     onSave={handleSaveTestimonial}
                   />
                 )}
-              </>
-            ))}
 
-            {/* Formulário de adicionar aparece no final */}
-            {isAdding && (
-              <TestimonialFormComponent
-                onCancel={() => {
-                  setIsAdding(false)
-                }}
-                onSave={handleSaveTestimonial}
-              />
-            )}
+                {!isAdding && editingIndex === null && (
+                  <Button
+                    leftIcon={<RiAddLine />}
+                    onClick={handleAddTestimonial}
+                    variant="outline"
+                    w="full"
+                  >
+                    Adicionar Depoimento
+                  </Button>
+                )}
+              </VStack>
+            </Fieldset.Content>
+          </Fieldset.Root>
+        </Stack>
+      </GridItem>
 
-            {!isAdding && editingIndex === null && (
-              <Button
-                leftIcon={<RiAddLine />}
-                onClick={handleAddTestimonial}
-                variant="outline"
-                w="full"
-              >
-                Adicionar Depoimento
-              </Button>
-            )}
-          </VStack>
-        </Fieldset.Content>
-      </Fieldset.Root>
-    </Stack>
+      <GridItem order={{ base: 2, lg: 2 }}>
+        <TestimonialsPreviewCard branding={branding} data={previewData} />
+      </GridItem>
+    </Grid>
   )
 }
 
