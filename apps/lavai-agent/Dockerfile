@@ -7,8 +7,8 @@ COPY package*.json ./
 COPY prisma ./prisma/
 COPY prisma.config.ts ./
 
-# Instala todas as deps (incluindo devDeps)
-RUN npm ci
+# Sem package-lock no monorepo Yarn — npm install resolve a partir do package.json
+RUN npm install
 
 # Gera o Prisma Client antes de compilar o TypeScript
 RUN npx prisma generate
