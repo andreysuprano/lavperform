@@ -52,7 +52,7 @@ export class LavaiAgentApiService {
   private handleHttpError(err: unknown, path: string): never {
     const axiosError = err as AxiosError<{ message?: string | string[]; error?: string }>;
     const status = axiosError.response?.status;
-    const responseData = axiosError.response?.data;
+    const responseData: unknown = axiosError.response?.data;
     const url = `${this.baseUrl}${path}`;
 
     let detail: string;
@@ -64,11 +64,14 @@ export class LavaiAgentApiService {
         responseData.includes('<html')
           ? `resposta HTML (provavelmente proxy/serviço fora do ar) — status ${status}`
           : responseData.slice(0, 300);
+    } else if (responseData && typeof responseData === 'object') {
+      const body = responseData as { message?: string | string[]; error?: string };
+      const message = Array.isArray(body.message)
+        ? body.message.join('; ')
+        : body.message;
+      detail = message ?? body.error ?? 'Erro ao comunicar com LavAI Agent';
     } else {
-      const message = Array.isArray(responseData?.message)
-        ? responseData.message.join('; ')
-        : responseData?.message;
-      detail = message ?? responseData?.error ?? 'Erro ao comunicar com LavAI Agent';
+      detail = 'Erro ao comunicar com LavAI Agent';
     }
 
     if (status === 502 || status === 503 || status === 504) {
