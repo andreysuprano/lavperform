@@ -22,7 +22,9 @@
     "prisma:migrate": "prisma migrate dev",
     "prisma:push": "prisma db push",
     "prisma:baseline": "node scripts/prisma-baseline.mjs",
-    "sync:lavperform-companies": "node scripts/sync-lavperform-companies.mjs"
+    "sync:lavperform-companies": "node scripts/sync-lavperform-companies.mjs",
+    "migrate:agents-from-old": "node scripts/migrate-agents-from-old-lavai.mjs",
+    "diagnose": "node scripts/diagnose-deployment.mjs"
   },
   "dependencies": {
     "@bull-board/api": "^6.20.7",

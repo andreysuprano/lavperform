@@ -50,21 +50,39 @@ export class LavaiAgentApiService {
   }
 
   private handleHttpError(err: unknown, path: string): never {
-    const axiosError = err as AxiosError<{ message: string | string[]; error: string }>;
+    const axiosError = err as AxiosError<{ message?: string | string[]; error?: string }>;
     const status = axiosError.response?.status;
     const responseData = axiosError.response?.data;
-    const message = Array.isArray(responseData?.message)
-      ? responseData.message
-      : responseData?.message ?? 'Erro ao comunicar com LavAI Agent';
+    const url = `${this.baseUrl}${path}`;
 
-    this.logger.error(`lavai-agent error [${status}] ${path}: ${JSON.stringify(message)}`);
+    let detail: string;
 
-    if (status === 404) throw new NotFoundException(message);
-    if (status === 409) throw new ConflictException(message);
-    if (status === 400) throw new BadRequestException(message);
+    if (!axiosError.response) {
+      detail = `sem resposta HTTP (${axiosError.code ?? 'NETWORK_ERROR'}): ${axiosError.message}`;
+    } else if (typeof responseData === 'string') {
+      detail =
+        responseData.includes('<html')
+          ? `resposta HTML (provavelmente proxy/serviço fora do ar) — status ${status}`
+          : responseData.slice(0, 300);
+    } else {
+      const message = Array.isArray(responseData?.message)
+        ? responseData.message.join('; ')
+        : responseData?.message;
+      detail = message ?? responseData?.error ?? 'Erro ao comunicar com LavAI Agent';
+    }
+
+    if (status === 502 || status === 503 || status === 504) {
+      detail = `LavAI Agent indisponível (HTTP ${status}). Verifique se o container está rodando no Easypanel.`;
+    }
+
+    this.logger.error(`lavai-agent error [${status ?? 'NO_RESPONSE'}] ${url}: ${detail}`);
+
+    if (status === 404) throw new NotFoundException(detail);
+    if (status === 409) throw new ConflictException(detail);
+    if (status === 400) throw new BadRequestException(detail);
 
     throw new InternalServerErrorException(
-      `Falha na integração com LavAI Agent: ${JSON.stringify(message)}`,
+      `Falha na integração com LavAI Agent (${status ?? 'sem resposta'}): ${detail}`,
     );
   }
 

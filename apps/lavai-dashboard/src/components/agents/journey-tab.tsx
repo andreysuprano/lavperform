@@ -8,6 +8,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
 import { AgentJourneyConfig, FollowUpStep } from '@/lib/types';
 import { toast } from 'sonner';
+import { getPublicApiUrl } from '@/lib/env';
 import { Button } from '@/components/ui/button';
 import {
   Form,
@@ -96,7 +97,7 @@ function computeTimelineMinutes(steps: FollowUpStep[]): number[] {
 
 function PurchaseWebhookCard({ companyId, agentId }: { companyId: string; agentId: string }) {
   const [copied, setCopied] = useState(false);
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const baseUrl = getPublicApiUrl();
   const url = `${baseUrl}/companies/${companyId}/agents/${agentId}/customers/purchase-complete`;
 
   const handleCopy = async () => {

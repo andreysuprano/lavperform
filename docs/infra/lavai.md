@@ -41,8 +41,11 @@ OVER_AGENT_BASE_URL=http://localhost:3000
 ## ENV Dashboard
 
 ```env
-NEXT_PUBLIC_API_URL=http://localhost:3000
+# Build time (Next.js) — obrigatório antes do npm run build
+NEXT_PUBLIC_API_URL=https://development-lav-ai.eefvku.easypanel.host
 ```
+
+Definir `NEXT_PUBLIC_API_URL` só em runtime no Easypanel **não surte efeito**; use build arg no deploy.
 
 ## CI
 

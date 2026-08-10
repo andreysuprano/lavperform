@@ -26,10 +26,11 @@ import { RagTab } from '@/components/agents/rag-tab';
 import { McpTab } from '@/components/agents/mcp-tab';
 
 import { Trash2, Bot, Webhook, Copy, Check, Activity } from 'lucide-react';
+import { getPublicApiUrl } from '@/lib/env';
 
 function WebhookUrlCard({ companyId, agentId }: { companyId: string; agentId: string }) {
   const [copied, setCopied] = useState(false);
-  const baseUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+  const baseUrl = getPublicApiUrl();
   const webhookUrl = `${baseUrl}/webhooks/${companyId}/${agentId}`;
 
   const handleCopy = async () => {
@@ -49,7 +50,7 @@ function WebhookUrlCard({ companyId, agentId }: { companyId: string; agentId: st
         <span className="text-xs font-mono text-muted-foreground uppercase tracking-widest">Webhook</span>
       </div>
       <div className="flex-1 min-w-0 flex items-center gap-2 px-3 py-1.5 rounded-md bg-secondary border border-border font-mono text-xs">
-        <span className="text-muted-foreground/60 flex-shrink-0">{process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'}/</span>
+        <span className="text-muted-foreground/60 flex-shrink-0">{baseUrl}/</span>
         <span className="text-primary flex-shrink-0">{companyId}</span>
         <span className="text-muted-foreground/40 flex-shrink-0">/</span>
         <span className="text-primary flex-shrink-0">{agentId}</span>
