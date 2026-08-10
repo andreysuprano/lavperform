@@ -13,15 +13,24 @@ interface LocationItem {
 }
 
 interface LocationSectionProps {
-  items: LocationItem[]
+  items?: LocationItem[]
 }
 
-export function LocationSection({ items }: LocationSectionProps) {
-  const [selectedLocation, setSelectedLocation] = useState<LocationItem>(items[0])
+export function LocationSection({ items = [] }: LocationSectionProps) {
+  const validItems = items.filter(
+    (item): item is LocationItem =>
+      !!item && typeof item === 'object' && (!!item.address || !!item.placeName),
+  )
+
+  if (validItems.length === 0) {
+    return null
+  }
+
+  const [selectedLocation, setSelectedLocation] = useState<LocationItem>(validItems[0])
 
   // Se houver apenas uma unidade, usa o layout simples
-  if (items.length === 1) {
-    const location = items[0]
+  if (validItems.length === 1) {
+    const location = validItems[0]
     return (
       <Stack
         direction={{ base: "column", lg: "row" }}
@@ -151,7 +160,7 @@ export function LocationSection({ items }: LocationSectionProps) {
           },
         }}
       >
-        {items.map((location, index) => (
+        {validItems.map((location, index) => (
           <Card.Root
             key={index}
             shadow="lg"

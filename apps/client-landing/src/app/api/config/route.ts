@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
+import { normalizeLocationData } from "@/lib/normalize-location"
+
 const API_BASE_URL = process.env.API_BASE_URL || "https://api.lavperform.cloud"
 const COMMON_DOMAIN_RAW = process.env.COMMON_DOMAIN || "lavperform.cloud"
 // Remove a porta do COMMON_DOMAIN para comparação consistente
@@ -91,7 +93,21 @@ export async function GET(request: NextRequest) {
       )
     }
     
-    return NextResponse.json({...data})
+    const location = normalizeLocationData(data.location)
+    const footerFromApi =
+      data.footer && typeof data.footer === 'object' ? data.footer : {}
+
+    return NextResponse.json({
+      ...data,
+      location,
+      footer: {
+        description: '',
+        locationTitle: '',
+        address: location.items[0]?.address ?? '',
+        copyright: '',
+        ...footerFromApi,
+      },
+    })
     
   } catch (error) {
     console.error("Erro ao buscar configuração da landing page:", error)

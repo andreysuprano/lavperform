@@ -7,6 +7,10 @@ interface FooterProps {
 }
 
 export const Footer = ({ data, branding }: FooterProps) => {
+  if (!data || !branding) {
+    return null
+  }
+
   return (
     <Box as="footer" mt={0}>
       <Box css={{ background: "var(--brand-primary)" }} color="white">
