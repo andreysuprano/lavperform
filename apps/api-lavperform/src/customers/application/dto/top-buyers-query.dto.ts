@@ -33,16 +33,24 @@ export class TopBuyersQueryDto {
   sortBy?: 'totalSpent' | 'orderCount' = 'totalSpent';
 
   @ApiProperty({
-    description: 'Data inicial do período (ISO). Sem datas = all-time.',
+    description:
+      'Data inicial do período (YYYY-MM-DD ou ISO 8601). Deve ser enviada junto com endDate. ' +
+      'Filtra Order.createdAt a partir do início do dia (America/Sao_Paulo). ' +
+      'Sem startDate e endDate = histórico (all-time).',
     required: false,
+    example: '2026-08-01',
   })
   @IsOptional()
   @IsDateString()
   startDate?: string;
 
   @ApiProperty({
-    description: 'Data final do período (ISO). Sem datas = all-time.',
+    description:
+      'Data final do período (YYYY-MM-DD ou ISO 8601). Deve ser enviada junto com startDate. ' +
+      'Filtra Order.createdAt até o fim do dia (America/Sao_Paulo). ' +
+      'Sem startDate e endDate = histórico (all-time).',
     required: false,
+    example: '2026-08-31',
   })
   @IsOptional()
   @IsDateString()

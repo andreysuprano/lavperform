@@ -5,6 +5,7 @@ import {
   Flex,
   Heading,
   HStack,
+  NativeSelect,
   SimpleGrid,
   Skeleton,
   Stack,
@@ -25,9 +26,20 @@ import { formatTelefone } from '@/utils/mask'
 import { formatCurrency } from '@/utils/money'
 import { getInitials } from '@/utils/strings'
 
+import {
+  getCurrentMonthRange,
+  getCurrentMonthSelection,
+  getMonthRange,
+  listSelectableMonths,
+  parseMonthKey,
+  toMonthKey,
+  type MonthSelection,
+} from './monthRange'
+
 const RANK_LIMIT = 10
 const VISIBLE_ITEMS = 5
 const MONTHLY_CARD_MIN_W = '168px'
+const SELECTABLE_MONTHS = 24
 
 const RANK_STYLES = [
   { bg: 'yellow.subtle', color: 'yellow.fg', icon: LuCrown },
@@ -36,20 +48,7 @@ const RANK_STYLES = [
 ] as const
 
 type RankSortBy = 'totalSpent' | 'orderCount'
-
-function getCurrentMonthRange() {
-  const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0)
-  const end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999)
-  return {
-    startDate: start.toISOString(),
-    endDate: end.toISOString(),
-    label: new Intl.DateTimeFormat('pt-BR', {
-      month: 'long',
-      year: 'numeric',
-    }).format(now),
-  }
-}
+type RankPeriod = 'month' | 'history'
 
 function getRfvLabel(classification: string | null) {
   if (!classification) return null
@@ -95,11 +94,26 @@ function formatMetric(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
   return formatCurrency(buyer.totalSpent)
 }
 
+function getRankSubtitle(sortBy: RankSortBy, period: RankPeriod) {
+  if (sortBy === 'totalSpent') {
+    return period === 'month'
+      ? 'Ordenado pelo valor total gasto neste mês'
+      : 'Ordenado pelo valor total gasto'
+  }
+
+  return period === 'month'
+    ? 'Ordenado pelo número de vendas neste mês'
+    : 'Ordenado pelo número de vendas'
+}
+
 type MonthlyTopStripProps = {
   data: TopBuyerCustomer[] | undefined
   isLoading: boolean
+  isFetching: boolean
   isError: boolean
-  monthLabel: string
+  selectedMonth: MonthSelection
+  monthOptions: ReturnType<typeof listSelectableMonths>
+  onMonthChange: (selection: MonthSelection) => void
   colorPalette: string
   onOpenDetails: (buyer: TopBuyerCustomer) => void
 }
@@ -107,13 +121,16 @@ type MonthlyTopStripProps = {
 function MonthlyTopStrip({
   data,
   isLoading,
+  isFetching,
   isError,
-  monthLabel,
+  selectedMonth,
+  monthOptions,
+  onMonthChange,
   colorPalette,
   onOpenDetails,
 }: MonthlyTopStripProps) {
-  const capitalizedMonth =
-    monthLabel.charAt(0).toUpperCase() + monthLabel.slice(1)
+  const selectedKey = toMonthKey(selectedMonth)
+  const showLoading = isLoading || (isFetching && !data)
 
   return (
     <Box
@@ -126,25 +143,59 @@ function MonthlyTopStrip({
       p={3}
       w="full"
     >
-      <Stack
-        gap={0.5}
+      <Flex
+        align={{ base: 'stretch', sm: 'flex-start' }}
+        direction={{ base: 'column', sm: 'row' }}
+        gap={2}
+        justify="space-between"
         mb={3}
       >
-        <Heading
-          fontWeight="semibold"
-          size="sm"
-        >
-          Top Clientes do mês
-        </Heading>
-        <Text
-          color="fg.muted"
-          fontSize="xs"
-        >
-          Quem mais comprou em {capitalizedMonth}
-        </Text>
-      </Stack>
+        <Stack gap={0.5}>
+          <Heading
+            fontWeight="semibold"
+            size="sm"
+          >
+            Top Clientes do mês
+          </Heading>
+          <HStack
+            align="center"
+            flexWrap="wrap"
+            gap={1.5}
+          >
+            <Text
+              color="fg.muted"
+              fontSize="xs"
+            >
+              Quem mais comprou em
+            </Text>
+            <NativeSelect.Root
+              maxW="200px"
+              size="xs"
+              width="auto"
+            >
+              <NativeSelect.Field
+                aria-label="Selecionar mês do ranking"
+                onChange={(event) => {
+                  const next = parseMonthKey(event.currentTarget.value)
+                  if (next) onMonthChange(next)
+                }}
+                value={selectedKey}
+              >
+                {monthOptions.map((option) => (
+                  <option
+                    key={option.key}
+                    value={option.key}
+                  >
+                    {option.label}
+                  </option>
+                ))}
+              </NativeSelect.Field>
+            </NativeSelect.Root>
+          </HStack>
+        </Stack>
+      </Flex>
 
-      {isLoading ? (
+      {showLoading ? (
         <HStack
           gap={2}
           overflowX="auto"
@@ -181,6 +232,7 @@ function MonthlyTopStrip({
             },
           }}
           gap={2}
+          key={selectedKey}
           overflowX="auto"
           pb={1}
         >
@@ -225,7 +277,7 @@ function MonthlyTopStrip({
                     justify="center"
                     w={7}
                   >
-                    {RankIcon && rank <= 3 ? (
+                    {rank <= 3 && RankIcon ? (
                       <RankIcon size={14} />
                     ) : (
                       rank
@@ -267,10 +319,12 @@ function MonthlyTopStrip({
 
 type RankListProps = {
   title: string
-  subtitle: string
   sortBy: RankSortBy
+  period: RankPeriod
+  onPeriodChange: (period: RankPeriod) => void
   data: TopBuyerCustomer[] | undefined
   isLoading: boolean
+  isFetching: boolean
   isError: boolean
   expandedId: string | null
   onExpand: (customerId: string | null) => void
@@ -278,83 +332,69 @@ type RankListProps = {
   colorPalette: string
 }
 
+function PeriodToggle({
+  period,
+  onPeriodChange,
+}: {
+  period: RankPeriod
+  onPeriodChange: (period: RankPeriod) => void
+}) {
+  return (
+    <HStack
+      bg="bg.muted"
+      borderRadius="md"
+      flexShrink={0}
+      gap={0}
+      overflow="hidden"
+    >
+      {([
+        { value: 'month', label: 'Este mês' },
+        { value: 'history', label: 'Histórico' },
+      ] as const).map((option) => {
+        const isActive = period === option.value
+        return (
+          <Box
+            as="button"
+            bg={isActive ? 'colorPalette.solid' : 'transparent'}
+            color={isActive ? 'colorPalette.contrast' : 'fg.muted'}
+            cursor="pointer"
+            fontSize="2xs"
+            fontWeight={isActive ? 'bold' : 'medium'}
+            key={option.value}
+            onClick={() => onPeriodChange(option.value)}
+            px={2.5}
+            py={1}
+            transition="background 0.15s ease, color 0.15s ease"
+          >
+            {option.label}
+          </Box>
+        )
+      })}
+    </HStack>
+  )
+}
+
 function RankList({
   title,
-  subtitle,
   sortBy,
+  period,
+  onPeriodChange,
   data,
   isLoading,
+  isFetching,
   isError,
   expandedId,
   onExpand,
   onOpenDetails,
   colorPalette,
 }: RankListProps) {
+  const subtitle = getRankSubtitle(sortBy, period)
+  const showLoading = isLoading || (isFetching && !data)
+
   const maxMetric = useMemo(
     () => Math.max(...(data?.map((item) => getMetricValue(item, sortBy)) ?? [0]), 1),
     [data, sortBy]
   )
-
-  if (isLoading) {
-    return (
-      <Box
-        bg="bg.panel"
-        borderColor="border"
-        borderRadius="lg"
-        borderWidth="1px"
-        p={3}
-        w="full"
-      >
-        <Stack gap={2}>
-          <Skeleton height="20px" w="160px" />
-          <Skeleton height="14px" w="200px" />
-          {Array.from({ length: VISIBLE_ITEMS }).map((_, idx) => (
-            <Skeleton
-              borderRadius="md"
-              height="52px"
-              key={idx}
-            />
-          ))}
-        </Stack>
-      </Box>
-    )
-  }
-
-  if (isError) {
-    return (
-      <Box
-        bg="bg.panel"
-        borderColor="border"
-        borderRadius="lg"
-        borderWidth="1px"
-        p={3}
-        w="full"
-      >
-        <Empty
-          description="Não foi possível carregar este ranking."
-          title="Erro ao carregar"
-        />
-      </Box>
-    )
-  }
-
-  if (!data || data.length === 0) {
-    return (
-      <Box
-        bg="bg.panel"
-        borderColor="border"
-        borderRadius="lg"
-        borderWidth="1px"
-        p={3}
-        w="full"
-      >
-        <Empty
-          description="Quando houver vendas, o ranking aparece aqui."
-          title="Nenhum ranking ainda"
-        />
-      </Box>
-    )
-  }
 
   return (
     <Box
@@ -369,244 +409,287 @@ function RankList({
       p={3}
       w="full"
     >
-      <Stack
-        flexShrink={0}
-        gap={0.5}
+      <Flex
+        align={{ base: 'stretch', sm: 'flex-start' }}
+        direction={{ base: 'column', sm: 'row' }}
+        gap={2}
+        justify="space-between"
         mb={3}
       >
-        <Heading
-          fontWeight="semibold"
-          size="sm"
+        <Stack
+          flexShrink={0}
+          gap={0.5}
         >
-          {title}
-        </Heading>
-        <Text
-          color="fg.muted"
-          fontSize="xs"
+          <Heading
+            fontWeight="semibold"
+            size="sm"
+          >
+            {title}
+          </Heading>
+          <Text
+            color="fg.muted"
+            fontSize="xs"
+          >
+            {subtitle}
+          </Text>
+        </Stack>
+
+        <PeriodToggle
+          onPeriodChange={onPeriodChange}
+          period={period}
+        />
+      </Flex>
+
+      {showLoading ? (
+        <Stack gap={2}>
+          {Array.from({ length: VISIBLE_ITEMS }).map((_, idx) => (
+            <Skeleton
+              borderRadius="md"
+              height="52px"
+              key={idx}
+            />
+          ))}
+        </Stack>
+      ) : isError ? (
+        <Empty
+          description="Não foi possível carregar este ranking."
+          title="Erro ao carregar"
+        />
+      ) : !data || data.length === 0 ? (
+        <Empty
+          description={
+            period === 'month'
+              ? 'Nenhuma compra neste mês.'
+              : 'Quando houver vendas, o ranking aparece aqui.'
+          }
+          title={
+            period === 'month' ? 'Sem vendas no período' : 'Nenhum ranking ainda'
+          }
+        />
+      ) : (
+        <Box
+          css={{
+            '&::-webkit-scrollbar': { width: '6px' },
+            '&::-webkit-scrollbar-thumb': {
+              background: 'var(--chakra-colors-border)',
+              borderRadius: '999px',
+            },
+          }}
+          key={`${sortBy}-${period}`}
+          maxH="320px"
+          opacity={isFetching ? 0.7 : 1}
+          overflowY="auto"
+          pr={1}
+          transition="opacity 0.15s ease"
         >
-          {subtitle}
-        </Text>
-      </Stack>
+          <Stack gap={1.5}>
+            {data.map((buyer, index) => {
+              const rank = index + 1
+              const isExpanded = expandedId === `${sortBy}:${buyer.customerId}`
+              const rankStyle = RANK_STYLES[index]
+              const RankIcon = rankStyle?.icon
+              const metric = getMetricValue(buyer, sortBy)
+              const progress = Math.round((metric / maxMetric) * 100)
+              const rfvLabel = getRfvLabel(buyer.rfvClassification)
 
-      <Box
-        css={{
-          '&::-webkit-scrollbar': { width: '6px' },
-          '&::-webkit-scrollbar-thumb': {
-            background: 'var(--chakra-colors-border)',
-            borderRadius: '999px',
-          },
-        }}
-        maxH="320px"
-        overflowY="auto"
-        pr={1}
-      >
-        <Stack gap={1.5}>
-          {data.map((buyer, index) => {
-            const rank = index + 1
-            const isExpanded = expandedId === `${sortBy}:${buyer.customerId}`
-            const rankStyle = RANK_STYLES[index]
-            const RankIcon = rankStyle?.icon
-            const metric = getMetricValue(buyer, sortBy)
-            const progress = Math.round((metric / maxMetric) * 100)
-            const rfvLabel = getRfvLabel(buyer.rfvClassification)
-
-            return (
-              <Box
-                _hover={{
-                  borderColor: 'colorPalette.solid',
-                  bg: 'bg.subtle',
-                }}
-                bg={isExpanded ? 'bg.subtle' : 'bg'}
-                borderColor={isExpanded ? 'colorPalette.solid' : 'border'}
-                borderRadius="md"
-                borderWidth="1px"
-                cursor="pointer"
-                key={`${sortBy}-${buyer.customerId}`}
-                onClick={() =>
-                  onExpand(isExpanded ? null : `${sortBy}:${buyer.customerId}`)
-                }
-                overflow="hidden"
-                px={2.5}
-                py={2}
-                transition="border-color 0.15s ease, background 0.15s ease"
-              >
-                <Flex
-                  align="center"
-                  gap={2}
+              return (
+                <Box
+                  _hover={{
+                    borderColor: 'colorPalette.solid',
+                    bg: 'bg.subtle',
+                  }}
+                  bg={isExpanded ? 'bg.subtle' : 'bg'}
+                  borderColor={isExpanded ? 'colorPalette.solid' : 'border'}
+                  borderRadius="md"
+                  borderWidth="1px"
+                  cursor="pointer"
+                  key={`${sortBy}-${buyer.customerId}`}
+                  onClick={() =>
+                    onExpand(isExpanded ? null : `${sortBy}:${buyer.customerId}`)
+                  }
+                  overflow="hidden"
+                  px={2.5}
+                  py={2}
+                  transition="border-color 0.15s ease, background 0.15s ease"
                 >
                   <Flex
                     align="center"
-                    bg={rankStyle?.bg ?? 'bg.muted'}
-                    borderRadius="md"
-                    color={rankStyle?.color ?? 'fg.muted'}
-                    flexShrink={0}
-                    fontSize="xs"
-                    fontWeight="bold"
-                    h={7}
-                    justify="center"
-                    w={7}
+                    gap={2}
                   >
-                    {RankIcon && rank <= 3 ? (
-                      <RankIcon size={14} />
-                    ) : (
-                      rank
-                    )}
+                    <Flex
+                      align="center"
+                      bg={rankStyle?.bg ?? 'bg.muted'}
+                      borderRadius="md"
+                      color={rankStyle?.color ?? 'fg.muted'}
+                      flexShrink={0}
+                      fontSize="xs"
+                      fontWeight="bold"
+                      h={7}
+                      justify="center"
+                      w={7}
+                    >
+                      {rank <= 3 && RankIcon ? (
+                        <RankIcon size={14} />
+                      ) : (
+                        rank
+                      )}
+                    </Flex>
+
+                    <Avatar.Root size="xs">
+                      <Avatar.Fallback name={buyer.name}>
+                        {getInitials(buyer.name)}
+                      </Avatar.Fallback>
+                    </Avatar.Root>
+
+                    <VStack
+                      align="stretch"
+                      flex={1}
+                      gap={0.5}
+                      minW={0}
+                    >
+                      <HStack
+                        justify="space-between"
+                        w="full"
+                      >
+                        <Text
+                          fontSize="xs"
+                          fontWeight="semibold"
+                          lineClamp={1}
+                        >
+                          {buyer.name}
+                        </Text>
+                        <Text
+                          color="fg"
+                          flexShrink={0}
+                          fontSize="xs"
+                          fontVariantNumeric="tabular-nums"
+                          fontWeight="bold"
+                        >
+                          {formatMetric(buyer, sortBy)}
+                        </Text>
+                      </HStack>
+
+                      <Box
+                        bg="bg.muted"
+                        borderRadius="full"
+                        h="4px"
+                        overflow="hidden"
+                        w="full"
+                      >
+                        <Box
+                          bg="colorPalette.solid"
+                          borderRadius="full"
+                          h="full"
+                          transition="width 0.25s ease"
+                          w={`${progress}%`}
+                        />
+                      </Box>
+
+                      <HStack
+                        color="fg.muted"
+                        flexWrap="wrap"
+                        fontSize="2xs"
+                        gap={1.5}
+                      >
+                        {sortBy === 'totalSpent' ? (
+                          <HStack gap={0.5}>
+                            <LuShoppingBag size={10} />
+                            <Text as="span">
+                              {buyer.orderCount}{' '}
+                              {buyer.orderCount === 1 ? 'venda' : 'vendas'}
+                            </Text>
+                          </HStack>
+                        ) : (
+                          <Text as="span">{formatCurrency(buyer.totalSpent)}</Text>
+                        )}
+                        <Text as="span">
+                          Ticket {formatCurrency(buyer.averageTicket)}
+                        </Text>
+                        {rfvLabel ? (
+                          <Badge
+                            colorPalette="gray"
+                            size="sm"
+                            variant="subtle"
+                          >
+                            {rfvLabel}
+                          </Badge>
+                        ) : null}
+                      </HStack>
+                    </VStack>
                   </Flex>
 
-                  <Avatar.Root size="xs">
-                    <Avatar.Fallback name={buyer.name}>
-                      {getInitials(buyer.name)}
-                    </Avatar.Fallback>
-                  </Avatar.Root>
-
-                  <VStack
-                    align="stretch"
-                    flex={1}
-                    gap={0.5}
-                    minW={0}
-                  >
-                    <HStack
-                      justify="space-between"
-                      w="full"
+                  {isExpanded ? (
+                    <Stack
+                      borderColor="border"
+                      borderTopWidth="1px"
+                      gap={2}
+                      mt={2}
+                      onClick={(event) => event.stopPropagation()}
+                      pt={2}
                     >
+                      <HStack
+                        flexWrap="wrap"
+                        gap={3}
+                        justify="space-between"
+                      >
+                        <Stack gap={0}>
+                          <Text
+                            color="fg.muted"
+                            fontSize="2xs"
+                          >
+                            Telefone
+                          </Text>
+                          <Text fontSize="xs" fontWeight="medium">
+                            {buyer.phone
+                              ? formatTelefone(buyer.phone)
+                              : 'Não informado'}
+                          </Text>
+                        </Stack>
+                        <Stack gap={0}>
+                          <Text
+                            color="fg.muted"
+                            fontSize="2xs"
+                          >
+                            Última venda
+                          </Text>
+                          <Text fontSize="xs" fontWeight="medium">
+                            {formatLastOrder(buyer.lastOrderDate)}
+                          </Text>
+                        </Stack>
+                        <Stack gap={0}>
+                          <Text
+                            color="fg.muted"
+                            fontSize="2xs"
+                          >
+                            E-mail
+                          </Text>
+                          <Text fontSize="xs" fontWeight="medium" lineClamp={1}>
+                            {buyer.email || 'Não informado'}
+                          </Text>
+                        </Stack>
+                      </HStack>
+
                       <Text
+                        _hover={{ color: 'colorPalette.fg' }}
+                        color="fg"
+                        cursor="pointer"
                         fontSize="xs"
                         fontWeight="semibold"
-                        lineClamp={1}
+                        textDecoration="underline"
+                        textUnderlineOffset="3px"
+                        w="fit-content"
+                        onClick={() => onOpenDetails(buyer)}
                       >
-                        {buyer.name}
+                        Ver ficha completa
                       </Text>
-                      <Text
-                        color="fg"
-                        flexShrink={0}
-                        fontSize="xs"
-                        fontVariantNumeric="tabular-nums"
-                        fontWeight="bold"
-                      >
-                        {formatMetric(buyer, sortBy)}
-                      </Text>
-                    </HStack>
-
-                    <Box
-                      bg="bg.muted"
-                      borderRadius="full"
-                      h="4px"
-                      overflow="hidden"
-                      w="full"
-                    >
-                      <Box
-                        bg="colorPalette.solid"
-                        borderRadius="full"
-                        h="full"
-                        transition="width 0.25s ease"
-                        w={`${progress}%`}
-                      />
-                    </Box>
-
-                    <HStack
-                      color="fg.muted"
-                      flexWrap="wrap"
-                      fontSize="2xs"
-                      gap={1.5}
-                    >
-                      {sortBy === 'totalSpent' ? (
-                        <HStack gap={0.5}>
-                          <LuShoppingBag size={10} />
-                          <Text as="span">
-                            {buyer.orderCount}{' '}
-                            {buyer.orderCount === 1 ? 'venda' : 'vendas'}
-                          </Text>
-                        </HStack>
-                      ) : (
-                        <Text as="span">{formatCurrency(buyer.totalSpent)}</Text>
-                      )}
-                      <Text as="span">
-                        Ticket {formatCurrency(buyer.averageTicket)}
-                      </Text>
-                      {rfvLabel ? (
-                        <Badge
-                          colorPalette="gray"
-                          size="sm"
-                          variant="subtle"
-                        >
-                          {rfvLabel}
-                        </Badge>
-                      ) : null}
-                    </HStack>
-                  </VStack>
-                </Flex>
-
-                {isExpanded ? (
-                  <Stack
-                    borderColor="border"
-                    borderTopWidth="1px"
-                    gap={2}
-                    mt={2}
-                    onClick={(event) => event.stopPropagation()}
-                    pt={2}
-                  >
-                    <HStack
-                      flexWrap="wrap"
-                      gap={3}
-                      justify="space-between"
-                    >
-                      <Stack gap={0}>
-                        <Text
-                          color="fg.muted"
-                          fontSize="2xs"
-                        >
-                          Telefone
-                        </Text>
-                        <Text fontSize="xs" fontWeight="medium">
-                          {buyer.phone
-                            ? formatTelefone(buyer.phone)
-                            : 'Não informado'}
-                        </Text>
-                      </Stack>
-                      <Stack gap={0}>
-                        <Text
-                          color="fg.muted"
-                          fontSize="2xs"
-                        >
-                          Última venda
-                        </Text>
-                        <Text fontSize="xs" fontWeight="medium">
-                          {formatLastOrder(buyer.lastOrderDate)}
-                        </Text>
-                      </Stack>
-                      <Stack gap={0}>
-                        <Text
-                          color="fg.muted"
-                          fontSize="2xs"
-                        >
-                          E-mail
-                        </Text>
-                        <Text fontSize="xs" fontWeight="medium" lineClamp={1}>
-                          {buyer.email || 'Não informado'}
-                        </Text>
-                      </Stack>
-                    </HStack>
-
-                    <Text
-                      _hover={{ color: 'colorPalette.fg' }}
-                      color="fg"
-                      cursor="pointer"
-                      fontSize="xs"
-                      fontWeight="semibold"
-                      textDecoration="underline"
-                      textUnderlineOffset="3px"
-                      w="fit-content"
-                      onClick={() => onOpenDetails(buyer)}
-                    >
-                      Ver ficha completa
-                    </Text>
-                  </Stack>
-                ) : null}
-              </Box>
-            )
-          })}
-        </Stack>
-      </Box>
+                    </Stack>
+                  ) : null}
+                </Box>
+              )
+            })}
+          </Stack>
+        </Box>
+      )}
     </Box>
   )
 }
@@ -614,16 +697,45 @@ function RankList({
 function DashboardTopCustomersRankBase() {
   const { colorPalette } = useWhiteLabel()
   const { selectedCompany } = useAuth()
-  const monthRange = useMemo(() => getCurrentMonthRange(), [])
-  const bySpent = useTopBuyers(selectedCompany?.id, RANK_LIMIT, 'totalSpent')
-  const byOrders = useTopBuyers(selectedCompany?.id, RANK_LIMIT, 'orderCount')
+
+  const monthOptions = useMemo(
+    () => listSelectableMonths(SELECTABLE_MONTHS),
+    []
+  )
+  const currentMonthRange = useMemo(() => getCurrentMonthRange(), [])
+  const [selectedMonth, setSelectedMonth] = useState<MonthSelection>(() =>
+    getCurrentMonthSelection()
+  )
+  const selectedMonthRange = useMemo(
+    () => getMonthRange(selectedMonth.year, selectedMonth.monthIndex),
+    [selectedMonth]
+  )
+
+  const [spentPeriod, setSpentPeriod] = useState<RankPeriod>('month')
+  const [ordersPeriod, setOrdersPeriod] = useState<RankPeriod>('month')
+
+  const bySpent = useTopBuyers(
+    selectedCompany?.id,
+    RANK_LIMIT,
+    'totalSpent',
+    spentPeriod === 'month' ? currentMonthRange.startDate : undefined,
+    spentPeriod === 'month' ? currentMonthRange.endDate : undefined
+  )
+  const byOrders = useTopBuyers(
+    selectedCompany?.id,
+    RANK_LIMIT,
+    'orderCount',
+    ordersPeriod === 'month' ? currentMonthRange.startDate : undefined,
+    ordersPeriod === 'month' ? currentMonthRange.endDate : undefined
+  )
   const byMonth = useTopBuyers(
     selectedCompany?.id,
     RANK_LIMIT,
     'orderCount',
-    monthRange.startDate,
-    monthRange.endDate
+    selectedMonthRange.startDate,
+    selectedMonthRange.endDate
   )
+
   const [selected, setSelected] = useState<Customer | null>(null)
   const [expandedId, setExpandedId] = useState<string | null>(null)
 
@@ -660,9 +772,12 @@ function DashboardTopCustomersRankBase() {
           colorPalette={colorPalette}
           data={byMonth.data}
           isError={byMonth.isError}
+          isFetching={byMonth.isFetching}
           isLoading={byMonth.isLoading}
-          monthLabel={monthRange.label}
+          monthOptions={monthOptions}
+          onMonthChange={setSelectedMonth}
           onOpenDetails={openDetails}
+          selectedMonth={selectedMonth}
         />
 
         <SimpleGrid
@@ -674,11 +789,13 @@ function DashboardTopCustomersRankBase() {
             data={bySpent.data}
             expandedId={expandedId}
             isError={bySpent.isError}
+            isFetching={bySpent.isFetching}
             isLoading={bySpent.isLoading}
             onExpand={setExpandedId}
             onOpenDetails={openDetails}
+            onPeriodChange={setSpentPeriod}
+            period={spentPeriod}
             sortBy="totalSpent"
-            subtitle="Ordenado pelo valor total gasto"
             title="Quem mais gasta"
           />
           <RankList
@@ -686,11 +803,13 @@ function DashboardTopCustomersRankBase() {
             data={byOrders.data}
             expandedId={expandedId}
             isError={byOrders.isError}
+            isFetching={byOrders.isFetching}
             isLoading={byOrders.isLoading}
             onExpand={setExpandedId}
             onOpenDetails={openDetails}
+            onPeriodChange={setOrdersPeriod}
+            period={ordersPeriod}
             sortBy="orderCount"
-            subtitle="Ordenado pelo número de vendas"
             title="Quem mais compra"
           />
         </SimpleGrid>
@@ -705,8 +824,6 @@ function DashboardTopCustomersRankBase() {
   )
 }
 
-const DashboardTopCustomersRank = memo(
-  DashboardTopCustomersRankBase
-) as typeof DashboardTopCustomersRankBase
+const DashboardTopCustomersRank = memo(DashboardTopCustomersRankBase)
 
 export { DashboardTopCustomersRank }

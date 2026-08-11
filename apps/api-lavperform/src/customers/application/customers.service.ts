@@ -16,6 +16,10 @@ import {
 } from '../../common/utils/rfvClassification';
 import { ICustomerRepository } from '../domain/customer.repository.interface';
 import { IDigitalMenuIntegrationRepository } from 'src/partners/domain/digital-menu-integration.repository.interface';
+import {
+  parseCampaignEndDate,
+  parseCampaignStartDate,
+} from '../../common/utils/date.utils';
 
 @Injectable()
 export class CustomersService {
@@ -245,17 +249,80 @@ export class CustomersService {
   ) {
     const limit = options.limit ?? 10;
     const sortBy = options.sortBy ?? 'totalSpent';
-    const startDate = options.startDate ? new Date(options.startDate) : undefined;
-    const endDate = options.endDate ? new Date(options.endDate) : undefined;
+    const range = this.resolveTopBuyersDateRange(
+      options.startDate,
+      options.endDate,
+    );
 
     const items = await this.customerRepository.getTopBuyers(companyId, {
       limit,
       sortBy,
-      startDate,
-      endDate,
+      startDate: range?.startDate,
+      endDate: range?.endDate,
     });
 
-    return { items };
+    return {
+      items,
+      meta: {
+        sortBy,
+        limit,
+        period: range ? ('custom' as const) : ('history' as const),
+        startDate: range?.startDate.toISOString() ?? null,
+        endDate: range?.endDate.toISOString() ?? null,
+      },
+    };
+  }
+
+  /**
+   * Ambos startDate+endDate → período custom (início/fim do dia em America/Sao_Paulo).
+   * Nenhum → histórico all-time. Apenas um → 400.
+   */
+  private resolveTopBuyersDateRange(
+    startDateRaw?: string,
+    endDateRaw?: string,
+  ): { startDate: Date; endDate: Date } | undefined {
+    const hasStart =
+      startDateRaw !== undefined &&
+      startDateRaw !== null &&
+      String(startDateRaw).trim() !== '';
+    const hasEnd =
+      endDateRaw !== undefined &&
+      endDateRaw !== null &&
+      String(endDateRaw).trim() !== '';
+
+    if (hasStart !== hasEnd) {
+      throw new BadRequestException(
+        'startDate e endDate devem ser enviados juntos',
+      );
+    }
+
+    if (!hasStart || !hasEnd) {
+      return undefined;
+    }
+
+    let startDate: Date;
+    let endDate: Date;
+
+    try {
+      startDate = parseCampaignStartDate(String(startDateRaw).trim());
+      endDate = parseCampaignEndDate(String(endDateRaw).trim());
+    } catch {
+      throw new BadRequestException('startDate ou endDate inválido');
+    }
+
+    if (isNaN(startDate.getTime())) {
+      throw new BadRequestException('startDate inválido');
+    }
+    if (isNaN(endDate.getTime())) {
+      throw new BadRequestException('endDate inválido');
+    }
+    if (endDate.getTime() < startDate.getTime()) {
+      throw new BadRequestException(
+        'endDate deve ser maior ou igual a startDate',
+      );
+    }
+
+    return { startDate, endDate };
   }
 
   async totalCustomersBySegmentation(companyId: string) {
