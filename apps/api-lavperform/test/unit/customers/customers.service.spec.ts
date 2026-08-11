@@ -21,6 +21,7 @@ const mockCustomerRepository = {
   deleteWithAddress: jest.fn(),
   totalCustomersBySegmentation: jest.fn(),
   countLeadsByCompany: jest.fn(),
+  getTopBuyers: jest.fn(),
 };
 
 const mockQueue = {
@@ -170,6 +171,109 @@ describe('CustomersService', () => {
       await service.remove(companyId, customerId);
 
       expect(repository.delete).toHaveBeenCalledWith(customerId);
+    });
+  });
+
+  describe('getTopBuyers', () => {
+    const companyId = 'company-1';
+
+    it('forwards resolved period filters and returns custom meta', async () => {
+      mockCustomerRepository.getTopBuyers.mockResolvedValue([]);
+
+      const result = await service.getTopBuyers(companyId, {
+        limit: 10,
+        sortBy: 'orderCount',
+        startDate: '2026-08-01',
+        endDate: '2026-08-31',
+      });
+
+      expect(result.items).toEqual([]);
+      expect(result.meta).toMatchObject({
+        sortBy: 'orderCount',
+        limit: 10,
+        period: 'custom',
+      });
+      expect(result.meta.startDate).toBeTruthy();
+      expect(result.meta.endDate).toBeTruthy();
+      expect(new Date(result.meta.startDate!).getUTCMonth()).toBe(7); // August boundary in SP → UTC
+
+      const call = mockCustomerRepository.getTopBuyers.mock.calls[0];
+      expect(call[0]).toBe(companyId);
+      expect(call[1].limit).toBe(10);
+      expect(call[1].sortBy).toBe('orderCount');
+      expect(call[1].startDate).toBeInstanceOf(Date);
+      expect(call[1].endDate).toBeInstanceOf(Date);
+      expect(call[1].endDate.getTime()).toBeGreaterThan(call[1].startDate.getTime());
+    });
+
+    it('omits dates for historical ranking and returns history meta', async () => {
+      mockCustomerRepository.getTopBuyers.mockResolvedValue([
+        { customerId: 'c1', totalSpent: 100, orderCount: 2 },
+      ]);
+
+      const result = await service.getTopBuyers(companyId, {
+        limit: 5,
+        sortBy: 'totalSpent',
+      });
+
+      expect(result.meta).toEqual({
+        sortBy: 'totalSpent',
+        limit: 5,
+        period: 'history',
+        startDate: null,
+        endDate: null,
+      });
+      expect(mockCustomerRepository.getTopBuyers).toHaveBeenCalledWith(
+        companyId,
+        {
+          limit: 5,
+          sortBy: 'totalSpent',
+          startDate: undefined,
+          endDate: undefined,
+        },
+      );
+    });
+
+    it('throws BadRequestException when only startDate is provided', async () => {
+      await expect(
+        service.getTopBuyers(companyId, {
+          startDate: '2026-08-01',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(mockCustomerRepository.getTopBuyers).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when only endDate is provided', async () => {
+      await expect(
+        service.getTopBuyers(companyId, {
+          endDate: '2026-08-31',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(mockCustomerRepository.getTopBuyers).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException when endDate is before startDate', async () => {
+      await expect(
+        service.getTopBuyers(companyId, {
+          startDate: '2026-08-31',
+          endDate: '2026-08-01',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(mockCustomerRepository.getTopBuyers).not.toHaveBeenCalled();
+    });
+
+    it('throws BadRequestException for invalid dates', async () => {
+      await expect(
+        service.getTopBuyers(companyId, {
+          startDate: 'not-a-date',
+          endDate: 'also-bad',
+        }),
+      ).rejects.toBeInstanceOf(BadRequestException);
+
+      expect(mockCustomerRepository.getTopBuyers).not.toHaveBeenCalled();
     });
   });
 

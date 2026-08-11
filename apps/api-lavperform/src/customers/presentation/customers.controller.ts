@@ -60,17 +60,83 @@ export class CustomersController {
   }
 
   @Get('top')
-  @ApiOperation({ summary: 'Ranking de clientes que mais compram' })
+  @ApiOperation({
+    summary: 'Ranking de clientes que mais compram',
+    description:
+      'Retorna o top de clientes da empresa ordenados por valor gasto (totalSpent) ou número de vendas (orderCount). ' +
+      'Com startDate+endDate (ambos obrigatórios juntos) filtra pedidos pelo Order.createdAt no intervalo, ' +
+      'usando início/fim do dia em America/Sao_Paulo. Sem datas retorna o histórico all-time. ' +
+      'A resposta inclui meta.period (custom|history) com as datas efetivamente aplicadas. ' +
+      'Todos os status de pedido entram na agregação.',
+  })
   @ApiParam({ name: 'companyId', description: 'ID da empresa' })
-  @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({
+    name: 'limit',
+    required: false,
+    type: Number,
+    description: 'Quantidade máxima de clientes (1-50, default 10)',
+  })
   @ApiQuery({
     name: 'sortBy',
     required: false,
     enum: ['totalSpent', 'orderCount'],
+    description: 'Critério de ordenação do ranking',
   })
-  @ApiQuery({ name: 'startDate', required: false, type: String })
-  @ApiQuery({ name: 'endDate', required: false, type: String })
-  @ApiResponse({ status: 200, description: 'Ranking de top clientes' })
+  @ApiQuery({
+    name: 'startDate',
+    required: false,
+    type: String,
+    description:
+      'Início do período (YYYY-MM-DD ou ISO). Enviar junto com endDate. Omitir ambos para histórico.',
+    example: '2026-08-01',
+  })
+  @ApiQuery({
+    name: 'endDate',
+    required: false,
+    type: String,
+    description:
+      'Fim do período (YYYY-MM-DD ou ISO). Enviar junto com startDate. Omitir ambos para histórico.',
+    example: '2026-08-31',
+  })
+  @ApiResponse({
+    status: 200,
+    description: 'Ranking de top clientes com meta do período aplicado',
+    schema: {
+      example: {
+        items: [
+          {
+            customerId: 'clx123',
+            name: 'Cliente A',
+            phone: '11999999999',
+            email: 'cliente@email.com',
+            rfvClassification: 'campeao',
+            averageTicket: 120.5,
+            lastOrderDate: '2026-08-10T12:00:00.000Z',
+            totalSpent: 8500,
+            orderCount: 15,
+            companyId: 'company123',
+            whatsappOptin: true,
+            createdAt: '2025-01-01T00:00:00.000Z',
+            updatedAt: '2026-08-10T12:00:00.000Z',
+            birthDate: null,
+          },
+        ],
+        meta: {
+          sortBy: 'orderCount',
+          limit: 10,
+          period: 'custom',
+          startDate: '2026-08-01T03:00:00.000Z',
+          endDate: '2026-09-01T02:59:59.999Z',
+        },
+      },
+    },
+  })
+  @ApiResponse({
+    status: 400,
+    description:
+      'Query inválida (limit, sortBy, datas inválidas, ou apenas um de startDate/endDate)',
+  })
+  @ApiResponse({ status: 401, description: 'Não autenticado' })
   getTopBuyers(
     @Param('companyId') companyId: string,
     @Query() query: TopBuyersQueryDto,

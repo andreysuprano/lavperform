@@ -65,8 +65,17 @@ export interface TopBuyerCustomer {
   birthDate: string | null
 }
 
+export interface TopBuyersMeta {
+  sortBy: 'totalSpent' | 'orderCount'
+  limit: number
+  period: 'history' | 'custom'
+  startDate: string | null
+  endDate: string | null
+}
+
 export interface TopBuyersResponse {
   items: TopBuyerCustomer[]
+  meta?: TopBuyersMeta
 }
 
 export interface CustomerFormData {
