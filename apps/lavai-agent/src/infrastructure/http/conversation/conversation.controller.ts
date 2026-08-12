@@ -48,15 +48,18 @@ export class ConversationController {
   @ApiParam({ name: 'agentId', type: String })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
+  @ApiQuery({ name: 'search', required: false, type: String })
   @ApiOkResponse({ description: 'Lista paginada de conversas' })
   async listConversations(
     @Param('agentId') agentId: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string,
+    @Query('search') search?: string,
   ): Promise<PaginatedConversations> {
     return this.conversationRepository.listByAgentId(agentId, {
       page: page ? parseInt(page, 10) : 1,
       limit: limit ? parseInt(limit, 10) : 20,
+      search,
     });
   }
 

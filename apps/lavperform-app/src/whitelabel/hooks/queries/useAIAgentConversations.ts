@@ -5,19 +5,25 @@ import { aiAgentService } from '@/whitelabel/services'
 
 export function useAIAgentConversations(
   agentId: string | undefined,
-  { page = 1, limit = 30 }: { page?: number; limit?: number } = {}
+  {
+    page = 1,
+    limit = 30,
+    search = '',
+  }: { page?: number; limit?: number; search?: string } = {}
 ) {
   return useQuery({
     queryKey: queryKeys.whitelabel.aiAgent.conversations(
       agentId || '',
       page,
-      limit
+      limit,
+      search
     ),
     queryFn: async () => {
       if (!agentId) throw new Error('Agent ID is required')
       const response = await aiAgentService.listConversations(agentId, {
         page,
         limit,
+        search: search || undefined,
       })
       return response.data
     },

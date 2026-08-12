@@ -233,8 +233,21 @@ export const queryKeys = {
         ] as const,
       mcpServers: (agentId: string) =>
         ['whitelabel', 'ai-agent', 'mcp-servers', agentId] as const,
-      conversations: (agentId: string, page: number, limit: number) =>
-        ['whitelabel', 'ai-agent', 'conversations', agentId, page, limit] as const,
+      conversations: (
+        agentId: string,
+        page: number,
+        limit: number,
+        search: string
+      ) =>
+        [
+          'whitelabel',
+          'ai-agent',
+          'conversations',
+          agentId,
+          page,
+          limit,
+          search,
+        ] as const,
       conversationMessages: (agentId: string, conversationId: string) =>
         [
           'whitelabel',

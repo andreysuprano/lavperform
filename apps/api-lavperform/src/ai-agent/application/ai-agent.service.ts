@@ -366,7 +366,7 @@ export class AiAgentService {
 
   async listConversations(
     agentId: string,
-    query: { page?: number; limit?: number } = {},
+    query: { page?: number; limit?: number; search?: string } = {},
   ) {
     return this.lavaiAgentApi.listConversations(agentId, query);
   }

@@ -107,7 +107,7 @@ export interface ConversationRepositoryPort {
    */
   listByAgentId(
     agentId: string,
-    options: { page: number; limit: number },
+    options: { page: number; limit: number; search?: string },
   ): Promise<PaginatedConversations>;
 
   /**

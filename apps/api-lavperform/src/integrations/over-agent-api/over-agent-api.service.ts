@@ -203,11 +203,12 @@ export class LavaiAgentApiService {
 
   async listConversations(
     agentId: string,
-    query: { page?: number; limit?: number } = {},
+    query: { page?: number; limit?: number; search?: string } = {},
   ) {
     const params = new URLSearchParams();
     if (query.page) params.set('page', String(query.page));
     if (query.limit) params.set('limit', String(query.limit));
+    if (query.search) params.set('search', query.search);
     const qs = params.toString();
     return this.request<Record<string, unknown>>(
       'get',

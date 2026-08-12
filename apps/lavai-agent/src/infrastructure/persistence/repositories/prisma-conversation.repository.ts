@@ -89,15 +89,33 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
 
   async listByAgentId(
     agentId: string,
-    options: { page: number; limit: number },
+    options: { page: number; limit: number; search?: string },
   ): Promise<PaginatedConversations> {
     const page = Math.max(1, options.page);
     const limit = Math.min(100, Math.max(1, options.limit));
     const skip = (page - 1) * limit;
+    const search = options.search?.trim() ?? '';
+    const digits = search.replace(/\D/g, '');
+
+    const where = {
+      agentId,
+      ...(search
+        ? {
+            OR: [
+              { userName: { contains: search, mode: 'insensitive' as const } },
+              { groupName: { contains: search, mode: 'insensitive' as const } },
+              { userPhone: { contains: search } },
+              ...(digits && digits !== search
+                ? [{ userPhone: { contains: digits } }]
+                : []),
+            ],
+          }
+        : {}),
+    };
 
     const [rows, total] = await Promise.all([
       this.prisma.conversation.findMany({
-        where: { agentId },
+        where,
         orderBy: { updatedAt: 'desc' },
         skip,
         take: limit,
@@ -116,7 +134,7 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
           },
         },
       }),
-      this.prisma.conversation.count({ where: { agentId } }),
+      this.prisma.conversation.count({ where }),
     ]);
 
     const data: ConversationSummaryData[] = rows.map((row) => {

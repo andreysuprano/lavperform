@@ -182,7 +182,7 @@ export const aiAgentService = {
 
   async listConversations(
     agentId: string,
-    params: { page?: number; limit?: number } = {}
+    params: { page?: number; limit?: number; search?: string } = {}
   ) {
     return await client.get<AIAgentConversationsResponse>(
       `/ai-agents/${agentId}/conversations`,
