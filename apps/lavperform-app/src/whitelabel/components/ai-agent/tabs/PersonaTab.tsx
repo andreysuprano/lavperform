@@ -1,8 +1,20 @@
-import { Button, Card, Stack, createListCollection } from '@chakra-ui/react'
-import { memo, useEffect, useMemo } from 'react'
-import { useForm } from 'react-hook-form'
+import { Button, Card, SimpleGrid, Stack, Text } from '@chakra-ui/react'
+import type { ComponentType } from 'react'
+import { memo, useEffect } from 'react'
+import { Controller, useForm } from 'react-hook-form'
+import {
+  LuBriefcase,
+  LuCircle,
+  LuFileText,
+  LuGraduationCap,
+  LuHeart,
+  LuScale,
+  LuSmile,
+  LuWrench,
+  LuZap,
+} from 'react-icons/lu'
 
-import { Input, Select, Textarea } from '@/components/forms'
+import { Input } from '@/components/forms'
 import {
   DEFAULT_BEHAVIOR_GUIDELINES,
   DEFAULT_GUARDRAILS,
@@ -14,19 +26,74 @@ import type {
   VoiceToneType,
 } from '@/whitelabel/types'
 
-const voiceToneItems = [
-  { value: 'FORMAL', label: 'Formal' },
-  { value: 'FRIENDLY', label: 'Amigável' },
-  { value: 'NEUTRAL', label: 'Neutro' },
-  { value: 'EMPATHETIC', label: 'Empático' },
-  { value: 'TECHNICAL', label: 'Técnico' },
+import { MarkdownField } from './MarkdownField'
+import { SelectableIconCard } from './SelectableIconCard'
+
+interface CardOption<T> {
+  value: T
+  title: string
+  description: string
+  icon: ComponentType
+}
+
+const voiceToneOptions: CardOption<VoiceToneType>[] = [
+  {
+    value: 'FORMAL',
+    title: 'Formal',
+    description: 'Linguagem profissional e polida.',
+    icon: LuBriefcase,
+  },
+  {
+    value: 'FRIENDLY',
+    title: 'Amigável',
+    description: 'Próximo, caloroso e descontraído.',
+    icon: LuSmile,
+  },
+  {
+    value: 'NEUTRAL',
+    title: 'Neutro',
+    description: 'Equilibrado e imparcial.',
+    icon: LuCircle,
+  },
+  {
+    value: 'EMPATHETIC',
+    title: 'Empático',
+    description: 'Acolhedor e atento às emoções.',
+    icon: LuHeart,
+  },
+  {
+    value: 'TECHNICAL',
+    title: 'Técnico',
+    description: 'Preciso e focado em detalhes.',
+    icon: LuWrench,
+  },
 ]
 
-const communicationStyleItems = [
-  { value: 'CONCISE', label: 'Conciso' },
-  { value: 'DETAILED', label: 'Detalhado' },
-  { value: 'BALANCED', label: 'Equilibrado' },
-  { value: 'INSTRUCTIVE', label: 'Instrutivo' },
+const communicationStyleOptions: CardOption<CommunicationStyleType>[] = [
+  {
+    value: 'CONCISE',
+    title: 'Conciso',
+    description: 'Respostas curtas e diretas.',
+    icon: LuZap,
+  },
+  {
+    value: 'DETAILED',
+    title: 'Detalhado',
+    description: 'Explicações completas e aprofundadas.',
+    icon: LuFileText,
+  },
+  {
+    value: 'BALANCED',
+    title: 'Equilibrado',
+    description: 'Mistura clareza e profundidade.',
+    icon: LuScale,
+  },
+  {
+    value: 'INSTRUCTIVE',
+    title: 'Instrutivo',
+    description: 'Guia passo a passo, didático.',
+    icon: LuGraduationCap,
+  },
 ]
 
 interface PersonaFormData {
@@ -44,15 +111,6 @@ interface PersonaTabProps {
 
 function PersonaTabBase({ agent }: PersonaTabProps) {
   const updatePersona = useUpdateAIAgentPersona()
-
-  const voiceToneCollection = useMemo(
-    () => createListCollection({ items: voiceToneItems }),
-    []
-  )
-  const communicationStyleCollection = useMemo(
-    () => createListCollection({ items: communicationStyleItems }),
-    []
-  )
 
   const form = useForm<PersonaFormData>({
     defaultValues: {
@@ -103,45 +161,100 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
         </Card.Description>
       </Card.Header>
       <Card.Body>
-        <Stack gap={4}>
+        <Stack gap={6}>
           <Input
             control={form.control}
             name="personaName"
             label="Nome da persona"
             placeholder="Ex: Sofia"
           />
-          <Textarea
+
+          <SimpleGrid columns={{ base: 1, md: 2 }} gap={5}>
+            <Controller
+              control={form.control}
+              name="voiceTone"
+              render={({ field }) => (
+                <Stack gap={3}>
+                  <Text fontWeight="semibold" fontSize="sm">
+                    Tom de voz
+                  </Text>
+                  <Stack gap={2}>
+                    {voiceToneOptions.map((option) => (
+                      <SelectableIconCard
+                        key={option.value}
+                        icon={option.icon}
+                        title={option.title}
+                        description={option.description}
+                        selected={field.value === option.value}
+                        onClick={() => field.onChange(option.value)}
+                      />
+                    ))}
+                  </Stack>
+                </Stack>
+              )}
+            />
+
+            <Controller
+              control={form.control}
+              name="communicationStyle"
+              render={({ field }) => (
+                <Stack gap={3}>
+                  <Text fontWeight="semibold" fontSize="sm">
+                    Estilo de comunicação
+                  </Text>
+                  <Stack gap={2}>
+                    {communicationStyleOptions.map((option) => (
+                      <SelectableIconCard
+                        key={option.value}
+                        icon={option.icon}
+                        title={option.title}
+                        description={option.description}
+                        selected={field.value === option.value}
+                        onClick={() => field.onChange(option.value)}
+                      />
+                    ))}
+                  </Stack>
+                </Stack>
+              )}
+            />
+          </SimpleGrid>
+
+          <Controller
             control={form.control}
             name="systemPrompt"
-            label="Inteligência do agente (System Prompt)"
-            placeholder="Cole aqui o prompt customizado..."
-            rows={8}
+            render={({ field }) => (
+              <MarkdownField
+                label="Inteligência do agente (System Prompt)"
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="Cole aqui o prompt customizado..."
+                height={320}
+              />
+            )}
           />
-          <Select
-            control={form.control}
-            name="voiceTone"
-            label="Tom de voz"
-            placeholder="Selecione o tom de voz"
-            collection={voiceToneCollection}
-          />
-          <Select
-            control={form.control}
-            name="communicationStyle"
-            label="Estilo de comunicação"
-            placeholder="Selecione o estilo"
-            collection={communicationStyleCollection}
-          />
-          <Textarea
+
+          <Controller
             control={form.control}
             name="behaviorGuidelines"
-            label="Regras de comportamento"
-            rows={6}
+            render={({ field }) => (
+              <MarkdownField
+                label="Regras de comportamento"
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
           />
-          <Textarea
+
+          <Controller
             control={form.control}
             name="guardrails"
-            label="Guardrails"
-            rows={6}
+            render={({ field }) => (
+              <MarkdownField
+                label="Guardrails"
+                value={field.value}
+                onChange={field.onChange}
+              />
+            )}
           />
         </Stack>
       </Card.Body>

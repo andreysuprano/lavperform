@@ -20,6 +20,7 @@
     "@tanstack/react-query": "^5.90.6",
     "@tanstack/react-query-devtools": "^5.90.2",
     "@types/react-router-dom": "^5.3.3",
+    "@uiw/react-md-editor": "^4.1.1",
     "axios": "^1.8.4",
     "convert-csv-to-json": "^2.50.0",
     "embla-carousel-react": "^8.6.0",
