@@ -362,6 +362,19 @@ export class AiAgentService {
     return this.lavaiAgentApi.listLlmModels();
   }
 
+  // ─── Conversas ──────────────────────────────────────────────────────────────
+
+  async listConversations(
+    agentId: string,
+    query: { page?: number; limit?: number } = {},
+  ) {
+    return this.lavaiAgentApi.listConversations(agentId, query);
+  }
+
+  async listConversationMessages(agentId: string, conversationId: string) {
+    return this.lavaiAgentApi.listConversationMessages(agentId, conversationId);
+  }
+
   // ─── Knowledge files (adapter → LavAI knowledge-bases) ─────────────────────
 
   private parseKnowledgeDescription(description: string | null): {

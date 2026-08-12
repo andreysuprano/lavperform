@@ -4,7 +4,9 @@ import {
   ConversationData,
   ConversationMessageData,
   ConversationRepositoryPort,
+  ConversationSummaryData,
   MessageRole,
+  PaginatedConversations,
   UpsertConversationInput,
 } from '../../../application/webhook/ports/conversation.repository.port';
 import { PrismaService } from '../prisma/prisma.service';
@@ -83,6 +85,73 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
       },
     });
     return this.mapMessage(row);
+  }
+
+  async listByAgentId(
+    agentId: string,
+    options: { page: number; limit: number },
+  ): Promise<PaginatedConversations> {
+    const page = Math.max(1, options.page);
+    const limit = Math.min(100, Math.max(1, options.limit));
+    const skip = (page - 1) * limit;
+
+    const [rows, total] = await Promise.all([
+      this.prisma.conversation.findMany({
+        where: { agentId },
+        orderBy: { updatedAt: 'desc' },
+        skip,
+        take: limit,
+        select: {
+          id: true,
+          userName: true,
+          userPhone: true,
+          isGroup: true,
+          groupName: true,
+          updatedAt: true,
+          messages: {
+            where: { role: { not: MessageRole.SYSTEM } },
+            orderBy: { createdAt: 'desc' },
+            take: 1,
+            select: { content: true, role: true, createdAt: true },
+          },
+        },
+      }),
+      this.prisma.conversation.count({ where: { agentId } }),
+    ]);
+
+    const data: ConversationSummaryData[] = rows.map((row) => {
+      const last = row.messages[0];
+      return {
+        id: row.id,
+        userName: row.userName,
+        userPhone: row.userPhone,
+        isGroup: row.isGroup,
+        groupName: row.groupName,
+        updatedAt: row.updatedAt,
+        lastMessage: last
+          ? {
+              content: last.content,
+              role: last.role as MessageRole,
+              createdAt: last.createdAt,
+            }
+          : null,
+      };
+    });
+
+    return { data, total, page, limit };
+  }
+
+  async findViewableMessages(
+    conversationId: string,
+  ): Promise<ConversationMessageData[]> {
+    const rows = await this.prisma.conversationMessage.findMany({
+      where: {
+        conversationId,
+        role: { not: MessageRole.SYSTEM },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map(this.mapMessage);
   }
 
   // ─── Mappers ──────────────────────────────────────────────────────────────

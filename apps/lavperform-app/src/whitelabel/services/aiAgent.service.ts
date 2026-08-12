@@ -1,5 +1,7 @@
 import type {
   AIAgent,
+  AIAgentConversationMessage,
+  AIAgentConversationsResponse,
   AIAgentKnowledgeFileResponse,
   AIAgentMcpServer,
   CreateAIAgentMcpServerPayload,
@@ -173,6 +175,24 @@ export const aiAgentService = {
   ) {
     return await client.delete(
       `/companies/${companyId}/ai-agents/${agentId}/knowledge-files/${fileId}`
+    )
+  },
+
+  // ─── Conversas ───────────────────────────────────────────────────────────
+
+  async listConversations(
+    agentId: string,
+    params: { page?: number; limit?: number } = {}
+  ) {
+    return await client.get<AIAgentConversationsResponse>(
+      `/ai-agents/${agentId}/conversations`,
+      { params }
+    )
+  },
+
+  async listConversationMessages(agentId: string, conversationId: string) {
+    return await client.get<AIAgentConversationMessage[]>(
+      `/ai-agents/${agentId}/conversations/${conversationId}/messages`
     )
   },
 }

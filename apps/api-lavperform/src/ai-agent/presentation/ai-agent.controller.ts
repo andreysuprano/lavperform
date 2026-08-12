@@ -7,6 +7,7 @@ import {
   Delete,
   Body,
   Param,
+  Query,
   HttpCode,
   HttpStatus,
 } from '@nestjs/common';
@@ -228,6 +229,33 @@ export class AiAgentController {
   @ApiOperation({ summary: 'Listar modelos LLM disponíveis (OpenRouter via LavAI Agent)' })
   listLlmModels() {
     return this.aiAgentService.listLlmModels();
+  }
+
+  // ─── Conversas ─────────────────────────────────────────────────────────────
+
+  @Get('ai-agents/:agentId/conversations')
+  @ApiOperation({ summary: 'Listar conversas do agente (agrupadas por cliente)' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no over-agent' })
+  listConversations(
+    @Param('agentId') agentId: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string,
+  ) {
+    return this.aiAgentService.listConversations(agentId, {
+      page: page ? parseInt(page, 10) : undefined,
+      limit: limit ? parseInt(limit, 10) : undefined,
+    });
+  }
+
+  @Get('ai-agents/:agentId/conversations/:conversationId/messages')
+  @ApiOperation({ summary: 'Listar mensagens de uma conversa (sem dados técnicos)' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no over-agent' })
+  @ApiParam({ name: 'conversationId', description: 'ID da conversa' })
+  listConversationMessages(
+    @Param('agentId') agentId: string,
+    @Param('conversationId') conversationId: string,
+  ) {
+    return this.aiAgentService.listConversationMessages(agentId, conversationId);
   }
 
   // ─── Knowledge files ─────────────────────────────────────────────────────

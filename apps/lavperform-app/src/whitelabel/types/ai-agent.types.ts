@@ -150,6 +150,39 @@ export interface AIAgentMcpServer {
   updatedAt?: string
 }
 
+// ─── Conversas ───────────────────────────────────────────────────────────────
+
+export type ConversationMessageRole = 'USER' | 'ASSISTANT'
+
+export interface AIAgentConversationSummary {
+  id: string
+  userName: string
+  userPhone: string
+  isGroup: boolean
+  groupName: string | null
+  lastMessage: {
+    content: string
+    role: ConversationMessageRole
+    createdAt: string
+  } | null
+  updatedAt: string
+}
+
+export interface AIAgentConversationsResponse {
+  data: AIAgentConversationSummary[]
+  total: number
+  page: number
+  limit: number
+}
+
+export interface AIAgentConversationMessage {
+  id: string
+  role: ConversationMessageRole
+  content: string
+  originalType: string | null
+  createdAt: string
+}
+
 // ─── AIAgent entity ──────────────────────────────────────────────────────────
 
 export interface AIAgent {

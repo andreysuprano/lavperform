@@ -20,7 +20,6 @@ function SelectableIconCardBase({
   return (
     <Box
       as="button"
-      type="button"
       onClick={onClick}
       py={3}
       px={3}

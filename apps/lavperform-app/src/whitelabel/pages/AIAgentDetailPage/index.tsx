@@ -9,14 +9,14 @@ import {
   Text,
   useTabs,
 } from '@chakra-ui/react'
-import { memo, useCallback } from 'react'
+import { memo, useCallback, useMemo } from 'react'
 import { LuBot } from 'react-icons/lu'
 import {
   RiArrowLeftLine,
   RiDeleteBinLine,
   RiRefreshLine,
 } from 'react-icons/ri'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import {
   AppContentLayout,
@@ -26,6 +26,7 @@ import {
 } from '@/components'
 import { useAuth } from '@/context/AuthContext'
 import {
+  ConversationsTab,
   FiltersTab,
   JourneyTab,
   McpTab,
@@ -42,9 +43,25 @@ import {
 
 const AI_AGENT_LIST_PATH = '/whitelabel/ai-agent'
 
+const TAB_VALUES = [
+  'persona',
+  'media',
+  'filters',
+  'journey',
+  'rag',
+  'mcp',
+  'conversations',
+] as const
+
+const TAB_ALIASES: Record<string, (typeof TAB_VALUES)[number]> = {
+  conversas: 'conversations',
+  conversations: 'conversations',
+}
+
 function AIAgentDetailPageBase() {
   const { agentId } = useParams<{ agentId: string }>()
   const navigate = useNavigate()
+  const [searchParams] = useSearchParams()
   const { selectedCompany } = useAuth()
 
   const { data: agent, isLoading, isError } = useAIAgent(
@@ -55,7 +72,18 @@ function AIAgentDetailPageBase() {
   const deleteAgent = useDeleteAIAgent()
   const updateWebhook = useUpdateAIAgentWebhook()
 
-  const tabs = useTabs({ defaultValue: 'persona' })
+  const initialTab = useMemo(() => {
+    const raw = searchParams.get('tab')
+    if (!raw) return 'persona'
+    return (
+      TAB_ALIASES[raw] ??
+      (TAB_VALUES.includes(raw as (typeof TAB_VALUES)[number])
+        ? (raw as (typeof TAB_VALUES)[number])
+        : 'persona')
+    )
+  }, [searchParams])
+
+  const tabs = useTabs({ defaultValue: initialTab })
 
   const goBack = useCallback(() => {
     navigate(AI_AGENT_LIST_PATH)
@@ -161,6 +189,7 @@ function AIAgentDetailPageBase() {
             <Tabs.Trigger value="journey">Jornada</Tabs.Trigger>
             <Tabs.Trigger value="rag">Base RAG</Tabs.Trigger>
             <Tabs.Trigger value="mcp">Ferramentas MCP</Tabs.Trigger>
+            <Tabs.Trigger value="conversations">Conversas</Tabs.Trigger>
           </Tabs.List>
 
           <Tabs.Content value="persona">
@@ -180,6 +209,9 @@ function AIAgentDetailPageBase() {
           </Tabs.Content>
           <Tabs.Content value="mcp">
             <McpTab agent={agent} />
+          </Tabs.Content>
+          <Tabs.Content value="conversations">
+            <ConversationsTab agent={agent} />
           </Tabs.Content>
         </Tabs.RootProvider>
       </Box>

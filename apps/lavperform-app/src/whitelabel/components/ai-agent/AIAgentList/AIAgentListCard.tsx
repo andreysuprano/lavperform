@@ -22,7 +22,7 @@ import {
   LuWrench,
   LuZap,
 } from 'react-icons/lu'
-import { RiDeleteBinLine, RiRobot2Line } from 'react-icons/ri'
+import { RiChat3Line, RiDeleteBinLine, RiRobot2Line } from 'react-icons/ri'
 import { useNavigate } from 'react-router-dom'
 
 import { DeleteConfirmationDialog } from '@/components'
@@ -130,6 +130,19 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
                   <Switch.Thumb />
                 </Switch.Control>
               </Switch.Root>
+
+              <IconButton
+                size="sm"
+                variant="ghost"
+                aria-label="Ver conversas"
+                title="Ver conversas"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/whitelabel/ai-agent/${agent.id}?tab=conversas`)
+                }}
+              >
+                <RiChat3Line />
+              </IconButton>
 
               <DeleteConfirmationDialog
                 title="Excluir agente de IA"

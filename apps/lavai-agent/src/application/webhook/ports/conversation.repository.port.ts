@@ -33,6 +33,28 @@ export interface ConversationMessageData {
   createdAt: Date;
 }
 
+/** Resumo de uma conversa para listagem (sem credenciais da instância). */
+export interface ConversationSummaryData {
+  id: string;
+  userName: string;
+  userPhone: string;
+  isGroup: boolean;
+  groupName: string | null;
+  lastMessage: {
+    content: string;
+    role: MessageRole;
+    createdAt: Date;
+  } | null;
+  updatedAt: Date;
+}
+
+export interface PaginatedConversations {
+  data: ConversationSummaryData[];
+  total: number;
+  page: number;
+  limit: number;
+}
+
 // ─── Input types ──────────────────────────────────────────────────────────────
 
 export interface UpsertConversationInput {
@@ -78,4 +100,18 @@ export interface ConversationRepositoryPort {
   findRecentMessages(conversationId: string, limit: number): Promise<ConversationMessageData[]>;
 
   addMessage(input: AddMessageInput): Promise<ConversationMessageData>;
+
+  /**
+   * Lista paginada de conversas do agente, ordenadas por atividade recente,
+   * com a última mensagem visível (USER/ASSISTANT) para preview.
+   */
+  listByAgentId(
+    agentId: string,
+    options: { page: number; limit: number },
+  ): Promise<PaginatedConversations>;
+
+  /**
+   * Mensagens da conversa em ordem cronológica, excluindo mensagens de sistema.
+   */
+  findViewableMessages(conversationId: string): Promise<ConversationMessageData[]>;
 }

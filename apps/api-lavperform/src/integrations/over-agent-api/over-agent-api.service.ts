@@ -201,6 +201,27 @@ export class LavaiAgentApiService {
     return this.request<Record<string, unknown>[]>('get', '/llm/models');
   }
 
+  async listConversations(
+    agentId: string,
+    query: { page?: number; limit?: number } = {},
+  ) {
+    const params = new URLSearchParams();
+    if (query.page) params.set('page', String(query.page));
+    if (query.limit) params.set('limit', String(query.limit));
+    const qs = params.toString();
+    return this.request<Record<string, unknown>>(
+      'get',
+      `/agents/${agentId}/conversations${qs ? `?${qs}` : ''}`,
+    );
+  }
+
+  async listConversationMessages(agentId: string, conversationId: string) {
+    return this.request<Record<string, unknown>[]>(
+      'get',
+      `/agents/${agentId}/conversations/${conversationId}/messages`,
+    );
+  }
+
   async listKnowledgeBases(overAgentCompanyId: string) {
     return this.request<
       Array<{
