@@ -37,13 +37,14 @@ export class AiAgentService {
     private readonly uazapiClient: UazapiClient,
     private readonly configService: ConfigService,
   ) {
+    // URL pública alcançável pela UAZAPI (não use host interno tipo lavai-agent:3000).
     this.aiAgentWebhookBaseUrl =
       this.configService.get<string>('LAVAI_AGENT_WEBHOOK_BASE_URL') ??
       this.configService.get<string>('BASE_URL_AGENTES') ??
-      this.configService.get<string>(
-        'AI_AGENT_WEBHOOK_BASE_URL',
-        'http://localhost:3000',
-      );
+      this.configService.get<string>('AI_AGENT_WEBHOOK_BASE_URL') ??
+      this.configService.get<string>('LAVAI_AGENT_BASE_URL') ??
+      this.configService.get<string>('OVER_AGENT_BASE_URL') ??
+      'http://localhost:3000';
   }
 
   // ─── Helpers ────────────────────────────────────────────────────────────────
