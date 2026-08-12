@@ -1,19 +1,59 @@
 import {
   Badge,
   Card,
+  Circle,
   HStack,
+  Icon,
   IconButton,
+  Stack,
   Switch,
   Text,
 } from '@chakra-ui/react'
 import { memo, useCallback } from 'react'
-import { RiDeleteBinLine } from 'react-icons/ri'
+import type { IconType } from 'react-icons'
+import {
+  LuBriefcase,
+  LuCircle,
+  LuFileText,
+  LuGraduationCap,
+  LuHeart,
+  LuScale,
+  LuSmile,
+  LuWrench,
+  LuZap,
+} from 'react-icons/lu'
+import { RiDeleteBinLine, RiRobot2Line } from 'react-icons/ri'
 import { useNavigate } from 'react-router-dom'
 
 import { DeleteConfirmationDialog } from '@/components'
 import { useToggleAIAgent } from '@/whitelabel/hooks'
+import type {
+  CommunicationStyleType,
+  VoiceToneType,
+} from '@/whitelabel/types'
 
 import type { Props } from './AIAgentListCard.types'
+
+const voiceToneMeta: Record<
+  VoiceToneType,
+  { label: string; icon: IconType }
+> = {
+  FORMAL: { label: 'Formal', icon: LuBriefcase },
+  FRIENDLY: { label: 'Amigável', icon: LuSmile },
+  NEUTRAL: { label: 'Neutro', icon: LuCircle },
+  EMPATHETIC: { label: 'Empático', icon: LuHeart },
+  TECHNICAL: { label: 'Técnico', icon: LuWrench },
+}
+
+const communicationStyleMeta: Record<
+  CommunicationStyleType,
+  { label: string; icon: IconType }
+> = {
+  CONCISE: { label: 'Conciso', icon: LuZap },
+  DETAILED: { label: 'Detalhado', icon: LuFileText },
+  BALANCED: { label: 'Equilibrado', icon: LuScale },
+  INSTRUCTIVE: { label: 'Instrutivo', icon: LuGraduationCap },
+}
 
 function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
   const toggleMutation = useToggleAIAgent()
@@ -23,36 +63,57 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
     toggleMutation.mutate(agent.id)
   }, [toggleMutation, agent.id])
 
+  const voiceTone = agent.persona?.voiceTone
+    ? voiceToneMeta[agent.persona.voiceTone]
+    : undefined
+  const communicationStyle = agent.persona?.communicationStyle
+    ? communicationStyleMeta[agent.persona.communicationStyle]
+    : undefined
+
   return (
     <>
       <Card.Root
-        transition="box-shadow 0.2s ease, transform 0.2s ease"
+        transition="box-shadow 0.2s ease, transform 0.2s ease, border-color 0.2s ease"
         opacity={agent.active ? 1 : 0.75}
-        _hover={{ boxShadow: 'md', transform: 'translateY(-1px)' }}
+        _hover={{
+          boxShadow: 'md',
+          transform: 'translateY(-2px)',
+          borderColor: 'primary.400',
+        }}
         onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}`)}
         cursor="pointer"
       >
         <Card.Header>
           <HStack justify="space-between" align="flex-start" gap={3}>
-            {/* Nome + badge inline */}
-            <HStack gap={2} flex={1} minW={0} overflow="hidden" align="center">
-              <Text
-                fontSize="md"
-                fontWeight="semibold"
-                overflow="hidden"
-                textOverflow="ellipsis"
-                whiteSpace="nowrap"
-                flexShrink={1}
-              >
-                {agent.name}
-              </Text>
-              <Badge
-                colorPalette={agent.active ? 'green' : 'gray'}
-                variant="subtle"
+            {/* Avatar + nome + badge */}
+            <HStack gap={3} flex={1} minW={0} overflow="hidden" align="center">
+              <Circle
+                size={10}
+                bg={agent.active ? 'primary.500' : 'bg.muted'}
+                color={agent.active ? 'primary.contrast' : 'fg.muted'}
                 flexShrink={0}
               >
-                {agent.active ? 'Ativo' : 'Inativo'}
-              </Badge>
+                <Icon as={RiRobot2Line} boxSize={5} />
+              </Circle>
+              <Stack gap={1} flex={1} minW={0}>
+                <Text
+                  fontSize="md"
+                  fontWeight="semibold"
+                  overflow="hidden"
+                  textOverflow="ellipsis"
+                  whiteSpace="nowrap"
+                >
+                  {agent.name}
+                </Text>
+                <Badge
+                  colorPalette={agent.active ? 'green' : 'gray'}
+                  variant="subtle"
+                  size="sm"
+                  alignSelf="flex-start"
+                >
+                  {agent.active ? 'Ativo' : 'Inativo'}
+                </Badge>
+              </Stack>
             </HStack>
 
             {/* Ações */}
@@ -108,17 +169,19 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
           </Card.Body>
         )}
 
-        {(agent.persona?.voiceTone || agent.persona?.communicationStyle) && (
+        {(voiceTone || communicationStyle) && (
           <Card.Footer pt={0}>
             <HStack gap={2} flexWrap="wrap">
-              {agent.persona.voiceTone && (
-                <Badge variant="outline" size="sm">
-                  {agent.persona.voiceTone}
+              {voiceTone && (
+                <Badge variant="outline" size="sm" colorPalette="primary">
+                  <Icon as={voiceTone.icon} boxSize={3.5} />
+                  {voiceTone.label}
                 </Badge>
               )}
-              {agent.persona.communicationStyle && (
-                <Badge variant="outline" size="sm">
-                  {agent.persona.communicationStyle}
+              {communicationStyle && (
+                <Badge variant="outline" size="sm" colorPalette="primary">
+                  <Icon as={communicationStyle.icon} boxSize={3.5} />
+                  {communicationStyle.label}
                 </Badge>
               )}
             </HStack>
