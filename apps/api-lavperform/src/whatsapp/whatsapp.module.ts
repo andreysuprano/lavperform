@@ -12,6 +12,7 @@ import { CompaniesModule } from '../companies/companies.module';
 import { AiAgentModule } from '../ai-agent/ai-agent.module';
 import { UazapiClient } from './uazapi/uazapi.client';
 import { WhatsappInstanceCleanupTasks } from './crons/whatsapp-instance-cleanup-tasks';
+import { WhatsappAgentWebhookSyncTasks } from './crons/whatsapp-agent-webhook-sync.tasks';
 import { workerProviders } from '../common/queue/worker-runtime.config';
 
 @Module({
@@ -33,6 +34,7 @@ import { workerProviders } from '../common/queue/worker-runtime.config';
       ConnectionUpdateListener,
       MessageReceivedListener,
       WhatsappInstanceCleanupTasks,
+      WhatsappAgentWebhookSyncTasks,
     ),
     {
       provide: 'IWhatsappInstanceRepository',

@@ -36,11 +36,20 @@ describe('WhatsappService', () => {
     count: jest.fn(),
   };
 
+  const aiAgentService: any = {
+    ensureActiveAgentWebhook: jest.fn(),
+  };
+
   let service: WhatsappService;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new WhatsappService(uazapiClient, whatsappInstanceRepository, companyRepository);
+    service = new WhatsappService(
+      uazapiClient,
+      whatsappInstanceRepository,
+      companyRepository,
+      aiAgentService,
+    );
   });
 
   describe('createCompanyInstance', () => {
@@ -185,7 +194,7 @@ describe('WhatsappService', () => {
     it('maps uazapi status and updates when changed', async () => {
       whatsappInstanceRepository.findByCompanyId = jest
         .fn()
-        .mockResolvedValue({ id: 'inst1', token: 'tok', status: WhatsappInstanceStatus.PENDING });
+        .mockResolvedValue({ id: 'inst1', token: 'tok', companyId: 'comp1', status: WhatsappInstanceStatus.PENDING });
       uazapiClient.getConnectionState = jest
         .fn()
         .mockResolvedValue({ instance: { status: 'connected', name: 'comp-x' } });
@@ -196,10 +205,26 @@ describe('WhatsappService', () => {
       const result = await service.getInstanceStatus('comp1');
 
       expect(whatsappInstanceRepository.updateStatus).toHaveBeenCalledWith('inst1', WhatsappInstanceStatus.CONNECTED);
+      expect(aiAgentService.ensureActiveAgentWebhook).toHaveBeenCalledWith('comp1');
       expect(result).toEqual({
         status: WhatsappInstanceStatus.CONNECTED,
         message: 'Instância comp-x está connected',
       });
+    });
+
+    it('does not ensure agent webhook when transitioning to a non-connected status', async () => {
+      whatsappInstanceRepository.findByCompanyId = jest
+        .fn()
+        .mockResolvedValue({ id: 'inst3', token: 'tok', companyId: 'comp1', status: WhatsappInstanceStatus.CONNECTED });
+      uazapiClient.getConnectionState = jest
+        .fn()
+        .mockResolvedValue({ instance: { status: 'connecting', name: 'inst' } });
+      whatsappInstanceRepository.updateStatus = jest.fn().mockResolvedValue({});
+
+      await service.getInstanceStatus('comp1');
+
+      expect(whatsappInstanceRepository.updateStatus).toHaveBeenCalledWith('inst3', WhatsappInstanceStatus.PENDING);
+      expect(aiAgentService.ensureActiveAgentWebhook).not.toHaveBeenCalled();
     });
 
     it('returns disconnected when uazapi state is disconnected', async () => {

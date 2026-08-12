@@ -1,4 +1,4 @@
-import { Injectable, ConflictException, NotFoundException, Inject } from '@nestjs/common';
+import { Injectable, ConflictException, NotFoundException, Inject, forwardRef, Logger } from '@nestjs/common';
 import { CreateCompanyInstanceResponseDto } from './dto/create-company-instance-response.dto';
 import { InstanceConnectionResponseDto } from './dto/instance-connection-response.dto';
 import { InstanceStatusResponseDto } from './dto/instance-status-response.dto';
@@ -7,15 +7,20 @@ import { MessageTextWithImageResponse } from './dto/message-text-with-image-resp
 import { IWhatsappInstanceRepository } from '../domain/whatsapp-instance.repository.interface';
 import { ICompanyRepository } from '../../companies/domain/company.repository.interface';
 import { UazapiClient } from '../uazapi/uazapi.client';
+import { AiAgentService } from '../../ai-agent/application/ai-agent.service';
 
 @Injectable()
 export class WhatsappService {
+  private readonly logger = new Logger(WhatsappService.name);
+
   constructor(
     private readonly uazapiClient: UazapiClient,
     @Inject('IWhatsappInstanceRepository')
     private readonly whatsappInstanceRepository: IWhatsappInstanceRepository,
     @Inject('ICompanyRepository')
     private readonly companyRepository: ICompanyRepository,
+    @Inject(forwardRef(() => AiAgentService))
+    private readonly aiAgentService: AiAgentService,
   ) { }
 
   private generateInstanceName(companyName: string): string {
@@ -160,6 +165,18 @@ export class WhatsappService {
     // Se o status for diferente, atualiza no banco
     if (mappedStatus !== instance.status) {
       await this.whatsappInstanceRepository.updateStatus(instance.id, mappedStatus);
+
+      // Na transição para CONNECTED, garante o webhook do agente ativo mesmo
+      // que o evento `connection` da UAZAPI não tenha sido entregue.
+      if (mappedStatus === WhatsappInstanceStatus.CONNECTED) {
+        try {
+          await this.aiAgentService.ensureActiveAgentWebhook(instance.companyId);
+        } catch (error: any) {
+          this.logger.error(
+            `Falha ao garantir webhook do agente para company ${instance.companyId}: ${error?.message}`,
+          );
+        }
+      }
     }
 
     return {

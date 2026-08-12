@@ -90,13 +90,47 @@ export class AiAgentService {
     }
 
     const webhookUrl = this.buildAgentWebhookUrl(overAgentCompanyId, agentId);
+    const webhookPathSuffix = `/webhooks/${overAgentCompanyId}/${agentId}`;
 
     const existingWebhooks = await this.uazapiClient.getWebhooks(whatsappInstance.token);
+
     if (existingWebhooks.some((webhook) => webhook.url === webhookUrl)) {
       this.logger.log(
         `Webhook do agente ${agentId} já existe na instância ${whatsappInstance.name}: ${webhookUrl}`,
       );
       return;
+    }
+
+    // Webhooks que apontam para este agente mas com URL base incorreta
+    // (ex.: localhost gravado antes de configurar a URL pública). Precisam ser
+    // removidos antes de recriar com a URL correta.
+    const staleWebhooks = existingWebhooks.filter(
+      (webhook) =>
+        typeof webhook.url === 'string' &&
+        webhook.url.endsWith(webhookPathSuffix) &&
+        webhook.url !== webhookUrl,
+    );
+
+    for (const stale of staleWebhooks) {
+      if (!stale.id) {
+        continue;
+      }
+      try {
+        await this.uazapiClient.setWebhook(
+          whatsappInstance.token,
+          stale.url ?? webhookUrl,
+          ['messages'],
+          { action: 'delete', id: stale.id },
+        );
+        this.logger.log(
+          `Webhook desatualizado do agente ${agentId} removido da instância ${whatsappInstance.name}: ${stale.url}`,
+        );
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `Falha ao remover webhook desatualizado do agente ${agentId} (${stale.url}): ${message}`,
+        );
+      }
     }
 
     await this.uazapiClient.setWebhook(
