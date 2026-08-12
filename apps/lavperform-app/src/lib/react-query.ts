@@ -231,6 +231,8 @@ export const queryKeys = {
           companyId,
           agentId,
         ] as const,
+      mcpServers: (agentId: string) =>
+        ['whitelabel', 'ai-agent', 'mcp-servers', agentId] as const,
     },
     landingPage: {
       config: (companyId: string) =>
@@ -313,5 +315,10 @@ export const invalidateQueries = {
   aiAgentKnowledgeFiles: (companyId: string, agentId: string) =>
     queryClient.invalidateQueries({
       queryKey: queryKeys.whitelabel.aiAgent.knowledgeFiles(companyId, agentId),
+    }),
+
+  aiAgentMcpServers: (agentId: string) =>
+    queryClient.invalidateQueries({
+      queryKey: queryKeys.whitelabel.aiAgent.mcpServers(agentId),
     }),
 }

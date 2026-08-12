@@ -9,6 +9,12 @@ const AIAgentConfigPage = lazy(() =>
   }))
 )
 
+const AIAgentDetailPage = lazy(() =>
+  import('../pages/AIAgentDetailPage').then((module) => ({
+    default: module.AIAgentDetailPage,
+  }))
+)
+
 const LandingPageIndexPage = lazy(() =>
   import('../pages/LandingPageIndexPage').then((module) => ({
     default: module.LandingPageIndexPage,
@@ -83,6 +89,10 @@ export function WhitelabelRoutes() {
         <Route
           path="/ai-agent"
           element={<AIAgentConfigPage />}
+        />
+        <Route
+          path="/ai-agent/:agentId"
+          element={<AIAgentDetailPage />}
         />
         <Route
           path="/weather"

@@ -161,6 +161,14 @@ export class LavaiAgentApiService {
     );
   }
 
+  async updateJourneyConfig(agentId: string, dto: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(
+      'patch',
+      `/agents/${agentId}/journey-config`,
+      dto,
+    );
+  }
+
   async createMcpServer(agentId: string, dto: Record<string, unknown>) {
     return this.request<Record<string, unknown>>(
       'post',

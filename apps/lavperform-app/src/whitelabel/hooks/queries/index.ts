@@ -1,6 +1,7 @@
 export * from './useAIAgentConfig'
 export * from './useUpdateAIAgentConfig'
 export * from './useAIAgent'
+export * from './useAIAgentMcp'
 export * from './useLandingPage'
 export * from './useAIAgentKnowledgeBase'
 export * from './useWeatherConfig'

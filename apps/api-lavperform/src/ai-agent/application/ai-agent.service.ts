@@ -14,6 +14,7 @@ import { UpdateModelConfigDto } from './dto/update-model-config.dto';
 import { UpdateMemoryConfigDto } from './dto/update-memory-config.dto';
 import { UpdateMediaConfigDto } from './dto/update-media-config.dto';
 import { UpdateFilterConfigDto } from './dto/update-filter-config.dto';
+import { UpdateJourneyConfigDto } from './dto/update-journey-config.dto';
 import { UpdateNotificationConfigDto } from './dto/update-notification-config.dto';
 import { CreateMcpServerDto } from './dto/create-mcp-server.dto';
 import { UpdateMcpServerDto } from './dto/update-mcp-server.dto';
@@ -301,6 +302,32 @@ export class AiAgentService {
       agentId,
       dto as unknown as Record<string, unknown>,
     );
+  }
+
+  async updateJourneyConfig(agentId: string, dto: UpdateJourneyConfigDto) {
+    return this.lavaiAgentApi.updateJourneyConfig(
+      agentId,
+      dto as unknown as Record<string, unknown>,
+    );
+  }
+
+  // ─── Webhook ──────────────────────────────────────────────────────────────
+
+  async updateAgentWebhook(companyId: string, agentId: string) {
+    const agent = (await this.getAgent(agentId)) as unknown as OverAgentAgent;
+
+    if (!agent) {
+      throw new NotFoundException('Agente não encontrado');
+    }
+
+    const overAgentCompanyId = await this.getOverAgentCompanyId(companyId);
+    if (agent.companyId !== overAgentCompanyId) {
+      throw new NotFoundException('Agente não pertence a esta empresa');
+    }
+
+    await this.setupAgentWebhook(companyId, agent);
+
+    return { success: true, message: 'Webhook do agente atualizado com sucesso.' };
   }
 
   // ─── MCP Servers ─────────────────────────────────────────────────────────────

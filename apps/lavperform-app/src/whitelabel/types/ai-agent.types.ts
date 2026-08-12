@@ -94,6 +94,62 @@ export interface AIAgentNotificationConfig {
   helpNotificationPhone?: string
 }
 
+// ─── Filtros ─────────────────────────────────────────────────────────────────
+
+export interface AIAgentFilterConfig {
+  allowedPhones?: string[]
+  allowedGroups?: string[]
+  triggerEnabled?: boolean
+  triggerWords?: string[]
+  triggerCaseSensitive?: boolean
+  triggerRemoveFromText?: boolean
+}
+
+// ─── Jornada ─────────────────────────────────────────────────────────────────
+
+export type JourneyTrigger = 'FIRST_MESSAGE' | 'MENU_LINK_SENT' | 'MANUAL'
+
+export type FollowUpStepDelayFrom = 'JOURNEY_START' | 'PREVIOUS_STEP'
+
+export interface FollowUpStep {
+  id: string
+  delayMinutes: number
+  delayFrom: FollowUpStepDelayFrom
+  message: string
+  askForHelp: boolean
+  active: boolean
+}
+
+export interface AIAgentJourneyConfig {
+  enabled?: boolean
+  journeyTrigger?: JourneyTrigger
+  followUpEnabled?: boolean
+  cancelOnReply?: boolean
+  followUpSteps?: FollowUpStep[]
+  helpKeywords?: string[]
+  helpAutoEscalate?: boolean
+  helpAckMessage?: string | null
+  purchaseWebhookEnabled?: boolean
+}
+
+// ─── MCP ─────────────────────────────────────────────────────────────────────
+
+export type McpTransport = 'STDIO' | 'SSE'
+
+export interface AIAgentMcpServer {
+  id: string
+  name: string
+  transport: McpTransport
+  enabled: boolean
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
+  url?: string
+  headers?: Record<string, string>
+  createdAt: string
+  updatedAt?: string
+}
+
 // ─── AIAgent entity ──────────────────────────────────────────────────────────
 
 export interface AIAgent {
@@ -108,6 +164,9 @@ export interface AIAgent {
   memoryConfig?: AIAgentMemoryConfig
   mediaConfig?: AIAgentMediaConfig
   notificationConfig?: AIAgentNotificationConfig
+  filterConfig?: AIAgentFilterConfig
+  journeyConfig?: AIAgentJourneyConfig
+  mcpServers?: AIAgentMcpServer[]
   createdAt?: string
   updatedAt?: string
 }
@@ -148,6 +207,23 @@ export type UpdateAIAgentMediaConfigPayload = Partial<AIAgentMediaConfig>
 
 export type UpdateAIAgentNotificationConfigPayload =
   Partial<AIAgentNotificationConfig>
+
+export type UpdateAIAgentFilterConfigPayload = Partial<AIAgentFilterConfig>
+
+export type UpdateAIAgentJourneyConfigPayload = Partial<AIAgentJourneyConfig>
+
+export interface CreateAIAgentMcpServerPayload {
+  name: string
+  transport: McpTransport
+  enabled?: boolean
+  command?: string
+  args?: string[]
+  env?: Record<string, string>
+  url?: string
+  headers?: Record<string, string>
+}
+
+export type UpdateAIAgentMcpServerPayload = Partial<CreateAIAgentMcpServerPayload>
 
 // ─── Knowledge base ──────────────────────────────────────────────────────────
 

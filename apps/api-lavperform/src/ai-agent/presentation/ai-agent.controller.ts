@@ -19,6 +19,7 @@ import { UpdateModelConfigDto } from '../application/dto/update-model-config.dto
 import { UpdateMemoryConfigDto } from '../application/dto/update-memory-config.dto';
 import { UpdateMediaConfigDto } from '../application/dto/update-media-config.dto';
 import { UpdateFilterConfigDto } from '../application/dto/update-filter-config.dto';
+import { UpdateJourneyConfigDto } from '../application/dto/update-journey-config.dto';
 import { UpdateNotificationConfigDto } from '../application/dto/update-notification-config.dto';
 import { CreateMcpServerDto } from '../application/dto/create-mcp-server.dto';
 import { UpdateMcpServerDto } from '../application/dto/update-mcp-server.dto';
@@ -145,6 +146,29 @@ export class AiAgentController {
     @Body() dto: UpdateNotificationConfigDto,
   ) {
     return this.aiAgentService.updateNotificationConfig(agentId, dto);
+  }
+
+  @Patch('ai-agents/:agentId/journey-config')
+  @ApiOperation({ summary: 'Atualizar configuração de jornada do cliente' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no over-agent' })
+  updateJourneyConfig(
+    @Param('agentId') agentId: string,
+    @Body() dto: UpdateJourneyConfigDto,
+  ) {
+    return this.aiAgentService.updateJourneyConfig(agentId, dto);
+  }
+
+  @Post('companies/:companyId/ai-agents/:agentId/webhook')
+  @ApiOperation({
+    summary: 'Reconfigurar (atualizar) o webhook do agente na instância WhatsApp',
+  })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no over-agent' })
+  updateAgentWebhook(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.aiAgentService.updateAgentWebhook(companyId, agentId);
   }
 
   // ─── MCP Servers ─────────────────────────────────────────────────────────

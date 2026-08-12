@@ -1,8 +1,13 @@
 import type {
   AIAgent,
   AIAgentKnowledgeFileResponse,
+  AIAgentMcpServer,
+  CreateAIAgentMcpServerPayload,
   CreateAIAgentPayload,
   CreateKnowledgeFilePayload,
+  UpdateAIAgentFilterConfigPayload,
+  UpdateAIAgentJourneyConfigPayload,
+  UpdateAIAgentMcpServerPayload,
   UpdateAIAgentMediaConfigPayload,
   UpdateAIAgentNotificationConfigPayload,
   UpdateAIAgentPayload,
@@ -69,6 +74,67 @@ export const aiAgentService = {
       `/ai-agents/${agentId}/notification-config`,
       data
     )
+  },
+
+  async updateAgentFilterConfig(
+    agentId: string,
+    data: UpdateAIAgentFilterConfigPayload
+  ) {
+    return await client.patch<AIAgent>(
+      `/ai-agents/${agentId}/filter-config`,
+      data
+    )
+  },
+
+  async updateAgentJourneyConfig(
+    agentId: string,
+    data: UpdateAIAgentJourneyConfigPayload
+  ) {
+    return await client.patch<AIAgent>(
+      `/ai-agents/${agentId}/journey-config`,
+      data
+    )
+  },
+
+  async updateAgentWebhook(companyId: string, agentId: string) {
+    return await client.post<{ success: boolean; message: string }>(
+      `/companies/${companyId}/ai-agents/${agentId}/webhook`
+    )
+  },
+
+  // ─── MCP Servers ─────────────────────────────────────────────────────────
+
+  async listMcpServers(agentId: string) {
+    return await client.get<AIAgentMcpServer[]>(
+      `/ai-agents/${agentId}/mcp-servers`
+    )
+  },
+
+  async createMcpServer(agentId: string, data: CreateAIAgentMcpServerPayload) {
+    return await client.post<AIAgentMcpServer>(
+      `/ai-agents/${agentId}/mcp-servers`,
+      data
+    )
+  },
+
+  async updateMcpServer(
+    mcpServerId: string,
+    data: UpdateAIAgentMcpServerPayload
+  ) {
+    return await client.patch<AIAgentMcpServer>(
+      `/mcp-servers/${mcpServerId}`,
+      data
+    )
+  },
+
+  async toggleMcpServer(mcpServerId: string) {
+    return await client.patch<AIAgentMcpServer>(
+      `/mcp-servers/${mcpServerId}/toggle`
+    )
+  },
+
+  async deleteMcpServer(mcpServerId: string) {
+    return await client.delete(`/mcp-servers/${mcpServerId}`)
   },
 
   async listKnowledgeFiles(companyId: string, agentId: string) {

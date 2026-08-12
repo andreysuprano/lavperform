@@ -6,18 +6,18 @@ import {
   Switch,
   Text,
 } from '@chakra-ui/react'
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback } from 'react'
 import { RiDeleteBinLine } from 'react-icons/ri'
+import { useNavigate } from 'react-router-dom'
 
 import { DeleteConfirmationDialog } from '@/components'
 import { useToggleAIAgent } from '@/whitelabel/hooks'
 
-import { AIAgentEditDrawer } from '../AIAgentEditDrawer'
 import type { Props } from './AIAgentListCard.types'
 
 function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
   const toggleMutation = useToggleAIAgent()
-  const [isEditOpen, setIsEditOpen] = useState(false)
+  const navigate = useNavigate()
 
   const handleToggle = useCallback(() => {
     toggleMutation.mutate(agent.id)
@@ -29,8 +29,8 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
         transition="box-shadow 0.2s ease, transform 0.2s ease"
         opacity={agent.active ? 1 : 0.75}
         _hover={{ boxShadow: 'md', transform: 'translateY(-1px)' }}
-        onClick={() => setIsEditOpen(true)}
-        cursor="pointer"  
+        onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}`)}
+        cursor="pointer"
       >
         <Card.Header>
           <HStack justify="space-between" align="flex-start" gap={3}>
@@ -125,14 +125,6 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
           </Card.Footer>
         )}
       </Card.Root>
-
-      {isEditOpen && (
-        <AIAgentEditDrawer
-          agent={agent}
-          isOpen={isEditOpen}
-          onClose={() => setIsEditOpen(false)}
-        />
-      )}
     </>
   )
 }

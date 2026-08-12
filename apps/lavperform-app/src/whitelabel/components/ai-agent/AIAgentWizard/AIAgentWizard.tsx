@@ -3,6 +3,7 @@ import { yupResolver } from '@hookform/resolvers/yup'
 import { memo, useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { RiArrowLeftLine, RiArrowRightLine, RiCheckLine } from 'react-icons/ri'
+import { useNavigate } from 'react-router-dom'
 import * as yup from 'yup'
 
 import { CustomDrawer } from '@/components'
@@ -51,6 +52,7 @@ const step2Schema = yup.object({
 
 function AIAgentWizardBase({ onClose }: Props) {
   const { colorPalette } = useWhiteLabel()
+  const navigate = useNavigate()
 
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
@@ -163,6 +165,7 @@ function AIAgentWizardBase({ onClose }: Props) {
       })
 
       onClose()
+      navigate(`/whitelabel/ai-agent/${agent.id}`)
     } finally {
       setIsSubmitting(false)
     }
@@ -175,6 +178,7 @@ function AIAgentWizardBase({ onClose }: Props) {
     updatePersona,
     updateMediaConfig,
     onClose,
+    navigate,
   ])
 
   const handleBack = useCallback(() => {
