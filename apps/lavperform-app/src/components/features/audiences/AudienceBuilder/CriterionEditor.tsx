@@ -1,11 +1,12 @@
 import {
   Box,
   Button,
-  Checkbox,
+  createListCollection,
   Field,
   HStack,
   Input,
   NativeSelect,
+  Select,
   Stack,
   Text,
 } from '@chakra-ui/react'
@@ -67,6 +68,22 @@ export function CriterionEditor({
   }, [criterion.type])
 
   const helper = CRITERION_HELPERS[criterion.type]
+
+  const dddCollection = useMemo(
+    () =>
+      createListCollection({
+        items: dddOptions.map((ddd) => ({
+          value: ddd,
+          label: `DDD ${ddd}`,
+        })),
+      }),
+    [dddOptions],
+  )
+
+  const selectedDdds = useMemo(
+    () => (Array.isArray(criterion.value) ? (criterion.value as string[]) : []),
+    [criterion.value],
+  )
 
   const handleTypeChange = (type: CriterionType) => {
     switch (type) {
@@ -300,54 +317,42 @@ export function CriterionEditor({
               Nenhum DDD encontrado nos telefones dos seus clientes.
             </Text>
           ) : (
-            <Stack gap={2}>
-              <Box
-                borderWidth="1px"
-                borderRadius="md"
-                maxH="220px"
-                overflowY="auto"
-                p={2}
+            <>
+              <Select.Root
+                collection={dddCollection}
+                multiple
+                onValueChange={({ value }) =>
+                  onChange({ ...criterion, value })
+                }
+                value={selectedDdds}
               >
-                <Stack gap={1}>
-                  {dddOptions.map((option) => {
-                    const selected = Array.isArray(criterion.value)
-                      ? (criterion.value as string[])
-                      : []
-                    const checked = selected.includes(option)
-
-                    return (
-                      <Checkbox.Root
-                        _hover={{ bg: 'bg.emphasized' }}
-                        checked={checked}
-                        cursor="pointer"
-                        key={option}
-                        onCheckedChange={() => {
-                          const next = checked
-                            ? selected.filter((item) => item !== option)
-                            : [...selected, option]
-                          onChange({ ...criterion, value: next })
-                        }}
-                        px={2}
-                        py={1.5}
-                        rounded="md"
-                        w="full"
+                <Select.HiddenSelect />
+                <Select.Control>
+                  <Select.Trigger>
+                    <Select.ValueText placeholder="Selecione um ou mais DDDs" />
+                  </Select.Trigger>
+                  <Select.IndicatorGroup>
+                    <Select.Indicator />
+                  </Select.IndicatorGroup>
+                </Select.Control>
+                <Select.Positioner>
+                  <Select.Content maxH="280px">
+                    {dddCollection.items.map((item) => (
+                      <Select.Item
+                        item={item}
+                        key={item.value}
                       >
-                        <Checkbox.HiddenInput />
-                        <Checkbox.Control />
-                        <Checkbox.Label fontSize="sm">DDD {option}</Checkbox.Label>
-                      </Checkbox.Root>
-                    )
-                  })}
-                </Stack>
-              </Box>
+                        {item.label}
+                        <Select.ItemIndicator />
+                      </Select.Item>
+                    ))}
+                  </Select.Content>
+                </Select.Positioner>
+              </Select.Root>
               <Field.HelperText>
                 Selecione um ou mais DDDs.
-                {Array.isArray(criterion.value) &&
-                (criterion.value as string[]).length > 0
-                  ? ` Selecionados: ${(criterion.value as string[]).join(', ')}.`
-                  : null}
               </Field.HelperText>
-            </Stack>
+            </>
           )}
         </Field.Root>
       )}
