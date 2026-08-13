@@ -81,8 +81,11 @@ export const queryKeys = {
       ['audiences', 'detail', companyId, audienceId] as const,
     criteria: (companyId: string) =>
       ['audiences', 'criteria', companyId] as const,
-    preview: (companyId: string, definition: unknown) =>
-      ['audiences', 'preview', companyId, definition] as const,
+    preview: (
+      companyId: string,
+      definition: unknown,
+      params: { page?: number; limit?: number } = {},
+    ) => ['audiences', 'preview', companyId, definition, params] as const,
   },
 
   campaigns: {

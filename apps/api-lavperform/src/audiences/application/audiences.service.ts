@@ -116,7 +116,10 @@ export class AudiencesService {
 
   async preview(companyId: string, dto: PreviewAudienceDto) {
     const definition = this.parseDefinition(dto.definition);
-    return this.audienceQueryEngine.previewCustomers(companyId, definition);
+    return this.audienceQueryEngine.previewCustomers(companyId, definition, {
+      page: dto.page,
+      limit: dto.limit,
+    });
   }
 
   async count(companyId: string, id: string) {

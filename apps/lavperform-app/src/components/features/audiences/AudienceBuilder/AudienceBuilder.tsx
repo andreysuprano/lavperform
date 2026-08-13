@@ -39,15 +39,24 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
   const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([])
   const [cityOptions, setCityOptions] = useState<string[]>([])
   const [dddOptions, setDddOptions] = useState<string[]>([])
+  const [previewPage, setPreviewPage] = useState(1)
   const scrollAreaRef = useRef<HTMLDivElement>(null)
+  const previewPageLimit = 50
 
   const createAudience = useCreateAudience()
   const updateAudience = useUpdateAudience()
-  const previewQuery = useAudiencePreview(companyId, definition)
+  const previewQuery = useAudiencePreview(companyId, definition, true, {
+    page: previewPage,
+    limit: previewPageLimit,
+  })
 
   useEffect(() => {
     scrollAreaRef.current?.scrollTo({ top: 0 })
   }, [step])
+
+  useEffect(() => {
+    setPreviewPage(1)
+  }, [definition])
 
   useEffect(() => {
     if (!companyId) return
@@ -252,8 +261,10 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
             definition={definition}
             description={description}
             name={name}
+            onPreviewPageChange={setPreviewPage}
             previewCount={previewQuery.data?.count}
             previewLoading={previewQuery.isFetching}
+            previewMeta={previewQuery.data?.meta}
             sample={previewQuery.data?.sample}
           />
         </Steps.Content>

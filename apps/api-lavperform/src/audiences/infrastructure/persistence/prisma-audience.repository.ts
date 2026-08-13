@@ -174,7 +174,8 @@ export class AudiencePrismaRepository implements IAudienceRepository {
           WHERE "companyId" = ${companyId}
             AND phone IS NOT NULL
             AND phone LIKE '55%'
-            AND LENGTH(phone) >= 12
+            AND LENGTH(phone) IN (12, 13)
+            AND phone ~ '^[0-9]+$'
             AND SUBSTRING(phone FROM 3 FOR 2) LIKE ${`${searchDigits}%`}
           ORDER BY ddd ASC
           LIMIT 70
@@ -185,7 +186,8 @@ export class AudiencePrismaRepository implements IAudienceRepository {
           WHERE "companyId" = ${companyId}
             AND phone IS NOT NULL
             AND phone LIKE '55%'
-            AND LENGTH(phone) >= 12
+            AND LENGTH(phone) IN (12, 13)
+            AND phone ~ '^[0-9]+$'
           ORDER BY ddd ASC
           LIMIT 70
         `;

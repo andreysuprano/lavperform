@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  Checkbox,
   Field,
   HStack,
   Input,
@@ -291,30 +292,63 @@ export function CriterionEditor({
       {criterion.type === 'phone_ddd' && (
         <Field.Root>
           <Field.Label>DDDs</Field.Label>
-          <NativeSelect.Root multiple>
-            <NativeSelect.Field
-              onChange={(event) => {
-                const selected = Array.from(event.currentTarget.selectedOptions).map(
-                  (option) => option.value,
-                )
-                onChange({ ...criterion, value: selected })
-              }}
-              value={(criterion.value as string[]) ?? []}
+          {dddOptions.length === 0 ? (
+            <Text
+              color="fg.muted"
+              fontSize="sm"
             >
-              {dddOptions.map((option) => (
-                <option
-                  key={option}
-                  value={option}
-                >
-                  {option}
-                </option>
-              ))}
-            </NativeSelect.Field>
-          </NativeSelect.Root>
-          <Field.HelperText>
-            Segure Ctrl (ou Cmd) para escolher mais de um DDD. Lista baseada nos
-            telefones dos clientes da empresa.
-          </Field.HelperText>
+              Nenhum DDD encontrado nos telefones dos seus clientes.
+            </Text>
+          ) : (
+            <Stack gap={2}>
+              <Box
+                borderWidth="1px"
+                borderRadius="md"
+                maxH="220px"
+                overflowY="auto"
+                p={2}
+              >
+                <Stack gap={1}>
+                  {dddOptions.map((option) => {
+                    const selected = Array.isArray(criterion.value)
+                      ? (criterion.value as string[])
+                      : []
+                    const checked = selected.includes(option)
+
+                    return (
+                      <Checkbox.Root
+                        _hover={{ bg: 'bg.emphasized' }}
+                        checked={checked}
+                        cursor="pointer"
+                        key={option}
+                        onCheckedChange={() => {
+                          const next = checked
+                            ? selected.filter((item) => item !== option)
+                            : [...selected, option]
+                          onChange({ ...criterion, value: next })
+                        }}
+                        px={2}
+                        py={1.5}
+                        rounded="md"
+                        w="full"
+                      >
+                        <Checkbox.HiddenInput />
+                        <Checkbox.Control />
+                        <Checkbox.Label fontSize="sm">DDD {option}</Checkbox.Label>
+                      </Checkbox.Root>
+                    )
+                  })}
+                </Stack>
+              </Box>
+              <Field.HelperText>
+                Selecione um ou mais DDDs.
+                {Array.isArray(criterion.value) &&
+                (criterion.value as string[]).length > 0
+                  ? ` Selecionados: ${(criterion.value as string[]).join(', ')}.`
+                  : null}
+              </Field.HelperText>
+            </Stack>
+          )}
         </Field.Root>
       )}
 

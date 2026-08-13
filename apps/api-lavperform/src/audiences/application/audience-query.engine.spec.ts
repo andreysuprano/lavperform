@@ -210,4 +210,56 @@ describe('AudienceQueryEngine', () => {
       'DDD inválido',
     );
   });
+
+  it('paginates previewCustomers sample and meta', async () => {
+    const allIds = Array.from({ length: 55 }, (_, index) => ({ id: `c${index + 1}` }));
+    prisma.customer.findMany
+      .mockResolvedValueOnce(allIds)
+      .mockResolvedValueOnce(
+        allIds.slice(50, 55).map((row) => ({
+          ...row,
+          name: row.id,
+          phone: null,
+          email: null,
+          rfvClassification: null,
+          address: null,
+        })),
+      );
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [{ type: 'has_orders', operator: 'eq', value: true }],
+      },
+    };
+
+    const result = await engine.previewCustomers('company-1', definition, {
+      page: 2,
+      limit: 50,
+    });
+
+    expect(result.count).toBe(55);
+    expect(result.sample).toHaveLength(5);
+    expect(result.sample.map((row) => row.id)).toEqual([
+      'c51',
+      'c52',
+      'c53',
+      'c54',
+      'c55',
+    ]);
+    expect(result.meta).toEqual({
+      total: 55,
+      page: 2,
+      limit: 50,
+      totalPages: 2,
+      hasNextPage: false,
+      hasPreviousPage: true,
+    });
+    expect(prisma.customer.findMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['c51', 'c52', 'c53', 'c54', 'c55'] } },
+      }),
+    );
+  });
 });

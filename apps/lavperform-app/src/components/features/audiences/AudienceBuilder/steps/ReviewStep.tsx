@@ -1,6 +1,20 @@
-import { Box, Stack, Table, Text } from '@chakra-ui/react'
+import {
+  Box,
+  ButtonGroup,
+  Flex,
+  IconButton,
+  Pagination,
+  Stack,
+  Table,
+  Text,
+} from '@chakra-ui/react'
+import { RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri'
 
-import type { AudienceDefinition, AudiencePreviewCustomer } from '@/types'
+import type {
+  AudienceDefinition,
+  AudiencePreviewCustomer,
+  AudiencePreviewResponse,
+} from '@/types'
 
 import { PreviewBox, StepIntro } from '../CriterionEditor'
 import { formatClientType, summarizeAudienceDefinition } from '../audienceCopy'
@@ -12,6 +26,8 @@ type Props = {
   previewCount?: number
   previewLoading?: boolean
   sample?: AudiencePreviewCustomer[]
+  previewMeta?: AudiencePreviewResponse['meta']
+  onPreviewPageChange?: (page: number) => void
 }
 
 export function ReviewStep({
@@ -21,8 +37,13 @@ export function ReviewStep({
   previewCount,
   previewLoading,
   sample = [],
+  previewMeta,
+  onPreviewPageChange,
 }: Props) {
   const { includeSummary, excludeSummary } = summarizeAudienceDefinition(definition)
+  const showPagination = Boolean(
+    previewMeta && previewMeta.totalPages > 1 && onPreviewPageChange,
+  )
 
   return (
     <Stack gap={4}>
@@ -88,13 +109,68 @@ export function ReviewStep({
 
       {sample.length ? (
         <Stack gap={2}>
-          <Text
-            color="fg.muted"
-            fontSize="sm"
+          <Flex
+            align="center"
+            gap={2}
+            justify="space-between"
+            wrap="wrap"
           >
-            Alguns clientes que entram nessa lista
-          </Text>
-          <Box overflowX="auto">
+            <Text
+              color="fg.muted"
+              fontSize="sm"
+            >
+              Clientes nesta lista
+              {previewMeta
+                ? ` — página ${previewMeta.page} de ${previewMeta.totalPages}`
+                : null}
+            </Text>
+            {showPagination && previewMeta && onPreviewPageChange ? (
+              <Flex
+                align="center"
+                flexShrink={0}
+                gap={2}
+                justify="flex-end"
+              >
+                <Pagination.Root
+                  count={previewMeta.total}
+                  onPageChange={(details) => onPreviewPageChange(details.page)}
+                  page={previewMeta.page}
+                  pageSize={previewMeta.limit}
+                  siblingCount={0}
+                >
+                  <ButtonGroup
+                    attached
+                    size="sm"
+                    variant="outline"
+                  >
+                    <Pagination.PrevTrigger asChild>
+                      <IconButton
+                        aria-label="Página anterior"
+                        disabled={!previewMeta.hasPreviousPage}
+                        variant="ghost"
+                      >
+                        <RiArrowLeftSLine />
+                      </IconButton>
+                    </Pagination.PrevTrigger>
+                    <Pagination.NextTrigger asChild>
+                      <IconButton
+                        aria-label="Próxima página"
+                        disabled={!previewMeta.hasNextPage}
+                        variant="ghost"
+                      >
+                        <RiArrowRightSLine />
+                      </IconButton>
+                    </Pagination.NextTrigger>
+                  </ButtonGroup>
+                </Pagination.Root>
+              </Flex>
+            ) : null}
+          </Flex>
+          <Box
+            maxH="360px"
+            overflowX="auto"
+            overflowY="auto"
+          >
             <Table.Root size="sm">
               <Table.Header>
                 <Table.Row>

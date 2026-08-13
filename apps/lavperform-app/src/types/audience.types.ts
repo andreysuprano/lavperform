@@ -73,6 +73,14 @@ export interface AudiencePreviewCustomer {
 export interface AudiencePreviewResponse {
   count: number
   sample: AudiencePreviewCustomer[]
+  meta: {
+    total: number
+    page: number
+    limit: number
+    totalPages: number
+    hasNextPage: boolean
+    hasPreviousPage: boolean
+  }
 }
 
 export interface AudienceCriteriaMetadata {

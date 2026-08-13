@@ -50,13 +50,20 @@ export class AudienceQueryEngine {
   async previewCustomers(
     companyId: string,
     definition: AudienceDefinition,
-    sampleLimit = 10,
+    options: { page?: number; limit?: number } = {},
   ) {
+    const page = Math.max(1, Math.floor(options.page ?? 1));
+    const limit = Math.min(100, Math.max(1, Math.floor(options.limit ?? 50)));
     const ids = await this.resolveCustomerIds(companyId, definition);
+    const count = ids.length;
+    const totalPages = count === 0 ? 0 : Math.ceil(count / limit);
+    const safePage = totalPages === 0 ? 1 : Math.min(page, totalPages);
+    const offset = (safePage - 1) * limit;
+    const pageIds = ids.slice(offset, offset + limit);
 
-    const sample = ids.length
+    const rows = pageIds.length
       ? await this.prisma.customer.findMany({
-          where: { id: { in: ids.slice(0, sampleLimit) } },
+          where: { id: { in: pageIds } },
           select: {
             id: true,
             name: true,
@@ -70,7 +77,23 @@ export class AudienceQueryEngine {
         })
       : [];
 
-    return { count: ids.length, sample };
+    const byId = new Map(rows.map((row) => [row.id, row]));
+    const sample = pageIds
+      .map((id) => byId.get(id))
+      .filter((row): row is (typeof rows)[number] => Boolean(row));
+
+    return {
+      count,
+      sample,
+      meta: {
+        total: count,
+        page: safePage,
+        limit,
+        totalPages,
+        hasNextPage: safePage < totalPages,
+        hasPreviousPage: safePage > 1,
+      },
+    };
   }
 
   private async resolveRuleGroupIds(
