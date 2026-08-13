@@ -163,4 +163,35 @@ export class AudiencePrismaRepository implements IAudienceRepository {
 
     return rows.map((row) => row.city).filter((value): value is string => Boolean(value));
   }
+
+  async findDistinctDdds(companyId: string, search?: string) {
+    const searchDigits = search?.replace(/\D/g, '').slice(0, 2) ?? '';
+
+    const rows = searchDigits
+      ? await this.prisma.$queryRaw<Array<{ ddd: string }>>`
+          SELECT DISTINCT SUBSTRING(phone FROM 3 FOR 2) AS ddd
+          FROM "Customer"
+          WHERE "companyId" = ${companyId}
+            AND phone IS NOT NULL
+            AND phone LIKE '55%'
+            AND LENGTH(phone) >= 12
+            AND SUBSTRING(phone FROM 3 FOR 2) LIKE ${`${searchDigits}%`}
+          ORDER BY ddd ASC
+          LIMIT 70
+        `
+      : await this.prisma.$queryRaw<Array<{ ddd: string }>>`
+          SELECT DISTINCT SUBSTRING(phone FROM 3 FOR 2) AS ddd
+          FROM "Customer"
+          WHERE "companyId" = ${companyId}
+            AND phone IS NOT NULL
+            AND phone LIKE '55%'
+            AND LENGTH(phone) >= 12
+          ORDER BY ddd ASC
+          LIMIT 70
+        `;
+
+    return rows
+      .map((row) => row.ddd)
+      .filter((ddd): ddd is string => Boolean(ddd) && /^\d{2}$/.test(ddd));
+  }
 }

@@ -154,6 +154,11 @@ export class AudiencesService {
     return { data: cities };
   }
 
+  async getDdds(companyId: string, search?: string) {
+    const ddds = await this.audienceRepository.findDistinctDdds(companyId, search);
+    return { data: ddds };
+  }
+
   private parseDefinition(definition: unknown) {
     try {
       return this.audienceQueryEngine.validateDefinition(definition);

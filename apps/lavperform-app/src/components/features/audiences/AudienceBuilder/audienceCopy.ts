@@ -20,8 +20,9 @@ export const CRITERION_LABELS: Record<CriterionType, string> = {
   last_order_days: 'Há quanto tempo não compra',
   neighborhood: 'Bairro',
   city: 'Cidade',
-  purchased_product: 'Produto que comprou',
-  total_orders: 'Quantidade de vendas',
+  phone_ddd: 'DDD',
+  purchased_product: 'Produto/Serviço que comprou',
+  total_orders: 'Quantidade de compras',
   average_ticket: 'Quanto costuma gastar',
   whatsapp_verified: 'Tem WhatsApp confirmado',
   has_orders: 'Já fez venda',
@@ -34,6 +35,7 @@ export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   last_order_days: 'Filtra pela quantidade de dias desde a última venda.',
   neighborhood: 'Inclui clientes de um bairro específico.',
   city: 'Inclui clientes de uma cidade específica.',
+  phone_ddd: 'Inclui clientes pelo DDD do telefone (código de área).',
   purchased_product: 'Filtra quem já comprou determinado produto.',
   total_orders: 'Filtra pela quantidade total de vendas feitas.',
   average_ticket: 'Filtra pelo valor médio que o cliente costuma gastar.',
@@ -114,6 +116,15 @@ function formatCriterionSummary(criterion: Criterion): string {
     case 'city': {
       const value = String(criterion.value ?? '').trim() || 'não informado'
       return `${label}: ${operatorLabel.toLowerCase()} ${value}`
+    }
+    case 'phone_ddd': {
+      const values = Array.isArray(criterion.value)
+        ? criterion.value.map((item) => String(item))
+        : []
+      const list = values.length ? values.join(', ') : 'nenhum DDD'
+      return criterion.operator === 'not_in'
+        ? `${label}: não é ${list}`
+        : `${label}: ${list}`
     }
     case 'purchased_product': {
       const productValue =

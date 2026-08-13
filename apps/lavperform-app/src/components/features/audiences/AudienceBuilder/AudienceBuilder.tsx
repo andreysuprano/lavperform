@@ -38,6 +38,7 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
   const [productOptions, setProductOptions] = useState<string[]>([])
   const [neighborhoodOptions, setNeighborhoodOptions] = useState<string[]>([])
   const [cityOptions, setCityOptions] = useState<string[]>([])
+  const [dddOptions, setDddOptions] = useState<string[]>([])
   const scrollAreaRef = useRef<HTMLDivElement>(null)
 
   const createAudience = useCreateAudience()
@@ -55,10 +56,12 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
       audienceService.getProducts(companyId),
       audienceService.getNeighborhoods(companyId),
       audienceService.getCities(companyId),
-    ]).then(([products, neighborhoods, cities]) => {
+      audienceService.getDdds(companyId),
+    ]).then(([products, neighborhoods, cities, ddds]) => {
       setProductOptions(products.data.data)
       setNeighborhoodOptions(neighborhoods.data.data)
       setCityOptions(cities.data.data)
+      setDddOptions(ddds.data.data)
     })
   }, [companyId])
 
@@ -212,6 +215,7 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
         <Steps.Content index={0}>
           <IncludeStep
             cityOptions={cityOptions}
+            dddOptions={dddOptions}
             group={definition.include}
             neighborhoodOptions={neighborhoodOptions}
             onChange={(include) => setDefinition({ ...definition, include })}
@@ -224,6 +228,7 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
         <Steps.Content index={1}>
           <ExcludeStep
             cityOptions={cityOptions}
+            dddOptions={dddOptions}
             group={definition.exclude}
             neighborhoodOptions={neighborhoodOptions}
             onChange={(exclude) => setDefinition({ ...definition, exclude })}

@@ -125,4 +125,89 @@ describe('AudienceQueryEngine', () => {
     expect(ids).toEqual(['t1', 't2']);
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
   });
+
+  it('validates phone_ddd criterion operators', () => {
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'phone_ddd', operator: 'in', value: ['11', '21'] }],
+        },
+      }),
+    ).not.toThrow();
+
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'phone_ddd', operator: 'eq', value: ['11'] }],
+        },
+      }),
+    ).toThrow('Operador inválido');
+  });
+
+  it('resolves phone_ddd in with startsWith prefixes', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'p1' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [{ type: 'phone_ddd', operator: 'in', value: ['11', '21'] }],
+      },
+    };
+
+    const ids = await engine.resolveCustomerIds('company-1', definition);
+    expect(ids).toEqual(['p1']);
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        OR: [
+          { phone: { startsWith: '5511' } },
+          { phone: { startsWith: '5521' } },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+
+  it('resolves phone_ddd not_in excluding matching prefixes', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'p2' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [{ type: 'phone_ddd', operator: 'not_in', value: ['11'] }],
+      },
+    };
+
+    await engine.resolveCustomerIds('company-1', definition);
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        AND: [
+          { phone: { not: null } },
+          { NOT: { OR: [{ phone: { startsWith: '5511' } }] } },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+
+  it('rejects invalid phone_ddd values', async () => {
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [{ type: 'phone_ddd', operator: 'in', value: ['1'] }],
+      },
+    };
+
+    await expect(engine.resolveCustomerIds('company-1', definition)).rejects.toThrow(
+      'DDD inválido',
+    );
+  });
 });

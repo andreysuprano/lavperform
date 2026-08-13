@@ -72,4 +72,11 @@ export const audienceService = {
       { params: search ? { search } : undefined },
     )
   },
+
+  async getDdds(companyId: string, search?: string) {
+    return client.get<{ data: string[] }>(
+      `/companies/${companyId}/audiences/metadata/ddds`,
+      { params: search ? { search } : undefined },
+    )
+  },
 }
