@@ -39,10 +39,18 @@ export const audienceService = {
     return client.delete(`/companies/${companyId}/audiences/${audienceId}`)
   },
 
-  async preview(companyId: string, definition: CreateAudienceRequest['definition']) {
+  async preview(
+    companyId: string,
+    definition: CreateAudienceRequest['definition'],
+    params: { page?: number; limit?: number } = {},
+  ) {
     return client.post<AudiencePreviewResponse>(
       `/companies/${companyId}/audiences/preview`,
-      { definition },
+      {
+        definition,
+        page: params.page ?? 1,
+        limit: params.limit ?? 50,
+      },
     )
   },
 

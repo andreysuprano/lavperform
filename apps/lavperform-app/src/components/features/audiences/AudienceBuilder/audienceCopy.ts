@@ -35,7 +35,7 @@ export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   last_order_days: 'Filtra pela quantidade de dias desde a última venda.',
   neighborhood: 'Inclui clientes de um bairro específico.',
   city: 'Inclui clientes de uma cidade específica.',
-  phone_ddd: 'Inclui clientes pelo DDD do telefone (código de área).',
+  phone_ddd: 'Inclui clientes por um ou mais DDDs do telefone (código de área).',
   purchased_product: 'Filtra quem já comprou determinado produto.',
   total_orders: 'Filtra pela quantidade total de vendas feitas.',
   average_ticket: 'Filtra pelo valor médio que o cliente costuma gastar.',

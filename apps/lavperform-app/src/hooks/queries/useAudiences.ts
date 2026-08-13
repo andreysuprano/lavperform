@@ -52,12 +52,22 @@ export function useAudiencePreview(
   companyId: string | undefined,
   definition: AudienceDefinition | undefined,
   enabled = true,
+  params: { page?: number; limit?: number } = {},
 ) {
+  const page = params.page ?? 1
+  const limit = params.limit ?? 50
+
   return useQuery({
-    queryKey: queryKeys.audiences.preview(companyId || '', definition),
+    queryKey: queryKeys.audiences.preview(companyId || '', definition, {
+      page,
+      limit,
+    }),
     queryFn: async () => {
       if (!companyId || !definition) throw new Error('Preview data is required')
-      const response = await audienceService.preview(companyId, definition)
+      const response = await audienceService.preview(companyId, definition, {
+        page,
+        limit,
+      })
       return response.data
     },
     enabled: !!companyId && !!definition && enabled,
