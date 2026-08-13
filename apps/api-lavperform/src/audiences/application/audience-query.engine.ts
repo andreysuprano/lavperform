@@ -141,6 +141,8 @@ export class AudienceQueryEngine {
         return this.buildAddressFieldWhere('neighborhood', criterion, companyId);
       case 'city':
         return this.buildAddressFieldWhere('city', criterion, companyId);
+      case 'phone_ddd':
+        return this.buildPhoneDddWhere(criterion, companyId);
       case 'purchased_product':
         return this.buildPurchasedProductWhere(criterion, companyId);
       case 'whatsapp_verified':
@@ -225,6 +227,54 @@ export class AudienceQueryEngine {
           ],
         };
     }
+  }
+
+  private buildPhoneDddWhere(
+    criterion: Criterion,
+    companyId: string,
+  ): Prisma.CustomerWhereInput {
+    const ddds = this.parsePhoneDddValues(criterion.value);
+    const prefixFilters = ddds.map((ddd) => ({
+      phone: { startsWith: `55${ddd}` },
+    }));
+
+    if (criterion.operator === 'not_in') {
+      return {
+        companyId,
+        AND: [
+          { phone: { not: null } },
+          { NOT: { OR: prefixFilters } },
+        ],
+      };
+    }
+
+    return {
+      companyId,
+      OR: prefixFilters,
+    };
+  }
+
+  private parsePhoneDddValues(value: unknown): string[] {
+    const raw = Array.isArray(value)
+      ? value.map((item) => String(item).trim())
+      : String(value)
+          .split(',')
+          .map((item) => item.trim())
+          .filter(Boolean);
+
+    const ddds = [...new Set(raw)];
+
+    if (ddds.length === 0) {
+      throw new Error('Informe ao menos um DDD válido');
+    }
+
+    for (const ddd of ddds) {
+      if (!/^\d{2}$/.test(ddd)) {
+        throw new Error(`DDD inválido: ${ddd}`);
+      }
+    }
+
+    return ddds;
   }
 
   private buildAddressFieldWhere(

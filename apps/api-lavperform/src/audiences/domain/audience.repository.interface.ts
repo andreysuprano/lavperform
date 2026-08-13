@@ -35,4 +35,6 @@ export interface IAudienceRepository {
   findDistinctNeighborhoods(companyId: string, search?: string): Promise<string[]>;
 
   findDistinctCities(companyId: string, search?: string): Promise<string[]>;
+
+  findDistinctDdds(companyId: string, search?: string): Promise<string[]>;
 }

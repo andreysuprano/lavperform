@@ -29,6 +29,7 @@ type Props = {
   productOptions?: string[]
   neighborhoodOptions?: string[]
   cityOptions?: string[]
+  dddOptions?: string[]
 }
 
 export function CriterionEditor({
@@ -37,10 +38,12 @@ export function CriterionEditor({
   productOptions = [],
   neighborhoodOptions = [],
   cityOptions = [],
+  dddOptions = [],
 }: Props) {
   const operators = useMemo(() => {
     switch (criterion.type) {
       case 'rfv_classification':
+      case 'phone_ddd':
         return ['in', 'not_in'] as ComparisonOperator[]
       case 'last_order_days':
         return ['eq', 'gt', 'gte', 'lt', 'lte', 'between'] as ComparisonOperator[]
@@ -68,6 +71,13 @@ export function CriterionEditor({
     switch (type) {
       case 'rfv_classification':
         onChange({ type, operator: 'in', value: ['campeao'] })
+        break
+      case 'phone_ddd':
+        onChange({ type, operator: 'in', value: [] })
+        break
+      case 'neighborhood':
+      case 'city':
+        onChange({ type, operator: 'eq', value: '' })
         break
       case 'purchased_product':
         onChange({ type, operator: 'ever', value: { productName: '' } })
@@ -275,6 +285,36 @@ export function CriterionEditor({
               ))}
             </NativeSelect.Field>
           </NativeSelect.Root>
+        </Field.Root>
+      )}
+
+      {criterion.type === 'phone_ddd' && (
+        <Field.Root>
+          <Field.Label>DDDs</Field.Label>
+          <NativeSelect.Root multiple>
+            <NativeSelect.Field
+              onChange={(event) => {
+                const selected = Array.from(event.currentTarget.selectedOptions).map(
+                  (option) => option.value,
+                )
+                onChange({ ...criterion, value: selected })
+              }}
+              value={(criterion.value as string[]) ?? []}
+            >
+              {dddOptions.map((option) => (
+                <option
+                  key={option}
+                  value={option}
+                >
+                  {option}
+                </option>
+              ))}
+            </NativeSelect.Field>
+          </NativeSelect.Root>
+          <Field.HelperText>
+            Segure Ctrl (ou Cmd) para escolher mais de um DDD. Lista baseada nos
+            telefones dos clientes da empresa.
+          </Field.HelperText>
         </Field.Root>
       )}
 

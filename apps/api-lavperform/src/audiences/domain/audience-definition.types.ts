@@ -19,6 +19,7 @@ export type CriterionType =
   | 'last_order_days'
   | 'neighborhood'
   | 'city'
+  | 'phone_ddd'
   | 'purchased_product'
   | 'total_orders'
   | 'average_ticket'
@@ -53,6 +54,7 @@ const VALID_CRITERION_TYPES: CriterionType[] = [
   'last_order_days',
   'neighborhood',
   'city',
+  'phone_ddd',
   'purchased_product',
   'total_orders',
   'average_ticket',
@@ -67,6 +69,7 @@ const VALID_OPERATORS_BY_TYPE: Record<CriterionType, ComparisonOperator[]> = {
   last_order_days: ['eq', 'gt', 'gte', 'lt', 'lte', 'between'],
   neighborhood: ['eq', 'in', 'contains'],
   city: ['eq', 'in', 'contains'],
+  phone_ddd: ['in', 'not_in'],
   purchased_product: ['ever', 'within_days', 'not_within_days'],
   total_orders: ['eq', 'gt', 'gte', 'lt', 'lte'],
   average_ticket: ['gt', 'gte', 'lt', 'lte'],
@@ -162,6 +165,12 @@ export const CRITERIA_METADATA = [
     label: 'Cidade',
     operators: ['eq', 'in', 'contains'],
     valueType: 'string',
+  },
+  {
+    type: 'phone_ddd' as const,
+    label: 'DDD',
+    operators: ['in', 'not_in'],
+    valueType: 'ddd_list',
   },
   {
     type: 'purchased_product' as const,

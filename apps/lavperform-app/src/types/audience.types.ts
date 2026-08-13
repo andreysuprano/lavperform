@@ -21,6 +21,7 @@ export type CriterionType =
   | 'last_order_days'
   | 'neighborhood'
   | 'city'
+  | 'phone_ddd'
   | 'purchased_product'
   | 'total_orders'
   | 'average_ticket'
@@ -123,6 +124,8 @@ export function createEmptyCriterion(type: CriterionType = 'last_order_days'): C
     case 'neighborhood':
     case 'city':
       return { type, operator: 'eq', value: '' }
+    case 'phone_ddd':
+      return { type, operator: 'in', value: [] }
     default:
       return { type, operator: 'gte', value: 30 }
   }

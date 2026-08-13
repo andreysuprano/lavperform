@@ -12,6 +12,7 @@ type Props = {
   productOptions?: string[]
   neighborhoodOptions?: string[]
   cityOptions?: string[]
+  dddOptions?: string[]
 }
 
 export function RuleGroupEditor({
@@ -20,6 +21,7 @@ export function RuleGroupEditor({
   productOptions,
   neighborhoodOptions,
   cityOptions,
+  dddOptions,
 }: Props) {
   const updateRule = (index: number, rule: Criterion | RuleGroup) => {
     const rules = [...group.rules]
@@ -88,6 +90,7 @@ export function RuleGroupEditor({
           {isRuleGroup(rule) ? (
             <RuleGroupEditor
               cityOptions={cityOptions}
+              dddOptions={dddOptions}
               group={rule}
               neighborhoodOptions={neighborhoodOptions}
               onChange={(updated) => updateRule(index, updated)}
@@ -97,6 +100,7 @@ export function RuleGroupEditor({
             <CriterionEditor
               cityOptions={cityOptions}
               criterion={rule}
+              dddOptions={dddOptions}
               neighborhoodOptions={neighborhoodOptions}
               onChange={(updated) => updateRule(index, updated)}
               productOptions={productOptions}

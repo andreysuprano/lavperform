@@ -11,6 +11,7 @@ type Props = {
   productOptions: string[]
   neighborhoodOptions: string[]
   cityOptions: string[]
+  dddOptions: string[]
   previewCount?: number
   previewLoading?: boolean
 }
@@ -21,6 +22,7 @@ export function IncludeStep({
   productOptions,
   neighborhoodOptions,
   cityOptions,
+  dddOptions,
   previewCount,
   previewLoading,
 }: Props) {
@@ -33,6 +35,7 @@ export function IncludeStep({
 
       <RuleGroupEditor
         cityOptions={cityOptions}
+        dddOptions={dddOptions}
         group={group}
         neighborhoodOptions={neighborhoodOptions}
         onChange={onChange}

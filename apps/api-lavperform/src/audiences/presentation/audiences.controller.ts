@@ -80,6 +80,16 @@ export class AudiencesController {
     return this.audiencesService.getCities(companyId, search);
   }
 
+  @Get('metadata/ddds')
+  @ApiOperation({ summary: 'Autocomplete de DDDs (extraídos dos telefones da empresa)' })
+  @ApiQuery({ name: 'search', required: false })
+  getDdds(
+    @Param('companyId') companyId: string,
+    @Query('search') search?: string,
+  ) {
+    return this.audiencesService.getDdds(companyId, search);
+  }
+
   @Post('preview')
   @ApiOperation({ summary: 'Preview de audiência sem salvar' })
   preview(@Param('companyId') companyId: string, @Body() dto: PreviewAudienceDto) {
