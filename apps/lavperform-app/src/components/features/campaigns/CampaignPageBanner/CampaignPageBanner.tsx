@@ -30,6 +30,7 @@ function CampaignPageBannerBase() {
 
   const isDefaultTheme = theme.id === 'default'
   const businessLabel = isDefaultTheme ? 'restaurante' : 'lavanderia'
+  const businessPossessive = isDefaultTheme ? 'Seu' : 'Sua'
 
   const gridStyle = useMemo(
     () => ({
@@ -121,7 +122,7 @@ function CampaignPageBannerBase() {
             letterSpacing="-0.02em"
             lineHeight="1.25"
           >
-            Seu {businessLabel} é{' '}
+            {businessPossessive} {businessLabel} é{' '}
             <Box
               as="mark"
               bg="colorPalette.solid"
