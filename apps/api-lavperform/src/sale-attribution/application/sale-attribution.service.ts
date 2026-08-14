@@ -1,9 +1,13 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
+import {
+  parseCampaignEndDate,
+  parseCampaignStartDate,
+} from '../../common/utils/date.utils';
 import { SALE_ATTRIBUTION_JOB_NAME } from '../listeners/order-created-attribution.listener';
 
 type IncentivizedSalesTotalRow = {
@@ -23,7 +27,17 @@ export class SaleAttributionService {
 
   async getIncentivizedSalesTotal(
     companyId: string,
+    options: { startDate?: string; endDate?: string } = {},
   ): Promise<{ totalValue: number; totalCount: number }> {
+    const range = this.resolveIncentivizedSalesDateRange(
+      options.startDate,
+      options.endDate,
+    );
+
+    const dateFilter = range
+      ? Prisma.sql`AND o."createdAt" >= ${range.startDate} AND o."createdAt" <= ${range.endDate}`
+      : Prisma.empty;
+
     const rows = await this.prisma.$queryRaw<IncentivizedSalesTotalRow[]>(
       Prisma.sql`
         WITH attributed_orders_by_campaign AS (
@@ -36,6 +50,7 @@ export class SaleAttributionService {
           INNER JOIN "Order" o ON o.id = mo."orderId"
           WHERE m."companyId" = ${companyId}
             AND (m."campaignId" IS NOT NULL OR m."automaticCampaignId" IS NOT NULL)
+            ${dateFilter}
         )
         SELECT
           COALESCE(SUM(total), 0)::float AS "totalValue",
@@ -49,6 +64,58 @@ export class SaleAttributionService {
       totalValue: Number(total.totalValue),
       totalCount: Number(total.totalCount),
     };
+  }
+
+  /**
+   * Ambos startDate+endDate → período (início/fim do dia America/Sao_Paulo).
+   * Nenhum → histórico. Apenas um → 400.
+   */
+  private resolveIncentivizedSalesDateRange(
+    startDateRaw?: string,
+    endDateRaw?: string,
+  ): { startDate: Date; endDate: Date } | undefined {
+    const hasStart =
+      startDateRaw !== undefined &&
+      startDateRaw !== null &&
+      String(startDateRaw).trim() !== '';
+    const hasEnd =
+      endDateRaw !== undefined &&
+      endDateRaw !== null &&
+      String(endDateRaw).trim() !== '';
+
+    if (hasStart !== hasEnd) {
+      throw new BadRequestException(
+        'startDate e endDate devem ser enviados juntos',
+      );
+    }
+
+    if (!hasStart || !hasEnd) {
+      return undefined;
+    }
+
+    let startDate: Date;
+    let endDate: Date;
+
+    try {
+      startDate = parseCampaignStartDate(String(startDateRaw).trim());
+      endDate = parseCampaignEndDate(String(endDateRaw).trim());
+    } catch {
+      throw new BadRequestException('startDate ou endDate inválido');
+    }
+
+    if (isNaN(startDate.getTime())) {
+      throw new BadRequestException('startDate inválido');
+    }
+    if (isNaN(endDate.getTime())) {
+      throw new BadRequestException('endDate inválido');
+    }
+    if (endDate.getTime() < startDate.getTime()) {
+      throw new BadRequestException(
+        'endDate deve ser maior ou igual a startDate',
+      );
+    }
+
+    return { startDate, endDate };
   }
 
   async reprocessByDateRange(
