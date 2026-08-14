@@ -193,7 +193,7 @@ export function CustomerDetailsModal({ data, isOpen, onClose }: Props) {
     return (
       customersSummary.find((item) => item.segmentation === segmentation) ?? null
     )
-  }, [data?.rfvClassification, customersSummary])
+  }, [data?.rfvClassification, data?.orderCount, data?.firstOrderDate, data?.lastOrderDate, customersSummary])
 
   const formattedAddress = useMemo(() => {
     const addr = data?.address

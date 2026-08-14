@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { ICustomerRepository } from '../../domain/customer.repository.interface';
 import { Customer } from '../../domain/customer.entity';
-import { CustomerMapper } from './mappers/customer.mapper';
+import { CustomerMapper, type CustomerOrderStats } from './mappers/customer.mapper';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { OrderMapper } from 'src/orders/infrastructure/persistence/mappers/order.mapper';
 import { Order } from 'src/orders/domain/order.entity';
@@ -129,7 +129,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             where: { id },
             include: { address: true }
         });
-        return result ? CustomerMapper.toDomain(result) : null;
+        if (!result) return null;
+        const [customer] = await this.mapCustomersWithOrderStats([result]);
+        return customer ?? null;
     }
 
     async findByPhone(companyId: string, phone: string): Promise<Customer | null> {
@@ -137,7 +139,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             where: { companyId, phone },
             include: { address: true }
         });
-        return result ? CustomerMapper.toDomain(result) : null;
+        if (!result) return null;
+        const [customer] = await this.mapCustomersWithOrderStats([result]);
+        return customer ?? null;
     }
 
     async findByCpf(companyId: string, cpf: string): Promise<Customer | null> {
@@ -145,7 +149,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             where: { companyId, cpf },
             include: { address: true }
         });
-        return result ? CustomerMapper.toDomain(result) : null;
+        if (!result) return null;
+        const [customer] = await this.mapCustomersWithOrderStats([result]);
+        return customer ?? null;
     }
 
     async findAll(options?: PaginationDto & {
@@ -276,9 +282,38 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         ]);
 
         return {
-            items: items.map(CustomerMapper.toDomain),
+            items: await this.mapCustomersWithOrderStats(items),
             total
         };
+    }
+
+    private async mapCustomersWithOrderStats(
+        items: Array<Parameters<typeof CustomerMapper.toDomain>[0]>,
+    ): Promise<Customer[]> {
+        if (items.length === 0) return [];
+
+        const orderStats = await this.prisma.order.groupBy({
+            by: ['customerId'],
+            where: { customerId: { in: items.map((item) => item.id) } },
+            _min: { createdAt: true },
+            _max: { createdAt: true },
+            _count: { _all: true },
+        });
+
+        const statsByCustomerId = new Map<string, CustomerOrderStats>(
+            orderStats.map((row) => [
+                row.customerId,
+                {
+                    _min: row._min,
+                    _max: row._max,
+                    _count: row._count,
+                },
+            ]),
+        );
+
+        return items.map((item) =>
+            CustomerMapper.toDomain(item, statsByCustomerId.get(item.id) ?? null),
+        );
     }
 
     async count(options?: any): Promise<number> {

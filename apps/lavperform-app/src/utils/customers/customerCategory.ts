@@ -10,14 +10,28 @@ const LABEL_BY_KEY: Record<string, string> = {
 
 export type CustomerCategorySource = {
   rfvClassification?: string | null
+  firstOrderDate?: string | null
+  lastOrderDate?: string | null
+  orderCount?: number | null
+}
+
+function hasCustomerOrders(
+  customer: CustomerCategorySource | null | undefined
+): boolean {
+  if ((customer?.orderCount ?? 0) > 0) return true
+  return Boolean(customer?.firstOrderDate || customer?.lastOrderDate)
 }
 
 export function getCustomerCategoryKey(
   customer: CustomerCategorySource | null | undefined
 ): string {
+  if (!hasCustomerOrders(customer)) return LEAD_SEGMENT_KEY
+
   const classification = customer?.rfvClassification?.trim()
-  if (classification) return classification
-  return LEAD_SEGMENT_KEY
+  if (classification && classification !== LEAD_SEGMENT_KEY) {
+    return classification
+  }
+  return classification || LEAD_SEGMENT_KEY
 }
 
 export function getCustomerCategoryLabel(

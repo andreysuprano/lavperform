@@ -7,6 +7,7 @@ export class Customer {
     birthDate?: Date | null;
     firstOrderDate?: Date | null;
     lastOrderDate?: Date | null;
+    orderCount?: number;
     bestOrderDay?: string | null;
     bestOrderHour?: string | null;
     lastContactDate?: Date | null;

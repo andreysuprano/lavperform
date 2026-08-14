@@ -24,6 +24,7 @@ export interface Customer {
   birthDate: string | null
   firstOrderDate?: string | null
   lastOrderDate?: string | null
+  orderCount?: number
   bestOrderDay?: string | null
   bestOrderHour?: string | null
   lastContactDate?: string | null
