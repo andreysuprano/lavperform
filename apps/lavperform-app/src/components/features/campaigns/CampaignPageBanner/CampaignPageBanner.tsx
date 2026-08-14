@@ -179,50 +179,7 @@ function CampaignPageBannerBase() {
           </HStack>
         </Stack>
 
-        <Flex
-          align="flex-end"
-          bottom={0}
-          flexShrink={0}
-          justify="flex-end"
-          minH={{ base: '168px', md: 'auto' }}
-          overflow="hidden"
-          pointerEvents="none"
-          position={{ base: 'relative', md: 'absolute' }}
-          right={0}
-          top={0}
-          w={{ base: 'full', md: '42%', lg: '38%' }}
-        >
-          {showImage ? (
-            <Box
-              alt="Mascote divulgando campanhas por WhatsApp, SMS, RCS e E-mail"
-              as="img"
-              display="block"
-              h={{ base: '168px', md: '100%' }}
-              maxH={{ md: '100%' }}
-              maxW="100%"
-              objectFit="contain"
-              objectPosition={{ base: 'center bottom', md: 'right center' }}
-              onError={handleImageError}
-              src={bannerSrc}
-              w={{ base: 'auto', md: '100%' }}
-            />
-          ) : (
-            <Flex
-              align="center"
-              bg="colorPalette.subtle"
-              h={{ base: '168px', md: '100%' }}
-              justify="center"
-              w="full"
-            >
-              <Icon
-                boxSize={{ base: 14, md: 16 }}
-                color="colorPalette.solid"
-              >
-                <LuMegaphone />
-              </Icon>
-            </Flex>
-          )}
-        </Flex>
+        
       </Flex>
     </Box>
   )

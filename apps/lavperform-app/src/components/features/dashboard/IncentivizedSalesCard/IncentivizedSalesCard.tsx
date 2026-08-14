@@ -42,7 +42,18 @@ export function IncentivizedSalesCard() {
     [filter]
   )
 
+  const { data: allTimeData, isLoading: isLoadingAllTime } = useIncentivizedSales(
+    selectedCompany?.id,
+    {}
+  )
   const { data, isLoading } = useIncentivizedSales(selectedCompany?.id, params)
+
+  const hasAllTimeSales =
+    (allTimeData?.totalCount ?? 0) > 0 || (allTimeData?.totalValue ?? 0) > 0
+
+  if (!isLoadingAllTime && !hasAllTimeSales) {
+    return null
+  }
 
   return (
     <Card.Root
