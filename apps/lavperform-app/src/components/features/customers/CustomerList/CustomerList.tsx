@@ -11,8 +11,11 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { useCustomers } from '@/hooks/queries'
 import type { Customer } from '@/types'
-import { clientTypesOptions } from '@/utils/constants/clientType'
-import { LEAD_SEGMENT_LABEL } from '@/utils/constants/rfvMatrix'
+import {
+  getCustomerCategoryKey,
+  getCustomerCategoryLabel,
+  isLeadCategory,
+} from '@/utils/customers/customerCategory'
 import { formatTelefone } from '@/utils/mask'
 import {
   displayValue,
@@ -81,12 +84,6 @@ export function CustomerList() {
     setSelectedCustomer(null)
   }, [])
 
-  const clientTypeMap = useMemo(() => {
-    return Object.fromEntries(
-      clientTypesOptions.items.map((option) => [option.value, option.label])
-    )
-  }, [])
-
   const handleSearchChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       handleSearch(e.target.value)
@@ -136,7 +133,6 @@ export function CustomerList() {
             <Table.ColumnHeader>Telefone</Table.ColumnHeader>
             <Table.ColumnHeader>Whatsapp Optin</Table.ColumnHeader>
             <Table.ColumnHeader>Classificação</Table.ColumnHeader>
-            <Table.ColumnHeader>Nível</Table.ColumnHeader>
           </>
         }
         isLoading={isLoading}
@@ -178,23 +174,15 @@ export function CustomerList() {
             </Table.Cell>
             <Table.Cell>
               <Badge
-                colorPalette={!item.firstOrderDate ? 'blue' : 'gray'}
+                colorPalette={
+                  isLeadCategory(getCustomerCategoryKey(item)) ? 'blue' : 'gray'
+                }
                 variant="solid"
               >
                 {displayValue(
-                  !item.firstOrderDate
-                    ? LEAD_SEGMENT_LABEL
-                    : clientTypeMap[item.rfvClassification],
+                  getCustomerCategoryLabel(item),
                   EMPTY_PLACEHOLDER
                 )}
-              </Badge>
-            </Table.Cell>
-            <Table.Cell>
-              <Badge
-                colorPalette="orange"
-                variant="solid"
-              >
-                Bronze
               </Badge>
             </Table.Cell>
           </Table.Row>

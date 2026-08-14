@@ -29,6 +29,7 @@ import {
   RiWhatsappLine,
 } from 'react-icons/ri'
 
+import { getCustomerCategoryKey } from '@/utils/customers/customerCategory'
 import { getInitials, formatClientSince } from '@/utils/strings'
 import { formatTelefone } from '@/utils/mask'
 import { convertISOToDate } from '@/utils/convertISOToDate'
@@ -187,14 +188,12 @@ export function CustomerDetailsModal({ data, isOpen, onClose }: Props) {
   }, [data?.whatsappOptin, data?.phone])
 
   const rfvSummaryItem = useMemo(() => {
-    const segmentation = !data?.firstOrderDate
-      ? 'lead'
-      : data?.rfvClassification
+    const segmentation = getCustomerCategoryKey(data)
     if (!segmentation) return null
     return (
       customersSummary.find((item) => item.segmentation === segmentation) ?? null
     )
-  }, [data?.firstOrderDate, data?.rfvClassification, customersSummary])
+  }, [data?.rfvClassification, customersSummary])
 
   const formattedAddress = useMemo(() => {
     const addr = data?.address
