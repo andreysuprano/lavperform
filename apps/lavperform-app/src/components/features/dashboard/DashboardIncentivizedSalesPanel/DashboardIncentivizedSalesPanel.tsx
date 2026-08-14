@@ -8,7 +8,7 @@ import {
   Stack,
   Text,
 } from '@chakra-ui/react'
-import { memo, useMemo, useState } from 'react'
+import { type ReactNode, memo, useMemo, useState } from 'react'
 import { LuShoppingBag, LuTrendingUp } from 'react-icons/lu'
 
 import { useAuth } from '@/context/AuthContext'
@@ -27,17 +27,7 @@ function getCurrentMonthRange(): { startDate: string; endDate: string } {
   }
 }
 
-function DashboardIncentivizedSalesPanelBase() {
-  const { selectedCompany } = useAuth()
-  const [filter, setFilter] = useState<FilterMode>('all')
-
-  const params = useMemo(
-    () => (filter === 'month' ? getCurrentMonthRange() : {}),
-    [filter]
-  )
-
-  const { data, isLoading } = useIncentivizedSales(selectedCompany?.id, params)
-
+function PanelShell({ children }: { children: ReactNode }) {
   return (
     <Flex
       align="stretch"
@@ -54,6 +44,71 @@ function DashboardIncentivizedSalesPanelBase() {
       p={4}
       w={{ base: 'full', md: '200px' }}
     >
+      {children}
+    </Flex>
+  )
+}
+
+function DashboardIncentivizedSalesPanelBase() {
+  const { selectedCompany } = useAuth()
+  const [filter, setFilter] = useState<FilterMode>('all')
+
+  const params = useMemo(
+    () => (filter === 'month' ? getCurrentMonthRange() : {}),
+    [filter]
+  )
+
+  const { data: allTimeData, isLoading: isLoadingAllTime } = useIncentivizedSales(
+    selectedCompany?.id,
+    {}
+  )
+  const { data, isLoading } = useIncentivizedSales(selectedCompany?.id, params)
+
+  const hasAllTimeSales =
+    (allTimeData?.totalCount ?? 0) > 0 || (allTimeData?.totalValue ?? 0) > 0
+
+  if (isLoadingAllTime) {
+    return (
+      <PanelShell>
+        <HStack justify="space-between">
+          <Skeleton
+            borderRadius="md"
+            boxSize={7}
+          />
+          <Skeleton
+            borderRadius="md"
+            height="24px"
+            w="72px"
+          />
+        </HStack>
+        <Stack gap={2}>
+          <Skeleton
+            height="12px"
+            w="70%"
+          />
+          <Skeleton
+            height="28px"
+            w="90%"
+          />
+          <Skeleton
+            height="12px"
+            w="60%"
+          />
+        </Stack>
+        <Skeleton
+          height="14px"
+          w="64px"
+        />
+      </PanelShell>
+    )
+  }
+
+  if (!hasAllTimeSales) {
+    return null
+  }
+
+  return (
+    <PanelShell>
       <HStack
         gap={2}
         justify="space-between"
@@ -91,7 +146,6 @@ function DashboardIncentivizedSalesPanelBase() {
                 px={2}
                 py={1}
                 transition="background 0.15s ease, color 0.15s ease"
-                type="button"
               >
                 {mode === 'all' ? 'Total' : 'Mês'}
               </Box>
@@ -170,12 +224,10 @@ function DashboardIncentivizedSalesPanelBase() {
           </Text>
         )}
       </HStack>
-    </Flex>
+    </PanelShell>
   )
 }
 
-const DashboardIncentivizedSalesPanel = memo(
-  DashboardIncentivizedSalesPanelBase
-) as typeof DashboardIncentivizedSalesPanelBase
+const DashboardIncentivizedSalesPanel = memo(DashboardIncentivizedSalesPanelBase)
 
 export { DashboardIncentivizedSalesPanel }
