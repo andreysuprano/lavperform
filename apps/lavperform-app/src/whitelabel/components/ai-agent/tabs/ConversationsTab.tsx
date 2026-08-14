@@ -18,6 +18,7 @@ import { LuMessageSquare, LuUser } from 'react-icons/lu'
 import { RiRobot2Line, RiSearchLine } from 'react-icons/ri'
 
 import { Empty, LoadingState } from '@/components'
+import { useAuth } from '@/context/AuthContext'
 import { useColorMode } from '@/components/ui/color-mode'
 import { formatTelefone } from '@/utils/mask'
 import {
@@ -256,10 +257,18 @@ interface ConversationsTabProps {
 }
 
 function ConversationsTabBase({ agent }: ConversationsTabProps) {
+  const { selectedCompany } = useAuth()
+  const companyId = selectedCompany?.id
   const [searchQuery, setSearchQuery] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
   const [selectedId, setSelectedId] = useState<string | undefined>(undefined)
   const threadRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    setSelectedId(undefined)
+    setSearchQuery('')
+    setDebouncedSearch('')
+  }, [agent.id, companyId])
 
   useEffect(() => {
     const timeout = setTimeout(() => {
@@ -271,8 +280,9 @@ function ConversationsTabBase({ agent }: ConversationsTabProps) {
   const {
     data: conversationsData,
     isLoading: isLoadingConversations,
+    isFetching: isFetchingConversations,
     isError: isConversationsError,
-  } = useAIAgentConversations(agent.id, { search: debouncedSearch })
+  } = useAIAgentConversations(companyId, agent.id, { search: debouncedSearch })
 
   const conversations = useMemo(
     () => conversationsData?.data ?? [],
@@ -280,25 +290,36 @@ function ConversationsTabBase({ agent }: ConversationsTabProps) {
   )
 
   useEffect(() => {
+    if (isLoadingConversations || isFetchingConversations) return
     if (conversations.length === 0) {
       setSelectedId(undefined)
       return
     }
-    if (
-      !selectedId ||
-      !conversations.some((conversation) => conversation.id === selectedId)
-    ) {
+    const stillVisible = conversations.some(
+      (conversation) => conversation.id === selectedId
+    )
+    if (!stillVisible) {
       setSelectedId(conversations[0].id)
     }
-  }, [conversations, selectedId])
+  }, [
+    agent.id,
+    companyId,
+    conversations,
+    selectedId,
+    isLoadingConversations,
+    isFetchingConversations,
+  ])
 
   const {
     data: messages,
     isLoading: isLoadingMessages,
     isError: isMessagesError,
-  } = useAIAgentConversationMessages(agent.id, selectedId)
+    isPlaceholderData,
+  } = useAIAgentConversationMessages(companyId, agent.id, selectedId)
 
   const selectedConversation = conversations.find((c) => c.id === selectedId)
+  const showMessagesLoading =
+    !!selectedId && (isLoadingMessages || isPlaceholderData)
 
   const threadItems = useMemo(() => {
     if (!messages) return []
@@ -467,7 +488,14 @@ function ConversationsTabBase({ agent }: ConversationsTabProps) {
                 </HStack>
               )}
 
-              <Box ref={threadRef} flex={1} overflowY="auto" px={5} py={5}>
+              <Box
+                key={selectedId ?? 'none'}
+                ref={threadRef}
+                flex={1}
+                overflowY="auto"
+                px={5}
+                py={5}
+              >
                 {!selectedId ? (
                   <Flex
                     direction="column"
@@ -480,7 +508,7 @@ function ConversationsTabBase({ agent }: ConversationsTabProps) {
                     <Icon as={LuMessageSquare} boxSize={8} />
                     <Text fontSize="sm">Selecione uma conversa</Text>
                   </Flex>
-                ) : isLoadingMessages ? (
+                ) : showMessagesLoading ? (
                   <LoadingState title="Carregando mensagens..." />
                 ) : isMessagesError ? (
                   <Empty

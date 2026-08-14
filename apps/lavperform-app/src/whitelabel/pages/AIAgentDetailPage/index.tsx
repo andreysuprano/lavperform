@@ -9,7 +9,7 @@ import {
   Text,
   useTabs,
 } from '@chakra-ui/react'
-import { memo, useCallback, useMemo } from 'react'
+import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
 import { LuBot } from 'react-icons/lu'
 import {
   RiArrowLeftLine,
@@ -71,6 +71,18 @@ function AIAgentDetailPageBase() {
   const toggleAgent = useToggleAIAgent()
   const deleteAgent = useDeleteAIAgent()
   const updateWebhook = useUpdateAIAgentWebhook()
+  const companyIdWhenMounted = useRef(selectedCompany?.id)
+
+  useEffect(() => {
+    if (!selectedCompany?.id) return
+    if (
+      companyIdWhenMounted.current &&
+      companyIdWhenMounted.current !== selectedCompany.id
+    ) {
+      navigate(AI_AGENT_LIST_PATH, { replace: true })
+    }
+    companyIdWhenMounted.current = selectedCompany.id
+  }, [selectedCompany?.id, navigate])
 
   const initialTab = useMemo(() => {
     const raw = searchParams.get('tab')
@@ -211,7 +223,10 @@ function AIAgentDetailPageBase() {
             <McpTab agent={agent} />
           </Tabs.Content>
           <Tabs.Content value="conversations">
-            <ConversationsTab agent={agent} />
+            <ConversationsTab
+              key={`${selectedCompany?.id}-${agent.id}`}
+              agent={agent}
+            />
           </Tabs.Content>
         </Tabs.RootProvider>
       </Box>

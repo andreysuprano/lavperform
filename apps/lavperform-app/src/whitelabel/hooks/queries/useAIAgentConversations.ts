@@ -4,6 +4,7 @@ import { queryKeys } from '@/lib/react-query'
 import { aiAgentService } from '@/whitelabel/services'
 
 export function useAIAgentConversations(
+  companyId: string | undefined,
   agentId: string | undefined,
   {
     page = 1,
@@ -13,6 +14,7 @@ export function useAIAgentConversations(
 ) {
   return useQuery({
     queryKey: queryKeys.whitelabel.aiAgent.conversations(
+      companyId || '',
       agentId || '',
       page,
       limit,
@@ -27,31 +29,38 @@ export function useAIAgentConversations(
       })
       return response.data
     },
-    enabled: !!agentId,
-    staleTime: 1000 * 30,
+    enabled: !!companyId && !!agentId,
+    staleTime: 0,
+    refetchOnMount: 'always',
   })
 }
 
 export function useAIAgentConversationMessages(
+  companyId: string | undefined,
   agentId: string | undefined,
   conversationId: string | undefined
 ) {
   return useQuery({
     queryKey: queryKeys.whitelabel.aiAgent.conversationMessages(
+      companyId || '',
       agentId || '',
       conversationId || ''
     ),
-    queryFn: async () => {
-      if (!agentId || !conversationId) {
+    queryFn: async ({ queryKey }) => {
+      const currentAgentId = queryKey[4]
+      const currentConversationId = queryKey[5]
+      if (!currentAgentId || !currentConversationId) {
         throw new Error('Agent ID and Conversation ID are required')
       }
       const response = await aiAgentService.listConversationMessages(
-        agentId,
-        conversationId
+        currentAgentId,
+        currentConversationId
       )
       return response.data
     },
-    enabled: !!agentId && !!conversationId,
-    staleTime: 1000 * 15,
+    enabled: !!companyId && !!agentId && !!conversationId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+    placeholderData: undefined,
   })
 }
