@@ -132,6 +132,15 @@ export class CustomSendListPrismaRepository implements ICustomSendListRepository
     };
   }
 
+  async findAllMemberIds(listId: string): Promise<string[]> {
+    const rows = await this.prisma.customSendListMember.findMany({
+      where: { listId },
+      select: { customerId: true },
+    });
+
+    return rows.map((row) => row.customerId);
+  }
+
   async softDelete(id: string) {
     const deleted = await this.prisma.customSendList.update({
       where: { id },

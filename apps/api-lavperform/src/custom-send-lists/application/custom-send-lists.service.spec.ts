@@ -11,6 +11,7 @@ describe('CustomSendListsService', () => {
     replaceMembers: jest.fn(),
     countMembers: jest.fn(),
     findMembersPaginated: jest.fn(),
+    findAllMemberIds: jest.fn(),
     softDelete: jest.fn(),
     countActiveCampaignReferences: jest.fn(),
   };
@@ -98,6 +99,33 @@ describe('CustomSendListsService', () => {
         customSendListMembers: { some: { listId: 'list-1' } },
       },
     });
+  });
+
+  it('returns every member id without pagination limits', async () => {
+    repository.findById.mockResolvedValue({
+      id: 'list-1',
+      companyId: 'company-1',
+      deletedAt: null,
+    });
+    repository.findAllMemberIds.mockResolvedValue(['c1', 'c2', 'c3']);
+
+    const result = await service.getMemberIds('company-1', 'list-1');
+
+    expect(result).toEqual({ customerIds: ['c1', 'c2', 'c3'] });
+    expect(repository.findAllMemberIds).toHaveBeenCalledWith('list-1');
+  });
+
+  it('does not expose member ids of another company', async () => {
+    repository.findById.mockResolvedValue({
+      id: 'list-1',
+      companyId: 'other-company',
+      deletedAt: null,
+    });
+
+    await expect(service.getMemberIds('company-1', 'list-1')).rejects.toThrow(
+      NotFoundException,
+    );
+    expect(repository.findAllMemberIds).not.toHaveBeenCalled();
   });
 
   it('throws when list does not belong to company', async () => {
