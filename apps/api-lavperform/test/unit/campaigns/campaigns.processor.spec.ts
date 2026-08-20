@@ -14,7 +14,6 @@ jest.mock('@nestjs/axios', () => ({
 }));
 
 import { CampaignsProcessor } from 'src/campaigns/infrastructure/jobs/campaigns.processor';
-import { CAMPAIGN_CUSTOMER_ORDER_BY } from 'src/common/utils/campaign-customer-order.utils';
 
 describe('CampaignsProcessor', () => {
   const prisma: any = {
@@ -37,23 +36,34 @@ describe('CampaignsProcessor', () => {
     add: jest.fn(),
   };
 
+  const campaignCustomerResolver: any = {
+    resolveCustomers: jest.fn(),
+    resolveSegmentationLabel: jest.fn().mockReturnValue('segA,segB'),
+  };
+
   let processor: CampaignsProcessor;
 
   beforeEach(() => {
     jest.clearAllMocks();
-    processor = new CampaignsProcessor(prisma, messageQueue, {} as any);
+    processor = new CampaignsProcessor(
+      prisma,
+      messageQueue,
+      {} as any,
+      campaignCustomerResolver,
+    );
   });
 
   it('marks campaign completed and enqueues messages', async () => {
     prisma.campaign.findUnique = jest.fn().mockResolvedValue({
       id: 'camp1',
       companyId: 'comp1',
+      targetingMode: 'RFV',
       segmentation: 'segA,segB',
       messageText: 'Hello',
       imageUrl: 'img.jpg',
       maxDailySends: 50,
     });
-    prisma.customer.findMany = jest.fn().mockResolvedValue([
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([
       { id: 'cust1', name: 'A', phone: '1' },
       { id: 'cust2', name: 'B', phone: '2' },
     ]);
@@ -78,14 +88,12 @@ describe('CampaignsProcessor', () => {
       where: { id: 'camp1' },
       data: { status: CampaignStatus.COMPLETED },
     });
-    expect(prisma.customer.findMany).toHaveBeenCalledWith(
+    expect(campaignCustomerResolver.resolveCustomers).toHaveBeenCalledWith(
       expect.objectContaining({
-        orderBy: CAMPAIGN_CUSTOMER_ORDER_BY,
-        where: expect.objectContaining({ whatsappVerified: true }),
+        companyId: 'comp1',
+        targetingMode: 'RFV',
+        segmentation: 'segA,segB',
       }),
-    );
-    expect(prisma.customer.findMany).toHaveBeenCalledWith(
-      expect.not.objectContaining({ take: expect.anything() }),
     );
     expect(prisma.campaignMetric.updateMany).toHaveBeenCalledWith({
       where: { campaignId: 'camp1' },

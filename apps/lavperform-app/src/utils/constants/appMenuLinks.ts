@@ -7,6 +7,7 @@ import {
   LuCoins,
   LuDollarSign,
   LuLayoutTemplate,
+  LuList,
   LuPlug,
   LuRadio,
   LuTimer,
@@ -80,6 +81,11 @@ export const MENU_ITEMS = [
         label: 'Audiências',
         href: '/customers/audiences',
         icon: GrTarget,
+      },
+      {
+        label: 'Listas personalizadas',
+        href: '/customers/custom-send-lists',
+        icon: LuList,
       },
       {
         label: 'Matriz RFV',

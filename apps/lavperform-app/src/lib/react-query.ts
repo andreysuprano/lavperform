@@ -88,6 +88,18 @@ export const queryKeys = {
     ) => ['audiences', 'preview', companyId, definition, params] as const,
   },
 
+  customSendLists: {
+    all: ['customSendLists'] as const,
+    lists: (companyId: string) =>
+      ['customSendLists', 'list', companyId] as const,
+    list: (companyId: string, params: any) =>
+      ['customSendLists', 'list', companyId, params] as const,
+    detail: (companyId: string, listId: string, params: any = {}) =>
+      ['customSendLists', 'detail', companyId, listId, params] as const,
+    eligibleCount: (companyId: string, listId: string, channel?: string) =>
+      ['customSendLists', 'eligibleCount', companyId, listId, channel ?? null] as const,
+  },
+
   campaigns: {
     all: ['campaigns'] as const,
     lists: (companyId: string) => ['campaigns', 'list', companyId] as const,

@@ -1,4 +1,4 @@
-export type AudienceTargetingMode = 'RFV' | 'AUDIENCE'
+export type AudienceTargetingMode = 'RFV' | 'AUDIENCE' | 'CUSTOMER_LIST'
 
 export type GroupOperator = 'AND' | 'OR'
 

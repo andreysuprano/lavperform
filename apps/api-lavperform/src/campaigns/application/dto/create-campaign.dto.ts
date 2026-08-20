@@ -60,6 +60,15 @@ export class CreateCampaignDto {
   audienceId?: string;
 
   @ApiProperty({
+    description: 'ID da lista personalizada de envio',
+    required: false,
+  })
+  @ValidateIf((o) => o.targetingMode === AudienceTargetingMode.CUSTOMER_LIST)
+  @IsUUID()
+  @IsNotEmpty()
+  customSendListId?: string;
+
+  @ApiProperty({
     description: 'Quantidade máxima de envios por dia',
     example: 50,
     required: false,

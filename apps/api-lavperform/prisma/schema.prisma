@@ -87,6 +87,7 @@ model Company {
   renitencyConfiguration    RenitencyConfiguration?
   publicApiKeys             PublicApiKey[]
   audiences                 Audience[]
+  customSendLists           CustomSendList[]
 
   @@index([businessPartnerId])
   @@index([deletedAt])
@@ -343,6 +344,7 @@ model Customer {
   orders             Order[]
   messages           Message[]
   rfvHistory         CustomerRfvHistory[]
+  customSendListMembers CustomSendListMember[]
 
   @@unique([phone, companyId])
   @@index([companyId])
@@ -361,6 +363,7 @@ enum CampaignStatus {
 enum AudienceTargetingMode {
   RFV
   AUDIENCE
+  CUSTOMER_LIST
 }
 
 model Audience {
@@ -380,6 +383,35 @@ model Audience {
   @@index([companyId, deletedAt])
 }
 
+model CustomSendList {
+  id                 String                  @id @default(uuid())
+  companyId          String
+  company            Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  name               String
+  description        String?
+  createdAt          DateTime                @default(now())
+  updatedAt          DateTime                @updatedAt
+  deletedAt          DateTime?
+  members            CustomSendListMember[]
+  campaigns          Campaign[]
+  automaticCampaigns AutomaticCampaign[]
+
+  @@index([companyId])
+  @@index([companyId, deletedAt])
+}
+
+model CustomSendListMember {
+  listId     String
+  customerId String
+  list       CustomSendList @relation(fields: [listId], references: [id], onDelete: Cascade)
+  customer   Customer       @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt  DateTime       @default(now())
+
+  @@id([listId, customerId])
+  @@index([listId])
+  @@index([customerId])
+}
+
 model Campaign {
   id             String                @id @default(uuid())
   name           String
@@ -387,8 +419,10 @@ model Campaign {
   messageText    String
   segmentation   String
   targetingMode  AudienceTargetingMode @default(RFV)
-  audienceId     String?
-  audience       Audience?             @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  audienceId        String?
+  audience          Audience?             @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  customSendListId  String?
+  customSendList    CustomSendList?       @relation(fields: [customSendListId], references: [id], onDelete: SetNull)
   maxDailySends  Int                   @default(50)
   imageUrl       String?
   status         CampaignStatus        @default(WAITING)
@@ -405,6 +439,7 @@ model Campaign {
   @@index([companyId])
   @@index([companyId, scheduledDate])
   @@index([audienceId])
+  @@index([customSendListId])
 }
 
 enum AutomaticCampaignType {
@@ -438,8 +473,10 @@ model AutomaticCampaign {
   companyId       String
   segmentation    String
   targetingMode   AudienceTargetingMode       @default(RFV)
-  audienceId      String?
-  audience        Audience?                   @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  audienceId        String?
+  audience          Audience?                   @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+  customSendListId  String?
+  customSendList    CustomSendList?             @relation(fields: [customSendListId], references: [id], onDelete: SetNull)
   maxDailySends   Int                         @default(50)
   active          Boolean                     @default(true)
   images          String?
@@ -475,6 +512,7 @@ model AutomaticCampaign {
   @@index([couponId])
   @@index([metaMessageTemplateId])
   @@index([audienceId])
+  @@index([customSendListId])
 }
 
 model AutomaticCampaignCreative {

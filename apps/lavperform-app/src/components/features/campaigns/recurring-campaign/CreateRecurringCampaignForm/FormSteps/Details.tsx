@@ -4,7 +4,7 @@ import { useEffect, useMemo } from 'react'
 import { Controller, FieldErrors, useForm } from 'react-hook-form'
 import * as yup from 'yup'
 
-import { AudienceSelect, Input, SegmentationSelect, WeekdaySelect, toaster } from '@/components'
+import { AudienceSelect, CustomSendListSelect, Input, SegmentationSelect, WeekdaySelect, toaster } from '@/components'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { WEEKDAYS } from '@/utils/weekdays'
 
@@ -31,8 +31,8 @@ function buildDetailsSchema(opts: {
   return yup.object({
     name: yup.string().required('Informe o nome da campanha'),
     targetingMode: yup
-      .mixed<'RFV' | 'AUDIENCE'>()
-      .oneOf(['RFV', 'AUDIENCE'])
+      .mixed<'RFV' | 'AUDIENCE' | 'CUSTOMER_LIST'>()
+      .oneOf(['RFV', 'AUDIENCE', 'CUSTOMER_LIST'])
       .default('RFV'),
     segmentation: yup.array().when('targetingMode', {
       is: (mode: string) => mode === 'RFV',
@@ -43,6 +43,11 @@ function buildDetailsSchema(opts: {
     audienceId: yup.string().when('targetingMode', {
       is: (mode: string) => mode === 'AUDIENCE',
       then: (schema) => schema.required('Selecione uma audiência'),
+      otherwise: (schema) => schema.nullable().optional(),
+    }),
+    customSendListId: yup.string().when('targetingMode', {
+      is: (mode: string) => mode === 'CUSTOMER_LIST',
+      then: (schema) => schema.required('Selecione uma lista personalizada'),
       otherwise: (schema) => schema.nullable().optional(),
     }),
     startDate: yup
@@ -116,6 +121,7 @@ export function Details(props: FormStepsProps) {
       name: props.formData?.name || '',
       targetingMode: props.formData?.targetingMode ?? 'RFV',
       audienceId: props.formData?.audienceId ?? null,
+      customSendListId: props.formData?.customSendListId ?? null,
       segmentation:
         props.formData?.segmentation?.length &&
         Array.isArray(props.formData.segmentation)
@@ -152,6 +158,7 @@ export function Details(props: FormStepsProps) {
   const segmentationValue = watch('segmentation')
   const targetingModeValue = watch('targetingMode')
   const audienceIdValue = watch('audienceId')
+  const customSendListIdValue = watch('customSendListId')
   const maxDailySendsValue = watch('maxDailySends')
   const startDateValue = watch('startDate')
   const endDateValue = watch('endDate')
@@ -203,6 +210,7 @@ export function Details(props: FormStepsProps) {
           segmentation: segmentationValue,
           targetingMode: targetingModeValue,
           audienceId: audienceIdValue,
+          customSendListId: customSendListIdValue,
           startDate: startDateValue ?? '',
           endDate: endDateValue?.trim() ? endDateValue : null,
           campaignType: props.formData?.campaignType || 'REACTIVATION',
@@ -239,8 +247,13 @@ export function Details(props: FormStepsProps) {
                 field.onChange(value)
                 if (value === 'AUDIENCE') {
                   setValue('segmentation', [], { shouldValidate: true })
+                  setValue('customSendListId', null, { shouldValidate: true })
+                } else if (value === 'CUSTOMER_LIST') {
+                  setValue('segmentation', [], { shouldValidate: true })
+                  setValue('audienceId', null, { shouldValidate: true })
                 } else {
                   setValue('audienceId', null, { shouldValidate: true })
+                  setValue('customSendListId', null, { shouldValidate: true })
                 }
               }}
               value={field.value}
@@ -255,6 +268,11 @@ export function Details(props: FormStepsProps) {
                   <RadioGroup.ItemHiddenInput />
                   <RadioGroup.ItemIndicator />
                   <RadioGroup.ItemText>Audiência customizada</RadioGroup.ItemText>
+                </RadioGroup.Item>
+                <RadioGroup.Item value="CUSTOMER_LIST">
+                  <RadioGroup.ItemHiddenInput />
+                  <RadioGroup.ItemIndicator />
+                  <RadioGroup.ItemText>Lista personalizada</RadioGroup.ItemText>
                 </RadioGroup.Item>
               </HStack>
             </RadioGroup.Root>
@@ -271,11 +289,18 @@ export function Details(props: FormStepsProps) {
             placeholder="Selecione os tipos de clientes"
             required
           />
-        ) : (
+        ) : targetingModeValue === 'AUDIENCE' ? (
           <AudienceSelect
             control={control}
             label="Audiência"
             name="audienceId"
+            required
+          />
+        ) : (
+          <CustomSendListSelect
+            control={control}
+            label="Lista personalizada"
+            name="customSendListId"
             required
           />
         )}

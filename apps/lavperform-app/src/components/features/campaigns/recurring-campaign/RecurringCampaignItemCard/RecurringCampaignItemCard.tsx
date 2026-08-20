@@ -54,6 +54,7 @@ import {
   useToggleCampaign,
 } from '@/hooks/queries'
 import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useCustomSendLists } from '@/hooks/queries/useCustomSendLists'
 import { useMetaTemplates } from '@/hooks/queries/useMetaTemplates'
 import type { RecurringCampaignStatus } from '@/types'
 import { getCampaignDerivedMetrics } from '@/utils/campaigns/campaignMetrics'
@@ -167,6 +168,10 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
     page: 1,
     limit: 100,
   })
+  const { data: customSendListsResult } = useCustomSendLists(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
 
   const isToggling = toggleCampaignMutation.isPending
 
@@ -191,12 +196,20 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
       return audienceName ? [audienceName] : []
     }
 
+    if (targeting.targetingMode === 'CUSTOMER_LIST') {
+      const listName = customSendListsResult?.data?.find(
+        (list) => list.id === targeting.customSendListId,
+      )?.name
+
+      return listName ? [listName] : []
+    }
+
     return targeting.segmentation.map(
       (segItem) =>
         clientTypesOptions.items.find((item) => item.value === segItem)?.label ??
         segItem,
     )
-  }, [audiencesResult?.data, data])
+  }, [audiencesResult?.data, customSendListsResult?.data, data])
 
   const campaignTitle = campaignTypeItems.find(
     (item) => item.value === data.type

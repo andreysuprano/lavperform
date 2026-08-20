@@ -58,6 +58,14 @@ export class UpdateCampaignDto {
   audienceId?: string;
 
   @ApiProperty({
+    description: 'ID da lista personalizada de envio',
+    required: false,
+  })
+  @IsUUID()
+  @IsOptional()
+  customSendListId?: string;
+
+  @ApiProperty({
     description: 'Quantidade máxima de envios por dia',
     example: 50,
     required: false,

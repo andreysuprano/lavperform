@@ -31,6 +31,9 @@ export interface ScheduledDispatchCampaign {
   name: string
   scheduledDate: string
   segmentation: string
+  targetingMode?: AudienceTargetingMode
+  audienceId?: string | null
+  customSendListId?: string | null
   status: ScheduledDispatchStatus
   updatedAt: string
 }
@@ -122,6 +125,7 @@ export interface RecurringCampaign {
   segmentation: string
   targetingMode?: AudienceTargetingMode
   audienceId?: string | null
+  customSendListId?: string | null
   startDate: string
   channels?: CampaignChannel[]
   creatives?: RecurringCampaignCreative[]
@@ -293,7 +297,7 @@ export type MetaTemplateVariableMapping = {
  * - `images`: string JSON (array de URLs) conforme back.
  * - `couponId`: null quando nenhum cupom selecionado.
  */
-export type AudienceTargetingMode = 'RFV' | 'AUDIENCE'
+export type AudienceTargetingMode = 'RFV' | 'AUDIENCE' | 'CUSTOMER_LIST'
 
 export type CreateAutomaticCampaignRequest = {
   name: string
@@ -301,6 +305,7 @@ export type CreateAutomaticCampaignRequest = {
   channel: AutomaticCampaignApiChannel
   targetingMode?: AudienceTargetingMode
   audienceId?: string | null
+  customSendListId?: string | null
   segmentation?: string
   maxDailySends: number
   active: boolean

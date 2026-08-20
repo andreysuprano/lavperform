@@ -21,6 +21,7 @@ import { MetaIntegrationModule } from '../integrations/meta/meta-integration.mod
 import { workerProviders } from '../common/queue/worker-runtime.config';
 import { RenitencyModule } from '../renitency/renitency.module';
 import { AudiencesModule } from '../audiences/audiences.module';
+import { CustomSendListsModule } from '../custom-send-lists/custom-send-lists.module';
 import { MessageCostModule } from '../message-engine/pricing/message-cost.module';
 
 @Module({
@@ -29,6 +30,7 @@ import { MessageCostModule } from '../message-engine/pricing/message-cost.module
     MetaIntegrationModule,
     RenitencyModule,
     AudiencesModule,
+    CustomSendListsModule,
     MessageCostModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE,

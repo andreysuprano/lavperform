@@ -83,6 +83,35 @@ type BuildPayloadParams = {
   maxDailySends: number
 }
 
+function buildTargetingPayload(
+  form: FormDataProps,
+  segmentation: string,
+): Pick<
+  CreateAutomaticCampaignRequest,
+  'targetingMode' | 'segmentation' | 'audienceId' | 'customSendListId'
+> {
+  const targetingMode: AudienceTargetingMode = form.targetingMode ?? 'RFV'
+
+  if (targetingMode === 'AUDIENCE') {
+    return {
+      targetingMode,
+      audienceId: form.audienceId ?? null,
+    }
+  }
+
+  if (targetingMode === 'CUSTOMER_LIST') {
+    return {
+      targetingMode,
+      customSendListId: form.customSendListId ?? null,
+    }
+  }
+
+  return {
+    targetingMode,
+    segmentation,
+  }
+}
+
 /**
  * Constrói o body do POST/PUT de campanha automática a partir dos dados do wizard.
  */
@@ -101,7 +130,6 @@ export function buildAutomaticCampaignPayload({
   const segmentationArray =
     form.segmentation?.length ? form.segmentation : (form.target ?? [])
   const segmentation = segmentationArray.join(',')
-  const targetingMode: AudienceTargetingMode = form.targetingMode ?? 'RFV'
 
   const sendSchedule = buildSendScheduleApiFields(
     form.sendScheduleMode ?? 'establishment',
@@ -114,10 +142,7 @@ export function buildAutomaticCampaignPayload({
       name: form.name,
       type: form.campaignType,
       channel,
-      targetingMode,
-      ...(targetingMode === 'AUDIENCE'
-        ? { audienceId: form.audienceId ?? null }
-        : { segmentation }),
+      ...buildTargetingPayload(form, segmentation),
       maxDailySends,
       active: true,
       images: '[]',
@@ -144,10 +169,7 @@ export function buildAutomaticCampaignPayload({
     name: form.name,
     type: form.campaignType,
     channel,
-    targetingMode,
-    ...(targetingMode === 'AUDIENCE'
-      ? { audienceId: form.audienceId ?? null }
-      : { segmentation }),
+    ...buildTargetingPayload(form, segmentation),
     maxDailySends,
     active: true,
     images,
