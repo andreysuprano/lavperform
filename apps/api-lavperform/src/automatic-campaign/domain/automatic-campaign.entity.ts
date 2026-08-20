@@ -1,4 +1,8 @@
-import { CampaignChannel, AutomaticCampaignStatus } from '@prisma/client';
+import {
+    AudienceTargetingMode,
+    CampaignChannel,
+    AutomaticCampaignStatus,
+} from '@prisma/client';
 
 export class AutomaticCampaignCreative {
     id: string;
@@ -28,7 +32,7 @@ export class AutomaticCampaign {
     startDate: Date;
     images: string;
     segmentation: string;
-    targetingMode?: string;
+    targetingMode?: AudienceTargetingMode;
     audienceId?: string | null;
     customSendListId?: string | null;
     endDate: Date | null;

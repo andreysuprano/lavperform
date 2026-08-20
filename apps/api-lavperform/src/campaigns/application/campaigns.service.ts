@@ -90,11 +90,11 @@ export class CampaignsService {
       updateCampaignDto.customSendListId !== undefined
     ) {
       const targeting = normalizeCampaignTargeting({
-        targetingMode: updateCampaignDto.targetingMode ?? (campaign as any).targetingMode,
+        targetingMode: updateCampaignDto.targetingMode ?? campaign.targetingMode,
         segmentation: updateCampaignDto.segmentation ?? campaign.segmentation,
-        audienceId: updateCampaignDto.audienceId ?? (campaign as any).audienceId,
+        audienceId: updateCampaignDto.audienceId ?? campaign.audienceId,
         customSendListId:
-          updateCampaignDto.customSendListId ?? (campaign as any).customSendListId,
+          updateCampaignDto.customSendListId ?? campaign.customSendListId,
       });
 
       if (targeting.targetingMode === AudienceTargetingMode.AUDIENCE) {
