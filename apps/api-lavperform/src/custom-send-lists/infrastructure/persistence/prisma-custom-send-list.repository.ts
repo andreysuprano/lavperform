@@ -84,15 +84,39 @@ export class CustomSendListPrismaRepository implements ICustomSendListRepository
   }
 
   async replaceMembers(listId: string, customerIds: string[]) {
-    await this.prisma.$transaction(async (tx) => {
-      await tx.customSendListMember.deleteMany({ where: { listId } });
+    if (customerIds.length === 0) {
+      await this.prisma.customSendListMember.deleteMany({ where: { listId } });
+      return;
+    }
 
-      if (customerIds.length > 0) {
-        await tx.customSendListMember.createMany({
+    await this.prisma.$transaction([
+      this.prisma.customSendListMember.deleteMany({ where: { listId } }),
+      this.prisma.customSendListMember.createMany({
           data: customerIds.map((customerId) => ({
             listId,
             customerId,
           })),
+          skipDuplicates: true,
+        }),
+    ]);
+  }
+
+  async updateMembers(
+    listId: string,
+    addCustomerIds: string[],
+    removeCustomerIds: string[],
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      if (removeCustomerIds.length > 0) {
+        await tx.customSendListMember.deleteMany({
+          where: { listId, customerId: { in: removeCustomerIds } },
+        });
+      }
+
+      if (addCustomerIds.length > 0) {
+        await tx.customSendListMember.createMany({
+          data: addCustomerIds.map((customerId) => ({ listId, customerId })),
+          skipDuplicates: true,
         });
       }
     });
@@ -139,6 +163,13 @@ export class CustomSendListPrismaRepository implements ICustomSendListRepository
     });
 
     return rows.map((row) => row.customerId);
+  }
+
+  async addMember(listId: string, customerId: string): Promise<void> {
+    await this.prisma.customSendListMember.createMany({
+      data: [{ listId, customerId }],
+      skipDuplicates: true,
+    });
   }
 
   async softDelete(id: string) {

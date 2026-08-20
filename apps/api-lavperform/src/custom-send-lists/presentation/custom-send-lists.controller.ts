@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -8,19 +9,25 @@ import {
   Post,
   Put,
   Query,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
 import {
   ApiBearerAuth,
+  ApiConsumes,
   ApiOperation,
   ApiTags,
 } from '@nestjs/swagger';
 import { AuthGuard } from '@nestjs/passport';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { CustomSendListsService } from '../application/custom-send-lists.service';
 import {
   CreateCustomSendListDto,
   EligibleCountQueryDto,
+  ImportCustomSendListCustomersDto,
   ReplaceCustomSendListMembersDto,
+  UpdateCustomSendListMembersDto,
   UpdateCustomSendListDto,
 } from '../application/dto/custom-send-list.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -60,6 +67,53 @@ export class CustomSendListsController {
     return this.customSendListsService.getMemberIds(companyId, id);
   }
 
+  @Post(':id/import')
+  @ApiOperation({ summary: 'Enfileirar clientes de CSV para a lista' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('payload', {
+      limits: { fileSize: 10 * 1024 * 1024 },
+    }),
+  )
+  importCustomers(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @UploadedFile() payload?: Express.Multer.File,
+  ) {
+    if (!payload) {
+      throw new BadRequestException('Arquivo de importação não enviado');
+    }
+
+    let dto: ImportCustomSendListCustomersDto;
+    try {
+      dto = JSON.parse(payload.buffer.toString('utf8'));
+    } catch {
+      throw new BadRequestException('Arquivo de importação inválido');
+    }
+
+    if (
+      !Array.isArray(dto.customers) ||
+      (dto.replaceCustomerIds !== undefined &&
+        (!Array.isArray(dto.replaceCustomerIds) ||
+          dto.replaceCustomerIds.some(
+            (id) =>
+              typeof id !== 'string' ||
+              !/^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(
+                id,
+              ),
+          )))
+    ) {
+      throw new BadRequestException('Dados de importação inválidos');
+    }
+
+    return this.customSendListsService.enqueueCsvImport(
+      companyId,
+      id,
+      dto.customers,
+      dto.replaceCustomerIds,
+    );
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar nome/descrição da lista' })
   update(
@@ -78,6 +132,16 @@ export class CustomSendListsController {
     @Body() dto: ReplaceCustomSendListMembersDto,
   ) {
     return this.customSendListsService.replaceMembers(companyId, id, dto);
+  }
+
+  @Patch(':id/members')
+  @ApiOperation({ summary: 'Adicionar e remover membros sem substituir a lista' })
+  updateMembers(
+    @Param('companyId') companyId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateCustomSendListMembersDto,
+  ) {
+    return this.customSendListsService.updateMembers(companyId, id, dto);
   }
 
   @Delete(':id')

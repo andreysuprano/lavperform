@@ -23,6 +23,12 @@ export interface ICustomSendListRepository {
 
   replaceMembers(listId: string, customerIds: string[]): Promise<void>;
 
+  updateMembers(
+    listId: string,
+    addCustomerIds: string[],
+    removeCustomerIds: string[],
+  ): Promise<void>;
+
   countMembers(listId: string): Promise<number>;
 
   findMembersPaginated(
@@ -31,6 +37,8 @@ export interface ICustomSendListRepository {
   ): Promise<{ items: Array<{ id: string; name: string; phone: string | null }>; total: number }>;
 
   findAllMemberIds(listId: string): Promise<string[]>;
+
+  addMember(listId: string, customerId: string): Promise<void>;
 
   softDelete(id: string): Promise<CustomSendList>;
 

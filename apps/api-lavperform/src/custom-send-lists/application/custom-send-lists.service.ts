@@ -6,12 +6,18 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { CampaignChannel } from '@prisma/client';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { PrismaService } from '../../prisma/prisma.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { QUEUE_NAMES } from '../../common/queue/queue.constants';
+import { formatPhoneNumber } from '../../common/utils/formatters';
 import { ICustomSendListRepository } from '../domain/custom-send-list.repository.interface';
 import {
   CreateCustomSendListDto,
+  ImportCustomSendListCustomerDto,
   ReplaceCustomSendListMembersDto,
+  UpdateCustomSendListMembersDto,
   UpdateCustomSendListDto,
 } from './dto/custom-send-list.dto';
 
@@ -21,6 +27,8 @@ export class CustomSendListsService {
     @Inject('ICustomSendListRepository')
     private readonly customSendListRepository: ICustomSendListRepository,
     private readonly prisma: PrismaService,
+    @InjectQueue(QUEUE_NAMES.CUSTOM_SEND_LIST_IMPORT)
+    private readonly importQueue: Queue,
   ) {}
 
   async create(companyId: string, dto: CreateCustomSendListDto) {
@@ -86,6 +94,48 @@ export class CustomSendListsService {
     return { customerIds };
   }
 
+  async enqueueCsvImport(
+    companyId: string,
+    id: string,
+    customers: ImportCustomSendListCustomerDto[],
+    replaceCustomerIds?: string[],
+  ) {
+    await this.getListOrThrow(companyId, id);
+    if (replaceCustomerIds) {
+      await this.assertCustomerIdsBelongToCompany(companyId, replaceCustomerIds);
+    }
+
+    let rejected = 0;
+    const uniqueCustomers = new Map<string, ImportCustomSendListCustomerDto>();
+    for (const customer of customers) {
+      try {
+        if (!this.isValidImportCustomer(customer)) {
+          rejected += 1;
+          continue;
+        }
+        const phone = formatPhoneNumber(customer.phone);
+        if (uniqueCustomers.has(phone)) {
+          rejected += 1;
+          continue;
+        }
+        uniqueCustomers.set(phone, this.sanitizeImportCustomer(customer, phone));
+      } catch {
+        rejected += 1;
+      }
+    }
+
+    if (uniqueCustomers.size > 0 || replaceCustomerIds) {
+      await this.importQueue.add('process-import', {
+        companyId,
+        listId: id,
+        customers: [...uniqueCustomers.values()],
+        replaceCustomerIds,
+      });
+    }
+
+    return { queued: uniqueCustomers.size, rejected };
+  }
+
   async update(companyId: string, id: string, dto: UpdateCustomSendListDto) {
     await this.getListOrThrow(companyId, id);
 
@@ -116,6 +166,25 @@ export class CustomSendListsService {
     await this.getListOrThrow(companyId, id);
     await this.assertCustomerIdsBelongToCompany(companyId, dto.customerIds);
     await this.customSendListRepository.replaceMembers(id, dto.customerIds);
+
+    const memberCount = await this.customSendListRepository.countMembers(id);
+    return { memberCount };
+  }
+
+  async updateMembers(
+    companyId: string,
+    id: string,
+    dto: UpdateCustomSendListMembersDto,
+  ) {
+    await this.getListOrThrow(companyId, id);
+    const addCustomerIds = [...new Set(dto.addCustomerIds ?? [])];
+    const removeCustomerIds = [...new Set(dto.removeCustomerIds ?? [])];
+    await this.assertCustomerIdsBelongToCompany(companyId, addCustomerIds);
+    await this.customSendListRepository.updateMembers(
+      id,
+      addCustomerIds,
+      removeCustomerIds,
+    );
 
     const memberCount = await this.customSendListRepository.countMembers(id);
     return { memberCount };
@@ -180,11 +249,104 @@ export class CustomSendListsService {
     return list;
   }
 
+  private sanitizeImportCustomer(
+    customer: ImportCustomSendListCustomerDto,
+    phone: string,
+  ): ImportCustomSendListCustomerDto {
+    const address = customer.address
+      ? {
+          street: customer.address.street,
+          number: customer.address.number,
+          complement: customer.address.complement,
+          neighborhood: customer.address.neighborhood,
+          city: customer.address.city,
+          state: customer.address.state,
+          zipCode: customer.address.zipCode,
+        }
+      : undefined;
+
+    return {
+      name: String(customer.name ?? '').trim(),
+      phone,
+      email: customer.email,
+      birthDate: customer.birthDate,
+      firstOrderDate: customer.firstOrderDate,
+      rfvClassification: customer.rfvClassification,
+      gender: customer.gender,
+      observations: customer.observations,
+      whatsappOptin: customer.whatsappOptin,
+      averageTicket: customer.averageTicket,
+      address,
+    };
+  }
+
+  private isValidImportCustomer(
+    customer: ImportCustomSendListCustomerDto,
+  ): boolean {
+    if (typeof customer.name !== 'string' || !customer.name.trim()) {
+      return false;
+    }
+
+    const optionalStrings = [
+      customer.email,
+      customer.birthDate,
+      customer.firstOrderDate,
+      customer.rfvClassification,
+      customer.gender,
+      customer.observations,
+    ];
+    if (
+      optionalStrings.some(
+        (value) => value !== undefined && typeof value !== 'string',
+      ) ||
+      (customer.whatsappOptin !== undefined &&
+        typeof customer.whatsappOptin !== 'boolean') ||
+      (customer.averageTicket !== undefined &&
+        (typeof customer.averageTicket !== 'number' ||
+          !Number.isFinite(customer.averageTicket)))
+    ) {
+      return false;
+    }
+
+    if (customer.address) {
+      if (
+        typeof customer.address !== 'object' ||
+        Array.isArray(customer.address) ||
+        Object.values(customer.address).some(
+          (value) => value !== undefined && typeof value !== 'string',
+        )
+      ) {
+        return false;
+      }
+    }
+
+    if (
+      customer.gender &&
+      !['M', 'F', 'Outro'].includes(customer.gender)
+    ) {
+      return false;
+    }
+
+    return [customer.birthDate, customer.firstOrderDate]
+      .filter((value): value is string => Boolean(value))
+      .every((value) => {
+        if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) {
+          return false;
+        }
+        const parsed = new Date(`${value}T00:00:00.000Z`);
+        return !Number.isNaN(parsed.getTime()) &&
+          parsed.toISOString().startsWith(value);
+      });
+  }
+
   private async assertCustomerIdsBelongToCompany(
     companyId: string,
     customerIds: string[],
   ): Promise<void> {
     const uniqueIds = [...new Set(customerIds)];
+    if (uniqueIds.length === 0) {
+      return;
+    }
 
     const count = await this.prisma.customer.count({
       where: {

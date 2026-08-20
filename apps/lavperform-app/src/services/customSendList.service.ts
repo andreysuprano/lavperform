@@ -4,7 +4,10 @@ import type {
   CustomSendListMemberIdsResponse,
   CustomSendListsListResponse,
   EligibleCountResponse,
+  ImportCustomSendListCustomersRequest,
+  ImportCustomSendListCustomersResponse,
   ReplaceCustomSendListMembersRequest,
+  UpdateCustomSendListMembersRequest,
   UpdateCustomSendListRequest,
 } from '@/types'
 
@@ -57,6 +60,36 @@ export const customSendListService = {
     return client.put<{ memberCount: number }>(
       `/companies/${companyId}/custom-send-lists/${listId}/members`,
       data,
+    )
+  },
+
+  updateMembers(
+    companyId: string,
+    listId: string,
+    data: UpdateCustomSendListMembersRequest,
+  ) {
+    return client.patch<{ memberCount: number }>(
+      `/companies/${companyId}/custom-send-lists/${listId}/members`,
+      data,
+    )
+  },
+
+  importCustomers(
+    companyId: string,
+    listId: string,
+    data: ImportCustomSendListCustomersRequest,
+  ) {
+    const formData = new FormData()
+    formData.append(
+      'payload',
+      new Blob([JSON.stringify(data)], { type: 'application/json' }),
+      'custom-send-list-import.json',
+    )
+
+    return client.post<ImportCustomSendListCustomersResponse>(
+      `/companies/${companyId}/custom-send-lists/${listId}/import`,
+      formData,
+      { headers: { 'Content-Type': 'multipart/form-data' } },
     )
   },
 

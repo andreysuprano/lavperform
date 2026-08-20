@@ -148,7 +148,8 @@ export function CustomSendListsPage() {
             <Dialog.Content
               display="flex"
               flexDirection="column"
-              maxH="90dvh"
+              h="min(85dvh, 760px)"
+              maxH="85dvh"
               overflow="hidden"
               position="relative"
               w="full"
@@ -175,13 +176,14 @@ export function CustomSendListsPage() {
               </Dialog.Header>
               <Dialog.Body
                 display="flex"
-                flex={1}
+                flex="1 1 auto"
                 flexDirection="column"
                 minH={0}
-                overflow="hidden"
-                pb={4}
+                overflow="auto"
+                pb={0}
               >
                 <CustomSendListBuilder
+                  key={selectedList?.id ?? 'new'}
                   list={selectedList}
                   onCancel={() => setEditorOpen(false)}
                   onSaved={() => setEditorOpen(false)}
