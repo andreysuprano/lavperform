@@ -262,4 +262,80 @@ describe('AudienceQueryEngine', () => {
       }),
     );
   });
+
+  it('allows last_order_days between without required dates', () => {
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'last_order_days', operator: 'between', value: {} }],
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it('resolves last_order_days between with optional date range', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'd1' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          {
+            type: 'last_order_days',
+            operator: 'between',
+            value: { from: '2026-01-01', to: '2026-01-31' },
+          },
+        ],
+      },
+    };
+
+    await engine.resolveCustomerIds('company-1', definition);
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        AND: [
+          {
+            orders: {
+              some: {
+                createdAt: {
+                  gte: new Date(Date.UTC(2026, 0, 1)),
+                  lt: new Date(Date.UTC(2026, 1, 1)),
+                },
+              },
+            },
+          },
+          {
+            orders: { none: { createdAt: { gte: new Date(Date.UTC(2026, 1, 1)) } } },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+
+  it('resolves last_order_days between with only start date', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'd2' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          { type: 'last_order_days', operator: 'between', value: { from: '2026-03-01' } },
+        ],
+      },
+    };
+
+    await engine.resolveCustomerIds('company-1', definition);
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        AND: [{ orders: { some: { createdAt: { gte: new Date(Date.UTC(2026, 2, 1)) } } } }],
+      },
+      select: { id: true },
+    });
+  });
 });

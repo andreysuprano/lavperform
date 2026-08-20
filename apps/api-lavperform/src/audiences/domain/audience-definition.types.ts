@@ -136,7 +136,13 @@ function validateCriterion(criterion: Criterion, path: string): void {
     throw new Error(`Operador inválido para critério ${criterion.type} em ${path}`);
   }
 
-  if (criterion.value === undefined || criterion.value === null) {
+  const allowsEmptyValue =
+    criterion.type === 'last_order_days' && criterion.operator === 'between';
+
+  if (
+    !allowsEmptyValue &&
+    (criterion.value === undefined || criterion.value === null)
+  ) {
     throw new Error(`Valor obrigatório para critério em ${path}`);
   }
 }
@@ -152,7 +158,7 @@ export const CRITERIA_METADATA = [
     type: 'last_order_days' as const,
     label: 'Dias desde o último pedido',
     operators: ['eq', 'gt', 'gte', 'lt', 'lte', 'between'],
-    valueType: 'number',
+    valueType: 'number_or_date_range',
   },
   {
     type: 'neighborhood' as const,
