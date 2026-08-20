@@ -1,6 +1,7 @@
 import type {
   CreateCustomSendListRequest,
   CustomSendList,
+  CustomSendListMemberIdsResponse,
   CustomSendListsListResponse,
   EligibleCountResponse,
   ReplaceCustomSendListMembersRequest,
@@ -25,6 +26,12 @@ export const customSendListService = {
     return client.get<CustomSendList>(
       `/companies/${companyId}/custom-send-lists/${listId}`,
       { params },
+    )
+  },
+
+  getMemberIds(companyId: string, listId: string) {
+    return client.get<CustomSendListMemberIdsResponse>(
+      `/companies/${companyId}/custom-send-lists/${listId}/member-ids`,
     )
   },
 

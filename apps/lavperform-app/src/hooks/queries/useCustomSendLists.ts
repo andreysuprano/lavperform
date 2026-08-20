@@ -39,6 +39,21 @@ export function useCustomSendList(
   })
 }
 
+export function useCustomSendListMemberIds(
+  companyId: string | undefined,
+  listId?: string,
+) {
+  return useQuery({
+    queryKey: queryKeys.customSendLists.memberIds(companyId || '', listId || ''),
+    queryFn: async () => {
+      if (!companyId || !listId) throw new Error('IDs are required')
+      const response = await customSendListService.getMemberIds(companyId, listId)
+      return response.data.customerIds
+    },
+    enabled: !!companyId && !!listId,
+  })
+}
+
 export function useCustomSendListEligibleCount(
   companyId: string | undefined,
   listId?: string | null,
@@ -142,6 +157,12 @@ export function useReplaceCustomSendListMembers() {
       })
       queryClient.invalidateQueries({
         queryKey: queryKeys.customSendLists.detail(
+          variables.companyId,
+          variables.listId,
+        ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customSendLists.memberIds(
           variables.companyId,
           variables.listId,
         ),

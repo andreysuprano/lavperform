@@ -49,3 +49,7 @@ export interface CustomSendListsListResponse {
 export interface EligibleCountResponse {
   count: number
 }
+
+export interface CustomSendListMemberIdsResponse {
+  customerIds: string[]
+}

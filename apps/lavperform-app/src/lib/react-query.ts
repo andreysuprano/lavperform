@@ -96,6 +96,8 @@ export const queryKeys = {
       ['customSendLists', 'list', companyId, params] as const,
     detail: (companyId: string, listId: string, params: any = {}) =>
       ['customSendLists', 'detail', companyId, listId, params] as const,
+    memberIds: (companyId: string, listId: string) =>
+      ['customSendLists', 'memberIds', companyId, listId] as const,
     eligibleCount: (companyId: string, listId: string, channel?: string) =>
       ['customSendLists', 'eligibleCount', companyId, listId, channel ?? null] as const,
   },
