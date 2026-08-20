@@ -30,6 +30,8 @@ export interface ICustomSendListRepository {
     pagination: PaginationDto,
   ): Promise<{ items: Array<{ id: string; name: string; phone: string | null }>; total: number }>;
 
+  findAllMemberIds(listId: string): Promise<string[]>;
+
   softDelete(id: string): Promise<CustomSendList>;
 
   countActiveCampaignReferences(listId: string): Promise<number>;

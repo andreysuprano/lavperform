@@ -54,6 +54,12 @@ export class CustomSendListsController {
     return this.customSendListsService.findOne(companyId, id, pagination);
   }
 
+  @Get(':id/member-ids')
+  @ApiOperation({ summary: 'IDs de todos os clientes da lista' })
+  findMemberIds(@Param('companyId') companyId: string, @Param('id') id: string) {
+    return this.customSendListsService.getMemberIds(companyId, id);
+  }
+
   @Patch(':id')
   @ApiOperation({ summary: 'Atualizar nome/descrição da lista' })
   update(

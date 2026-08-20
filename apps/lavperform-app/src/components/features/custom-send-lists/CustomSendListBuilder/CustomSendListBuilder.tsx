@@ -20,7 +20,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useCustomers } from '@/hooks/queries/useCustomers'
 import {
   useCreateCustomSendList,
-  useCustomSendList,
+  useCustomSendListMemberIds,
   useReplaceCustomSendListMembers,
   useUpdateCustomSendList,
 } from '@/hooks/queries/useCustomSendLists'
@@ -49,11 +49,8 @@ export function CustomSendListBuilder({ list, onCancel, onSaved }: Props) {
   const updateList = useUpdateCustomSendList()
   const replaceMembers = useReplaceCustomSendListMembers()
 
-  const { data: listDetail, isLoading: isLoadingDetail } = useCustomSendList(
-    companyId,
-    list?.id,
-    { page: 1, limit: 5000 },
-  )
+  const { data: memberIds, isLoading: isLoadingMembers } =
+    useCustomSendListMemberIds(companyId, list?.id)
 
   const { data: customersData, isLoading: isLoadingCustomers } = useCustomers(
     companyId,
@@ -72,10 +69,10 @@ export function CustomSendListBuilder({ list, onCancel, onSaved }: Props) {
   }, [searchQuery])
 
   useEffect(() => {
-    if (listDetail?.members?.length) {
-      setSelectedIds(new Set(listDetail.members.map((member) => member.id)))
+    if (memberIds) {
+      setSelectedIds(new Set(memberIds))
     }
-  }, [listDetail?.members])
+  }, [memberIds])
 
   const customers = customersData?.items ?? []
   const meta = customersData?.meta
@@ -178,7 +175,7 @@ export function CustomSendListBuilder({ list, onCancel, onSaved }: Props) {
     }
   }
 
-  if (list?.id && isLoadingDetail) {
+  if (list?.id && isLoadingMembers) {
     return <LoadingState />
   }
 

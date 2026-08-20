@@ -80,6 +80,12 @@ export class CustomSendListsService {
     };
   }
 
+  async getMemberIds(companyId: string, id: string) {
+    await this.getListOrThrow(companyId, id);
+    const customerIds = await this.customSendListRepository.findAllMemberIds(id);
+    return { customerIds };
+  }
+
   async update(companyId: string, id: string, dto: UpdateCustomSendListDto) {
     await this.getListOrThrow(companyId, id);
 
