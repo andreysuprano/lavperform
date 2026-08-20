@@ -8,20 +8,24 @@ import {
   Fieldset,
   FileUpload,
   Flex,
+  HStack,
   Icon,
   Image,
+  RadioGroup,
   Stack,
   Text,
 } from '@chakra-ui/react'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useQueryClient } from '@tanstack/react-query'
 import { memo, useMemo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { LuTrash2, LuUpload } from 'react-icons/lu'
 import { RiSaveLine } from 'react-icons/ri'
 
 import {
+  AudienceSelect,
   CustomDrawer,
+  CustomSendListSelect,
   DeleteConfirmationDialog,
   FileUploadList,
   Input,
@@ -32,6 +36,7 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { queryKeys } from '@/lib/react-query'
 import { scheduledDispatchCampaignService } from '@/services'
+import { resolveCampaignTargetingFromApi } from '@/utils/campaigns/resolveCampaignTargetingFromApi'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { convertISOToDateTime } from '@/utils/convertISOToDate'
 import { logger } from '@/utils/logger'
@@ -46,6 +51,7 @@ import { FormData, schema } from './schema'
 
 const EditScheduledDispatchFormComponent = ({ onClose, data }: Props) => {
   const queryClient = useQueryClient()
+  const targeting = resolveCampaignTargetingFromApi(data)
 
   const {
     register,
@@ -53,6 +59,8 @@ const EditScheduledDispatchFormComponent = ({ onClose, data }: Props) => {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
   } = useForm<FormData>({
     mode: 'onChange',
     resolver: yupResolver<FormData, any, any>(schema),
@@ -61,15 +69,23 @@ const EditScheduledDispatchFormComponent = ({ onClose, data }: Props) => {
       scheduledDate: undefined,
       messageText: '',
       segmentation: [],
+      targetingMode: 'RFV',
+      audienceId: undefined,
+      customSendListId: undefined,
       imageUrl: '',
       modifiedByAI: true,
     },
     values: {
       ...data,
-      segmentation: data.segmentation.split(', '),
+      targetingMode: targeting.targetingMode,
+      audienceId: targeting.audienceId ?? undefined,
+      customSendListId: targeting.customSendListId ?? undefined,
+      segmentation: targeting.segmentation,
       scheduledDate: convertISOToDateTime(data.scheduledDate),
     },
   })
+
+  const targetingModeValue = watch('targetingMode')
 
   const [isOpen, setIsOpen] = useState(!!data)
 
@@ -106,7 +122,12 @@ const EditScheduledDispatchFormComponent = ({ onClose, data }: Props) => {
 
       values = {
         ...values,
-        segmentation: values.segmentation.join(', '),
+        targetingMode: values.targetingMode ?? 'RFV',
+        ...(values.targetingMode === 'AUDIENCE'
+          ? { audienceId: values.audienceId }
+          : values.targetingMode === 'CUSTOMER_LIST'
+            ? { customSendListId: values.customSendListId }
+            : { segmentation: (values.segmentation ?? []).join(', ') }),
       }
 
       const response = await scheduledDispatchCampaignService.updateCampaign(
@@ -384,15 +405,71 @@ const EditScheduledDispatchFormComponent = ({ onClose, data }: Props) => {
               rows={4}
               {...register('messageText')}
             />
-            <SegmentationSelect
-              collection={clientTypesOptions}
+            <Controller
               control={control}
-              label="Segmentação"
-              multiple
-              name="segmentation"
-              placeholder="Selecione os tipos de clientes"
-              required
+              name="targetingMode"
+              render={({ field }) => (
+                <RadioGroup.Root
+                  onValueChange={({ value }) => {
+                    field.onChange(value)
+                    if (value === 'AUDIENCE') {
+                      setValue('segmentation', [], { shouldValidate: true })
+                      setValue('customSendListId', undefined, { shouldValidate: true })
+                    } else if (value === 'CUSTOMER_LIST') {
+                      setValue('segmentation', [], { shouldValidate: true })
+                      setValue('audienceId', undefined, { shouldValidate: true })
+                    } else {
+                      setValue('audienceId', undefined, { shouldValidate: true })
+                      setValue('customSendListId', undefined, { shouldValidate: true })
+                    }
+                  }}
+                  value={field.value}
+                >
+                  <HStack gap={6} wrap="wrap">
+                    <RadioGroup.Item value="RFV">
+                      <RadioGroup.ItemHiddenInput />
+                      <RadioGroup.ItemIndicator />
+                      <RadioGroup.ItemText>Segmentação RFV</RadioGroup.ItemText>
+                    </RadioGroup.Item>
+                    <RadioGroup.Item value="AUDIENCE">
+                      <RadioGroup.ItemHiddenInput />
+                      <RadioGroup.ItemIndicator />
+                      <RadioGroup.ItemText>Audiência customizada</RadioGroup.ItemText>
+                    </RadioGroup.Item>
+                    <RadioGroup.Item value="CUSTOMER_LIST">
+                      <RadioGroup.ItemHiddenInput />
+                      <RadioGroup.ItemIndicator />
+                      <RadioGroup.ItemText>Lista personalizada</RadioGroup.ItemText>
+                    </RadioGroup.Item>
+                  </HStack>
+                </RadioGroup.Root>
+              )}
             />
+            {targetingModeValue === 'RFV' ? (
+              <SegmentationSelect
+                collection={clientTypesOptions}
+                control={control}
+                label="Segmentação"
+                multiple
+                name="segmentation"
+                placeholder="Selecione os tipos de clientes"
+                required
+              />
+            ) : targetingModeValue === 'AUDIENCE' ? (
+              <AudienceSelect
+                control={control}
+                label="Audiência"
+                name="audienceId"
+                required
+              />
+            ) : (
+              <CustomSendListSelect
+                control={control}
+                label="Lista personalizada"
+                name="customSendListId"
+                required
+              />
+            )}
           </Fieldset.Content>
         </Fieldset.Root>
       </Stack>

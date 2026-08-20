@@ -30,6 +30,7 @@ export class AutomaticCampaign {
     segmentation: string;
     targetingMode?: string;
     audienceId?: string | null;
+    customSendListId?: string | null;
     endDate: Date | null;
     companyId: string;
     couponId?: string | null;

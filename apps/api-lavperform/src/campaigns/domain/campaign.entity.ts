@@ -6,6 +6,7 @@ export class Campaign {
     segmentation: string;
     targetingMode?: string;
     audienceId?: string | null;
+    customSendListId?: string | null;
     maxDailySends: number;
     imageUrl?: string | null;
     status: string; // Using string to decouple from Prisma enum for now, or assume 'WAITING' | 'PROCESSING' etc

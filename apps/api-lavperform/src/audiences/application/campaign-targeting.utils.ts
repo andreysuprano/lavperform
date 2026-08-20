@@ -5,12 +5,14 @@ export interface CampaignTargetingInput {
   targetingMode?: AudienceTargetingMode;
   segmentation?: string;
   audienceId?: string | null;
+  customSendListId?: string | null;
 }
 
 export function normalizeCampaignTargeting(input: CampaignTargetingInput): {
   targetingMode: AudienceTargetingMode;
   segmentation: string;
   audienceId: string | null;
+  customSendListId: string | null;
 } {
   const targetingMode = input.targetingMode ?? AudienceTargetingMode.RFV;
 
@@ -22,7 +24,23 @@ export function normalizeCampaignTargeting(input: CampaignTargetingInput): {
     return {
       targetingMode,
       audienceId: input.audienceId,
+      customSendListId: null,
       segmentation: `audience:${input.audienceId}`,
+    };
+  }
+
+  if (targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+    if (!input.customSendListId) {
+      throw new BadRequestException(
+        'Lista personalizada é obrigatória quando targetingMode é CUSTOMER_LIST',
+      );
+    }
+
+    return {
+      targetingMode,
+      audienceId: null,
+      customSendListId: input.customSendListId,
+      segmentation: `custom-send-list:${input.customSendListId}`,
     };
   }
 
@@ -33,6 +51,7 @@ export function normalizeCampaignTargeting(input: CampaignTargetingInput): {
   return {
     targetingMode,
     audienceId: null,
+    customSendListId: null,
     segmentation: input.segmentation.trim(),
   };
 }

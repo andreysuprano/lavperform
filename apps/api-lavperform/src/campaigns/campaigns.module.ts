@@ -11,11 +11,13 @@ import { MessageEngineModule } from '../message-engine/message-engine.module';
 import { OpenAIModule } from '../integrations/openai/openai.module';
 import { CampaignPrismaRepository } from './infrastructure/persistence/prisma-campaign.repository';
 import { AudiencesModule } from '../audiences/audiences.module';
+import { CustomSendListsModule } from '../custom-send-lists/custom-send-lists.module';
 import { workerProviders } from '../common/queue/worker-runtime.config';
 
 @Module({
   imports: [
     AudiencesModule,
+    CustomSendListsModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.CAMPAIGNS_ENGINE,
       defaultJobOptions: {

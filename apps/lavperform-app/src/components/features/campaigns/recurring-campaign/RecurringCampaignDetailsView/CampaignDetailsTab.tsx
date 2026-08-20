@@ -39,6 +39,7 @@ import {
   type ChannelKey,
 } from '@/components/features/channels/channelCatalog.constants'
 import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useCustomSendLists } from '@/hooks/queries/useCustomSendLists'
 import { useMetaTemplates } from '@/hooks/queries/useMetaTemplates'
 import { convertLinkToResizedImage } from '@/firebase/storage'
 import type { RecurringCampaign } from '@/types'
@@ -161,6 +162,10 @@ function CampaignDetailsTabComponent({
     page: 1,
     limit: 100,
   })
+  const { data: customSendListsResult } = useCustomSendLists(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
   const { data: metaTemplates = [] } = useMetaTemplates(selectedCompany?.id)
 
   const audienceBadges = useMemo(() => {
@@ -174,12 +179,20 @@ function CampaignDetailsTabComponent({
       return audienceName ? [audienceName] : []
     }
 
+    if (targeting.targetingMode === 'CUSTOMER_LIST') {
+      const listName = customSendListsResult?.data?.find(
+        (list) => list.id === targeting.customSendListId,
+      )?.name
+
+      return listName ? [listName] : []
+    }
+
     return targeting.segmentation.map(
       (segItem) =>
         clientTypesOptions.items.find((item) => item.value === segItem)?.label ??
         segItem,
     )
-  }, [audiencesResult?.data, campaign])
+  }, [audiencesResult?.data, campaign, customSendListsResult?.data])
 
   const imageList = parseCampaignImagesField(campaign.images)
 

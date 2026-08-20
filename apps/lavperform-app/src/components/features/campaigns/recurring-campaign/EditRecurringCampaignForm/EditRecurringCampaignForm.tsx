@@ -131,7 +131,7 @@ const reverseDayShortToValue = Object.fromEntries(
 function mapCampaignToFormData(campaignData: RecurringCampaign): FormDataProps {
   const imagesArray = parseImagesField(campaignData.images)
 
-  const { targetingMode, audienceId, segmentation: segmentationArray } =
+  const { targetingMode, audienceId, customSendListId, segmentation: segmentationArray } =
     resolveCampaignTargetingFromApi(campaignData)
 
   let couponId =
@@ -219,6 +219,7 @@ function mapCampaignToFormData(campaignData: RecurringCampaign): FormDataProps {
     name: campaignData.name || '',
     targetingMode,
     audienceId,
+    customSendListId,
     segmentation: segmentationArray,
     daysOfWeek: campaignData.daysOfWeek || [],
     startDate: toHtmlDateInputValue(campaignData.startDate),

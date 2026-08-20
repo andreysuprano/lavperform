@@ -11,6 +11,7 @@ import { parseUTCDate } from '../../common/utils/date.utils';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { normalizeCampaignTargeting } from '../../audiences/application/campaign-targeting.utils';
+import { CustomSendListsService } from '../../custom-send-lists/application/custom-send-lists.service';
 
 @Injectable()
 export class CampaignsService {
@@ -18,6 +19,7 @@ export class CampaignsService {
     @Inject('ICampaignRepository')
     private readonly campaignRepository: ICampaignRepository,
     private readonly prisma: PrismaService,
+    private readonly customSendListsService: CustomSendListsService,
     @InjectQueue(QUEUE_NAMES.CAMPAIGNS_ENGINE)
     private readonly campaignsQueue: Queue,
   ) { }
@@ -27,6 +29,13 @@ export class CampaignsService {
 
     if (targeting.targetingMode === AudienceTargetingMode.AUDIENCE) {
       await this.assertAudienceBelongsToCompany(companyId, targeting.audienceId!);
+    }
+
+    if (targeting.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+      await this.customSendListsService.assertCustomSendListBelongsToCompany(
+        companyId,
+        targeting.customSendListId!,
+      );
     }
 
     return await this.campaignRepository.createWithMetric({
@@ -77,16 +86,26 @@ export class CampaignsService {
     if (
       updateCampaignDto.targetingMode !== undefined ||
       updateCampaignDto.segmentation !== undefined ||
-      updateCampaignDto.audienceId !== undefined
+      updateCampaignDto.audienceId !== undefined ||
+      updateCampaignDto.customSendListId !== undefined
     ) {
       const targeting = normalizeCampaignTargeting({
         targetingMode: updateCampaignDto.targetingMode ?? (campaign as any).targetingMode,
         segmentation: updateCampaignDto.segmentation ?? campaign.segmentation,
         audienceId: updateCampaignDto.audienceId ?? (campaign as any).audienceId,
+        customSendListId:
+          updateCampaignDto.customSendListId ?? (campaign as any).customSendListId,
       });
 
       if (targeting.targetingMode === AudienceTargetingMode.AUDIENCE) {
         await this.assertAudienceBelongsToCompany(campaign.companyId, targeting.audienceId!);
+      }
+
+      if (targeting.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+        await this.customSendListsService.assertCustomSendListBelongsToCompany(
+          campaign.companyId,
+          targeting.customSendListId!,
+        );
       }
 
       Object.assign(updateData, targeting);

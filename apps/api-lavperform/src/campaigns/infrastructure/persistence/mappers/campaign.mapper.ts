@@ -15,6 +15,7 @@ export class CampaignMapper {
             segmentation: prismaCampaign.segmentation,
             targetingMode: (prismaCampaign as any).targetingMode,
             audienceId: (prismaCampaign as any).audienceId ?? null,
+            customSendListId: (prismaCampaign as any).customSendListId ?? null,
             maxDailySends: (prismaCampaign as any).maxDailySends ?? 50,
             imageUrl: prismaCampaign.imageUrl,
             status: prismaCampaign.status,

@@ -1,6 +1,7 @@
 export * from './audience.types'
 export * from './auth.types'
 export * from './campaign.types'
+export * from './customSendList.types'
 export * from './cep.types'
 export * from './common.types'
 export * from './company.types'
