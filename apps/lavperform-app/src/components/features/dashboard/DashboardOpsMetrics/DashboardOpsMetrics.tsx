@@ -23,38 +23,47 @@ function DashboardOpsMetricsBase() {
   const { data: customers, isLoading: isLoadingCustomers } =
     useDashboardCustomers(companyId)
 
-  const { data: performance, isLoading: isLoadingPerformance } =
-    useDashboardPerformance(companyId)
+  const {
+    data: performance,
+    isLoading: isLoadingPerformance,
+    isPlaceholderData: isPlaceholderPerformance,
+  } = useDashboardPerformance(companyId)
 
-  const isLoading = isLoadingCustomers || isLoadingPerformance
+  const isLoading =
+    isLoadingCustomers || isLoadingPerformance || isPlaceholderPerformance
 
   const cards = useMemo(
     () => [
       {
+        id: 'daily-sales-amount',
         icon: LuCircleDollarSign,
         label: 'Vendas do dia',
         value: performance?.summary.dailySalesAmount ?? 0,
         valueType: 'currency-full' as const,
       },
       {
+        id: 'daily-sales-count',
         icon: LuShoppingCart,
         label: 'Vendas do dia',
         value: performance?.summary.dailySalesCount ?? 0,
         valueType: 'number' as const,
       },
       {
+        id: 'active-customers',
         icon: LuUserRoundCheck,
         label: 'Clientes ativos',
         value: customers?.activeCustomers ?? 0,
         valueType: 'number' as const,
       },
       {
+        id: 'reconquest-customers',
         icon: LuUserRoundMinus,
         label: 'Reconquista',
         value: customers?.inactiveCustomers ?? 0,
         valueType: 'number' as const,
       },
       {
+        id: 'new-customers',
         icon: LuUserRoundPlus,
         label: 'Novos',
         value: customers?.newCustomers ?? 0,
@@ -87,9 +96,9 @@ function DashboardOpsMetricsBase() {
       gap={4}
       w="full"
     >
-      {cards.map((card) => (
+      {cards.map(({ id, ...card }) => (
         <MetricCard
-          key={card.label}
+          key={id}
           {...card}
           size="sm"
         />
