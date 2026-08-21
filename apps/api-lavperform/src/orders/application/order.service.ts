@@ -94,6 +94,8 @@ export class OrderService {
         .filter(item => !item.parentItemId)
         .map(item => ({ name: item.name, quantity: item.quantity })),
       customerName: order.customer?.name ?? 'Desconhecido',
+      customerPhone: order.customer?.phone ?? null,
+      customerEmail: order.customer?.email ?? null,
     }));
 
     return {

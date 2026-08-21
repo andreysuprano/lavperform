@@ -23,6 +23,12 @@ export class SalesSummaryItemDto {
 
   @ApiProperty({ example: 'João Silva', description: 'Nome do cliente' })
   customerName: string;
+
+  @ApiProperty({ example: '41999999999', nullable: true, required: false })
+  customerPhone: string | null;
+
+  @ApiProperty({ example: 'maria@ex.com', nullable: true, required: false })
+  customerEmail: string | null;
 }
 
 export class SalesSummaryResponseDto {
