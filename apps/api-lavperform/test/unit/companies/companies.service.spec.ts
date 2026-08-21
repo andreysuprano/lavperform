@@ -192,6 +192,21 @@ describe('CompaniesService', () => {
       );
       expect(result.name).toBe('Updated');
     });
+
+    it('forwards showIncentivizedSales to the repository', async () => {
+      mockRepository.findById.mockResolvedValue({ id: '1' });
+      mockRepository.update.mockResolvedValue({
+        id: '1',
+        showIncentivizedSales: false,
+      });
+
+      await service.update('1', { showIncentivizedSales: false } as any);
+
+      expect(repository.update).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({ showIncentivizedSales: false }),
+      );
+    });
   });
 
   describe('updateCompanyState', () => {

@@ -21,6 +21,7 @@ export interface UserCompany {
   avatarUrl: string
   slug: string
   companyId: string
+  showIncentivizedSales: boolean
 }
 
 export interface User {

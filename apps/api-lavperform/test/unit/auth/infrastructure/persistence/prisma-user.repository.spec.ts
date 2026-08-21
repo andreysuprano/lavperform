@@ -21,6 +21,9 @@ describe('PrismaUserRepository', () => {
     businessPartnerId: null,
     state: 'ACTIVE',
     overAgentCompanyId: null,
+    showIncentivizedSales: true,
+    deletedAt: null,
+    asaasCustomerId: null,
   };
 
   const mockPrismaUserCompany: UserCompany & { company: Company } = {
@@ -51,6 +54,7 @@ describe('PrismaUserRepository', () => {
     name: 'John Doe',
     phone: '+5511999999999',
     password: 'hashed_password',
+    avatarUrl: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-02'),
     userCompanies: [mockPrismaUserCompany],
@@ -146,6 +150,7 @@ describe('PrismaUserRepository', () => {
         name: 'John Doe',
         phone: '+5511999999999',
         password: 'hashed_password',
+        avatarUrl: null,
         createdAt: new Date('2024-01-01'),
         updatedAt: new Date('2024-01-02'),
       };

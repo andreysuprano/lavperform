@@ -12,6 +12,7 @@ export interface PreloadCompany {
   avatarUrl: string
   address: CompanyAddress
   slug?: string
+  showIncentivizedSales?: boolean
 }
 
 export interface ApplicationPreloadResponse {

@@ -81,6 +81,7 @@ export const updateCompanySchema = z.object({
     .email("Email inválido"),
   phone: optionalString,
   address: addressSchema,
+  showIncentivizedSales: z.boolean(),
 })
 
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>

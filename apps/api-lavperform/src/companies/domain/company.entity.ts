@@ -11,6 +11,7 @@ export class Company {
     address?: any;
     businessPartnerId?: string | null;
     slug?: string | null;
+    showIncentivizedSales?: boolean;
     createdAt: Date;
     updatedAt: Date;
     // Relations could be typed more strictly if needed, using generic 'any' for now to speed up migration of complex nested includes

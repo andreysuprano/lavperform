@@ -77,8 +77,70 @@ describe('ApplicationService', () => {
       id: 'c1',
       name: 'Comp',
       email: 'c@test.com',
+      showIncentivizedSales: true,
       address: expect.objectContaining({ street: 'S', number: '10' }),
     });
+  });
+
+  it('returns showIncentivizedSales false when the company flag is off', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+            showIncentivizedSales: false,
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showIncentivizedSales).toBe(false);
+  });
+
+  it('defaults showIncentivizedSales to true when the field is missing', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showIncentivizedSales).toBe(true);
   });
 
   it('gracefully handles companies without address', async () => {
