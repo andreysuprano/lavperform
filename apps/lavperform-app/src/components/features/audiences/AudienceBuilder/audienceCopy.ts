@@ -108,24 +108,35 @@ function formatCriterionSummary(criterion: Criterion): string {
         : `${label}: ${list}`
     }
     case 'last_order_days': {
-      if (criterion.operator === 'between') {
-        const range =
-          criterion.value && typeof criterion.value === 'object' && !Array.isArray(criterion.value)
-            ? (criterion.value as { from?: string; to?: string; min?: number; max?: number })
+      const range =
+        typeof criterion.value === 'number'
+          ? { days: criterion.value }
+          : criterion.value && typeof criterion.value === 'object' && !Array.isArray(criterion.value)
+            ? (criterion.value as { from?: string; to?: string; min?: number; max?: number; days?: number })
             : {}
+      const parts: string[] = []
+
+      if (criterion.operator === 'between') {
         if (range.from || range.to) {
-          const from = range.from || 'qualquer data'
-          const to = range.to || 'qualquer data'
-          return `${label}: entre ${from} e ${to}`
+          parts.push(`entre ${range.from || 'qualquer data'} e ${range.to || 'qualquer data'}`)
+        } else if (range.min != null || range.max != null) {
+          parts.push(
+            `entre ${range.min != null ? range.min : 'qualquer'} e ${range.max != null ? range.max : 'qualquer'} dias`,
+          )
         }
-        if (range.min != null || range.max != null) {
-          const min = range.min != null ? `${range.min}` : 'qualquer'
-          const max = range.max != null ? `${range.max}` : 'qualquer'
-          return `${label}: entre ${min} e ${max} dias`
-        }
-        return `${label}: intervalo de datas (sem limite)`
+      } else if (range.days != null) {
+        parts.push(`${operatorLabel.toLowerCase()} ${range.days} dias`)
       }
-      return `${label}: ${operatorLabel.toLowerCase()} ${Number(criterion.value ?? 0)} dias`
+
+      if (criterion.operator !== 'between' && (range.from || range.to)) {
+        parts.push(`entre ${range.from || 'qualquer data'} e ${range.to || 'qualquer data'}`)
+      }
+
+      if (!parts.length) {
+        return `${label}: sem limite de data`
+      }
+
+      return `${label}: ${parts.join(' e ')}`
     }
     case 'total_orders':
       return `${label}: ${operatorLabel.toLowerCase()} ${Number(criterion.value ?? 0)}`
