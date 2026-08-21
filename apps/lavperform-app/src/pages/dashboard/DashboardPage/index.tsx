@@ -7,6 +7,7 @@ import {
   DashboardHeroBanner,
   DashboardOpsMetrics,
   DashboardQuickLinks,
+  DashboardTodaySales,
   DashboardTopCustomersRank,
 } from '@/components'
 
@@ -47,6 +48,7 @@ export function Home() {
             </Text>
             <CustomerSummaryWidget />
           </Stack>
+          <DashboardTodaySales />
         </Stack>
 
         <DashboardQuickLinks />

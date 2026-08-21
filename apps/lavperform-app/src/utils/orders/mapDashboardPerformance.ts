@@ -35,6 +35,8 @@ export function mapOrdersSalesToRecentSales(
   return data.sales.map((sale) => ({
     id: sale.orderId,
     customerName: sale.customerName,
+    customerPhone: sale.customerPhone ?? null,
+    customerEmail: sale.customerEmail ?? null,
     productsLabel: formatSaleProducts(sale.products),
     saleAmount: sale.total,
     saleDate: sale.date,

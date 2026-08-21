@@ -30,8 +30,12 @@ export const queryKeys = {
   orders: {
     monthlySales: (companyId: string) =>
       ['orders', 'monthly-sales', companyId] as const,
-    sales: (companyId: string, page: number, limit: number) =>
-      ['orders', 'sales', companyId, page, limit] as const,
+    sales: (
+      companyId: string,
+      page: number,
+      limit: number,
+      period: string = 'all',
+    ) => ['orders', 'sales', companyId, page, limit, period] as const,
   },
 
   saleAttribution: {
