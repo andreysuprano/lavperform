@@ -6,7 +6,7 @@ import {
   Table,
   Text,
 } from '@chakra-ui/react'
-import { memo, useState } from 'react'
+import { memo, useEffect, useState } from 'react'
 
 import { Empty } from '@/components/common'
 import { useAuth } from '@/context/AuthContext'
@@ -58,6 +58,10 @@ function DashboardTodaySalesBase() {
   const companyId = selectedCompany?.id
   const [page, setPage] = useState(1)
 
+  useEffect(() => {
+    setPage(1)
+  }, [companyId])
+
   const { data, isError, isLoading } = useTodaySales(companyId, { page })
 
   const sales = data?.sales ?? []
@@ -93,41 +97,43 @@ function DashboardTodaySalesBase() {
             title="Erro ao carregar vendas"
           />
         ) : hasItems ? (
-          <Table.Root size="sm">
-            <Table.Header>
-              <Table.Row>
-                <Table.ColumnHeader>Nome</Table.ColumnHeader>
-                <Table.ColumnHeader>Contato</Table.ColumnHeader>
-                <Table.ColumnHeader>Serviço contratado</Table.ColumnHeader>
-                <Table.ColumnHeader>Horário</Table.ColumnHeader>
-                <Table.ColumnHeader textAlign="end">Valor</Table.ColumnHeader>
-              </Table.Row>
-            </Table.Header>
-            <Table.Body>
-              {sales.map((sale) => (
-                <Table.Row key={sale.id}>
-                  <Table.Cell>
-                    <Text fontSize="sm">{sale.customerName}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <SaleContactCell
-                      email={sale.customerEmail}
-                      phone={sale.customerPhone}
-                    />
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text fontSize="sm">{sale.productsLabel}</Text>
-                  </Table.Cell>
-                  <Table.Cell>
-                    <Text fontSize="sm">{formatTimeOfDay(sale.saleDate)}</Text>
-                  </Table.Cell>
-                  <Table.Cell textAlign="end">
-                    <Text fontSize="sm">{formatCurrency(sale.saleAmount)}</Text>
-                  </Table.Cell>
+          <Table.ScrollArea>
+            <Table.Root size="sm">
+              <Table.Header>
+                <Table.Row>
+                  <Table.ColumnHeader>Nome</Table.ColumnHeader>
+                  <Table.ColumnHeader>Contato</Table.ColumnHeader>
+                  <Table.ColumnHeader>Serviço contratado</Table.ColumnHeader>
+                  <Table.ColumnHeader>Horário</Table.ColumnHeader>
+                  <Table.ColumnHeader textAlign="end">Valor</Table.ColumnHeader>
                 </Table.Row>
-              ))}
-            </Table.Body>
-          </Table.Root>
+              </Table.Header>
+              <Table.Body>
+                {sales.map((sale) => (
+                  <Table.Row key={sale.id}>
+                    <Table.Cell>
+                      <Text fontSize="sm">{sale.customerName}</Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <SaleContactCell
+                        email={sale.customerEmail}
+                        phone={sale.customerPhone}
+                      />
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Text fontSize="sm">{sale.productsLabel}</Text>
+                    </Table.Cell>
+                    <Table.Cell>
+                      <Text fontSize="sm">{formatTimeOfDay(sale.saleDate)}</Text>
+                    </Table.Cell>
+                    <Table.Cell textAlign="end">
+                      <Text fontSize="sm">{formatCurrency(sale.saleAmount)}</Text>
+                    </Table.Cell>
+                  </Table.Row>
+                ))}
+              </Table.Body>
+            </Table.Root>
+          </Table.ScrollArea>
         ) : (
           <Empty title="Nenhuma compra hoje" />
         )}
