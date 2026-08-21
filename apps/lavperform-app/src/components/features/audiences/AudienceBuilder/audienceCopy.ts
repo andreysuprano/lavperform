@@ -38,7 +38,7 @@ export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   city: 'Inclui clientes de uma cidade específica.',
   phone_ddd: 'Inclui clientes por um ou mais DDDs do telefone (código de área).',
   purchased_product: 'Filtra quem já comprou determinado produto.',
-  total_orders: 'Filtra pela quantidade total de vendas feitas.',
+  total_orders: 'Filtra pela quantidade total de vendas feitas. Use as datas para limitar o período.',
   average_ticket: 'Filtra pelo valor médio que o cliente costuma gastar.',
   whatsapp_verified: 'Filtra quem tem ou não o WhatsApp confirmado.',
   has_orders: 'Filtra quem já comprou alguma vez ou ainda não.',
@@ -96,7 +96,25 @@ function formatMoney(value: number) {
 function formatCriterionSummary(criterion: Criterion): string {
   const label = CRITERION_LABELS[criterion.type]
   const operatorLabel = OPERATOR_LABELS[criterion.operator] ?? criterion.operator
+  const summary = formatCriterionSummaryBase(criterion, label, operatorLabel)
+  if (criterion.type === 'last_order_days') {
+    return summary
+  }
 
+  const from = criterion.period?.from
+  const to = criterion.period?.to
+  if (!from && !to) {
+    return summary
+  }
+
+  return `${summary} (vendas entre ${from || 'qualquer data'} e ${to || 'qualquer data'})`
+}
+
+function formatCriterionSummaryBase(
+  criterion: Criterion,
+  label: string,
+  operatorLabel: string,
+): string {
   switch (criterion.type) {
     case 'rfv_classification': {
       const values = Array.isArray(criterion.value)
