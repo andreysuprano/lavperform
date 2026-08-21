@@ -57,6 +57,17 @@ function serializeLastOrderFilterValue(next: LastOrderFilterValue): Record<strin
   }
 }
 
+function serializePeriod(next: { from: string; to: string }) {
+  if (!next.from && !next.to) {
+    return undefined
+  }
+
+  return {
+    ...(next.from ? { from: next.from } : {}),
+    ...(next.to ? { to: next.to } : {}),
+  }
+}
+
 type Props = {
   criterion: Criterion
   onChange: (criterion: Criterion) => void
@@ -562,6 +573,51 @@ export function CriterionEditor({
             </NativeSelect.Field>
           </NativeSelect.Root>
         </Field.Root>
+      )}
+
+      {criterion.type !== 'last_order_days' && (
+        <Stack gap={1}>
+          <HStack align="flex-end">
+            <Field.Root flex={1}>
+              <Field.Label>De</Field.Label>
+              <Input
+                onChange={(event) =>
+                  onChange({
+                    ...criterion,
+                    period: serializePeriod({
+                      from: event.currentTarget.value,
+                      to: criterion.period?.to ?? '',
+                    }),
+                  })
+                }
+                type="date"
+                value={criterion.period?.from ?? ''}
+              />
+            </Field.Root>
+            <Field.Root flex={1}>
+              <Field.Label>Até</Field.Label>
+              <Input
+                onChange={(event) =>
+                  onChange({
+                    ...criterion,
+                    period: serializePeriod({
+                      from: criterion.period?.from ?? '',
+                      to: event.currentTarget.value,
+                    }),
+                  })
+                }
+                type="date"
+                value={criterion.period?.to ?? ''}
+              />
+            </Field.Root>
+          </HStack>
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+          >
+            Opcional. Considera as vendas feitas nesse período.
+          </Text>
+        </Stack>
       )}
     </Stack>
   )

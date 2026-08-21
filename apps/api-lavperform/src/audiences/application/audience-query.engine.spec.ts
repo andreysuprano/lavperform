@@ -557,4 +557,128 @@ describe('AudienceQueryEngine', () => {
       });
     });
   });
+
+  it('counts total_orders inside an optional sales period', async () => {
+    prisma.$queryRaw.mockResolvedValueOnce([{ id: 't1' }]);
+
+    await engine.resolveCustomerIds('company-1', {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          {
+            type: 'total_orders',
+            operator: 'gte',
+            value: 30,
+            period: { from: '2026-01-01', to: '2026-01-31' },
+          },
+        ],
+      },
+    });
+
+    expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+  });
+
+  it('applies sales period to neighborhood as orders in range', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'n1' }]);
+
+    await engine.resolveCustomerIds('company-1', {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          {
+            type: 'neighborhood',
+            operator: 'eq',
+            value: 'Centro',
+            period: { from: '2026-01-01', to: '2026-01-31' },
+          },
+        ],
+      },
+    });
+
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        AND: [
+          {
+            companyId: 'company-1',
+            address: { neighborhood: { equals: 'Centro', mode: 'insensitive' } },
+          },
+          {
+            orders: {
+              some: {
+                createdAt: {
+                  gte: new Date(Date.UTC(2026, 0, 1)),
+                  lt: new Date(Date.UTC(2026, 1, 1)),
+                },
+              },
+            },
+          },
+        ],
+      },
+      select: { id: true },
+    });
+  });
+
+  it('limits has_orders to the optional sales period', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'h1' }]);
+
+    await engine.resolveCustomerIds('company-1', {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          {
+            type: 'has_orders',
+            operator: 'eq',
+            value: true,
+            period: { from: '2026-03-01' },
+          },
+        ],
+      },
+    });
+
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        orders: { some: { createdAt: { gte: new Date(Date.UTC(2026, 2, 1)) } } },
+      },
+      select: { id: true },
+    });
+  });
+
+  it('limits purchased_product ever to the optional sales period', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'p1' }]);
+
+    await engine.resolveCustomerIds('company-1', {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          {
+            type: 'purchased_product',
+            operator: 'ever',
+            value: { productName: 'Camisa' },
+            period: { from: '2026-01-01', to: '2026-01-31' },
+          },
+        ],
+      },
+    });
+
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        orders: {
+          some: {
+            createdAt: {
+              gte: new Date(Date.UTC(2026, 0, 1)),
+              lt: new Date(Date.UTC(2026, 1, 1)),
+            },
+            items: { some: { name: { contains: 'Camisa', mode: 'insensitive' } } },
+          },
+        },
+      },
+      select: { id: true },
+    });
+  });
 });
