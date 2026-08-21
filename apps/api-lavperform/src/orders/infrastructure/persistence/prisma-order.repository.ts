@@ -5,6 +5,7 @@ import { IOrderRepository } from '../../domain/order.repository.interface';
 import { Order } from '../../domain/order.entity';
 import { OrderMapper } from './mappers/order.mapper';
 import { OrderFilterDto } from '../../application/dto/order-filter.dto';
+import { resolveCreatedAtFilter } from '../../application/order-created-at.filter';
 import { MonthlySalesItemDto } from '../../application/dto/monthly-sales-history.dto';
 
 type MonthlyRaw = {
@@ -349,7 +350,7 @@ export class OrderPrismaRepository implements IOrderRepository {
     }
 
     async findByCompanyId(companyId: string, options?: OrderFilterDto): Promise<{ items: Order[]; total: number }> {
-        const { page = 1, limit = 10, status, startDate, endDate, customerId } = options || {};
+        const { page = 1, limit = 10, status, startDate, endDate, customerId, period } = options || {};
         const skip = (page - 1) * limit;
 
         const whereClause: any = {
@@ -358,11 +359,32 @@ export class OrderPrismaRepository implements IOrderRepository {
 
         if (customerId) whereClause.customerId = customerId;
         if (status) whereClause.status = status;
-        if (startDate && endDate) {
-            whereClause.createdAt = {
-                gte: new Date(startDate),
-                lte: new Date(endDate),
-            };
+
+        let todayStart: Date | undefined;
+        let todayEnd: Date | undefined;
+
+        if (period === 'today') {
+            const bounds = await this.prisma.$queryRaw<[{ start: Date; end: Date }]>(
+                Prisma.sql`
+                    SELECT
+                        DATE_TRUNC('day', NOW()) AS start,
+                        DATE_TRUNC('day', NOW()) + INTERVAL '1 day' AS end
+                `,
+            );
+            todayStart = bounds[0].start;
+            todayEnd = bounds[0].end;
+        }
+
+        const createdAt = resolveCreatedAtFilter({
+            period,
+            startDate,
+            endDate,
+            todayStart,
+            todayEnd,
+        });
+
+        if (createdAt) {
+            whereClause.createdAt = createdAt;
         }
 
         const [orders, total] = await Promise.all([
