@@ -33,7 +33,7 @@ export const CRITERION_LABELS: Record<CriterionType, string> = {
 export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   rfv_classification: 'Use os tipos que o sistema já calcula, como Campeão, Novo ou Hibernando.',
   last_order_days:
-    'Filtra pela quantidade de dias desde a última venda, ou por um intervalo de datas da última compra.',
+    'Pode usar só os dias, só as datas, ou os dois. Se preencher os dois, o cliente precisa atender os dois ao mesmo tempo.',
   neighborhood: 'Inclui clientes de um bairro específico.',
   city: 'Inclui clientes de uma cidade específica.',
   phone_ddd: 'Inclui clientes por um ou mais DDDs do telefone (código de área).',

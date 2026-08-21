@@ -320,7 +320,7 @@ export function CriterionEditor({
             color="fg.muted"
             fontSize="sm"
           >
-            As datas são opcionais. Você pode informar só o início, só o fim, ou as duas.
+            Exemplo: 30 dias + um intervalo antigo inclui quem sumiu há pelo menos 30 dias e cuja última compra caiu nesse período.
           </Text>
         </>
       )}
