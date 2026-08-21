@@ -32,7 +32,8 @@ export const CRITERION_LABELS: Record<CriterionType, string> = {
 
 export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   rfv_classification: 'Use os tipos que o sistema já calcula, como Campeão, Novo ou Hibernando.',
-  last_order_days: 'Filtra pela quantidade de dias desde a última venda.',
+  last_order_days:
+    'Filtra pela quantidade de dias desde a última venda, ou por um intervalo de datas da última compra.',
   neighborhood: 'Inclui clientes de um bairro específico.',
   city: 'Inclui clientes de uma cidade específica.',
   phone_ddd: 'Inclui clientes por um ou mais DDDs do telefone (código de área).',
@@ -106,8 +107,26 @@ function formatCriterionSummary(criterion: Criterion): string {
         ? `${label}: não é ${list}`
         : `${label}: ${list}`
     }
-    case 'last_order_days':
+    case 'last_order_days': {
+      if (criterion.operator === 'between') {
+        const range =
+          criterion.value && typeof criterion.value === 'object' && !Array.isArray(criterion.value)
+            ? (criterion.value as { from?: string; to?: string; min?: number; max?: number })
+            : {}
+        if (range.from || range.to) {
+          const from = range.from || 'qualquer data'
+          const to = range.to || 'qualquer data'
+          return `${label}: entre ${from} e ${to}`
+        }
+        if (range.min != null || range.max != null) {
+          const min = range.min != null ? `${range.min}` : 'qualquer'
+          const max = range.max != null ? `${range.max}` : 'qualquer'
+          return `${label}: entre ${min} e ${max} dias`
+        }
+        return `${label}: intervalo de datas (sem limite)`
+      }
       return `${label}: ${operatorLabel.toLowerCase()} ${Number(criterion.value ?? 0)} dias`
+    }
     case 'total_orders':
       return `${label}: ${operatorLabel.toLowerCase()} ${Number(criterion.value ?? 0)}`
     case 'average_ticket':

@@ -36,6 +36,11 @@ export interface ReplaceCustomSendListMembersRequest {
   customerIds: string[]
 }
 
+export interface UpdateCustomSendListMembersRequest {
+  addCustomerIds: string[]
+  removeCustomerIds: string[]
+}
+
 export interface CustomSendListsListResponse {
   data: CustomSendList[]
   meta: {
@@ -52,4 +57,36 @@ export interface EligibleCountResponse {
 
 export interface CustomSendListMemberIdsResponse {
   customerIds: string[]
+}
+
+export interface ImportCustomSendListCustomer {
+  name: string
+  phone: string
+  email?: string
+  birthDate?: string
+  firstOrderDate?: string
+  rfvClassification?: string
+  gender?: string
+  observations?: string
+  whatsappOptin?: boolean
+  averageTicket?: number
+  address?: {
+    street?: string
+    number?: string
+    complement?: string
+    neighborhood?: string
+    city?: string
+    state?: string
+    zipCode?: string
+  }
+}
+
+export interface ImportCustomSendListCustomersRequest {
+  customers: ImportCustomSendListCustomer[]
+  replaceCustomerIds?: string[]
+}
+
+export interface ImportCustomSendListCustomersResponse {
+  queued: number
+  rejected: number
 }

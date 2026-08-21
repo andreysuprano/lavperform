@@ -4,7 +4,9 @@ import { queryKeys } from '@/lib/react-query'
 import { customSendListService } from '@/services/customSendList.service'
 import type {
   CreateCustomSendListRequest,
+  ImportCustomSendListCustomersRequest,
   ReplaceCustomSendListMembersRequest,
+  UpdateCustomSendListMembersRequest,
   UpdateCustomSendListRequest,
 } from '@/types'
 
@@ -160,6 +162,68 @@ export function useReplaceCustomSendListMembers() {
           variables.companyId,
           variables.listId,
         ),
+      })
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customSendLists.memberIds(
+          variables.companyId,
+          variables.listId,
+        ),
+      })
+    },
+  })
+}
+
+export function useImportCustomSendListCustomers() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      companyId,
+      listId,
+      data,
+    }: {
+      companyId: string
+      listId: string
+      data: ImportCustomSendListCustomersRequest
+    }) => {
+      const response = await customSendListService.importCustomers(
+        companyId,
+        listId,
+        data,
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customSendLists.lists(variables.companyId),
+      })
+    },
+  })
+}
+
+export function useUpdateCustomSendListMembers() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async ({
+      companyId,
+      listId,
+      data,
+    }: {
+      companyId: string
+      listId: string
+      data: UpdateCustomSendListMembersRequest
+    }) => {
+      const response = await customSendListService.updateMembers(
+        companyId,
+        listId,
+        data,
+      )
+      return response.data
+    },
+    onSuccess: (_, variables) => {
+      queryClient.invalidateQueries({
+        queryKey: queryKeys.customSendLists.lists(variables.companyId),
       })
       queryClient.invalidateQueries({
         queryKey: queryKeys.customSendLists.memberIds(

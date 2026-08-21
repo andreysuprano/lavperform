@@ -207,14 +207,7 @@ export class AudienceQueryEngine {
     const now = new Date();
 
     if (criterion.operator === 'between') {
-      const [maxDays, minDays] = this.parseBetween(criterion.value);
-      return {
-        companyId,
-        AND: [
-          { orders: { none: { createdAt: { gte: this.subDays(now, minDays) } } } },
-          { orders: { some: { createdAt: { gte: this.subDays(now, maxDays) } } } },
-        ],
-      };
+      return this.buildLastOrderBetweenWhere(criterion.value, companyId, now);
     }
 
     const days = Number(criterion.value);
@@ -559,17 +552,153 @@ export class AudienceQueryEngine {
     return { start, end };
   }
 
-  private parseBetween(value: unknown): [number, number] {
+  private buildLastOrderBetweenWhere(
+    value: unknown,
+    companyId: string,
+    now: Date,
+  ): Prisma.CustomerWhereInput {
+    const dateRange = this.parseOptionalDateRange(value);
+    if (dateRange) {
+      return this.buildLastOrderDateRangeWhere(dateRange, companyId);
+    }
+
+    const daysRange = this.parseOptionalDaysRange(value);
+    if (daysRange) {
+      return this.buildLastOrderDaysRangeWhere(daysRange, companyId, now);
+    }
+
+    return { companyId, orders: { some: {} } };
+  }
+
+  private buildLastOrderDateRangeWhere(
+    range: { from?: Date; toExclusive?: Date },
+    companyId: string,
+  ): Prisma.CustomerWhereInput {
+    const and: Prisma.CustomerWhereInput[] = [];
+
+    if (range.from && range.toExclusive) {
+      and.push({
+        orders: {
+          some: { createdAt: { gte: range.from, lt: range.toExclusive } },
+        },
+      });
+      and.push({
+        orders: { none: { createdAt: { gte: range.toExclusive } } },
+      });
+    } else if (range.from) {
+      and.push({ orders: { some: { createdAt: { gte: range.from } } } });
+    } else if (range.toExclusive) {
+      and.push({ orders: { some: {} } });
+      and.push({
+        orders: { none: { createdAt: { gte: range.toExclusive } } },
+      });
+    } else {
+      and.push({ orders: { some: {} } });
+    }
+
+    return { companyId, AND: and };
+  }
+
+  private buildLastOrderDaysRangeWhere(
+    range: { min?: number; max?: number },
+    companyId: string,
+    now: Date,
+  ): Prisma.CustomerWhereInput {
+    const and: Prisma.CustomerWhereInput[] = [];
+
+    if (range.min != null) {
+      and.push({
+        orders: { none: { createdAt: { gte: this.subDays(now, range.min) } } },
+      });
+    }
+
+    if (range.max != null) {
+      and.push({
+        orders: { some: { createdAt: { gte: this.subDays(now, range.max) } } },
+      });
+    } else {
+      and.push({ orders: { some: {} } });
+    }
+
+    return { companyId, AND: and };
+  }
+
+  private parseOptionalDateRange(
+    value: unknown,
+  ): { from?: Date; toExclusive?: Date } | null {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) {
+      return null;
+    }
+
+    const obj = value as { from?: unknown; to?: unknown };
+    if (!('from' in obj) && !('to' in obj)) {
+      return null;
+    }
+
+    const from = this.parseDateOnly(obj.from);
+    const to = this.parseDateOnly(obj.to);
+
+    return {
+      ...(from ? { from } : {}),
+      ...(to ? { toExclusive: this.addUtcDays(to, 1) } : {}),
+    };
+  }
+
+  private parseOptionalDaysRange(
+    value: unknown,
+  ): { min?: number; max?: number } | null {
     if (Array.isArray(value) && value.length === 2) {
-      return [Number(value[0]), Number(value[1])];
+      const max = this.parseOptionalNumber(value[0]);
+      const min = this.parseOptionalNumber(value[1]);
+      if (max == null && min == null) {
+        return null;
+      }
+      return { ...(min != null ? { min } : {}), ...(max != null ? { max } : {}) };
     }
 
-    if (value && typeof value === 'object' && 'min' in value && 'max' in value) {
-      const obj = value as { min: number; max: number };
-      return [Number(obj.max), Number(obj.min)];
+    if (!value || typeof value !== 'object') {
+      return null;
     }
 
-    throw new Error('Valor between deve ser um array [max, min] ou { min, max }');
+    const obj = value as { min?: unknown; max?: unknown };
+    if (!('min' in obj) && !('max' in obj)) {
+      return null;
+    }
+
+    const min = this.parseOptionalNumber(obj.min);
+    const max = this.parseOptionalNumber(obj.max);
+    if (min == null && max == null) {
+      return null;
+    }
+
+    return { ...(min != null ? { min } : {}), ...(max != null ? { max } : {}) };
+  }
+
+  private parseOptionalNumber(value: unknown): number | undefined {
+    if (value === undefined || value === null || value === '') {
+      return undefined;
+    }
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : undefined;
+  }
+
+  private parseDateOnly(value: unknown): Date | undefined {
+    if (typeof value !== 'string' || !value.trim()) {
+      return undefined;
+    }
+
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value.trim());
+    if (!match) {
+      return undefined;
+    }
+
+    return new Date(Date.UTC(Number(match[1]), Number(match[2]) - 1, Number(match[3])));
+  }
+
+  private addUtcDays(date: Date, days: number): Date {
+    const result = new Date(date);
+    result.setUTCDate(result.getUTCDate() + days);
+    return result;
   }
 
   private subDays(date: Date, days: number): Date {

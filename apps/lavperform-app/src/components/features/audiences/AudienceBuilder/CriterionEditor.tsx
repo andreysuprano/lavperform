@@ -25,6 +25,23 @@ import {
   OPERATOR_LABELS,
 } from './audienceCopy'
 
+type LastOrderDateRange = {
+  from: string
+  to: string
+}
+
+function getLastOrderDateRange(value: unknown): LastOrderDateRange {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { from: '', to: '' }
+  }
+
+  const range = value as { from?: unknown; to?: unknown }
+  return {
+    from: typeof range.from === 'string' ? range.from : '',
+    to: typeof range.to === 'string' ? range.to : '',
+  }
+}
+
 type Props = {
   criterion: Criterion
   onChange: (criterion: Criterion) => void
@@ -84,6 +101,37 @@ export function CriterionEditor({
     () => (Array.isArray(criterion.value) ? (criterion.value as string[]) : []),
     [criterion.value],
   )
+
+  const lastOrderDateRange =
+    criterion.type === 'last_order_days' && criterion.operator === 'between'
+      ? getLastOrderDateRange(criterion.value)
+      : { from: '', to: '' }
+
+  const handleOperatorChange = (operator: ComparisonOperator) => {
+    if (criterion.type === 'last_order_days') {
+      if (operator === 'between') {
+        onChange({ type: criterion.type, operator, value: { from: '', to: '' } })
+        return
+      }
+
+      if (criterion.operator === 'between') {
+        onChange({ type: criterion.type, operator, value: 30 })
+        return
+      }
+    }
+
+    onChange({ ...criterion, operator })
+  }
+
+  const handleLastOrderDateRangeChange = (next: { from: string; to: string }) => {
+    onChange({
+      ...criterion,
+      value: {
+        ...(next.from ? { from: next.from } : {}),
+        ...(next.to ? { to: next.to } : {}),
+      },
+    })
+  }
 
   const handleTypeChange = (type: CriterionType) => {
     switch (type) {
@@ -152,10 +200,7 @@ export function CriterionEditor({
             <NativeSelect.Root>
               <NativeSelect.Field
                 onChange={(event) =>
-                  onChange({
-                    ...criterion,
-                    operator: event.currentTarget.value as ComparisonOperator,
-                  })
+                  handleOperatorChange(event.currentTarget.value as ComparisonOperator)
                 }
                 value={criterion.operator}
               >
@@ -211,7 +256,47 @@ export function CriterionEditor({
         </Field.Root>
       )}
 
-      {['last_order_days', 'total_orders', 'average_ticket'].includes(criterion.type) && (
+      {criterion.type === 'last_order_days' && criterion.operator === 'between' && (
+        <HStack align="flex-end">
+          <Field.Root flex={1}>
+            <Field.Label>De</Field.Label>
+            <Input
+              onChange={(event) =>
+                handleLastOrderDateRangeChange({
+                  ...lastOrderDateRange,
+                  from: event.currentTarget.value,
+                })
+              }
+              type="date"
+              value={lastOrderDateRange.from}
+            />
+          </Field.Root>
+          <Field.Root flex={1}>
+            <Field.Label>Até</Field.Label>
+            <Input
+              onChange={(event) =>
+                handleLastOrderDateRangeChange({
+                  ...lastOrderDateRange,
+                  to: event.currentTarget.value,
+                })
+              }
+              type="date"
+              value={lastOrderDateRange.to}
+            />
+          </Field.Root>
+        </HStack>
+      )}
+      {criterion.type === 'last_order_days' && criterion.operator === 'between' ? (
+        <Text
+          color="fg.muted"
+          fontSize="sm"
+        >
+          As datas são opcionais. Você pode informar só o início, só o fim, ou as duas.
+        </Text>
+      ) : null}
+
+      {((criterion.type === 'last_order_days' && criterion.operator !== 'between') ||
+        ['total_orders', 'average_ticket'].includes(criterion.type)) && (
         <Field.Root>
           <Field.Label>
             {criterion.type === 'last_order_days'
