@@ -17,6 +17,9 @@ describe('UserMapper', () => {
     businessPartnerId: null,
     state: 'ACTIVE',
     overAgentCompanyId: null,
+    showIncentivizedSales: true,
+    deletedAt: null,
+    asaasCustomerId: null,
   };
 
   const mockPrismaUserCompany: UserCompany & { company: Company } = {
@@ -47,6 +50,7 @@ describe('UserMapper', () => {
     name: 'John Doe',
     phone: '+5511999999999',
     password: 'hashed_password',
+    avatarUrl: null,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-02'),
     userCompanies: [mockPrismaUserCompany],
@@ -79,6 +83,8 @@ describe('UserMapper', () => {
           email: 'company@example.com',
           phone: '+5511999999999',
           address: null,
+          state: 'ACTIVE',
+          showIncentivizedSales: true,
         },
       });
 
@@ -96,6 +102,7 @@ describe('UserMapper', () => {
         name: 'Jane Doe',
         phone: '+5511888888888',
         password: 'hashed_password_2',
+        avatarUrl: null,
         createdAt: new Date('2024-02-01'),
         updatedAt: new Date('2024-02-02'),
       };
@@ -119,6 +126,16 @@ describe('UserMapper', () => {
 
       expect(domainUser.userCompanies![0].company.avatarUrl).toBeNull();
       expect(domainUser.userCompanies![0].company.slug).toBeNull();
+    });
+
+    it('should map showIncentivizedSales from the company', () => {
+      const companyWithFlagOff = { ...mockPrismaCompany, showIncentivizedSales: false };
+      const userCompany = { ...mockPrismaUserCompany, company: companyWithFlagOff };
+      const prismaUser = { ...mockPrismaUser, userCompanies: [userCompany] };
+
+      const domainUser = UserMapper.toDomain(prismaUser);
+
+      expect(domainUser.userCompanies![0].company.showIncentivizedSales).toBe(false);
     });
 
     it('should map multiple companies and access rules', () => {
@@ -165,6 +182,7 @@ describe('UserMapper', () => {
         name: 'Jane Doe',
         phone: '+5511888888888',
         password: 'hashed_password_2',
+        avatarUrl: null,
         createdAt: new Date('2024-02-01'),
         updatedAt: new Date('2024-02-02'),
       };

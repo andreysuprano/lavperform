@@ -13,7 +13,8 @@ function paramsKey(params: IncentivizedSalesParams): string {
 
 export function useIncentivizedSales(
   companyId: string | undefined,
-  params: IncentivizedSalesParams = {}
+  params: IncentivizedSalesParams = {},
+  options?: { enabled?: boolean }
 ) {
   return useQuery({
     queryKey: queryKeys.saleAttribution.incentivizedSales(
@@ -28,7 +29,7 @@ export function useIncentivizedSales(
       )
       return response.data
     },
-    enabled: !!companyId,
+    enabled: !!companyId && (options?.enabled ?? true),
     staleTime: 1000 * 60 * 3,
     placeholderData: (previousData) => previousData,
   })

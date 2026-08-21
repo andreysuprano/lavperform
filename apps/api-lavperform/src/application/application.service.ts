@@ -37,6 +37,7 @@ export class ApplicationService {
         avatarUrl: uc.company.avatarUrl,
         address: uc.company.address,
         slug: uc.company.slug,
+        showIncentivizedSales: uc.company.showIncentivizedSales !== false,
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 
