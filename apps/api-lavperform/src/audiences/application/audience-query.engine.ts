@@ -210,38 +210,46 @@ export class AudienceQueryEngine {
       return this.buildLastOrderBetweenWhere(criterion.value, companyId, now);
     }
 
-    const days = Number(criterion.value);
+    const days = this.parseLastOrderDays(criterion.value);
+    const dateRange = this.parseOptionalDateRange(criterion.value);
+    const hasDates = Boolean(dateRange?.from || dateRange?.toExclusive);
+    const and: Prisma.CustomerWhereInput[] = [];
 
-    switch (criterion.operator) {
+    if (days != null) {
+      and.push(...this.buildLastOrderOperatorConditions(criterion.operator, days, now));
+    }
+
+    if (hasDates && dateRange) {
+      and.push(...this.buildLastOrderDateRangeConditions(dateRange));
+    }
+
+    if (and.length === 0) {
+      return { companyId, orders: { some: {} } };
+    }
+
+    return { companyId, AND: and };
+  }
+
+  private buildLastOrderOperatorConditions(
+    operator: Criterion['operator'],
+    days: number,
+    now: Date,
+  ): Prisma.CustomerWhereInput[] {
+    switch (operator) {
       case 'gte':
-        return {
-          companyId,
-          orders: { none: { createdAt: { gte: this.subDays(now, days) } } },
-        };
+        return [{ orders: { none: { createdAt: { gte: this.subDays(now, days) } } } }];
       case 'gt':
-        return {
-          companyId,
-          orders: { none: { createdAt: { gte: this.subDays(now, days + 1) } } },
-        };
+        return [{ orders: { none: { createdAt: { gte: this.subDays(now, days + 1) } } } }];
       case 'lte':
-        return {
-          companyId,
-          orders: { some: { createdAt: { gte: this.subDays(now, days) } } },
-        };
+        return [{ orders: { some: { createdAt: { gte: this.subDays(now, days) } } } }];
       case 'lt':
-        return {
-          companyId,
-          orders: { some: { createdAt: { gte: this.subDays(now, days - 1) } } },
-        };
+        return [{ orders: { some: { createdAt: { gte: this.subDays(now, days - 1) } } } }];
       case 'eq':
       default:
-        return {
-          companyId,
-          AND: [
-            { orders: { none: { createdAt: { gte: this.subDays(now, days - 1) } } } },
-            { orders: { some: { createdAt: { gte: this.subDays(now, days + 1) } } } },
-          ],
-        };
+        return [
+          { orders: { none: { createdAt: { gte: this.subDays(now, days - 1) } } } },
+          { orders: { some: { createdAt: { gte: this.subDays(now, days + 1) } } } },
+        ];
     }
   }
 
@@ -574,29 +582,47 @@ export class AudienceQueryEngine {
     range: { from?: Date; toExclusive?: Date },
     companyId: string,
   ): Prisma.CustomerWhereInput {
-    const and: Prisma.CustomerWhereInput[] = [];
+    return { companyId, AND: this.buildLastOrderDateRangeConditions(range) };
+  }
 
+  private buildLastOrderDateRangeConditions(
+    range: { from?: Date; toExclusive?: Date },
+  ): Prisma.CustomerWhereInput[] {
     if (range.from && range.toExclusive) {
-      and.push({
-        orders: {
-          some: { createdAt: { gte: range.from, lt: range.toExclusive } },
+      return [
+        {
+          orders: {
+            some: { createdAt: { gte: range.from, lt: range.toExclusive } },
+          },
         },
-      });
-      and.push({
-        orders: { none: { createdAt: { gte: range.toExclusive } } },
-      });
-    } else if (range.from) {
-      and.push({ orders: { some: { createdAt: { gte: range.from } } } });
-    } else if (range.toExclusive) {
-      and.push({ orders: { some: {} } });
-      and.push({
-        orders: { none: { createdAt: { gte: range.toExclusive } } },
-      });
-    } else {
-      and.push({ orders: { some: {} } });
+        { orders: { none: { createdAt: { gte: range.toExclusive } } } },
+      ];
     }
 
-    return { companyId, AND: and };
+    if (range.from) {
+      return [{ orders: { some: { createdAt: { gte: range.from } } } }];
+    }
+
+    if (range.toExclusive) {
+      return [
+        { orders: { some: {} } },
+        { orders: { none: { createdAt: { gte: range.toExclusive } } } },
+      ];
+    }
+
+    return [{ orders: { some: {} } }];
+  }
+
+  private parseLastOrderDays(value: unknown): number | undefined {
+    if (typeof value === 'number') {
+      return this.parseOptionalNumber(value);
+    }
+
+    if (value && typeof value === 'object' && !Array.isArray(value) && 'days' in value) {
+      return this.parseOptionalNumber((value as { days?: unknown }).days);
+    }
+
+    return undefined;
   }
 
   private buildLastOrderDaysRangeWhere(
@@ -637,6 +663,14 @@ export class AudienceQueryEngine {
 
     const from = this.parseDateOnly(obj.from);
     const to = this.parseDateOnly(obj.to);
+
+    if (!from && !to) {
+      return null;
+    }
+
+    if (from && to && from.getTime() > to.getTime()) {
+      throw new Error('Data inicial deve ser anterior ou igual à data final');
+    }
 
     return {
       ...(from ? { from } : {}),

@@ -1,5 +1,5 @@
 import { AudienceQueryEngine } from './audience-query.engine';
-import { AudienceDefinition } from '../domain/audience-definition.types';
+import { AudienceDefinition, ComparisonOperator } from '../domain/audience-definition.types';
 
 describe('AudienceQueryEngine', () => {
   const prisma = {
@@ -336,6 +336,225 @@ describe('AudienceQueryEngine', () => {
         AND: [{ orders: { some: { createdAt: { gte: new Date(Date.UTC(2026, 2, 1)) } } } }],
       },
       select: { id: true },
+    });
+  });
+
+  it('allows last_order_days gte without required days or dates', () => {
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'last_order_days', operator: 'gte', value: {} }],
+        },
+      }),
+    ).not.toThrow();
+  });
+
+  it('combines last_order_days operator with optional date range', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'd3' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          {
+            type: 'last_order_days',
+            operator: 'gte',
+            value: { days: 30, from: '2026-01-01', to: '2026-01-31' },
+          },
+        ],
+      },
+    };
+
+    await engine.resolveCustomerIds('company-1', definition);
+    const where = prisma.customer.findMany.mock.calls[0][0].where;
+    expect(where.companyId).toBe('company-1');
+    expect(where.AND).toHaveLength(3);
+    expect(where.AND).toEqual(
+      expect.arrayContaining([
+        {
+          orders: {
+            some: {
+              createdAt: {
+                gte: new Date(Date.UTC(2026, 0, 1)),
+                lt: new Date(Date.UTC(2026, 1, 1)),
+              },
+            },
+          },
+        },
+        { orders: { none: { createdAt: { gte: new Date(Date.UTC(2026, 1, 1)) } } } },
+      ]),
+    );
+  });
+
+  it('resolves last_order_days gte with only a start date', async () => {
+    prisma.customer.findMany.mockResolvedValueOnce([{ id: 'd4' }]);
+
+    const definition: AudienceDefinition = {
+      version: 1,
+      include: {
+        operator: 'AND',
+        rules: [
+          { type: 'last_order_days', operator: 'gte', value: { from: '2026-03-01' } },
+        ],
+      },
+    };
+
+    await engine.resolveCustomerIds('company-1', definition);
+    expect(prisma.customer.findMany).toHaveBeenCalledWith({
+      where: {
+        companyId: 'company-1',
+        AND: [{ orders: { some: { createdAt: { gte: new Date(Date.UTC(2026, 2, 1)) } } } }],
+      },
+      select: { id: true },
+    });
+  });
+
+  describe('last_order_days operators and date range', () => {
+    const now = new Date('2026-08-21T12:00:00.000Z');
+    const januaryRange = [
+      {
+        orders: {
+          some: {
+            createdAt: {
+              gte: new Date(Date.UTC(2026, 0, 1)),
+              lt: new Date(Date.UTC(2026, 1, 1)),
+            },
+          },
+        },
+      },
+      { orders: { none: { createdAt: { gte: new Date(Date.UTC(2026, 1, 1)) } } } },
+    ];
+
+    async function resolveWhere(operator: ComparisonOperator, value: unknown) {
+      prisma.customer.findMany.mockResolvedValueOnce([{ id: 'x' }]);
+      await engine.resolveCustomerIds('company-1', {
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [{ type: 'last_order_days', operator, value }],
+        },
+      });
+      return prisma.customer.findMany.mock.calls.at(-1)[0].where;
+    }
+
+    beforeEach(() => {
+      jest.useFakeTimers();
+      jest.setSystemTime(now);
+    });
+
+    afterEach(() => {
+      jest.useRealTimers();
+    });
+
+    it('keeps legacy numeric gte as days since last order', async () => {
+      const where = await resolveWhere('gte', 30);
+      expect(where).toEqual({
+        companyId: 'company-1',
+        AND: [
+          {
+            orders: {
+              none: { createdAt: { gte: new Date('2026-07-22T12:00:00.000Z') } },
+            },
+          },
+        ],
+      });
+    });
+
+    it.each(['eq', 'gt', 'gte', 'lt', 'lte'] as const)(
+      'applies date range for operator %s without days',
+      async (operator) => {
+        const where = await resolveWhere(operator, {
+          from: '2026-01-01',
+          to: '2026-01-31',
+        });
+        expect(where).toEqual({
+          companyId: 'company-1',
+          AND: januaryRange,
+        });
+      },
+    );
+
+    it('applies only end date for lte', async () => {
+      const where = await resolveWhere('lte', { to: '2026-01-31' });
+      expect(where).toEqual({
+        companyId: 'company-1',
+        AND: [
+          { orders: { some: {} } },
+          { orders: { none: { createdAt: { gte: new Date(Date.UTC(2026, 1, 1)) } } } },
+        ],
+      });
+    });
+
+    it('applies only end date for between', async () => {
+      const where = await resolveWhere('between', { to: '2026-01-31' });
+      expect(where).toEqual({
+        companyId: 'company-1',
+        AND: [
+          { orders: { some: {} } },
+          { orders: { none: { createdAt: { gte: new Date(Date.UTC(2026, 1, 1)) } } } },
+        ],
+      });
+    });
+
+    it('ignores leftover empty dates and uses min/max days on between', async () => {
+      const where = await resolveWhere('between', {
+        from: '',
+        to: '',
+        min: 10,
+        max: 40,
+      });
+      expect(where).toEqual({
+        companyId: 'company-1',
+        AND: [
+          {
+            orders: {
+              none: { createdAt: { gte: new Date('2026-08-11T12:00:00.000Z') } },
+            },
+          },
+          {
+            orders: {
+              some: { createdAt: { gte: new Date('2026-07-12T12:00:00.000Z') } },
+            },
+          },
+        ],
+      });
+    });
+
+    it('does not treat leftover days as a date range on between', async () => {
+      const where = await resolveWhere('between', { days: 30 });
+      expect(where).toEqual({
+        companyId: 'company-1',
+        orders: { some: {} },
+      });
+    });
+
+    it('rejects inverted date range', async () => {
+      await expect(
+        resolveWhere('gte', { from: '2026-02-01', to: '2026-01-01' }),
+      ).rejects.toThrow('Data inicial deve ser anterior ou igual à data final');
+    });
+
+    it('accepts a single-day range when from equals to', async () => {
+      const where = await resolveWhere('eq', { from: '2026-01-15', to: '2026-01-15' });
+      expect(where).toEqual({
+        companyId: 'company-1',
+        AND: [
+          {
+            orders: {
+              some: {
+                createdAt: {
+                  gte: new Date(Date.UTC(2026, 0, 15)),
+                  lt: new Date(Date.UTC(2026, 0, 16)),
+                },
+              },
+            },
+          },
+          { orders: { none: { createdAt: { gte: new Date(Date.UTC(2026, 0, 16)) } } } },
+        ],
+      });
     });
   });
 });

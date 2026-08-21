@@ -25,20 +25,35 @@ import {
   OPERATOR_LABELS,
 } from './audienceCopy'
 
-type LastOrderDateRange = {
+type LastOrderFilterValue = {
+  days?: number
   from: string
   to: string
 }
 
-function getLastOrderDateRange(value: unknown): LastOrderDateRange {
+function getLastOrderFilterValue(value: unknown): LastOrderFilterValue {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return { days: value, from: '', to: '' }
+  }
+
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return { from: '', to: '' }
   }
 
-  const range = value as { from?: unknown; to?: unknown }
+  const range = value as { days?: unknown; from?: unknown; to?: unknown }
+  const days = Number(range.days)
   return {
+    days: Number.isFinite(days) ? days : undefined,
     from: typeof range.from === 'string' ? range.from : '',
     to: typeof range.to === 'string' ? range.to : '',
+  }
+}
+
+function serializeLastOrderFilterValue(next: LastOrderFilterValue): Record<string, unknown> {
+  return {
+    ...(next.days != null && Number.isFinite(next.days) ? { days: next.days } : {}),
+    ...(next.from ? { from: next.from } : {}),
+    ...(next.to ? { to: next.to } : {}),
   }
 }
 
@@ -102,34 +117,33 @@ export function CriterionEditor({
     [criterion.value],
   )
 
-  const lastOrderDateRange =
-    criterion.type === 'last_order_days' && criterion.operator === 'between'
-      ? getLastOrderDateRange(criterion.value)
+  const lastOrderFilter =
+    criterion.type === 'last_order_days'
+      ? getLastOrderFilterValue(criterion.value)
       : { from: '', to: '' }
 
   const handleOperatorChange = (operator: ComparisonOperator) => {
     if (criterion.type === 'last_order_days') {
-      if (operator === 'between') {
-        onChange({ type: criterion.type, operator, value: { from: '', to: '' } })
-        return
-      }
-
-      if (criterion.operator === 'between') {
-        onChange({ type: criterion.type, operator, value: 30 })
-        return
-      }
+      const current = getLastOrderFilterValue(criterion.value)
+      onChange({
+        type: criterion.type,
+        operator,
+        value: serializeLastOrderFilterValue(
+          operator === 'between'
+            ? { from: current.from, to: current.to }
+            : current,
+        ),
+      })
+      return
     }
 
     onChange({ ...criterion, operator })
   }
 
-  const handleLastOrderDateRangeChange = (next: { from: string; to: string }) => {
+  const handleLastOrderFilterChange = (next: LastOrderFilterValue) => {
     onChange({
       ...criterion,
-      value: {
-        ...(next.from ? { from: next.from } : {}),
-        ...(next.to ? { to: next.to } : {}),
-      },
+      value: serializeLastOrderFilterValue(next),
     })
   }
 
@@ -256,54 +270,65 @@ export function CriterionEditor({
         </Field.Root>
       )}
 
-      {criterion.type === 'last_order_days' && criterion.operator === 'between' && (
-        <HStack align="flex-end">
-          <Field.Root flex={1}>
-            <Field.Label>De</Field.Label>
-            <Input
-              onChange={(event) =>
-                handleLastOrderDateRangeChange({
-                  ...lastOrderDateRange,
-                  from: event.currentTarget.value,
-                })
-              }
-              type="date"
-              value={lastOrderDateRange.from}
-            />
-          </Field.Root>
-          <Field.Root flex={1}>
-            <Field.Label>Até</Field.Label>
-            <Input
-              onChange={(event) =>
-                handleLastOrderDateRangeChange({
-                  ...lastOrderDateRange,
-                  to: event.currentTarget.value,
-                })
-              }
-              type="date"
-              value={lastOrderDateRange.to}
-            />
-          </Field.Root>
-        </HStack>
+      {criterion.type === 'last_order_days' && (
+        <>
+          {criterion.operator !== 'between' && (
+            <Field.Root>
+              <Field.Label>Dias</Field.Label>
+              <Input
+                onChange={(event) => {
+                  const raw = event.currentTarget.value
+                  handleLastOrderFilterChange({
+                    ...lastOrderFilter,
+                    days: raw === '' ? undefined : Number(raw),
+                  })
+                }}
+                type="number"
+                value={lastOrderFilter.days ?? ''}
+              />
+            </Field.Root>
+          )}
+          <HStack align="flex-end">
+            <Field.Root flex={1}>
+              <Field.Label>De</Field.Label>
+              <Input
+                onChange={(event) =>
+                  handleLastOrderFilterChange({
+                    ...lastOrderFilter,
+                    from: event.currentTarget.value,
+                  })
+                }
+                type="date"
+                value={lastOrderFilter.from}
+              />
+            </Field.Root>
+            <Field.Root flex={1}>
+              <Field.Label>Até</Field.Label>
+              <Input
+                onChange={(event) =>
+                  handleLastOrderFilterChange({
+                    ...lastOrderFilter,
+                    to: event.currentTarget.value,
+                  })
+                }
+                type="date"
+                value={lastOrderFilter.to}
+              />
+            </Field.Root>
+          </HStack>
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+          >
+            As datas são opcionais. Você pode informar só o início, só o fim, ou as duas.
+          </Text>
+        </>
       )}
-      {criterion.type === 'last_order_days' && criterion.operator === 'between' ? (
-        <Text
-          color="fg.muted"
-          fontSize="sm"
-        >
-          As datas são opcionais. Você pode informar só o início, só o fim, ou as duas.
-        </Text>
-      ) : null}
 
-      {((criterion.type === 'last_order_days' && criterion.operator !== 'between') ||
-        ['total_orders', 'average_ticket'].includes(criterion.type)) && (
+      {['total_orders', 'average_ticket'].includes(criterion.type) && (
         <Field.Root>
           <Field.Label>
-            {criterion.type === 'last_order_days'
-              ? 'Dias'
-              : criterion.type === 'average_ticket'
-                ? 'Valor (R$)'
-                : 'Quantidade'}
+            {criterion.type === 'average_ticket' ? 'Valor (R$)' : 'Quantidade'}
           </Field.Label>
           <Input
             onChange={(event) =>

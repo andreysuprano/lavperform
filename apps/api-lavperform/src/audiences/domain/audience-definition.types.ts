@@ -136,8 +136,7 @@ function validateCriterion(criterion: Criterion, path: string): void {
     throw new Error(`Operador inválido para critério ${criterion.type} em ${path}`);
   }
 
-  const allowsEmptyValue =
-    criterion.type === 'last_order_days' && criterion.operator === 'between';
+  const allowsEmptyValue = criterion.type === 'last_order_days';
 
   if (
     !allowsEmptyValue &&
