@@ -120,6 +120,8 @@ export type DashboardPerformanceData = {
 
 export type DashboardRecentSale = {
   customerName: string
+  customerPhone: string | null
+  customerEmail: string | null
   id: string
   productsLabel: string
   saleAmount: number

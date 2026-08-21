@@ -25,11 +25,16 @@ export type OrderSale = {
   total: number
   products: OrderSaleProduct[]
   customerName: string
+  customerPhone: string | null
+  customerEmail: string | null
 }
 
 export type OrdersSalesParams = {
   page?: number
   limit?: number
+  startDate?: string
+  endDate?: string
+  period?: 'today'
 }
 
 export type OrdersSalesResponse = {
