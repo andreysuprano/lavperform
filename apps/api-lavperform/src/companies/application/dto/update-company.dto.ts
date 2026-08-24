@@ -61,4 +61,13 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsBoolean()
   showIncentivizedSales?: boolean;
+
+  @ApiProperty({
+    description: 'Exibir o box de compras do dia na dashboard do app',
+    required: false,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  showTodayPurchases?: boolean;
 } 

@@ -207,6 +207,21 @@ describe('CompaniesService', () => {
         expect.objectContaining({ showIncentivizedSales: false }),
       );
     });
+
+    it('forwards showTodayPurchases to the repository', async () => {
+      mockRepository.findById.mockResolvedValue({ id: '1' });
+      mockRepository.update.mockResolvedValue({
+        id: '1',
+        showTodayPurchases: false,
+      });
+
+      await service.update('1', { showTodayPurchases: false } as any);
+
+      expect(repository.update).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({ showTodayPurchases: false }),
+      );
+    });
   });
 
   describe('updateCompanyState', () => {

@@ -25,6 +25,7 @@ export interface UserCompanyData {
     phone?: string | null;
     address?: CompanyAddress | null;
     showIncentivizedSales?: boolean;
+    showTodayPurchases?: boolean;
   };
 }
 

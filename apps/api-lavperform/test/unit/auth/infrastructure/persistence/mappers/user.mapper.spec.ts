@@ -18,6 +18,7 @@ describe('UserMapper', () => {
     state: 'ACTIVE',
     overAgentCompanyId: null,
     showIncentivizedSales: true,
+    showTodayPurchases: true,
     deletedAt: null,
     asaasCustomerId: null,
   };
@@ -85,6 +86,7 @@ describe('UserMapper', () => {
           address: null,
           state: 'ACTIVE',
           showIncentivizedSales: true,
+          showTodayPurchases: true,
         },
       });
 
@@ -136,6 +138,16 @@ describe('UserMapper', () => {
       const domainUser = UserMapper.toDomain(prismaUser);
 
       expect(domainUser.userCompanies![0].company.showIncentivizedSales).toBe(false);
+    });
+
+    it('should map showTodayPurchases from the company', () => {
+      const companyWithFlagOff = { ...mockPrismaCompany, showTodayPurchases: false };
+      const userCompany = { ...mockPrismaUserCompany, company: companyWithFlagOff };
+      const prismaUser = { ...mockPrismaUser, userCompanies: [userCompany] };
+
+      const domainUser = UserMapper.toDomain(prismaUser);
+
+      expect(domainUser.userCompanies![0].company.showTodayPurchases).toBe(false);
     });
 
     it('should map multiple companies and access rules', () => {

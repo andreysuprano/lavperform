@@ -22,6 +22,7 @@ export interface UserCompany {
   slug: string
   companyId: string
   showIncentivizedSales: boolean
+  showTodayPurchases: boolean
 }
 
 export interface User {

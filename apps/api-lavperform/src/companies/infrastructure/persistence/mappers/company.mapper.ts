@@ -22,6 +22,7 @@ export class CompanyMapper {
             deletedAt: prismaCompany.deletedAt,
             slug: prismaCompany.slug,
             showIncentivizedSales: prismaCompany.showIncentivizedSales,
+            showTodayPurchases: prismaCompany.showTodayPurchases,
             addressId: prismaCompany.addressId,
             businessPartnerId: prismaCompany.businessPartnerId,
             createdAt: prismaCompany.createdAt,

@@ -13,6 +13,7 @@ export interface PreloadCompany {
   address: CompanyAddress
   slug?: string
   showIncentivizedSales?: boolean
+  showTodayPurchases?: boolean
 }
 
 export interface ApplicationPreloadResponse {

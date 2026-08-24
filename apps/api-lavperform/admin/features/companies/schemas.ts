@@ -82,6 +82,7 @@ export const updateCompanySchema = z.object({
   phone: optionalString,
   address: addressSchema,
   showIncentivizedSales: z.boolean(),
+  showTodayPurchases: z.boolean(),
 })
 
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>

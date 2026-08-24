@@ -57,6 +57,7 @@ model Company {
   businessPartner           BusinessPartner?           @relation(fields: [businessPartnerId], references: [id])
   state                     CompanyStatus              @default(PENDING)
   showIncentivizedSales     Boolean                    @default(true)
+  showTodayPurchases        Boolean                    @default(true)
   deletedAt                 DateTime?
   userCompanies             UserCompany[]
   accessRules               AccessRule[]

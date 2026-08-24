@@ -13,5 +13,6 @@ export function mapPreloadCompaniesToUserCompanies(
     slug: c.slug ?? '',
     companyId: c.id,
     showIncentivizedSales: c.showIncentivizedSales !== false,
+    showTodayPurchases: c.showTodayPurchases !== false,
   }))
 }

@@ -30,6 +30,7 @@ export interface Company {
   addressId: string | null
   address?: Address | null
   showIncentivizedSales: boolean
+  showTodayPurchases: boolean
   createdAt: string
   updatedAt: string
 }
