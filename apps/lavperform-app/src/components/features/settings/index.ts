@@ -1,7 +1,6 @@
 // Settings components will be exported here when migrated
 export * from './CompanyDaysAndHoursOfOperationViewCard/CompanyDaysAndHoursOfOperationViewCard'
 export * from './CompanyInformationViewCard/CompanyInformationViewCard'
-export * from './DashboardPreferencesCard/DashboardPreferencesCard'
 export * from './EditCompanyAvatarForm/EditCompanyAvatarForm'
 export * from './EditCompanyDaysAndHoursOfOperationForm/EditCompanyDaysAndHoursOfOperationForm'
 export * from './EditCompanyForm/EditCompanyForm'

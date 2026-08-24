@@ -222,7 +222,9 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
                     Mostrar compras do dia na dashboard
                   </FieldLabel>
                   <FieldDescription>
-                    Quando ligado, o box aparece na home do app dessa empresa.
+                    Quando ligado, a lista interna do card Compras do dia
+                    aparece na home. O cliente também controla isso pelo ícone
+                    de olho no card.
                   </FieldDescription>
                 </FieldContent>
               </Field>

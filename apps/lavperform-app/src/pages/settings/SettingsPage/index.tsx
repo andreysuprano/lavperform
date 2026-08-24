@@ -4,7 +4,6 @@ import {
   AppContentLayout,
   CompanyDaysAndHoursOfOperationViewCard,
   CompanyInformationViewCard,
-  DashboardPreferencesCard,
 } from '@/components'
 
 export const SettingsPage = () => {
@@ -14,7 +13,6 @@ export const SettingsPage = () => {
       title="Ajustes"
     >
       <CompanyInformationViewCard />
-      <DashboardPreferencesCard />
       <CompanyDaysAndHoursOfOperationViewCard />
     </AppContentLayout>
   )
