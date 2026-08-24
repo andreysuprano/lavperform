@@ -108,7 +108,11 @@ function DashboardTodaySalesBase() {
 
   return (
     <Card.Root>
-      <Card.Header>
+      <Card.Header
+        alignItems="center"
+        minH="unset"
+        py={isListVisible ? undefined : 4}
+      >
         <Flex
           align="center"
           gap={3}
