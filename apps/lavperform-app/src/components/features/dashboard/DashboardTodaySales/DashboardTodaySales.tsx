@@ -55,7 +55,7 @@ function SaleContactCell({
 
 function DashboardTodaySalesBase() {
   const { selectedCompany } = useAuth()
-  const showTodayPurchases = selectedCompany?.showTodayPurchases !== false
+  const showTodayPurchases = selectedCompany?.showTodayPurchases === true
   const companyId = selectedCompany?.id
   const [page, setPage] = useState(1)
 
