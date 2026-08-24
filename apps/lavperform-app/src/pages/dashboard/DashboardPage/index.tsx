@@ -48,12 +48,13 @@ export function Home() {
             </Text>
             <CustomerSummaryWidget />
           </Stack>
-          <DashboardTodaySales />
         </Stack>
 
         <DashboardQuickLinks />
 
         <DashboardTopCustomersRank />
+
+        <DashboardTodaySales />
       </Stack>
     </AppContentLayout>
   )
