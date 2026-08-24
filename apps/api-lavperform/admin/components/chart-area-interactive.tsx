@@ -268,8 +268,15 @@ export function ChartAreaInteractive() {
               cursor={false}
               content={
                 <ChartTooltipContent
-                  labelFormatter={(value) => {
-                    return new Date(value).toLocaleDateString("en-US", {
+                  labelFormatter={(
+                    _value: React.ReactNode,
+                    tooltipPayload?: ReadonlyArray<{
+                      payload?: { date?: string }
+                    }>,
+                  ) => {
+                    const date = tooltipPayload?.[0]?.payload?.date
+                    if (typeof date !== "string") return ""
+                    return new Date(date).toLocaleDateString("en-US", {
                       month: "short",
                       day: "numeric",
                     })
