@@ -28,7 +28,6 @@ import {
   LuSend,
   LuSquareCheckBig,
   LuTrash2,
-  LuTrendingUp,
   LuUsers,
 } from 'react-icons/lu'
 
@@ -555,22 +554,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
               icon={<LuSend size={12} />}
               label="Enviados"
               value={metric.messagesSent || 0}
-            />
-          </HStack>
-          <Box
-            bg="border.muted"
-            h="1px"
-            my={2}
-            w="full"
-          />
-          <HStack
-            gap={0}
-            justifyContent="space-around"
-          >
-            <StatCell
-              icon={<LuTrendingUp size={12} />}
-              label="ROI"
-              value={derivedMetrics.roiLabel}
             />
             <StatDivider />
             <StatCell
