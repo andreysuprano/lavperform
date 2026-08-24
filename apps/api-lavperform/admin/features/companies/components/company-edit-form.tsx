@@ -34,8 +34,8 @@ const EMPTY_DEFAULTS: UpdateCompanyInput = {
   cnpj: "",
   email: "",
   phone: "",
-  showIncentivizedSales: true,
-  showTodayPurchases: true,
+  showIncentivizedSales: false,
+  showTodayPurchases: false,
   address: {
     zipCode: "",
     street: "",
@@ -65,8 +65,8 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
       cnpj: company.cnpj,
       email: company.email,
       phone: company.phone ?? "",
-      showIncentivizedSales: company.showIncentivizedSales !== false,
-      showTodayPurchases: company.showTodayPurchases !== false,
+      showIncentivizedSales: company.showIncentivizedSales === true,
+      showTodayPurchases: company.showTodayPurchases === true,
       address: {
         zipCode: company.address?.zipCode ?? "",
         street: company.address?.street ?? "",
@@ -199,7 +199,7 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
                     Mostrar vendas incentivadas na dashboard
                   </FieldLabel>
                   <FieldDescription>
-                    Quando desligado, o box some na home do app dessa empresa.
+                    Quando ligado, o box aparece na home do app dessa empresa.
                   </FieldDescription>
                 </FieldContent>
               </Field>
@@ -222,7 +222,7 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
                     Mostrar compras do dia na dashboard
                   </FieldLabel>
                   <FieldDescription>
-                    Quando desligado, o box some na home do app dessa empresa.
+                    Quando ligado, o box aparece na home do app dessa empresa.
                   </FieldDescription>
                 </FieldContent>
               </Field>

@@ -56,7 +56,7 @@ export class UpdateCompanyDto {
   @ApiProperty({
     description: 'Exibir o box de vendas incentivadas na dashboard do app',
     required: false,
-    default: true,
+    default: false,
   })
   @IsOptional()
   @IsBoolean()
@@ -65,7 +65,7 @@ export class UpdateCompanyDto {
   @ApiProperty({
     description: 'Exibir o box de compras do dia na dashboard do app',
     required: false,
-    default: true,
+    default: false,
   })
   @IsOptional()
   @IsBoolean()

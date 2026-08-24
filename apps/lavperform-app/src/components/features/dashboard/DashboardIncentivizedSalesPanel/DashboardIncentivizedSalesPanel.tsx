@@ -53,7 +53,7 @@ function DashboardIncentivizedSalesPanelBase() {
   const { selectedCompany } = useAuth()
   const [filter, setFilter] = useState<FilterMode>('all')
   const showIncentivizedSales =
-    selectedCompany?.showIncentivizedSales !== false
+    selectedCompany?.showIncentivizedSales === true
 
   const params = useMemo(
     () => (filter === 'month' ? getCurrentMonthRange() : {}),
