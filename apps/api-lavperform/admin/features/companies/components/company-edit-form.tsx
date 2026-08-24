@@ -35,6 +35,7 @@ const EMPTY_DEFAULTS: UpdateCompanyInput = {
   email: "",
   phone: "",
   showIncentivizedSales: true,
+  showTodayPurchases: true,
   address: {
     zipCode: "",
     street: "",
@@ -65,6 +66,7 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
       email: company.email,
       phone: company.phone ?? "",
       showIncentivizedSales: company.showIncentivizedSales !== false,
+      showTodayPurchases: company.showTodayPurchases !== false,
       address: {
         zipCode: company.address?.zipCode ?? "",
         street: company.address?.street ?? "",
@@ -179,7 +181,7 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
             Controle o que aparece na home do app desta empresa.
           </CardDescription>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex flex-col gap-4">
           <Controller
             control={form.control}
             name="showIncentivizedSales"
@@ -195,6 +197,29 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
                 <FieldContent>
                   <FieldLabel htmlFor="showIncentivizedSales" className="mb-0">
                     Mostrar vendas incentivadas na dashboard
+                  </FieldLabel>
+                  <FieldDescription>
+                    Quando desligado, o box some na home do app dessa empresa.
+                  </FieldDescription>
+                </FieldContent>
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="showTodayPurchases"
+            render={({ field }) => (
+              <Field orientation="horizontal" className="items-start gap-3">
+                <Checkbox
+                  id="showTodayPurchases"
+                  checked={field.value}
+                  onCheckedChange={(checked) =>
+                    field.onChange(checked === true)
+                  }
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor="showTodayPurchases" className="mb-0">
+                    Mostrar compras do dia na dashboard
                   </FieldLabel>
                   <FieldDescription>
                     Quando desligado, o box some na home do app dessa empresa.

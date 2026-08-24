@@ -11,6 +11,7 @@ import { TODAY_SALES_PAGE_LIMIT } from '@/utils/orders/todaySales.constants'
 export function useTodaySales(
   companyId: string | undefined,
   params: { page: number; limit?: number },
+  options?: { enabled?: boolean },
 ) {
   const limit = params.limit ?? TODAY_SALES_PAGE_LIMIT
 
@@ -25,7 +26,7 @@ export function useTodaySales(
       })
       return mapSalesResponseToRecentSalesData(response.data)
     },
-    enabled: !!companyId,
+    enabled: !!companyId && (options?.enabled ?? true),
     staleTime: 1000 * 60 * 3,
     placeholderData: (previousData) => previousData,
   })

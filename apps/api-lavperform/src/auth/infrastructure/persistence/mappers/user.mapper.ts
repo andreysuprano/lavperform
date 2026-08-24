@@ -27,6 +27,7 @@ export class UserMapper {
           email: uc.company.email,
           phone: uc.company.phone,
           showIncentivizedSales: uc.company.showIncentivizedSales,
+          showTodayPurchases: uc.company.showTodayPurchases,
           address: uc.company.address ? {
             id: uc.company.address.id,
             street: uc.company.address.street,

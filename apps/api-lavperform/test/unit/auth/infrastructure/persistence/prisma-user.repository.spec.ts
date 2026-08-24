@@ -22,6 +22,7 @@ describe('PrismaUserRepository', () => {
     state: 'ACTIVE',
     overAgentCompanyId: null,
     showIncentivizedSales: true,
+    showTodayPurchases: true,
     deletedAt: null,
     asaasCustomerId: null,
   };
