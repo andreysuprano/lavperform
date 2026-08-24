@@ -60,17 +60,24 @@ function DashboardIncentivizedSalesPanelBase() {
     [filter]
   )
 
+  const { data: allTimeData, isLoading: isLoadingAllTime } = useIncentivizedSales(
+    selectedCompany?.id,
+    {},
+    { enabled: showIncentivizedSales }
+  )
   const { data, isLoading } = useIncentivizedSales(
     selectedCompany?.id,
     params,
     { enabled: showIncentivizedSales }
   )
 
+  const hasIncentivizedValue = (allTimeData?.totalValue ?? 0) > 0
+
   if (!showIncentivizedSales) {
     return null
   }
 
-  if (isLoading && !data) {
+  if (isLoadingAllTime) {
     return (
       <PanelShell>
         <HStack justify="space-between">
@@ -104,6 +111,10 @@ function DashboardIncentivizedSalesPanelBase() {
         />
       </PanelShell>
     )
+  }
+
+  if (!hasIncentivizedValue) {
+    return null
   }
 
   return (
