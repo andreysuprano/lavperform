@@ -41,6 +41,8 @@ export interface Company {
   phone: string
   slug: string
   state: CompanyState
+  showIncentivizedSales?: boolean
+  showTodayPurchases?: boolean
 }
 
 export interface AllCompaniesResponse {
