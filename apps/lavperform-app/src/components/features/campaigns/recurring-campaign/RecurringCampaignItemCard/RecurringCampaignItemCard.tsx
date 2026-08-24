@@ -5,7 +5,6 @@ import {
   Card,
   Dialog,
   Flex,
-  FormatNumber,
   HStack,
   Menu,
   Portal,
@@ -27,12 +26,10 @@ import {
   LuPen,
   LuReceipt,
   LuSend,
-  LuShoppingCart,
   LuSquareCheckBig,
   LuTrash2,
   LuTrendingUp,
   LuUsers,
-  LuWallet,
 } from 'react-icons/lu'
 
 import {
@@ -549,12 +546,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
             justifyContent="space-around"
           >
             <StatCell
-              icon={<LuShoppingCart size={12} />}
-              label="Vendas"
-              value={metric.salesTotalQuantity || 0}
-            />
-            <StatDivider />
-            <StatCell
               icon={<LuUsers size={12} />}
               label="Clientes"
               value={metric.totalCustomers || 0}
@@ -564,18 +555,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
               icon={<LuSend size={12} />}
               label="Enviados"
               value={metric.messagesSent || 0}
-            />
-            <StatDivider />
-            <StatCell
-              icon={<LuTrendingUp size={12} />}
-              label="Conversão"
-              value={
-                <FormatNumber
-                  maximumFractionDigits={1}
-                  style="percent"
-                  value={(metric.conversionRate || 0) / 100}
-                />
-              }
             />
           </HStack>
           <Box
@@ -588,12 +567,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
             gap={0}
             justifyContent="space-around"
           >
-            <StatCell
-              icon={<LuWallet size={12} />}
-              label="Custo"
-              value={formatCurrency(metric.totalCost ?? 0)}
-            />
-            <StatDivider />
             <StatCell
               icon={<LuTrendingUp size={12} />}
               label="ROI"
