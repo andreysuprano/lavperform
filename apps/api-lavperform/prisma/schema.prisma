@@ -89,11 +89,8 @@ model Company {
   renitencyConfiguration    RenitencyConfiguration?
   publicApiKeys             PublicApiKey[]
   audiences                 Audience[]
-<<<<<<< HEAD
   customerMergeReviews      CustomerMergeReview[]
-=======
   customSendLists           CustomSendList[]
->>>>>>> origin/main
 
   @@index([businessPartnerId])
   @@index([deletedAt])
