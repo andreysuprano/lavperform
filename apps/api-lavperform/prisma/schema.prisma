@@ -513,6 +513,7 @@ model AutomaticCampaign {
   customSendList    CustomSendList?             @relation(fields: [customSendListId], references: [id], onDelete: SetNull)
   maxDailySends   Int                         @default(50)
   active          Boolean                     @default(true)
+  showSalesOnCard Boolean                     @default(true)
   images          String?
   daysOfWeek      String[]                    @default(["seg", "ter", "qua", "qui", "sex", "sab", "dom"])
   startDate       DateTime

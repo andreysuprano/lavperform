@@ -54,7 +54,11 @@ export class AutomaticCampaignService {
     private readonly automaticCampaignsQueue: Queue,
   ) { }
 
-  async create(companyId: string, createAutomaticCampaignDto: CreateAutomaticCampaignDto) {
+  async create(
+    companyId: string,
+    createAutomaticCampaignDto: CreateAutomaticCampaignDto,
+    internalOptions: { showSalesOnCard?: boolean } = {},
+  ) {
     const {
       gifts,
       creatives,
@@ -95,6 +99,7 @@ export class AutomaticCampaignService {
         ...targeting,
         channel,
         maxDailySends: createAutomaticCampaignDto.maxDailySends ?? 50,
+        ...internalOptions,
         companyId,
         couponId: couponId ?? null,
         metaMessageTemplateId: metaMessageTemplateId ?? null,
@@ -261,7 +266,9 @@ export class AutomaticCampaignService {
       ),
     };
 
-    return this.create(companyId, duplicateDto);
+    return this.create(companyId, duplicateDto, {
+      showSalesOnCard: source.showSalesOnCard ?? true,
+    });
   }
 
   private async assertCouponIsValid(couponId: string, companyId: string): Promise<void> {

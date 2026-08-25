@@ -90,6 +90,7 @@ export function AutomaticCampaignEditForm({
       channel: "WHATSAPP_WEB",
       maxDailySends: 50,
       active: true,
+      showSalesOnCard: true,
       images: "",
       daysOfWeek: [],
       sendScheduleMode: "establishment",
@@ -118,6 +119,7 @@ export function AutomaticCampaignEditForm({
       channel: campaign.channel,
       maxDailySends: campaign.maxDailySends,
       active: campaign.active,
+      showSalesOnCard: campaign.showSalesOnCard ?? true,
       images: campaign.images ?? "",
       daysOfWeek: campaign.daysOfWeek ?? [],
       sendScheduleMode: inferSendScheduleMode(
@@ -481,6 +483,30 @@ export function AutomaticCampaignEditForm({
                   )}
                 />
                 Campanha ativa
+              </label>
+            </Field>
+
+            <Field>
+              <label className="flex cursor-pointer items-start gap-2 text-sm">
+                <Controller
+                  control={form.control}
+                  name="showSalesOnCard"
+                  render={({ field }) => (
+                    <Checkbox
+                      checked={field.value}
+                      onCheckedChange={(checked) =>
+                        field.onChange(checked === true)
+                      }
+                    />
+                  )}
+                />
+                <span className="space-y-1">
+                  <span className="block">Mostrar vendas no card</span>
+                  <span className="block text-xs text-muted-foreground">
+                    Quando ligado, a quantidade de vendas aparece no card
+                    somente se for maior que zero.
+                  </span>
+                </span>
               </label>
             </Field>
           </FieldGroup>

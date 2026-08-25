@@ -27,6 +27,7 @@ export class AutomaticCampaign {
     status: AutomaticCampaignStatus;
     maxDailySends: number;
     active: boolean;
+    showSalesOnCard: boolean;
     daysOfWeek: string[];
     messageText: string;
     startDate: Date;

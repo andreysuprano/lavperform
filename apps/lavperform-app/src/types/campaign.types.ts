@@ -122,6 +122,7 @@ export interface RecurringCampaign {
   maxDailySends?: number
   messageText: string
   name: string
+  showSalesOnCard?: boolean
   segmentation: string
   targetingMode?: AudienceTargetingMode
   audienceId?: string | null

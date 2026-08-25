@@ -96,6 +96,7 @@ export const createAutomaticCampaignSchema = z.object({
     .default("WHATSAPP_WEB"),
   maxDailySends: z.number().int().min(1).default(50),
   active: z.boolean().default(true),
+  showSalesOnCard: z.boolean().default(true),
   images: z.string().optional(),
   endDate: z.string().nullable().optional(),
   daysOfWeek: z.array(z.string()).default([]),
