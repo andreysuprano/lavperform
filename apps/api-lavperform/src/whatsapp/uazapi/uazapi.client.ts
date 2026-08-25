@@ -378,11 +378,9 @@ export class UazapiClient {
     }
   }
 
-  async checkNumbers(numbers: string[]): Promise<CheckNumberResult[]> {
-    const checkToken = process.env.UAZAPI_TOKEN;
-
-    if (!checkToken) {
-      throw new Error('UAZAPI_TOKEN não configurado');
+  async checkNumbers(numbers: string[], token: string): Promise<CheckNumberResult[]> {
+    if (!token) {
+      throw new Error('Token da instância Uazapi não informado para validação');
     }
 
     try {
@@ -394,7 +392,7 @@ export class UazapiClient {
             headers: {
               Accept: 'application/json',
               'Content-Type': 'application/json',
-              token: checkToken,
+              token,
             },
           },
         ),

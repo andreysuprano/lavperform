@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { WhatsappService } from '../../../whatsapp/application/whatsapp.service';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
+import { WHATSAPP_VALIDATION_CONCURRENCY } from '../../../common/queue/queue-concurrency.config';
 
 type WhatsappValidationJobData = {
   customerId: string;
@@ -20,7 +21,7 @@ export class WhatsappValidationProcessor {
     private readonly whatsappService: WhatsappService,
   ) {}
 
-  @Process({ name: 'validate', concurrency: 20 })
+  @Process({ name: 'validate', concurrency: WHATSAPP_VALIDATION_CONCURRENCY })
   async handleValidate(job: Job<WhatsappValidationJobData>) {
     const { customerId, phone } = job.data;
 
