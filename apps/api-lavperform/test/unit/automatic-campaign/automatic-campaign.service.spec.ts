@@ -6,7 +6,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bull';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { MetaTemplatesService } from 'src/integrations/meta/application/meta-templates.service';
-import { CustomSendListsService } from 'src/custom-send-lists/application/custom-send-lists.service';
 
 describe('AutomaticCampaignService', () => {
   let service: AutomaticCampaignService;
@@ -46,10 +45,6 @@ describe('AutomaticCampaignService', () => {
     syncStatus: jest.fn(),
   };
 
-  const mockCustomSendListsService = {
-    assertCustomSendListBelongsToCompany: jest.fn(),
-  };
-
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -61,7 +56,6 @@ describe('AutomaticCampaignService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: getQueueToken(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE), useValue: mockQueue },
         { provide: MetaTemplatesService, useValue: mockMetaTemplatesService },
-        { provide: CustomSendListsService, useValue: mockCustomSendListsService },
       ],
     }).compile();
 
@@ -78,8 +72,7 @@ describe('AutomaticCampaignService', () => {
 
       const result = await service.create('comp1', {
         name: 'Auto',
-        type: 'SALES',
-        segmentation: 'campeao',
+        type: 'BIRTHDAY',
         startDate: '2024-01-01',
         endDate: '2024-02-01',
         gifts: [{ name: 'Gift', value: 10 }],
@@ -100,26 +93,13 @@ describe('AutomaticCampaignService', () => {
       expect(result).toEqual({ id: 'ac1', metaTemplates: [] });
     });
 
-    it.each(['ACQUISITION', 'RECURRENCE', 'REACTIVATION'])(
-      'rejects new campaigns with legacy type %s',
-      async (type) => {
-        await expect(
-          service.create('comp1', {
-            name: 'Legada',
-            type,
-            startDate: '2024-01-01',
-          } as any),
-        ).rejects.toThrow('Novas campanhas devem ser do tipo Reconhecimento ou Venda');
-      },
-    );
-
     it('rejects when couponId references a coupon that does not exist', async () => {
       mockPrisma.coupon.findFirst.mockResolvedValueOnce(null);
 
       await expect(
         service.create('comp1', {
           name: 'Auto',
-          type: 'SALES',
+          type: 'BIRTHDAY',
           startDate: '2024-01-01',
           couponId: 'cp1',
         } as any),
@@ -136,7 +116,7 @@ describe('AutomaticCampaignService', () => {
       await expect(
         service.create('comp1', {
           name: 'Auto',
-          type: 'SALES',
+          type: 'BIRTHDAY',
           startDate: '2024-01-01',
           couponId: 'cp1',
         } as any),
@@ -153,46 +133,6 @@ describe('AutomaticCampaignService', () => {
   });
 
   describe('update', () => {
-    it('allows migrating a legacy campaign to a new type', async () => {
-      mockRepository.findById.mockResolvedValue({
-        id: 'ac1',
-        companyId: 'comp1',
-        type: 'RECURRENCE',
-      });
-      mockRepository.update.mockResolvedValue({ id: 'ac1', type: 'RECOGNITION' });
-
-      await service.update('ac1', { type: 'RECOGNITION' } as any);
-
-      expect(repository.update).toHaveBeenCalledWith(
-        'ac1',
-        expect.objectContaining({ type: 'RECOGNITION' }),
-      );
-    });
-
-    it('rejects changing a new campaign back to a legacy type', async () => {
-      mockRepository.findById.mockResolvedValue({
-        id: 'ac1',
-        companyId: 'comp1',
-        type: 'SALES',
-      });
-
-      await expect(
-        service.update('ac1', { type: 'REACTIVATION' } as any),
-      ).rejects.toThrow('O tipo da campanha só pode ser alterado para Reconhecimento ou Venda');
-    });
-
-    it('rejects changing one legacy campaign type to another legacy type', async () => {
-      mockRepository.findById.mockResolvedValue({
-        id: 'ac1',
-        companyId: 'comp1',
-        type: 'RECURRENCE',
-      });
-
-      await expect(
-        service.update('ac1', { type: 'REACTIVATION' } as any),
-      ).rejects.toThrow('O tipo da campanha só pode ser alterado para Reconhecimento ou Venda');
-    });
-
     it('updates using repository with gift and creative logic', async () => {
       mockRepository.findById.mockResolvedValue({ id: 'ac1', companyId: 'comp1' });
       mockRepository.update.mockResolvedValue({ id: 'ac1', name: 'Updated' });
@@ -361,84 +301,6 @@ describe('AutomaticCampaignService', () => {
         'ac1',
         expect.objectContaining({ couponId: null }),
       );
-    });
-  });
-
-  describe('duplicate', () => {
-    const sourceCampaign = {
-      id: 'ac1',
-      companyId: 'comp1',
-      name: 'Original',
-      type: 'RECURRENCE',
-      channel: 'WHATSAPP_WEB',
-      targetingMode: 'RFV',
-      segmentation: 'campeao',
-      audienceId: null,
-      customSendListId: null,
-      maxDailySends: 50,
-      active: true,
-      images: null,
-      startDate: new Date('2024-01-01T00:00:00.000Z'),
-      endDate: null,
-      messageText: 'Olá',
-      daysOfWeek: ['seg'],
-      sendTimeStart: null,
-      sendTimeEnd: null,
-      gifts: [],
-      creatives: [],
-      couponId: null,
-      metaMessageTemplateId: null,
-      metaTemplateVariableMappings: null,
-    };
-
-    it('requires a new target type when duplicating a legacy campaign', async () => {
-      mockRepository.findById.mockResolvedValue(sourceCampaign);
-
-      await expect(service.duplicate('comp1', 'ac1')).rejects.toThrow(
-        'Escolha Reconhecimento ou Venda para duplicar uma campanha antiga',
-      );
-    });
-
-    it('duplicates a legacy campaign using the selected new type', async () => {
-      mockRepository.findById.mockResolvedValue(sourceCampaign);
-      const createSpy = jest
-        .spyOn(service, 'create')
-        .mockResolvedValue({ id: 'copy1' } as any);
-
-      await service.duplicate('comp1', 'ac1', 'SALES' as any);
-
-      expect(createSpy).toHaveBeenCalledWith(
-        'comp1',
-        expect.objectContaining({ type: 'SALES' }),
-      );
-    });
-
-    it('keeps the type when duplicating a campaign with a new type', async () => {
-      mockRepository.findById.mockResolvedValue({
-        ...sourceCampaign,
-        type: 'RECOGNITION',
-      });
-      const createSpy = jest
-        .spyOn(service, 'create')
-        .mockResolvedValue({ id: 'copy1' } as any);
-
-      await service.duplicate('comp1', 'ac1');
-
-      expect(createSpy).toHaveBeenCalledWith(
-        'comp1',
-        expect.objectContaining({ type: 'RECOGNITION' }),
-      );
-    });
-
-    it('rejects changing the type while duplicating a campaign with a new type', async () => {
-      mockRepository.findById.mockResolvedValue({
-        ...sourceCampaign,
-        type: 'RECOGNITION',
-      });
-
-      await expect(
-        service.duplicate('comp1', 'ac1', 'SALES' as any),
-      ).rejects.toThrow('Campanhas novas devem ser duplicadas mantendo o tipo atual');
     });
   });
 

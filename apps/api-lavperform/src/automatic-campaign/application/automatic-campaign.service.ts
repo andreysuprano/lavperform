@@ -39,7 +39,6 @@ import {
 import { normalizeCampaignTargeting } from '../../audiences/application/campaign-targeting.utils';
 import { AudienceTargetingMode } from '@prisma/client';
 import { CustomSendListsService } from '../../custom-send-lists/application/custom-send-lists.service';
-import { isCreatableAutomaticCampaignType } from '../domain/automatic-campaign-type.rules';
 
 @Injectable()
 export class AutomaticCampaignService {
@@ -56,12 +55,6 @@ export class AutomaticCampaignService {
   ) { }
 
   async create(companyId: string, createAutomaticCampaignDto: CreateAutomaticCampaignDto) {
-    if (!isCreatableAutomaticCampaignType(createAutomaticCampaignDto.type)) {
-      throw new BadRequestException(
-        'Novas campanhas devem ser do tipo Reconhecimento ou Venda',
-      );
-    }
-
     const {
       gifts,
       creatives,
@@ -216,40 +209,11 @@ export class AutomaticCampaignService {
     return results;
   }
 
-  async duplicate(
-    companyId: string,
-    campaignId: string,
-    targetType?: AutomaticCampaignType,
-  ) {
+  async duplicate(companyId: string, campaignId: string) {
     const source = await this.automaticCampaignRepository.findById(campaignId);
 
     if (!source || source.companyId !== companyId) {
       throw new NotFoundException('Campanha automática não encontrada');
-    }
-
-    const sourceType = source.type as AutomaticCampaignType;
-    const duplicateType = targetType ?? sourceType;
-
-    if (
-      isCreatableAutomaticCampaignType(sourceType) &&
-      targetType &&
-      targetType !== sourceType
-    ) {
-      throw new BadRequestException(
-        'Campanhas novas devem ser duplicadas mantendo o tipo atual',
-      );
-    }
-
-    if (!isCreatableAutomaticCampaignType(sourceType) && !targetType) {
-      throw new BadRequestException(
-        'Escolha Reconhecimento ou Venda para duplicar uma campanha antiga',
-      );
-    }
-
-    if (!isCreatableAutomaticCampaignType(duplicateType)) {
-      throw new BadRequestException(
-        'A cópia deve ser do tipo Reconhecimento ou Venda',
-      );
     }
 
     const cloneName = `Cópia ${source.name}`;
@@ -270,7 +234,7 @@ export class AutomaticCampaignService {
 
     const duplicateDto: CreateAutomaticCampaignDto = {
       name: cloneName,
-      type: duplicateType,
+      type: source.type as AutomaticCampaignType,
       channel: source.channel,
       targetingMode: source.targetingMode,
       segmentation: source.segmentation,
@@ -348,16 +312,6 @@ export class AutomaticCampaignService {
 
   async update(id: string, updateAutomaticCampaignDto: UpdateAutomaticCampaignDto) {
     const existing = await this.findOne(id);
-    if (
-      updateAutomaticCampaignDto.type &&
-      updateAutomaticCampaignDto.type !== existing.type &&
-      !isCreatableAutomaticCampaignType(updateAutomaticCampaignDto.type)
-    ) {
-      throw new BadRequestException(
-        'O tipo da campanha só pode ser alterado para Reconhecimento ou Venda',
-      );
-    }
-
     const {
       gifts,
       creatives,

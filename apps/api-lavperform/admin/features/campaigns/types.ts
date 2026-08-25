@@ -10,8 +10,6 @@ export type AutomaticCampaignType =
   | "ACQUISITION"
   | "RECURRENCE"
   | "REACTIVATION"
-  | "RECOGNITION"
-  | "SALES"
 
 export type CampaignChannel =
   | "WHATSAPP_WEB"
@@ -46,12 +44,7 @@ export const AUTOMATIC_CAMPAIGN_TYPE_VALUES: AutomaticCampaignType[] = [
   "ACQUISITION",
   "RECURRENCE",
   "REACTIVATION",
-  "RECOGNITION",
-  "SALES",
 ]
-
-export const CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES: AutomaticCampaignType[] =
-  ["RECOGNITION", "SALES"]
 
 export const CAMPAIGN_CHANNEL_VALUES: CampaignChannel[] = [
   "WHATSAPP_WEB",

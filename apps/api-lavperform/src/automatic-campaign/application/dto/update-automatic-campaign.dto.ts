@@ -18,7 +18,7 @@ export class UpdateAutomaticCampaignDto {
 
   @ApiProperty({
     description: 'Tipo da campanha automática',
-    example: 'RECOGNITION',
+    example: 'REACTIVATION',
     enum: AutomaticCampaignType,
     required: false,
   })

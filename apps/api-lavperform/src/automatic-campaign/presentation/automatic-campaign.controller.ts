@@ -11,7 +11,6 @@ import { DateRangeFilterDto } from '../../common/dto/date-range-filter.dto';
 import { CampaignMessagesFilterDto } from '../application/dto/campaign-messages-filter.dto';
 import { MessageStatus } from '@prisma/client';
 import { ALL_RFV_CLASSIFICATIONS } from '../../common/utils/rfvClassification';
-import { DuplicateAutomaticCampaignDto } from '../application/dto/duplicate-automatic-campaign.dto';
 
 @ApiTags('Automatic Campaigns')
 @Controller('campaigns/automatic/:companyId/')
@@ -45,13 +44,8 @@ export class AutomaticCampaignController {
   duplicate(
     @Param('companyId') companyId: string,
     @Param('id') campaignId: string,
-    @Body() duplicateAutomaticCampaignDto: DuplicateAutomaticCampaignDto,
   ) {
-    return this.automaticCampaignService.duplicate(
-      companyId,
-      campaignId,
-      duplicateAutomaticCampaignDto?.targetType,
-    );
+    return this.automaticCampaignService.duplicate(companyId, campaignId);
   }
 
   @Get()

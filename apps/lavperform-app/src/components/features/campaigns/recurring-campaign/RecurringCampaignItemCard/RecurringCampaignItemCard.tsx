@@ -26,7 +26,6 @@ import {
   LuPen,
   LuReceipt,
   LuSend,
-  LuShoppingCart,
   LuSquareCheckBig,
   LuTrash2,
   LuUsers,
@@ -130,7 +129,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
   const { colorPalette } = useWhiteLabel()
 
   const [isDuplicating, setIsDuplicating] = useState(false)
-  const [isDuplicateTypeOpen, setIsDuplicateTypeOpen] = useState(false)
 
   const activeDaysStrings = useMemo(() => {
     const days = data?.daysOfWeek
@@ -176,9 +174,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
   const statusConfig = getStatusConfig(data.status, data.active)
 
   const metric = data.campaignMetric[0]
-  const isLegacyType = data.type !== 'RECOGNITION' && data.type !== 'SALES'
-  const showSales =
-    data.type === 'SALES' && Number(metric?.salesTotalQuantity ?? 0) > 0
 
   const derivedMetrics = getCampaignDerivedMetrics(
     metric?.totalCost,
@@ -240,20 +235,16 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
     }
   }
 
-  const duplicateCampaign = async (
-    targetType?: 'RECOGNITION' | 'SALES'
-  ) => {
+  const duplicateCampaign = async () => {
     if (!selectedCompany?.id) return
     if (isDuplicating) return
 
     setIsDuplicating(true)
-    setIsDuplicateTypeOpen(false)
 
     try {
       const duplicated = await duplicateCampaignMutation.mutateAsync({
         companyId: selectedCompany.id,
         campaignId: data.id,
-        targetType,
       })
 
       logger.info('Campanha automática duplicada', {
@@ -398,13 +389,7 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
                     </Menu.Item>
                     <Menu.Item
                       disabled={isDuplicating}
-                      onClick={() => {
-                        if (isLegacyType) {
-                          setIsDuplicateTypeOpen(true)
-                          return
-                        }
-                        void duplicateCampaign()
-                      }}
+                      onClick={duplicateCampaign}
                       value="duplicate"
                     >
                       <LuCopy />
@@ -559,16 +544,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
             gap={0}
             justifyContent="space-around"
           >
-            {showSales && (
-              <>
-                <StatCell
-                  icon={<LuShoppingCart size={12} />}
-                  label="Vendas"
-                  value={metric.salesTotalQuantity}
-                />
-                <StatDivider />
-              </>
-            )}
             <StatCell
               icon={<LuUsers size={12} />}
               label="Clientes"
@@ -682,44 +657,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
       </Flex>
     )}
     </Box>
-
-    <Dialog.Root
-      onOpenChange={({ open }) => setIsDuplicateTypeOpen(open)}
-      open={isDuplicateTypeOpen}
-      placement="center"
-      role="alertdialog"
-    >
-      <Portal>
-        <Dialog.Backdrop />
-        <Dialog.Positioner>
-          <Dialog.Content maxW="md">
-            <Dialog.Header>
-              <Dialog.Title>Escolha o tipo da nova campanha</Dialog.Title>
-            </Dialog.Header>
-            <Dialog.Body>
-              <Text color="fg.muted" fontSize="sm">
-                Campanhas antigas precisam ser convertidas para Reconhecimento
-                ou Venda ao serem duplicadas.
-              </Text>
-            </Dialog.Body>
-            <Dialog.Footer>
-              <Button
-                onClick={() => setIsDuplicateTypeOpen(false)}
-                variant="outline"
-              >
-                Cancelar
-              </Button>
-              <Button onClick={() => void duplicateCampaign('RECOGNITION')}>
-                Reconhecimento
-              </Button>
-              <Button onClick={() => void duplicateCampaign('SALES')}>
-                Venda
-              </Button>
-            </Dialog.Footer>
-          </Dialog.Content>
-        </Dialog.Positioner>
-      </Portal>
-    </Dialog.Root>
 
     <Dialog.Root
       closeOnEscape={false}
