@@ -1,7 +1,7 @@
-import type { AudienceTargetingMode } from '@/types'
+import type { AudienceTargetingMode, AutomaticCampaignType } from '@/types'
 
 export interface FormDataProps {
-  campaignType: 'REACTIVATION' | 'RECURRENCE'
+  campaignType: AutomaticCampaignType
   /**
    * Comunicação passa a ser por-criativo (description).
    * Mantemos opcional temporariamente para não quebrar payloads legados.

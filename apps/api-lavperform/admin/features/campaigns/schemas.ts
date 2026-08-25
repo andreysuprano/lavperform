@@ -5,6 +5,7 @@ import {
   AUTOMATIC_CAMPAIGN_TYPE_VALUES,
   CAMPAIGN_CHANNEL_VALUES,
   CAMPAIGN_STATUS_VALUES,
+  CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES,
   MESSAGE_STATUS_VALUES,
   type AutomaticCampaignStatus,
   type AutomaticCampaignType,
@@ -79,7 +80,7 @@ export const updateCampaignSchema = z.object({
 
 export type UpdateCampaignInput = z.infer<typeof updateCampaignSchema>
 
-export const createAutomaticCampaignSchema = z.object({
+const automaticCampaignBaseSchema = z.object({
   companyId: uuidSchema,
   name: requiredString("Nome"),
   type: z.enum(
@@ -114,11 +115,29 @@ export const createAutomaticCampaignSchema = z.object({
     .optional(),
 })
 
-export const automaticCampaignFormSchema = createAutomaticCampaignSchema.extend({
+export const createAutomaticCampaignSchema = automaticCampaignBaseSchema.extend({
+  type: z.enum(
+    CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES as [
+      AutomaticCampaignType,
+      ...AutomaticCampaignType[],
+    ]
+  ),
+})
+
+const automaticCampaignFormFields = {
   sendScheduleMode: z
     .enum(["establishment", "fixed", "range"])
     .default("establishment"),
-}).superRefine((data, ctx) => {
+}
+
+const refineAutomaticCampaignSchedule = (
+  data: {
+    sendScheduleMode?: "establishment" | "fixed" | "range"
+    sendTimeStart?: string | null
+    sendTimeEnd?: string | null
+  },
+  ctx: z.RefinementCtx
+) => {
   if (data.sendScheduleMode === "fixed" && !data.sendTimeStart?.trim()) {
     ctx.addIssue({
       code: z.ZodIssueCode.custom,
@@ -156,7 +175,15 @@ export const automaticCampaignFormSchema = createAutomaticCampaignSchema.extend(
       })
     }
   }
-})
+}
+
+export const automaticCampaignFormSchema = createAutomaticCampaignSchema
+  .extend(automaticCampaignFormFields)
+  .superRefine(refineAutomaticCampaignSchedule)
+
+export const automaticCampaignEditFormSchema = automaticCampaignBaseSchema
+  .extend(automaticCampaignFormFields)
+  .superRefine(refineAutomaticCampaignSchedule)
 
 export type CreateAutomaticCampaignInput = z.infer<
   typeof createAutomaticCampaignSchema
@@ -166,7 +193,11 @@ export type AutomaticCampaignFormInput = z.infer<
   typeof automaticCampaignFormSchema
 >
 
-export const updateAutomaticCampaignSchema = createAutomaticCampaignSchema
+export type AutomaticCampaignEditFormInput = z.infer<
+  typeof automaticCampaignEditFormSchema
+>
+
+export const updateAutomaticCampaignSchema = automaticCampaignBaseSchema
   .partial()
   .extend({
     status: z

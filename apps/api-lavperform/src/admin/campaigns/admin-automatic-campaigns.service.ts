@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { AutomaticCampaignStatus, MessageStatus, Prisma } from '@prisma/client';
@@ -14,6 +14,7 @@ import {
   adminMessageSelect,
   mapAdminCampaignMessage,
 } from './admin-campaign-messages.helper';
+import { isCreatableAutomaticCampaignType } from '../../automatic-campaign/domain/automatic-campaign-type.rules';
 
 @Injectable()
 export class AdminAutomaticCampaignsService {
@@ -141,6 +142,12 @@ export class AdminAutomaticCampaignsService {
   }
 
   async create(createDto: CreateAutomaticCampaignDto & { companyId: string }) {
+    if (!isCreatableAutomaticCampaignType(createDto.type)) {
+      throw new BadRequestException(
+        'Novas campanhas devem ser do tipo Reconhecimento ou Venda',
+      );
+    }
+
     const {
       companyId,
       gifts,
@@ -185,6 +192,15 @@ export class AdminAutomaticCampaignsService {
 
   async update(id: string, updateDto: UpdateAutomaticCampaignAdminDto) {
     const existing = await this.findOne(id);
+    if (
+      updateDto.type &&
+      updateDto.type !== existing.type &&
+      !isCreatableAutomaticCampaignType(updateDto.type)
+    ) {
+      throw new BadRequestException(
+        'O tipo da campanha só pode ser alterado para Reconhecimento ou Venda',
+      );
+    }
 
     const { gifts, creatives, couponId, companyId, ...scalarData } = updateDto;
 

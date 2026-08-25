@@ -256,13 +256,16 @@ export function useDuplicateCampaign() {
     mutationFn: async ({
       companyId,
       campaignId,
+      targetType,
     }: {
       companyId: string
       campaignId: string
+      targetType?: 'RECOGNITION' | 'SALES'
     }) => {
       const response = await recurringCampaignService.duplicateCampaign(
         campaignId,
-        companyId
+        companyId,
+        targetType
       )
       return response.data
     },

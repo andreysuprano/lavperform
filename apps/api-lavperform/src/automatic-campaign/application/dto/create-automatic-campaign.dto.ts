@@ -1,10 +1,11 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsString, IsDateString, IsOptional, IsBoolean, IsNotEmpty, IsEnum, IsArray, ValidateNested, IsInt, Min, IsUUID, Matches, ValidateIf } from 'class-validator';
+import { IsString, IsDateString, IsOptional, IsBoolean, IsNotEmpty, IsEnum, IsArray, ValidateNested, IsInt, Min, IsUUID, Matches, ValidateIf, IsIn } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { AudienceTargetingMode, AutomaticCampaignType, CampaignChannel } from '@prisma/client';
 import { CreateGiftDto } from './create-gift.dto';
 import { CreateCreativeDto } from './create-creative.dto';
 import { MetaTemplateVariableMappingDto } from './meta-template-variable-mapping.dto';
+import { CREATABLE_AUTOMATIC_CAMPAIGN_TYPES } from '../../domain/automatic-campaign-type.rules';
 
 export class CreateAutomaticCampaignDto {
   @ApiProperty({
@@ -18,11 +19,11 @@ export class CreateAutomaticCampaignDto {
 
   @ApiProperty({
     description: 'Tipo da campanha automática',
-    example: 'REACTIVATION',
-    enum: AutomaticCampaignType,
+    example: 'SALES',
+    enum: CREATABLE_AUTOMATIC_CAMPAIGN_TYPES,
     required: true,
   })
-  @IsEnum(AutomaticCampaignType)
+  @IsIn(CREATABLE_AUTOMATIC_CAMPAIGN_TYPES)
   @IsNotEmpty()
   type: AutomaticCampaignType;
 

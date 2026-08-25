@@ -14,7 +14,7 @@ export class AutomaticCampaignFactory {
     return this.prisma.automaticCampaign.create({
       data: {
         name: overrides.name || faker.commerce.productName(),
-        type: overrides.type || AutomaticCampaignType.ACQUISITION,
+        type: overrides.type || AutomaticCampaignType.SALES,
         segmentation: overrides.segmentation || 'ALL',
         active: overrides.active ?? true,
         startDate,

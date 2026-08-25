@@ -48,7 +48,12 @@ export interface ScheduledDispatchCampaignResponse {
   }
 }
 
-export type AutomaticCampaignType = 'REACTIVATION' | 'RECURRENCE'
+export type AutomaticCampaignType =
+  | 'ACQUISITION'
+  | 'RECURRENCE'
+  | 'REACTIVATION'
+  | 'RECOGNITION'
+  | 'SALES'
 
 export type RecurringGiftType = 'discount' | 'tax' | 'none'
 
