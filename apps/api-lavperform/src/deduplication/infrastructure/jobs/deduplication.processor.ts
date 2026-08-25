@@ -7,10 +7,13 @@ import {
   DeleteOrderGroupPayload,
   RemoveDuplicateAttributionsPayload,
   ScanCampaignAttributionsPayload,
+  ScanCustomerDuplicatesPayload,
   ScanCustomerOrdersPayload,
+  MergeCustomerGroupPayload,
 } from '../../deduplication.constants';
 import { OrderDeduplicationService } from '../../application/order-deduplication.service';
 import { CampaignAttributionDeduplicationService } from '../../application/campaign-attribution-deduplication.service';
+import { CustomerDuplicateService } from '../../application/customer-duplicate.service';
 
 @Processor(QUEUE_NAMES.DATA_DEDUPLICATION)
 export class DeduplicationProcessor {
@@ -21,6 +24,7 @@ export class DeduplicationProcessor {
     private readonly deduplicationQueue: Queue,
     private readonly orderDeduplicationService: OrderDeduplicationService,
     private readonly campaignAttributionDeduplicationService: CampaignAttributionDeduplicationService,
+    private readonly customerDuplicateService: CustomerDuplicateService,
   ) {}
 
   @Process({
@@ -181,5 +185,24 @@ export class DeduplicationProcessor {
       keepMessageOrderId,
       messageOrderIdsToDelete,
     );
+  }
+
+  @Process({
+    name: DEDUPLICATION_JOB_NAMES.SCAN_CUSTOMER_DUPLICATES,
+    concurrency: 1,
+  })
+  async handleScanCustomerDuplicates(job: Job<ScanCustomerDuplicatesPayload>) {
+    const { companyId } = job.data;
+    this.logger.log(`Escaneando clientes duplicados da empresa ${companyId}`);
+    return this.customerDuplicateService.scanAndAutoMerge(companyId);
+  }
+
+  @Process({
+    name: DEDUPLICATION_JOB_NAMES.MERGE_CUSTOMER_GROUP,
+    concurrency: 1,
+  })
+  async handleMergeCustomerGroup(job: Job<MergeCustomerGroupPayload>) {
+    const { companyId, survivorId, absorbedIds } = job.data;
+    return this.customerDuplicateService.merge(companyId, survivorId, absorbedIds);
   }
 }

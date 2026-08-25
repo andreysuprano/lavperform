@@ -87,6 +87,7 @@ model Company {
   renitencyConfiguration    RenitencyConfiguration?
   publicApiKeys             PublicApiKey[]
   audiences                 Audience[]
+  customerMergeReviews      CustomerMergeReview[]
 
   @@index([businessPartnerId])
   @@index([deletedAt])
@@ -344,11 +345,40 @@ model Customer {
   messages           Message[]
   rfvHistory         CustomerRfvHistory[]
 
-  @@unique([phone, companyId])
   @@index([companyId])
   @@index([phone])
   @@index([email])
   @@index([companyId, cpf])
+}
+
+enum CustomerMergeMatchType {
+  CROSS_IDENTIFIER
+}
+
+enum CustomerMergeReviewStatus {
+  PENDING_REVIEW
+  MERGED
+  KEPT_SEPARATE
+}
+
+model CustomerMergeReview {
+  id                 String                     @id @default(uuid())
+  companyId          String
+  company            Company                    @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  matchType          CustomerMergeMatchType     @default(CROSS_IDENTIFIER)
+  status             CustomerMergeReviewStatus  @default(PENDING_REVIEW)
+  customerIdA        String
+  customerIdB        String
+  resolvedSurvivorId String?
+  resolvedAt         DateTime?
+  resolvedByAdminId  String?
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+
+  @@index([companyId, status])
+  @@index([customerIdA])
+  @@index([customerIdB])
+  @@map("customer_merge_review")
 }
 
 enum CampaignStatus {

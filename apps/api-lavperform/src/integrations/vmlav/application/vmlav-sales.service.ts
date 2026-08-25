@@ -143,7 +143,7 @@ export class VmLavSalesService {
 
       if (!isVmLavSaleReadyForIngestion(sale)) {
         this.logger.warn(
-          `Venda ${sale.idVenda} incompleta para ingestão (sem telefone/CPF ou nome), ignorando`,
+          `Venda ${sale.idVenda} incompleta para ingestão (sem nome), ignorando`,
         );
         return;
       }

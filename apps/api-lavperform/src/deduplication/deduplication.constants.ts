@@ -3,6 +3,8 @@ export const DEDUPLICATION_JOB_NAMES = {
   DELETE_ORDER_GROUP: 'delete-order-group',
   SCAN_CAMPAIGN_ATTRIBUTIONS: 'scan-campaign-attributions',
   REMOVE_DUPLICATE_ATTRIBUTIONS: 'remove-duplicate-attributions',
+  SCAN_CUSTOMER_DUPLICATES: 'scan-customer-duplicates',
+  MERGE_CUSTOMER_GROUP: 'merge-customer-group',
 } as const;
 
 export type DeduplicationJobName =
@@ -32,4 +34,14 @@ export interface RemoveDuplicateAttributionsPayload {
   orderId: string;
   keepMessageOrderId: string;
   messageOrderIdsToDelete: string[];
+}
+
+export interface ScanCustomerDuplicatesPayload {
+  companyId: string;
+}
+
+export interface MergeCustomerGroupPayload {
+  companyId: string;
+  survivorId: string;
+  absorbedIds: string[];
 }

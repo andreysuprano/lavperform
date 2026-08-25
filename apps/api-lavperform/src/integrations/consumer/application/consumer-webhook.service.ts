@@ -4,7 +4,7 @@ import type { Queue } from 'bull';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { IWebhookReceivedRepository } from '../../webhooks/domain/webhook-received.repository.interface';
 import { CompaniesService } from '../../../companies/application/companies.service';
-import { CustomersService } from '../../../customers/application/customers.service';
+import { CustomerIdentityService } from '../../../customers/application/customer-identity.service';
 import { OrderService } from '../../../orders/application/order.service';
 import { formatPhoneNumber } from 'src/common/utils/formatters';
 import { ConsumerWebhookOrderMapping } from '../mappings/consumer-webhook-order.mapping';
@@ -17,7 +17,6 @@ import {
   normalizeConsumerWebhookPayload,
 } from '../utils/consumer-webhook-payload-normalize';
 import {
-  customerNeedsAddressBackfill,
   resolveConsumerPhysicalAddress,
   resolvedAddressToCustomerDto,
 } from '../utils/consumer-webhook-address.resolve';
@@ -33,7 +32,7 @@ export class ConsumerWebhookService {
     @Inject('IWebhookReceivedRepository')
     private readonly webhookReceivedRepository: IWebhookReceivedRepository,
     private readonly companiesService: CompaniesService,
-    private readonly customersService: CustomersService,
+    private readonly customerIdentityService: CustomerIdentityService,
     private readonly orderService: OrderService,
     @Inject('IDigitalMenuIntegrationRepository')
     private readonly digitalMenuIntegrationRepository: IDigitalMenuIntegrationRepository,
@@ -155,39 +154,20 @@ export class ConsumerWebhookService {
     const phone = this.resolveCustomerPhone(
       cliente?.fonecelular ?? cliente?.foneprincipal,
     );
-    if (!phone) {
-      this.logger.warn(
-        'Cliente sem telefone válido; pedido Consumer não criado',
-      );
-      return;
-    }
-
     const physicalAddress = resolveConsumerPhysicalAddress(payload);
     const customerAddressDto = physicalAddress
       ? resolvedAddressToCustomerDto(physicalAddress)
       : undefined;
 
-    let customer = await this.customersService.findByPhone(companyId, phone);
-    if (!customer) {
-      customer = await this.customersService.create(companyId, {
-        phone,
+    const customer = await this.customerIdentityService.resolveForSale({
+      companyId,
+      incoming: {
         name: cliente?.nome?.trim() || 'Cliente',
+        phone: phone ?? undefined,
         email: cliente?.email ?? undefined,
         address: customerAddressDto,
-      });
-    } else if (physicalAddress && customerNeedsAddressBackfill(customer)) {
-      try {
-        customer = await this.customersService.update(companyId, customer.id, {
-          address: customerAddressDto!,
-        });
-      } catch (err) {
-        this.logger.warn(
-          `Consumer webhook: falha ao preencher endereço do cliente ${customer.id}: ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        );
-      }
-    }
+      },
+    });
 
     const orderData = ConsumerWebhookOrderMapping.toOrder(
       payload,

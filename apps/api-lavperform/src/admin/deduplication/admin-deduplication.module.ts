@@ -6,24 +6,29 @@ import { OrderDeduplicationService } from '../../deduplication/application/order
 import { CampaignAttributionDeduplicationService } from '../../deduplication/application/campaign-attribution-deduplication.service';
 import { AdminDeduplicationController } from './admin-deduplication.controller';
 import { AdminDeduplicationService } from './admin-deduplication.service';
+import { CustomerDuplicateService } from '../../deduplication/application/customer-duplicate.service';
 
 @Module({
   imports: [
     PrismaModule,
-    BullModule.registerQueue({
-      name: QUEUE_NAMES.DATA_DEDUPLICATION,
-      defaultJobOptions: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 2000 },
-        removeOnComplete: true,
-        removeOnFail: false,
+    BullModule.registerQueue(
+      {
+        name: QUEUE_NAMES.DATA_DEDUPLICATION,
+        defaultJobOptions: {
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: true,
+          removeOnFail: false,
+        },
       },
-    }),
+      { name: QUEUE_NAMES.RFV_CALCULATION },
+    ),
   ],
   controllers: [AdminDeduplicationController],
   providers: [
     OrderDeduplicationService,
     CampaignAttributionDeduplicationService,
+    CustomerDuplicateService,
     AdminDeduplicationService,
   ],
 })

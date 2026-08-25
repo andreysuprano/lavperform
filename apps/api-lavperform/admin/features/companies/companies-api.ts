@@ -125,3 +125,78 @@ export function reprocessCompanyRfv(id: string): Promise<ReprocessRfvResponse> {
     { method: "POST" }
   )
 }
+
+export type DuplicateReviewCustomer = {
+  id: string
+  name: string
+  phone: string | null
+  cpf: string | null
+  orderCount: number
+  createdAt: string
+}
+
+export type DuplicateReviewGroup = {
+  id: string
+  source: "phone" | "cpf" | "cross"
+  matchValue: string | null
+  reviewId: string | null
+  customers: DuplicateReviewCustomer[]
+}
+
+export type CustomerDuplicatesPreview = {
+  companyId: string
+  autoMergeGroups: number
+  reviewGroups: number
+  review: DuplicateReviewGroup[]
+}
+
+export type ScanCustomerDuplicatesResponse = {
+  message: string
+  jobId: string | null
+  preview: {
+    autoMergeGroups: number
+    reviewGroups: number
+  }
+}
+
+export function listCustomerDuplicates(
+  companyId: string
+): Promise<CustomerDuplicatesPreview> {
+  return apiClient<CustomerDuplicatesPreview>(
+    `/admin/customers/duplicates?companyId=${encodeURIComponent(companyId)}`
+  )
+}
+
+export function scanCustomerDuplicates(
+  companyId: string
+): Promise<ScanCustomerDuplicatesResponse> {
+  return apiClient<ScanCustomerDuplicatesResponse>(
+    "/admin/customers/duplicates/scan",
+    {
+      method: "POST",
+      body: JSON.stringify({ companyId }),
+    }
+  )
+}
+
+export function mergeCustomers(input: {
+  companyId: string
+  survivorId: string
+  absorbedIds: string[]
+}): Promise<{ survivorId: string; absorbedIds: string[] }> {
+  return apiClient("/admin/customers/merge", {
+    method: "POST",
+    body: JSON.stringify(input),
+  })
+}
+
+export function keepSeparateCustomers(input: {
+  companyId: string
+  keepIdentifierOnCustomerId: string
+  peerIds: string[]
+}): Promise<{ keepIdentifierOnCustomerId: string; peerIds: string[] }> {
+  return apiClient("/admin/customers/duplicates/keep-separate", {
+    method: "POST",
+    body: JSON.stringify(input),
+  })
+}

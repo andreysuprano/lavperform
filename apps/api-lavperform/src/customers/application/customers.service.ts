@@ -7,6 +7,7 @@ import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { formatPhoneNumber } from '../../common/utils/formatters';
+import { normalizeCpfDigits } from './customer-identifier';
 import {
   ALL_RFV_CLASSIFICATIONS,
   getIconBySegmentation,
@@ -63,7 +64,8 @@ export class CustomersService {
 
       const data: any = {
         ...customerData,
-        phone: formattedPhone,
+        phone: formattedPhone ?? null,
+        cpf: normalizeCpfDigits(customerData.cpf),
         companyId,
       };
 
@@ -163,6 +165,9 @@ export class CustomersService {
   async update(companyId: string, id: string, updateCustomerDto: UpdateCustomerDto) {
     if (updateCustomerDto.phone) {
       updateCustomerDto.phone = formatPhoneNumber(updateCustomerDto.phone);
+    }
+    if (updateCustomerDto.cpf !== undefined) {
+      updateCustomerDto.cpf = normalizeCpfDigits(updateCustomerDto.cpf) ?? undefined;
     }
 
     const customer = await this.customerRepository.findById(id);

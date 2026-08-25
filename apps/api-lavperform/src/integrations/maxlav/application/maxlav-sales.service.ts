@@ -6,9 +6,8 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { MaxlavOrder } from '../api/maxlav.types';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { IDigitalMenuIntegrationRepository } from '../../../partners/domain/digital-menu-integration.repository.interface';
-import { CustomersService } from '../../../customers/application/customers.service';
+import { CustomerIdentityService } from '../../../customers/application/customer-identity.service';
 import { OrderService } from '../../../orders/application/order.service';
-import { formatPhoneNumber } from '../../../common/utils/formatters';
 import { parseUTCDate, toDateOnlyString } from '../../../common/utils/date.utils';
 import {
   buildUtcDateOnlyRange,
@@ -16,7 +15,6 @@ import {
 } from '../../import-date-range.util';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { MaxlavSaleMapping } from '../mappings/maxlav-sale-mapping';
-import { MaxlavCustomerMapping } from '../mappings/maxlav-customer-mapping';
 import { MaxlavImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
 
 const PARTNER_SLUG = 'MAXLAV';
@@ -30,7 +28,7 @@ export class MaxlavSalesService {
     private readonly prisma: PrismaService,
     @Inject('IDigitalMenuIntegrationRepository')
     private readonly digitalMenuIntegrationRepository: IDigitalMenuIntegrationRepository,
-    private readonly customersService: CustomersService,
+    private readonly customerIdentityService: CustomerIdentityService,
     private readonly orderService: OrderService,
     @InjectQueue(QUEUE_NAMES.MAXLAV_SALES_IMPORT)
     private readonly maxlavSalesQueue: Queue,
@@ -132,42 +130,14 @@ export class MaxlavSalesService {
 
       const maxlavCustomer = order.customer;
 
-      if (!maxlavCustomer?.cellphone) {
-        this.logger.warn(
-          `Pedido ${order.id} sem telefone do cliente, ignorando`,
-        );
-        return;
-      }
-
-      const phoneFormatted = formatPhoneNumber(maxlavCustomer.cellphone);
-
-      let customer = await this.customersService.findByPhone(
+      const customer = await this.customerIdentityService.resolveForSale({
         companyId,
-        phoneFormatted,
-      );
-
-      if (!customer) {
-        this.logger.log(
-          `Cliente não encontrado pelo telefone ${phoneFormatted}, criando novo...`,
-        );
-
-        const customerData = MaxlavCustomerMapping.toCreateCustomerDto(
-          maxlavCustomer,
-          order.createdAt,
-        );
-
-        customer = await this.customersService.create(companyId, customerData);
-        this.logger.log(`Cliente Maxlav criado com sucesso: ${customer.id}`);
-      } else {
-        this.logger.log(`Cliente já existe: ${customer.id} - ${customer.name}`);
-
-        const needsUpdate = maxlavCustomer.documentId && !customer.cpf;
-        if (needsUpdate) {
-          const updateData = MaxlavCustomerMapping.toUpdateData(maxlavCustomer);
-          await this.customersService.update(companyId, customer.id, updateData);
-          this.logger.log(`Cliente ${customer.id} atualizado com sucesso`);
-        }
-      }
+        incoming: {
+          name: maxlavCustomer?.fullName?.trim() || 'Cliente',
+          phone: maxlavCustomer?.cellphone,
+          cpf: maxlavCustomer?.documentId,
+        },
+      });
 
       const integratorOrderId = MaxlavSaleMapping.getIntegratorOrderId(order.id);
 

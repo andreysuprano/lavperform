@@ -2,6 +2,7 @@ import { Module, forwardRef } from '@nestjs/common';
 import { BullModule } from '@nestjs/bull';
 import { CustomersController } from './presentation/customers.controller';
 import { CustomersService } from './application/customers.service';
+import { CustomerIdentityService } from './application/customer-identity.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { CustomersProcessor } from './infrastructure/jobs/customers.processor';
 import { WhatsappValidationProcessor } from './infrastructure/jobs/whatsapp-validation.processor';
@@ -58,6 +59,7 @@ import { workerProviders } from '../common/queue/worker-runtime.config';
   controllers: [CustomersController],
   providers: [
     CustomersService,
+    CustomerIdentityService,
     ...workerProviders(
       CustomersProcessor,
       WhatsappValidationProcessor,
@@ -75,6 +77,6 @@ import { workerProviders } from '../common/queue/worker-runtime.config';
       useClass: DigitalMenuIntegrationPrismaRepository,
     },
   ],
-  exports: [CustomersService, 'ICustomerRepository'],
+  exports: [CustomersService, CustomerIdentityService, 'ICustomerRepository'],
 })
 export class CustomersModule { } 

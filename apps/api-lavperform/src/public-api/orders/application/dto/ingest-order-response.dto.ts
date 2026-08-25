@@ -26,7 +26,7 @@ export class IngestOrderErrorResponseDto {
   @ApiProperty({ example: 400 })
   statusCode: number;
 
-  @ApiProperty({ example: ['Informe pelo menos um entre phone ou cpf do cliente'] })
+  @ApiProperty({ example: ['Campo inválido'] })
   message: string | string[];
 
   @ApiProperty({ example: 'Bad Request' })
