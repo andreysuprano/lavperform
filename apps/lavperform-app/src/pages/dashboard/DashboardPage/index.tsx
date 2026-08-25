@@ -7,6 +7,7 @@ import {
   DashboardHeroBanner,
   DashboardOpsMetrics,
   DashboardQuickLinks,
+  DashboardTodaySales,
   DashboardTopCustomersRank,
 } from '@/components'
 
@@ -52,6 +53,8 @@ export function Home() {
         <DashboardQuickLinks />
 
         <DashboardTopCustomersRank />
+
+        <DashboardTodaySales />
       </Stack>
     </AppContentLayout>
   )

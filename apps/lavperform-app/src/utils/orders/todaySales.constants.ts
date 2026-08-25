@@ -1,0 +1,1 @@
+export const TODAY_SALES_PAGE_LIMIT = 10

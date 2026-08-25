@@ -25,6 +25,49 @@ import {
   OPERATOR_LABELS,
 } from './audienceCopy'
 
+type LastOrderFilterValue = {
+  days?: number
+  from: string
+  to: string
+}
+
+function getLastOrderFilterValue(value: unknown): LastOrderFilterValue {
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return { days: value, from: '', to: '' }
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return { from: '', to: '' }
+  }
+
+  const range = value as { days?: unknown; from?: unknown; to?: unknown }
+  const days = Number(range.days)
+  return {
+    days: Number.isFinite(days) ? days : undefined,
+    from: typeof range.from === 'string' ? range.from : '',
+    to: typeof range.to === 'string' ? range.to : '',
+  }
+}
+
+function serializeLastOrderFilterValue(next: LastOrderFilterValue): Record<string, unknown> {
+  return {
+    ...(next.days != null && Number.isFinite(next.days) ? { days: next.days } : {}),
+    ...(next.from ? { from: next.from } : {}),
+    ...(next.to ? { to: next.to } : {}),
+  }
+}
+
+function serializePeriod(next: { from: string; to: string }) {
+  if (!next.from && !next.to) {
+    return undefined
+  }
+
+  return {
+    ...(next.from ? { from: next.from } : {}),
+    ...(next.to ? { to: next.to } : {}),
+  }
+}
+
 type Props = {
   criterion: Criterion
   onChange: (criterion: Criterion) => void
@@ -84,6 +127,36 @@ export function CriterionEditor({
     () => (Array.isArray(criterion.value) ? (criterion.value as string[]) : []),
     [criterion.value],
   )
+
+  const lastOrderFilter =
+    criterion.type === 'last_order_days'
+      ? getLastOrderFilterValue(criterion.value)
+      : { from: '', to: '' }
+
+  const handleOperatorChange = (operator: ComparisonOperator) => {
+    if (criterion.type === 'last_order_days') {
+      const current = getLastOrderFilterValue(criterion.value)
+      onChange({
+        type: criterion.type,
+        operator,
+        value: serializeLastOrderFilterValue(
+          operator === 'between'
+            ? { from: current.from, to: current.to }
+            : current,
+        ),
+      })
+      return
+    }
+
+    onChange({ ...criterion, operator })
+  }
+
+  const handleLastOrderFilterChange = (next: LastOrderFilterValue) => {
+    onChange({
+      ...criterion,
+      value: serializeLastOrderFilterValue(next),
+    })
+  }
 
   const handleTypeChange = (type: CriterionType) => {
     switch (type) {
@@ -152,10 +225,7 @@ export function CriterionEditor({
             <NativeSelect.Root>
               <NativeSelect.Field
                 onChange={(event) =>
-                  onChange({
-                    ...criterion,
-                    operator: event.currentTarget.value as ComparisonOperator,
-                  })
+                  handleOperatorChange(event.currentTarget.value as ComparisonOperator)
                 }
                 value={criterion.operator}
               >
@@ -211,14 +281,65 @@ export function CriterionEditor({
         </Field.Root>
       )}
 
-      {['last_order_days', 'total_orders', 'average_ticket'].includes(criterion.type) && (
+      {criterion.type === 'last_order_days' && (
+        <>
+          {criterion.operator !== 'between' && (
+            <Field.Root>
+              <Field.Label>Dias</Field.Label>
+              <Input
+                onChange={(event) => {
+                  const raw = event.currentTarget.value
+                  handleLastOrderFilterChange({
+                    ...lastOrderFilter,
+                    days: raw === '' ? undefined : Number(raw),
+                  })
+                }}
+                type="number"
+                value={lastOrderFilter.days ?? ''}
+              />
+            </Field.Root>
+          )}
+          <HStack align="flex-end">
+            <Field.Root flex={1}>
+              <Field.Label>De</Field.Label>
+              <Input
+                onChange={(event) =>
+                  handleLastOrderFilterChange({
+                    ...lastOrderFilter,
+                    from: event.currentTarget.value,
+                  })
+                }
+                type="date"
+                value={lastOrderFilter.from}
+              />
+            </Field.Root>
+            <Field.Root flex={1}>
+              <Field.Label>Até</Field.Label>
+              <Input
+                onChange={(event) =>
+                  handleLastOrderFilterChange({
+                    ...lastOrderFilter,
+                    to: event.currentTarget.value,
+                  })
+                }
+                type="date"
+                value={lastOrderFilter.to}
+              />
+            </Field.Root>
+          </HStack>
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+          >
+            Exemplo: 30 dias + um intervalo antigo inclui quem sumiu há pelo menos 30 dias e cuja última compra caiu nesse período.
+          </Text>
+        </>
+      )}
+
+      {['total_orders', 'average_ticket'].includes(criterion.type) && (
         <Field.Root>
           <Field.Label>
-            {criterion.type === 'last_order_days'
-              ? 'Dias'
-              : criterion.type === 'average_ticket'
-                ? 'Valor (R$)'
-                : 'Quantidade'}
+            {criterion.type === 'average_ticket' ? 'Valor (R$)' : 'Quantidade'}
           </Field.Label>
           <Input
             onChange={(event) =>
@@ -452,6 +573,51 @@ export function CriterionEditor({
             </NativeSelect.Field>
           </NativeSelect.Root>
         </Field.Root>
+      )}
+
+      {criterion.type !== 'last_order_days' && (
+        <Stack gap={1}>
+          <HStack align="flex-end">
+            <Field.Root flex={1}>
+              <Field.Label>De</Field.Label>
+              <Input
+                onChange={(event) =>
+                  onChange({
+                    ...criterion,
+                    period: serializePeriod({
+                      from: event.currentTarget.value,
+                      to: criterion.period?.to ?? '',
+                    }),
+                  })
+                }
+                type="date"
+                value={criterion.period?.from ?? ''}
+              />
+            </Field.Root>
+            <Field.Root flex={1}>
+              <Field.Label>Até</Field.Label>
+              <Input
+                onChange={(event) =>
+                  onChange({
+                    ...criterion,
+                    period: serializePeriod({
+                      from: criterion.period?.from ?? '',
+                      to: event.currentTarget.value,
+                    }),
+                  })
+                }
+                type="date"
+                value={criterion.period?.to ?? ''}
+              />
+            </Field.Root>
+          </HStack>
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+          >
+            Opcional. Considera as vendas feitas nesse período.
+          </Text>
+        </Stack>
       )}
     </Stack>
   )

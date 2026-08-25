@@ -4,18 +4,22 @@ import {
   Button,
   Fieldset,
   FileUpload,
+  HStack,
   Icon,
+  RadioGroup,
   Stack,
 } from '@chakra-ui/react'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useQueryClient } from '@tanstack/react-query'
 import { memo, useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { Controller, useForm } from 'react-hook-form'
 import { LuUpload } from 'react-icons/lu'
 import { RiAddLine, RiSaveLine } from 'react-icons/ri'
 
 import {
+  AudienceSelect,
   CustomDrawer,
+  CustomSendListSelect,
   FileUploadList,
   Input,
   SegmentationSelect,
@@ -45,6 +49,8 @@ const CreateScheduledDispatchFormComponent = ({ onClose }: Props) => {
     control,
     handleSubmit,
     reset,
+    watch,
+    setValue,
   } = useForm<FormData>({
     mode: 'onChange',
     resolver: yupResolver<FormData, any, any>(schema),
@@ -53,10 +59,15 @@ const CreateScheduledDispatchFormComponent = ({ onClose }: Props) => {
       scheduledDate: undefined,
       messageText: '',
       segmentation: [],
+      targetingMode: 'RFV',
+      audienceId: undefined,
+      customSendListId: undefined,
       imageUrl: '',
       modifiedByAI: true,
     },
   })
+
+  const targetingModeValue = watch('targetingMode')
 
   const { selectedCompany } = useAuth()
 
@@ -89,9 +100,14 @@ const CreateScheduledDispatchFormComponent = ({ onClose }: Props) => {
       values = {
         ...values,
         imageUrl: uploadResult.url,
-        segmentation: values.segmentation.join(', '),
         scheduledDate: date,
         modifiedByAI: true,
+        targetingMode: values.targetingMode ?? 'RFV',
+        ...(values.targetingMode === 'AUDIENCE'
+          ? { audienceId: values.audienceId }
+          : values.targetingMode === 'CUSTOMER_LIST'
+            ? { customSendListId: values.customSendListId }
+            : { segmentation: values.segmentation.join(', ') }),
       }
 
       const response = await scheduledDispatchCampaignService.createCampaign(
@@ -254,15 +270,71 @@ const CreateScheduledDispatchFormComponent = ({ onClose }: Props) => {
               rows={4}
               {...register('messageText')}
             />
-            <SegmentationSelect
-              collection={clientTypesOptions}
+            <Controller
               control={control}
-              label="Segmentação"
-              multiple
-              name="segmentation"
-              placeholder="Selecione os tipos de clientes"
-              required
+              name="targetingMode"
+              render={({ field }) => (
+                <RadioGroup.Root
+                  onValueChange={({ value }) => {
+                    field.onChange(value)
+                    if (value === 'AUDIENCE') {
+                      setValue('segmentation', [], { shouldValidate: true })
+                      setValue('customSendListId', undefined, { shouldValidate: true })
+                    } else if (value === 'CUSTOMER_LIST') {
+                      setValue('segmentation', [], { shouldValidate: true })
+                      setValue('audienceId', undefined, { shouldValidate: true })
+                    } else {
+                      setValue('audienceId', undefined, { shouldValidate: true })
+                      setValue('customSendListId', undefined, { shouldValidate: true })
+                    }
+                  }}
+                  value={field.value}
+                >
+                  <HStack gap={6} wrap="wrap">
+                    <RadioGroup.Item value="RFV">
+                      <RadioGroup.ItemHiddenInput />
+                      <RadioGroup.ItemIndicator />
+                      <RadioGroup.ItemText>Segmentação RFV</RadioGroup.ItemText>
+                    </RadioGroup.Item>
+                    <RadioGroup.Item value="AUDIENCE">
+                      <RadioGroup.ItemHiddenInput />
+                      <RadioGroup.ItemIndicator />
+                      <RadioGroup.ItemText>Audiência customizada</RadioGroup.ItemText>
+                    </RadioGroup.Item>
+                    <RadioGroup.Item value="CUSTOMER_LIST">
+                      <RadioGroup.ItemHiddenInput />
+                      <RadioGroup.ItemIndicator />
+                      <RadioGroup.ItemText>Lista personalizada</RadioGroup.ItemText>
+                    </RadioGroup.Item>
+                  </HStack>
+                </RadioGroup.Root>
+              )}
             />
+            {targetingModeValue === 'RFV' ? (
+              <SegmentationSelect
+                collection={clientTypesOptions}
+                control={control}
+                label="Segmentação"
+                multiple
+                name="segmentation"
+                placeholder="Selecione os tipos de clientes"
+                required
+              />
+            ) : targetingModeValue === 'AUDIENCE' ? (
+              <AudienceSelect
+                control={control}
+                label="Audiência"
+                name="audienceId"
+                required
+              />
+            ) : (
+              <CustomSendListSelect
+                control={control}
+                label="Lista personalizada"
+                name="customSendListId"
+                required
+              />
+            )}
           </Fieldset.Content>
         </Fieldset.Root>
       </Stack>

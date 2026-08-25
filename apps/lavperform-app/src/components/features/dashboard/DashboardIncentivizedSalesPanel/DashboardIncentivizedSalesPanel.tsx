@@ -52,6 +52,8 @@ function PanelShell({ children }: { children: ReactNode }) {
 function DashboardIncentivizedSalesPanelBase() {
   const { selectedCompany } = useAuth()
   const [filter, setFilter] = useState<FilterMode>('all')
+  const showIncentivizedSales =
+    selectedCompany?.showIncentivizedSales === true
 
   const params = useMemo(
     () => (filter === 'month' ? getCurrentMonthRange() : {}),
@@ -60,12 +62,20 @@ function DashboardIncentivizedSalesPanelBase() {
 
   const { data: allTimeData, isLoading: isLoadingAllTime } = useIncentivizedSales(
     selectedCompany?.id,
-    {}
+    {},
+    { enabled: showIncentivizedSales }
   )
-  const { data, isLoading } = useIncentivizedSales(selectedCompany?.id, params)
+  const { data, isLoading } = useIncentivizedSales(
+    selectedCompany?.id,
+    params,
+    { enabled: showIncentivizedSales }
+  )
 
-  const hasAllTimeSales =
-    (allTimeData?.totalCount ?? 0) > 0 || (allTimeData?.totalValue ?? 0) > 0
+  const hasIncentivizedValue = (allTimeData?.totalValue ?? 0) > 0
+
+  if (!showIncentivizedSales) {
+    return null
+  }
 
   if (isLoadingAllTime) {
     return (
@@ -103,7 +113,7 @@ function DashboardIncentivizedSalesPanelBase() {
     )
   }
 
-  if (!hasAllTimeSales) {
+  if (!hasIncentivizedValue) {
     return null
   }
 

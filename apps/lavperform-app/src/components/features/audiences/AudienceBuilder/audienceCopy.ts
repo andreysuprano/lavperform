@@ -32,12 +32,13 @@ export const CRITERION_LABELS: Record<CriterionType, string> = {
 
 export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   rfv_classification: 'Use os tipos que o sistema já calcula, como Campeão, Novo ou Hibernando.',
-  last_order_days: 'Filtra pela quantidade de dias desde a última venda.',
+  last_order_days:
+    'Pode usar só os dias, só as datas, ou os dois. Se preencher os dois, o cliente precisa atender os dois ao mesmo tempo.',
   neighborhood: 'Inclui clientes de um bairro específico.',
   city: 'Inclui clientes de uma cidade específica.',
   phone_ddd: 'Inclui clientes por um ou mais DDDs do telefone (código de área).',
   purchased_product: 'Filtra quem já comprou determinado produto.',
-  total_orders: 'Filtra pela quantidade total de vendas feitas.',
+  total_orders: 'Filtra pela quantidade total de vendas feitas. Use as datas para limitar o período.',
   average_ticket: 'Filtra pelo valor médio que o cliente costuma gastar.',
   whatsapp_verified: 'Filtra quem tem ou não o WhatsApp confirmado.',
   has_orders: 'Filtra quem já comprou alguma vez ou ainda não.',
@@ -95,7 +96,25 @@ function formatMoney(value: number) {
 function formatCriterionSummary(criterion: Criterion): string {
   const label = CRITERION_LABELS[criterion.type]
   const operatorLabel = OPERATOR_LABELS[criterion.operator] ?? criterion.operator
+  const summary = formatCriterionSummaryBase(criterion, label, operatorLabel)
+  if (criterion.type === 'last_order_days') {
+    return summary
+  }
 
+  const from = criterion.period?.from
+  const to = criterion.period?.to
+  if (!from && !to) {
+    return summary
+  }
+
+  return `${summary} (vendas entre ${from || 'qualquer data'} e ${to || 'qualquer data'})`
+}
+
+function formatCriterionSummaryBase(
+  criterion: Criterion,
+  label: string,
+  operatorLabel: string,
+): string {
   switch (criterion.type) {
     case 'rfv_classification': {
       const values = Array.isArray(criterion.value)
@@ -106,8 +125,37 @@ function formatCriterionSummary(criterion: Criterion): string {
         ? `${label}: não é ${list}`
         : `${label}: ${list}`
     }
-    case 'last_order_days':
-      return `${label}: ${operatorLabel.toLowerCase()} ${Number(criterion.value ?? 0)} dias`
+    case 'last_order_days': {
+      const range =
+        typeof criterion.value === 'number'
+          ? { days: criterion.value }
+          : criterion.value && typeof criterion.value === 'object' && !Array.isArray(criterion.value)
+            ? (criterion.value as { from?: string; to?: string; min?: number; max?: number; days?: number })
+            : {}
+      const parts: string[] = []
+
+      if (criterion.operator === 'between') {
+        if (range.from || range.to) {
+          parts.push(`entre ${range.from || 'qualquer data'} e ${range.to || 'qualquer data'}`)
+        } else if (range.min != null || range.max != null) {
+          parts.push(
+            `entre ${range.min != null ? range.min : 'qualquer'} e ${range.max != null ? range.max : 'qualquer'} dias`,
+          )
+        }
+      } else if (range.days != null) {
+        parts.push(`${operatorLabel.toLowerCase()} ${range.days} dias`)
+      }
+
+      if (criterion.operator !== 'between' && (range.from || range.to)) {
+        parts.push(`entre ${range.from || 'qualquer data'} e ${range.to || 'qualquer data'}`)
+      }
+
+      if (!parts.length) {
+        return `${label}: sem limite de data`
+      }
+
+      return `${label}: ${parts.join(' e ')}`
+    }
     case 'total_orders':
       return `${label}: ${operatorLabel.toLowerCase()} ${Number(criterion.value ?? 0)}`
     case 'average_ticket':

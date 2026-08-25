@@ -36,6 +36,7 @@ export class AutomaticCampaignsProcessor {
           creatives: true,
           coupon: true,
           audience: true,
+          customSendList: true,
         },
       });
 
@@ -116,6 +117,7 @@ export class AutomaticCampaignsProcessor {
         targetingMode: campaign.targetingMode,
         segmentation: campaign.segmentation,
         audienceId: campaign.audienceId,
+        customSendListId: campaign.customSendListId,
         channel: campaign.channel,
       });
 
@@ -124,6 +126,7 @@ export class AutomaticCampaignsProcessor {
         targetingMode: campaign.targetingMode,
         segmentation: campaign.segmentation,
         audienceId: campaign.audienceId,
+        customSendListId: campaign.customSendListId,
         channel: campaign.channel,
         take: remainingSlots * 5,
       });

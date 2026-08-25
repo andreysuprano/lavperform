@@ -20,6 +20,7 @@ export interface FormDataProps {
   name: string
   targetingMode?: AudienceTargetingMode
   audienceId?: string | null
+  customSendListId?: string | null
   segmentation: string[]
   daysOfWeek: string[]
   startDate: string

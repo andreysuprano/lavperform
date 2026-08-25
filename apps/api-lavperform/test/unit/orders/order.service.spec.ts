@@ -103,4 +103,46 @@ describe('OrderService', () => {
       });
     });
   });
+
+  describe('findSalesSummary', () => {
+    it('mapeia telefone e e-mail do cliente, inclusive nulos', async () => {
+      mockOrderRepository.findByCompanyId.mockResolvedValue({
+        items: [
+          {
+            id: 'ord-1',
+            createdAt: new Date('2026-08-21T14:32:00.000Z'),
+            total: 37.82,
+            items: [{ name: 'Lavagem', quantity: 1, parentItemId: null }],
+            customer: { name: 'Maria', phone: '41999999999', email: 'maria@ex.com' },
+          },
+          {
+            id: 'ord-2',
+            createdAt: new Date('2026-08-21T15:00:00.000Z'),
+            total: 10,
+            items: [{ name: 'Extra', quantity: 1, parentItemId: 'parent-1' }],
+            customer: { name: 'João', phone: null, email: null },
+          },
+        ],
+        total: 2,
+      });
+
+      const result = await service.findSalesSummary('comp1', { page: 1, limit: 10 });
+
+      expect(result.sales[0]).toMatchObject({
+        orderId: 'ord-1',
+        customerName: 'Maria',
+        customerPhone: '41999999999',
+        customerEmail: 'maria@ex.com',
+        products: [{ name: 'Lavagem', quantity: 1 }],
+        total: 37.82,
+      });
+      expect(result.sales[1]).toMatchObject({
+        orderId: 'ord-2',
+        customerName: 'João',
+        customerPhone: null,
+        customerEmail: null,
+        products: [],
+      });
+    });
+  });
 });

@@ -12,6 +12,8 @@ export interface PreloadCompany {
   avatarUrl: string
   address: CompanyAddress
   slug?: string
+  showIncentivizedSales?: boolean
+  showTodayPurchases?: boolean
 }
 
 export interface ApplicationPreloadResponse {
@@ -39,6 +41,8 @@ export interface Company {
   phone: string
   slug: string
   state: CompanyState
+  showIncentivizedSales?: boolean
+  showTodayPurchases?: boolean
 }
 
 export interface AllCompaniesResponse {

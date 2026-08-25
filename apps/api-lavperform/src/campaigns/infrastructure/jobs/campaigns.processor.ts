@@ -32,7 +32,7 @@ export class CampaignsProcessor {
 
       const campaign = await this.prisma.campaign.findUnique({
         where: { id: campaignId },
-        include: { audience: true },
+        include: { audience: true, customSendList: true },
       });
 
       if (!campaign) {
@@ -47,6 +47,7 @@ export class CampaignsProcessor {
         targetingMode: campaign.targetingMode,
         segmentation: campaign.segmentation,
         audienceId: campaign.audienceId,
+        customSendListId: campaign.customSendListId,
         channel,
       });
 
@@ -56,6 +57,7 @@ export class CampaignsProcessor {
         targetingMode: campaign.targetingMode,
         segmentation: campaign.segmentation,
         audienceName: campaign.audience?.name,
+        customSendListName: campaign.customSendList?.name,
       });
 
       await this.prisma.campaignMetric.updateMany({

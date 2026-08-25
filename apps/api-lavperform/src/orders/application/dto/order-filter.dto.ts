@@ -1,4 +1,4 @@
-import { IsOptional, IsString, IsNumber, IsDateString } from 'class-validator';
+import { IsOptional, IsString, IsNumber, IsDateString, IsIn } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class OrderFilterDto {
@@ -31,4 +31,8 @@ export class OrderFilterDto {
   @IsOptional()
   @IsDateString()
   endDate?: string;
+
+  @IsOptional()
+  @IsIn(['today'])
+  period?: 'today';
 }

@@ -77,8 +77,193 @@ describe('ApplicationService', () => {
       id: 'c1',
       name: 'Comp',
       email: 'c@test.com',
+      showIncentivizedSales: false,
       address: expect.objectContaining({ street: 'S', number: '10' }),
     });
+  });
+
+  it('returns showIncentivizedSales false when the company flag is off', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+            showIncentivizedSales: false,
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showIncentivizedSales).toBe(false);
+  });
+
+  it('defaults showIncentivizedSales to false when the field is missing', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showIncentivizedSales).toBe(false);
+  });
+
+  it('returns showIncentivizedSales true when the company flag is on', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+            showIncentivizedSales: true,
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showIncentivizedSales).toBe(true);
+  });
+
+  it('returns showTodayPurchases false when the company flag is off', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+            showTodayPurchases: false,
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showTodayPurchases).toBe(false);
+  });
+
+  it('defaults showTodayPurchases to false when the field is missing', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showTodayPurchases).toBe(false);
+  });
+
+  it('returns showTodayPurchases true when the company flag is on', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+            showTodayPurchases: true,
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].showTodayPurchases).toBe(true);
   });
 
   it('gracefully handles companies without address', async () => {

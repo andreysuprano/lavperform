@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { useAuth } from '@/context/AuthContext'
 import { useCustomerSummary } from '@/context/CustomerSummaryContext'
 import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useCustomSendLists } from '@/hooks/queries/useCustomSendLists'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { convertISOToDate } from '@/utils/convertISOToDate'
 
@@ -14,6 +15,10 @@ export function CardResume(props: FormStepsProps) {
   const { customersSummary } = useCustomerSummary()
   const { selectedCompany } = useAuth()
   const { data: audiencesData } = useAudiences(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
+  const { data: customSendListsData } = useCustomSendLists(selectedCompany?.id, {
     page: 1,
     limit: 100,
   })
@@ -29,6 +34,7 @@ export function CardResume(props: FormStepsProps) {
   )
 
   const isAudienceMode = props.formData?.targetingMode === 'AUDIENCE'
+  const isCustomListMode = props.formData?.targetingMode === 'CUSTOMER_LIST'
 
   const selectedAudience = useMemo(() => {
     if (!isAudienceMode || !props.formData?.audienceId) return null
@@ -39,9 +45,22 @@ export function CardResume(props: FormStepsProps) {
     )
   }, [audiencesData?.data, isAudienceMode, props.formData?.audienceId])
 
+  const selectedCustomSendList = useMemo(() => {
+    if (!isCustomListMode || !props.formData?.customSendListId) return null
+    return (
+      customSendListsData?.data?.find(
+        (list) => list.id === props.formData!.customSendListId,
+      ) ?? null
+    )
+  }, [customSendListsData?.data, isCustomListMode, props.formData?.customSendListId])
+
   const totalCustomers = useMemo(() => {
     if (isAudienceMode) {
       return selectedAudience?.customerCount ?? 0
+    }
+
+    if (isCustomListMode) {
+      return selectedCustomSendList?.memberCount ?? 0
     }
 
     if (
@@ -56,10 +75,11 @@ export function CardResume(props: FormStepsProps) {
         props.formData!.segmentation.includes(customer.segmentation)
       )
       .reduce((total, customer) => total + (customer.count || 0), 0)
-  }, [customersSummary, isAudienceMode, props.formData, selectedAudience])
+  }, [customersSummary, isAudienceMode, isCustomListMode, props.formData, selectedAudience, selectedCustomSendList])
 
   const hasRfvSegmentation =
     !isAudienceMode &&
+    !isCustomListMode &&
     props.formData?.segmentation &&
     Array.isArray(props.formData.segmentation) &&
     props.formData.segmentation.length > 0
@@ -96,6 +116,14 @@ export function CardResume(props: FormStepsProps) {
               <Text fontWeight={500}>Público selecionado:</Text>
               <HStack wrap="wrap">
                 <Badge>{selectedAudience.name}</Badge>
+              </HStack>
+            </>
+          ) : null}
+          {isCustomListMode && selectedCustomSendList ? (
+            <>
+              <Text fontWeight={500}>Público selecionado:</Text>
+              <HStack wrap="wrap">
+                <Badge>{selectedCustomSendList.name}</Badge>
               </HStack>
             </>
           ) : null}

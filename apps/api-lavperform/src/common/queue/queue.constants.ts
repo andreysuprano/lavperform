@@ -1,5 +1,6 @@
 export const QUEUE_NAMES = {
   CUSTOMERS_IMPORT: 'customers-import',
+  CUSTOM_SEND_LIST_IMPORT: 'custom-send-list-import',
   ORDER_HISTORY_IMPORT: 'order-history-import',
   ORDER_HISTORY_PAGE_IMPORT: 'order-history-page-import',
   CAMPAIGNS_ENGINE: 'campaigns-engine',

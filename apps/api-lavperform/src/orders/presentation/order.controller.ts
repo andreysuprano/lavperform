@@ -41,6 +41,7 @@ export class OrderController {
   @ApiQuery({ name: 'limit', required: false, type: Number, description: 'Itens por página' })
   @ApiQuery({ name: 'startDate', required: false, type: String, description: 'Data inicial (ISO 8601)' })
   @ApiQuery({ name: 'endDate', required: false, type: String, description: 'Data final (ISO 8601)' })
+  @ApiQuery({ name: 'period', required: false, enum: ['today'], description: 'Dia civil (mesmo recorte de getTodaySales). Ignora startDate/endDate.' })
   findSales(
     @Param('companyId') companyId: string,
     @Query() filterDto: OrderFilterDto,

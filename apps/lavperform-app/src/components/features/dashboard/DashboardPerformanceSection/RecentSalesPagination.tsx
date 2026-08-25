@@ -12,7 +12,7 @@ import { RECENT_SALES_PAGE_LIMIT } from '@/utils/orders/recentSales.constants'
 
 import { Props } from './RecentSalesPagination.types'
 
-function RecentSalesPaginationBase({ meta, onPageChange }: Props) {
+function RecentSalesPaginationBase({ meta, onPageChange, pageSize }: Props) {
   const handlePaginationChange = useCallback(
     (details: { page: number }) => {
       onPageChange(details.page)
@@ -42,7 +42,7 @@ function RecentSalesPaginationBase({ meta, onPageChange }: Props) {
         count={meta.total}
         onPageChange={handlePaginationChange}
         page={meta.page}
-        pageSize={RECENT_SALES_PAGE_LIMIT}
+        pageSize={pageSize ?? RECENT_SALES_PAGE_LIMIT}
         siblingCount={0}
       >
         <ButtonGroup

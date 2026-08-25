@@ -1,4 +1,4 @@
-import { IsString, IsEmail, IsOptional, ValidateNested } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsBoolean, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { AddressDto } from 'src/common/dto/address.dto';
 import { Type } from 'class-transformer';
@@ -52,4 +52,22 @@ export class UpdateCompanyDto {
   @ValidateNested()
   @Type(() => AddressDto)
   address: AddressDto;
+
+  @ApiProperty({
+    description: 'Exibir o box de vendas incentivadas na dashboard do app',
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  showIncentivizedSales?: boolean;
+
+  @ApiProperty({
+    description: 'Exibir o box de compras do dia na dashboard do app',
+    required: false,
+    default: false,
+  })
+  @IsOptional()
+  @IsBoolean()
+  showTodayPurchases?: boolean;
 } 

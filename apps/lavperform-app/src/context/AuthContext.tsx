@@ -23,6 +23,12 @@ interface AuthContextData {
   signOut: () => void
   selectCompany: (companyId: string) => void
   updateCompanyAvatar: (companyId: string, avatarUrl: string) => void
+  updateCompanyFlags: (
+    companyId: string,
+    flags: Partial<
+      Pick<UserCompany, 'showTodayPurchases' | 'showIncentivizedSales'>
+    >
+  ) => void
 }
 
 const AuthContext = createContext({} as AuthContextData)
@@ -137,6 +143,22 @@ export function AuthProvider({ children }: PropsWithChildren) {
     }
   }
 
+  function updateCompanyFlags(
+    companyId: string,
+    flags: Partial<
+      Pick<UserCompany, 'showTodayPurchases' | 'showIncentivizedSales'>
+    >
+  ) {
+    const updatedCompanies = companies.map((c) =>
+      c.id === companyId ? { ...c, ...flags } : c
+    )
+    setCompanies(updatedCompanies)
+
+    if (selectedCompany?.id === companyId) {
+      setSelectedCompany({ ...selectedCompany, ...flags })
+    }
+  }
+
   function getStoredUser(): User | null {
     const storedUser = localStorage.getItem('@FoodCRM:user')
     if (storedUser) {
@@ -206,6 +228,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
         signOut,
         selectCompany,
         updateCompanyAvatar,
+        updateCompanyFlags,
       }}
     >
       {children}

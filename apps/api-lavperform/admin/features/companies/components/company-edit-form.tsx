@@ -3,7 +3,7 @@
 import { useEffect } from "react"
 import { useAppRouter } from "@/hooks/use-app-router"
 import { Loader2 } from "lucide-react"
-import { FormProvider, useForm, type SubmitHandler } from "react-hook-form"
+import { Controller, FormProvider, useForm, type SubmitHandler } from "react-hook-form"
 import { zodResolver } from "@hookform/resolvers/zod"
 
 import { Button } from "@/components/ui/button"
@@ -14,8 +14,11 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
+import { Checkbox } from "@/components/ui/checkbox"
 import {
   Field,
+  FieldContent,
+  FieldDescription,
   FieldError,
   FieldGroup,
   FieldLabel,
@@ -31,6 +34,8 @@ const EMPTY_DEFAULTS: UpdateCompanyInput = {
   cnpj: "",
   email: "",
   phone: "",
+  showIncentivizedSales: false,
+  showTodayPurchases: false,
   address: {
     zipCode: "",
     street: "",
@@ -60,6 +65,8 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
       cnpj: company.cnpj,
       email: company.email,
       phone: company.phone ?? "",
+      showIncentivizedSales: company.showIncentivizedSales === true,
+      showTodayPurchases: company.showTodayPurchases === true,
       address: {
         zipCode: company.address?.zipCode ?? "",
         street: company.address?.street ?? "",
@@ -164,6 +171,65 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
         </CardHeader>
         <CardContent>
           <AddressFields namePrefix="address" />
+        </CardContent>
+      </Card>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Dashboard</CardTitle>
+          <CardDescription>
+            Controle o que aparece na home do app desta empresa.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-4">
+          <Controller
+            control={form.control}
+            name="showIncentivizedSales"
+            render={({ field }) => (
+              <Field orientation="horizontal" className="items-start gap-3">
+                <Checkbox
+                  id="showIncentivizedSales"
+                  checked={field.value}
+                  onCheckedChange={(checked) =>
+                    field.onChange(checked === true)
+                  }
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor="showIncentivizedSales" className="mb-0">
+                    Mostrar vendas incentivadas na dashboard
+                  </FieldLabel>
+                  <FieldDescription>
+                    Quando ligado, o box aparece na home do app dessa empresa.
+                  </FieldDescription>
+                </FieldContent>
+              </Field>
+            )}
+          />
+          <Controller
+            control={form.control}
+            name="showTodayPurchases"
+            render={({ field }) => (
+              <Field orientation="horizontal" className="items-start gap-3">
+                <Checkbox
+                  id="showTodayPurchases"
+                  checked={field.value}
+                  onCheckedChange={(checked) =>
+                    field.onChange(checked === true)
+                  }
+                />
+                <FieldContent>
+                  <FieldLabel htmlFor="showTodayPurchases" className="mb-0">
+                    Mostrar compras do dia na dashboard
+                  </FieldLabel>
+                  <FieldDescription>
+                    Quando ligado, a lista interna do card Compras do dia
+                    aparece na home. O cliente também controla isso pelo ícone
+                    de olho no card.
+                  </FieldDescription>
+                </FieldContent>
+              </Field>
+            )}
+          />
         </CardContent>
       </Card>
 

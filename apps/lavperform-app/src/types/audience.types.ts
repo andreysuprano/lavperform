@@ -1,4 +1,4 @@
-export type AudienceTargetingMode = 'RFV' | 'AUDIENCE'
+export type AudienceTargetingMode = 'RFV' | 'AUDIENCE' | 'CUSTOMER_LIST'
 
 export type GroupOperator = 'AND' | 'OR'
 
@@ -30,10 +30,16 @@ export type CriterionType =
   | 'birthday_within_days'
   | 'top_customers_month'
 
+export interface AudiencePeriod {
+  from?: string
+  to?: string
+}
+
 export interface Criterion {
   type: CriterionType
   operator: ComparisonOperator
   value: unknown
+  period?: AudiencePeriod
 }
 
 export interface RuleGroup {

@@ -68,10 +68,26 @@ const schema = yup.object({
       return value && ['image/jpeg', 'image/png'].includes(value[0].type)
     }),
   modifiedByAI: yup.boolean(),
-  segmentation: yup
-    .array()
-    .min(1, 'Informe ao menos 1 segmento')
-    .required('Informe os segmentos do disparo'),
+  targetingMode: yup
+    .mixed<'RFV' | 'AUDIENCE' | 'CUSTOMER_LIST'>()
+    .oneOf(['RFV', 'AUDIENCE', 'CUSTOMER_LIST'])
+    .default('RFV'),
+  segmentation: yup.array().when('targetingMode', {
+    is: (mode: string) => mode === 'RFV',
+    then: (schema) =>
+      schema.min(1, 'Informe ao menos 1 segmento').required('Informe os segmentos do disparo'),
+    otherwise: (schema) => schema.optional(),
+  }),
+  audienceId: yup.string().when('targetingMode', {
+    is: (mode: string) => mode === 'AUDIENCE',
+    then: (schema) => schema.required('Selecione uma audiência'),
+    otherwise: (schema) => schema.nullable().optional(),
+  }),
+  customSendListId: yup.string().when('targetingMode', {
+    is: (mode: string) => mode === 'CUSTOMER_LIST',
+    then: (schema) => schema.required('Selecione uma lista personalizada'),
+    otherwise: (schema) => schema.nullable().optional(),
+  }),
 })
 
 type FormData = yup.InferType<typeof schema>

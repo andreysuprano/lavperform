@@ -44,6 +44,7 @@ import { DeduplicationModule } from './deduplication/deduplication.module';
 import { RenitencyModule } from './renitency/renitency.module';
 import { PublicApiOrderWorkerModule } from './public-api/orders/public-api-order-worker.module';
 import { AudiencesModule } from './audiences/audiences.module';
+import { CustomSendListsModule } from './custom-send-lists/custom-send-lists.module';
 import { CompanyApiKeysModule } from './api-keys/company-api-keys.module';
 
 @Module({
@@ -71,6 +72,7 @@ import { CompanyApiKeysModule } from './api-keys/company-api-keys.module';
     OnboardingModule,
     CustomersModule,
     AudiencesModule,
+    CustomSendListsModule,
     QueueModule,
     CampaignsModule,
     MetricsModule,

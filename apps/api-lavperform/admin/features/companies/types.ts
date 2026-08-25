@@ -29,6 +29,8 @@ export interface Company {
   businessPartnerId: string | null
   addressId: string | null
   address?: Address | null
+  showIncentivizedSales: boolean
+  showTodayPurchases: boolean
   createdAt: string
   updatedAt: string
 }

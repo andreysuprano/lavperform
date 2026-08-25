@@ -18,7 +18,10 @@ import {
 import { useAuth } from '@/context/AuthContext'
 import { convertLinkToResizedImage } from '@/firebase/storage'
 import { useScheduledDispatchCampaigns } from '@/hooks/queries'
+import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useCustomSendLists } from '@/hooks/queries/useCustomSendLists'
 import type { ScheduledDispatchCampaign } from '@/types'
+import { resolveCampaignTargetingFromApi } from '@/utils/campaigns/resolveCampaignTargetingFromApi'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { formatDate } from '@/utils/strings'
 
@@ -45,8 +48,42 @@ const formatStatus = (status: string) => {
   )
 }
 
+function targetingBadgeLabels(
+  campaign: ScheduledDispatchCampaign,
+  audiences: { id: string; name: string }[] = [],
+  lists: { id: string; name: string }[] = [],
+) {
+  const targeting = resolveCampaignTargetingFromApi(campaign)
+
+  if (targeting.targetingMode === 'AUDIENCE') {
+    const audienceName = audiences.find(
+      (audience) => audience.id === targeting.audienceId,
+    )?.name
+    return audienceName ? [audienceName] : []
+  }
+
+  if (targeting.targetingMode === 'CUSTOMER_LIST') {
+    const listName = lists.find((list) => list.id === targeting.customSendListId)?.name
+    return listName ? [listName] : []
+  }
+
+  return targeting.segmentation.map(
+    (segmentationItem) =>
+      clientTypesOptions.items.find((option) => option.value === segmentationItem)
+        ?.label ?? segmentationItem,
+  )
+}
+
 function ScheduledDispatchList() {
   const { selectedCompany } = useAuth()
+  const { data: audiencesResult } = useAudiences(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
+  const { data: customSendListsResult } = useCustomSendLists(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
 
   const [selectedCampaign, setSelectedCampaign] =
     useState<ScheduledDispatchCampaign | null>(null)
@@ -176,14 +213,16 @@ function ScheduledDispatchList() {
                 alignItems="flex-start"
                 gap={2}
               >
-                {item.segmentation.split(', ').map((segmentationItem) => (
+                {targetingBadgeLabels(
+                  item,
+                  audiencesResult?.data,
+                  customSendListsResult?.data,
+                ).map((label) => (
                   <Badge
-                    key={segmentationItem}
+                    key={label}
                     variant="solid"
                   >
-                    {clientTypesOptions.items.find(
-                      (item) => item.value === segmentationItem
-                    )?.label ?? segmentationItem}
+                    {label}
                   </Badge>
                 ))}
               </VStack>

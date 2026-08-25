@@ -31,6 +31,7 @@ import { RechartsFrame, useRechartsTheme } from '@/hooks/useRechartsTheme'
 import type { CampaignMessageTypeBreakdown } from '@/types'
 import {
   formatMessageTypeLabel,
+  formatPercentRate,
   getCampaignDerivedMetrics,
 } from '@/utils/campaigns/campaignMetrics'
 import { formatCurrency } from '@/utils/money'
@@ -43,6 +44,7 @@ interface CampaignMetricsShape {
     messagesDelivered: number
     messagesError: number
     messagesSent: number
+    conversionRate?: number | string
     salesTotalAmount: string
     salesTotalQuantity: number
     totalCustomers: number
@@ -197,6 +199,10 @@ function PerformanceTabComponent({
             <ChartMetricCard
               label="Receita"
               value={formatCurrency(Number(campaignMetric.salesTotalAmount))}
+            />
+            <ChartMetricCard
+              label="Conversão"
+              value={formatPercentRate(Number(campaignMetric.conversionRate) || 0)}
             />
             <ChartMetricCard
               label="Investimento"

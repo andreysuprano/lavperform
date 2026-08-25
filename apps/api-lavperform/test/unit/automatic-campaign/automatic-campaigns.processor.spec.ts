@@ -15,7 +15,6 @@ jest.mock('src/common/utils/date.utils', () => ({
 
 import { AutomaticCampaignsProcessor } from 'src/automatic-campaign/infrastructure/jobs/automatic-campaigns.processor';
 import { getDayOfWeekPtBr } from 'src/common/utils/date.utils';
-import { CAMPAIGN_CUSTOMER_ORDER_BY } from 'src/common/utils/campaign-customer-order.utils';
 
 describe('AutomaticCampaignsProcessor', () => {
   const prisma: any = {
@@ -45,6 +44,10 @@ describe('AutomaticCampaignsProcessor', () => {
   const renitencyEvaluator: any = {
     canContactCustomer: jest.fn().mockResolvedValue({ allowed: true }),
   };
+  const campaignCustomerResolver: any = {
+    resolveCustomers: jest.fn(),
+    countEligibleCustomers: jest.fn(),
+  };
 
   let processor: AutomaticCampaignsProcessor;
 
@@ -54,7 +57,14 @@ describe('AutomaticCampaignsProcessor', () => {
     factory.get.mockReturnValue(strategy);
     prisma.message.count.mockResolvedValue(0);
     renitencyEvaluator.canContactCustomer.mockResolvedValue({ allowed: true });
-    processor = new AutomaticCampaignsProcessor(prisma, factory, renitencyEvaluator);
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(0);
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([]);
+    processor = new AutomaticCampaignsProcessor(
+      prisma,
+      factory,
+      renitencyEvaluator,
+      campaignCustomerResolver,
+    );
   });
 
   it('skips when campaign day is not allowed', async () => {
@@ -62,6 +72,8 @@ describe('AutomaticCampaignsProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
       daysOfWeek: ['seg'],
       channel: CampaignChannel.WHATSAPP_WEB,
       status: AutomaticCampaignStatus.IN_PROGRESS,
@@ -69,7 +81,7 @@ describe('AutomaticCampaignsProcessor', () => {
 
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
 
-    expect(prisma.customer.findMany).not.toHaveBeenCalled();
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
     expect(strategy.generateMessages).not.toHaveBeenCalled();
   });
 
@@ -79,6 +91,8 @@ describe('AutomaticCampaignsProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
       segmentation: 'segA,segB',
       daysOfWeek: ['seg'],
       images: 'img1,img2',
@@ -94,8 +108,8 @@ describe('AutomaticCampaignsProcessor', () => {
       openTime: '10:00',
       closeTime: '18:00',
     });
-    prisma.customer.count = jest.fn().mockResolvedValue(2);
-    prisma.customer.findMany = jest.fn().mockResolvedValue([
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(2);
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([
       { id: 'cust1', name: 'A', phone: '1' },
       { id: 'cust2', name: 'B', phone: '2' },
     ]);
@@ -120,16 +134,18 @@ describe('AutomaticCampaignsProcessor', () => {
       where: { automaticCampaignId: 'ac1' },
       data: { totalCustomers: 2 },
     });
-    expect(prisma.customer.findMany).toHaveBeenCalledWith(
+    expect(campaignCustomerResolver.resolveCustomers).toHaveBeenCalledWith(
       expect.objectContaining({
         take: 250,
-        orderBy: CAMPAIGN_CUSTOMER_ORDER_BY,
-        where: expect.objectContaining({ whatsappVerified: true }),
+        companyId: 'comp1',
+        targetingMode: 'RFV',
       }),
     );
     expect(prisma.automaticCampaign.update).toHaveBeenCalledWith({
       where: { id: 'ac1' },
-      data: { status: AutomaticCampaignStatus.IN_PROGRESS },
+      data: expect.objectContaining({
+        status: AutomaticCampaignStatus.IN_PROGRESS,
+      }),
     });
   });
 
@@ -139,6 +155,8 @@ describe('AutomaticCampaignsProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
       segmentation: 'segA',
       daysOfWeek: ['seg'],
       images: 'img1',
@@ -154,15 +172,18 @@ describe('AutomaticCampaignsProcessor', () => {
       openTime: '10:00',
       closeTime: '18:00',
     });
-    prisma.customer.count = jest.fn().mockResolvedValue(0);
-    prisma.customer.findMany = jest.fn().mockResolvedValue([]);
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(0);
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([]);
     prisma.campaignMetric.updateMany = jest.fn();
     prisma.automaticCampaign.update = jest.fn();
     strategy.generateMessages.mockResolvedValue(undefined);
 
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
 
-    expect(prisma.automaticCampaign.update).not.toHaveBeenCalled();
+    const statusUpdates = prisma.automaticCampaign.update.mock.calls.filter(
+      ([args]: [{ data?: { status?: string } }]) => args.data?.status !== undefined,
+    );
+    expect(statusUpdates).toHaveLength(0);
   });
 
   it('skips when daily limit is already reached', async () => {
@@ -170,6 +191,8 @@ describe('AutomaticCampaignsProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
       segmentation: 'segA',
       daysOfWeek: ['seg'],
       messageText: 'Hi',
@@ -189,7 +212,7 @@ describe('AutomaticCampaignsProcessor', () => {
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
 
     expect(strategy.generateMessages).not.toHaveBeenCalled();
-    expect(prisma.customer.findMany).not.toHaveBeenCalled();
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
   });
 
   it('handles missing campaign gracefully', async () => {
@@ -197,7 +220,7 @@ describe('AutomaticCampaignsProcessor', () => {
 
     await processor.process({ data: { automaticCampaignId: 'missing' } } as any);
 
-    expect(prisma.customer.findMany).not.toHaveBeenCalled();
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
     expect(strategy.generateMessages).not.toHaveBeenCalled();
   });
 
@@ -206,6 +229,8 @@ describe('AutomaticCampaignsProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
       segmentation: 'segA',
       daysOfWeek: ['seg'],
       images: 'img1',
@@ -219,7 +244,7 @@ describe('AutomaticCampaignsProcessor', () => {
 
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
 
-    expect(prisma.customer.findMany).not.toHaveBeenCalled();
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
     expect(strategy.generateMessages).not.toHaveBeenCalled();
   });
 
@@ -228,6 +253,8 @@ describe('AutomaticCampaignsProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
       segmentation: 'segA',
       daysOfWeek: ['seg'],
       messageText: 'Hi',
@@ -240,8 +267,10 @@ describe('AutomaticCampaignsProcessor', () => {
       sendTimeEnd: null,
     });
     prisma.openingHours.findFirst = jest.fn().mockResolvedValue({ isOpen: false });
-    prisma.customer.count = jest.fn().mockResolvedValue(1);
-    prisma.customer.findMany = jest.fn().mockResolvedValue([{ id: 'c1', name: 'A', phone: '1' }]);
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(1);
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([
+      { id: 'c1', name: 'A', phone: '1' },
+    ]);
     prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({ count: 1 });
     strategy.generateMessages.mockResolvedValue(undefined);
 
@@ -262,6 +291,8 @@ describe('AutomaticCampaignsProcessor', () => {
       .mockResolvedValueOnce({
         id: 'ac1',
         companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
         segmentation: 'segA',
         daysOfWeek: ['seg'],
         messageText: 'Hi',
@@ -277,8 +308,10 @@ describe('AutomaticCampaignsProcessor', () => {
       openTime: '10:00',
       closeTime: '18:00',
     });
-    prisma.customer.count = jest.fn().mockResolvedValue(1);
-    prisma.customer.findMany = jest.fn().mockResolvedValue([{ id: 'c1', name: 'A', phone: '1' }]);
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(1);
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([
+      { id: 'c1', name: 'A', phone: '1' },
+    ]);
     prisma.automaticCampaign.update = jest.fn().mockResolvedValue({});
     strategy.generateMessages.mockRejectedValue(new Error('boom'));
 
@@ -286,7 +319,9 @@ describe('AutomaticCampaignsProcessor', () => {
 
     expect(prisma.automaticCampaign.update).toHaveBeenCalledWith({
       where: { id: 'ac1' },
-      data: { status: AutomaticCampaignStatus.FAILED },
+      data: expect.objectContaining({
+        status: AutomaticCampaignStatus.FAILED,
+      }),
     });
   });
 });

@@ -30,8 +30,12 @@ export const queryKeys = {
   orders: {
     monthlySales: (companyId: string) =>
       ['orders', 'monthly-sales', companyId] as const,
-    sales: (companyId: string, page: number, limit: number) =>
-      ['orders', 'sales', companyId, page, limit] as const,
+    sales: (
+      companyId: string,
+      page: number,
+      limit: number,
+      period: string = 'all',
+    ) => ['orders', 'sales', companyId, page, limit, period] as const,
   },
 
   saleAttribution: {
@@ -86,6 +90,20 @@ export const queryKeys = {
       definition: unknown,
       params: { page?: number; limit?: number } = {},
     ) => ['audiences', 'preview', companyId, definition, params] as const,
+  },
+
+  customSendLists: {
+    all: ['customSendLists'] as const,
+    lists: (companyId: string) =>
+      ['customSendLists', 'list', companyId] as const,
+    list: (companyId: string, params: any) =>
+      ['customSendLists', 'list', companyId, params] as const,
+    detail: (companyId: string, listId: string, params: any = {}) =>
+      ['customSendLists', 'detail', companyId, listId, params] as const,
+    memberIds: (companyId: string, listId: string) =>
+      ['customSendLists', 'memberIds', companyId, listId] as const,
+    eligibleCount: (companyId: string, listId: string, channel?: string) =>
+      ['customSendLists', 'eligibleCount', companyId, listId, channel ?? null] as const,
   },
 
   campaigns: {

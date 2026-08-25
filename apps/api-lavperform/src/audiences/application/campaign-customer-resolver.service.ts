@@ -10,6 +10,7 @@ export interface ResolveCampaignCustomersParams {
   targetingMode: AudienceTargetingMode;
   segmentation?: string;
   audienceId?: string | null;
+  customSendListId?: string | null;
   channel: CampaignChannel;
   take?: number;
 }
@@ -52,6 +53,31 @@ export class CampaignCustomerResolverService {
       );
     }
 
+    if (params.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+      if (!params.customSendListId) {
+        throw new NotFoundException('Lista personalizada não informada para a campanha');
+      }
+
+      const list = await this.prisma.customSendList.findFirst({
+        where: {
+          id: params.customSendListId,
+          companyId: params.companyId,
+          deletedAt: null,
+        },
+      });
+
+      if (!list) {
+        throw new NotFoundException('Lista personalizada não encontrada');
+      }
+
+      const members = await this.prisma.customSendListMember.findMany({
+        where: { listId: params.customSendListId },
+        select: { customerId: true },
+      });
+
+      customerIds = members.map((member) => member.customerId);
+    }
+
     const where: Prisma.CustomerWhereInput = {
       companyId: params.companyId,
       ...channelFilter,
@@ -81,9 +107,16 @@ export class CampaignCustomerResolverService {
     targetingMode: AudienceTargetingMode;
     segmentation?: string;
     audienceName?: string | null;
+    customSendListName?: string | null;
   }): string {
     if (params.targetingMode === AudienceTargetingMode.AUDIENCE) {
       return params.audienceName ? `audience:${params.audienceName}` : 'audience:custom';
+    }
+
+    if (params.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+      return params.customSendListName
+        ? `lista:${params.customSendListName}`
+        : 'lista:custom';
     }
 
     return params.segmentation ?? '';

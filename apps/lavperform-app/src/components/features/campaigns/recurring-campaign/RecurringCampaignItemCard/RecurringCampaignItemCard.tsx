@@ -5,7 +5,6 @@ import {
   Card,
   Dialog,
   Flex,
-  FormatNumber,
   HStack,
   Menu,
   Portal,
@@ -27,12 +26,9 @@ import {
   LuPen,
   LuReceipt,
   LuSend,
-  LuShoppingCart,
   LuSquareCheckBig,
   LuTrash2,
-  LuTrendingUp,
   LuUsers,
-  LuWallet,
 } from 'react-icons/lu'
 
 import {
@@ -54,6 +50,7 @@ import {
   useToggleCampaign,
 } from '@/hooks/queries'
 import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useCustomSendLists } from '@/hooks/queries/useCustomSendLists'
 import { useMetaTemplates } from '@/hooks/queries/useMetaTemplates'
 import type { RecurringCampaignStatus } from '@/types'
 import { getCampaignDerivedMetrics } from '@/utils/campaigns/campaignMetrics'
@@ -167,6 +164,10 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
     page: 1,
     limit: 100,
   })
+  const { data: customSendListsResult } = useCustomSendLists(selectedCompany?.id, {
+    page: 1,
+    limit: 100,
+  })
 
   const isToggling = toggleCampaignMutation.isPending
 
@@ -191,12 +192,20 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
       return audienceName ? [audienceName] : []
     }
 
+    if (targeting.targetingMode === 'CUSTOMER_LIST') {
+      const listName = customSendListsResult?.data?.find(
+        (list) => list.id === targeting.customSendListId,
+      )?.name
+
+      return listName ? [listName] : []
+    }
+
     return targeting.segmentation.map(
       (segItem) =>
         clientTypesOptions.items.find((item) => item.value === segItem)?.label ??
         segItem,
     )
-  }, [audiencesResult?.data, data])
+  }, [audiencesResult?.data, customSendListsResult?.data, data])
 
   const campaignTitle = campaignTypeItems.find(
     (item) => item.value === data.type
@@ -536,12 +545,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
             justifyContent="space-around"
           >
             <StatCell
-              icon={<LuShoppingCart size={12} />}
-              label="Vendas"
-              value={metric.salesTotalQuantity || 0}
-            />
-            <StatDivider />
-            <StatCell
               icon={<LuUsers size={12} />}
               label="Clientes"
               value={metric.totalCustomers || 0}
@@ -551,40 +554,6 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
               icon={<LuSend size={12} />}
               label="Enviados"
               value={metric.messagesSent || 0}
-            />
-            <StatDivider />
-            <StatCell
-              icon={<LuTrendingUp size={12} />}
-              label="Conversão"
-              value={
-                <FormatNumber
-                  maximumFractionDigits={1}
-                  style="percent"
-                  value={(metric.conversionRate || 0) / 100}
-                />
-              }
-            />
-          </HStack>
-          <Box
-            bg="border.muted"
-            h="1px"
-            my={2}
-            w="full"
-          />
-          <HStack
-            gap={0}
-            justifyContent="space-around"
-          >
-            <StatCell
-              icon={<LuWallet size={12} />}
-              label="Custo"
-              value={formatCurrency(metric.totalCost ?? 0)}
-            />
-            <StatDivider />
-            <StatCell
-              icon={<LuTrendingUp size={12} />}
-              label="ROI"
-              value={derivedMetrics.roiLabel}
             />
             <StatDivider />
             <StatCell

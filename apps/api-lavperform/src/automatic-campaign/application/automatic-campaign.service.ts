@@ -38,6 +38,7 @@ import {
 } from '../../integrations/meta/application/meta-template-variables.utils';
 import { normalizeCampaignTargeting } from '../../audiences/application/campaign-targeting.utils';
 import { AudienceTargetingMode } from '@prisma/client';
+import { CustomSendListsService } from '../../custom-send-lists/application/custom-send-lists.service';
 
 @Injectable()
 export class AutomaticCampaignService {
@@ -48,6 +49,7 @@ export class AutomaticCampaignService {
     private readonly automaticCampaignRepository: IAutomaticCampaignRepository,
     private readonly prisma: PrismaService,
     private readonly metaTemplatesService: MetaTemplatesService,
+    private readonly customSendListsService: CustomSendListsService,
     @InjectQueue(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
     private readonly automaticCampaignsQueue: Queue,
   ) { }
@@ -79,6 +81,12 @@ export class AutomaticCampaignService {
     const targeting = normalizeCampaignTargeting(createAutomaticCampaignDto);
     if (targeting.targetingMode === AudienceTargetingMode.AUDIENCE) {
       await this.assertAudienceBelongsToCompany(companyId, targeting.audienceId!);
+    }
+    if (targeting.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+      await this.customSendListsService.assertCustomSendListBelongsToCompany(
+        companyId,
+        targeting.customSendListId!,
+      );
     }
 
     const createdCampaign = await this.automaticCampaignRepository.createWithRelations(
@@ -228,7 +236,10 @@ export class AutomaticCampaignService {
       name: cloneName,
       type: source.type as AutomaticCampaignType,
       channel: source.channel,
+      targetingMode: source.targetingMode,
       segmentation: source.segmentation,
+      audienceId: source.audienceId ?? undefined,
+      customSendListId: source.customSendListId ?? undefined,
       maxDailySends: source.maxDailySends,
       active: source.active,
       ...(source.images?.trim()
@@ -367,19 +378,31 @@ export class AutomaticCampaignService {
     if (
       updateAutomaticCampaignDto.targetingMode !== undefined ||
       updateAutomaticCampaignDto.segmentation !== undefined ||
-      updateAutomaticCampaignDto.audienceId !== undefined
+      updateAutomaticCampaignDto.audienceId !== undefined ||
+      updateAutomaticCampaignDto.customSendListId !== undefined
     ) {
       const targeting = normalizeCampaignTargeting({
-        targetingMode: updateAutomaticCampaignDto.targetingMode ?? (existing as any).targetingMode,
+        targetingMode: updateAutomaticCampaignDto.targetingMode ?? existing.targetingMode,
         segmentation: updateAutomaticCampaignDto.segmentation ?? existing.segmentation,
         audienceId:
           updateAutomaticCampaignDto.audienceId === null
             ? undefined
-            : (updateAutomaticCampaignDto.audienceId ?? (existing as any).audienceId),
+            : (updateAutomaticCampaignDto.audienceId ?? existing.audienceId),
+        customSendListId:
+          updateAutomaticCampaignDto.customSendListId === null
+            ? undefined
+            : (updateAutomaticCampaignDto.customSendListId ?? existing.customSendListId),
       });
 
       if (targeting.targetingMode === AudienceTargetingMode.AUDIENCE) {
         await this.assertAudienceBelongsToCompany(existing.companyId, targeting.audienceId!);
+      }
+
+      if (targeting.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+        await this.customSendListsService.assertCustomSendListBelongsToCompany(
+          existing.companyId,
+          targeting.customSendListId!,
+        );
       }
 
       Object.assign(updateData, targeting);

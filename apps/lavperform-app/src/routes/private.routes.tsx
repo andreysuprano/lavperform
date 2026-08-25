@@ -29,6 +29,11 @@ const AudiencesPage = lazy(() =>
     default: module.AudiencesPage,
   }))
 )
+const CustomSendListsPage = lazy(() =>
+  import('@/pages/customers/CustomSendListsPage').then((module) => ({
+    default: module.CustomSendListsPage,
+  }))
+)
 const CustomerInsightsPage = lazy(() =>
   import('@/pages/customers/CustomerInsightsPage').then((module) => ({
     default: module.CustomerInsightsPage,
@@ -228,6 +233,10 @@ export function PrivateRoutes() {
         <Route
           element={<AudiencesPage />}
           path="/customers/audiences"
+        />
+        <Route
+          element={<CustomSendListsPage />}
+          path="/customers/custom-send-lists"
         />
         <Route
           element={<CustomerInsightsPage />}
