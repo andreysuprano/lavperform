@@ -39,14 +39,14 @@ import {
   useUpdateAutomaticCampaign,
 } from "../../campaigns-queries"
 import {
-  automaticCampaignEditFormSchema,
-  type AutomaticCampaignEditFormInput,
+  automaticCampaignFormSchema,
+  type AutomaticCampaignFormInput,
   type UpdateAutomaticCampaignInput,
 } from "../../schemas"
 import {
   AUTOMATIC_CAMPAIGN_STATUS_VALUES,
+  AUTOMATIC_CAMPAIGN_TYPE_VALUES,
   CAMPAIGN_CHANNEL_VALUES,
-  CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES,
 } from "../../types"
 import {
   AUTOMATIC_CAMPAIGN_STATUS_LABELS,
@@ -76,13 +76,13 @@ export function AutomaticCampaignEditForm({
   const campaignQuery = useAutomaticCampaign(campaignId)
   const updateMutation = useUpdateAutomaticCampaign(campaignId)
 
-  const form = useForm<AutomaticCampaignEditFormInput>({
+  const form = useForm<AutomaticCampaignFormInput>({
     resolver: zodResolver(
-      automaticCampaignEditFormSchema
-    ) as Resolver<AutomaticCampaignEditFormInput>,
+      automaticCampaignFormSchema
+    ) as Resolver<AutomaticCampaignFormInput>,
     defaultValues: {
       name: "",
-      type: "RECOGNITION",
+      type: "REACTIVATION",
       segmentation: "",
       startDate: "",
       endDate: "",
@@ -142,7 +142,7 @@ export function AutomaticCampaignEditForm({
     })
   }, [campaignQuery.data, form])
 
-  const onSubmit: SubmitHandler<AutomaticCampaignEditFormInput> = async (
+  const onSubmit: SubmitHandler<AutomaticCampaignFormInput> = async (
     values
   ) => {
     const {
@@ -208,11 +208,6 @@ export function AutomaticCampaignEditForm({
   }
 
   const { errors } = form.formState
-  const currentType = campaignQuery.data.type
-  const editableCampaignTypes =
-    CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES.includes(currentType)
-      ? CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES
-      : [currentType, ...CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES]
 
   return (
     <form
@@ -258,7 +253,7 @@ export function AutomaticCampaignEditForm({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {editableCampaignTypes.map((type) => (
+                          {AUTOMATIC_CAMPAIGN_TYPE_VALUES.map((type) => (
                             <SelectItem key={type} value={type}>
                               {AUTOMATIC_CAMPAIGN_TYPE_LABELS[type]}
                             </SelectItem>
@@ -372,11 +367,11 @@ export function AutomaticCampaignEditForm({
 
             <Field>
               <FieldLabel>Dias da semana</FieldLabel>
-              <DaysOfWeekField control={form.control as Control<AutomaticCampaignEditFormInput>} />
+              <DaysOfWeekField control={form.control as Control<AutomaticCampaignFormInput>} />
             </Field>
 
             <SendScheduleField
-              control={form.control as Control<AutomaticCampaignEditFormInput>}
+              control={form.control as Control<AutomaticCampaignFormInput>}
               errors={errors}
             />
           </FieldGroup>
@@ -419,7 +414,7 @@ export function AutomaticCampaignEditForm({
           <CardTitle>Criativos</CardTitle>
         </CardHeader>
         <CardContent>
-          <CreativesFieldArray control={form.control as Control<AutomaticCampaignEditFormInput>} errors={errors} />
+          <CreativesFieldArray control={form.control as Control<AutomaticCampaignFormInput>} errors={errors} />
         </CardContent>
       </Card>
 
@@ -428,7 +423,7 @@ export function AutomaticCampaignEditForm({
           <CardTitle>Brindes</CardTitle>
         </CardHeader>
         <CardContent>
-          <GiftsFieldArray control={form.control as Control<AutomaticCampaignEditFormInput>} errors={errors} />
+          <GiftsFieldArray control={form.control as Control<AutomaticCampaignFormInput>} errors={errors} />
         </CardContent>
       </Card>
 

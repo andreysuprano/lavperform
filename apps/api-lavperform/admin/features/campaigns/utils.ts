@@ -32,8 +32,6 @@ export const AUTOMATIC_CAMPAIGN_TYPE_LABELS: Record<
   ACQUISITION: "Aquisição",
   RECURRENCE: "Recorrência",
   REACTIVATION: "Reativação",
-  RECOGNITION: "Reconhecimento",
-  SALES: "Venda",
 }
 
 export const CHANNEL_LABELS: Record<CampaignChannel, string> = {

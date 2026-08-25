@@ -17,10 +17,7 @@ import * as yup from 'yup'
 import { useWhiteLabel } from '@/config'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 
-import {
-  campaignTypeItems,
-  creatableCampaignTypeItems,
-} from '../../constants'
+import { campaignTypeItems } from '../../constants'
 import { getWizardFormId } from '../../wizardFormId'
 import { FormStepsProps } from './FormSteps.types'
 
@@ -33,13 +30,6 @@ type FormData = yup.InferType<typeof schema>
 export function SelectType(props: FormStepsProps) {
   const { colors } = useWhiteLabel()
   const isEdit = props.wizardContext === 'edit'
-  const currentCampaignTypeItem = useMemo(
-    () =>
-      campaignTypeItems.find(
-        (item) => item.value === props.formData?.campaignType
-      ),
-    [props.formData?.campaignType]
-  )
 
   const {
     control,
@@ -112,11 +102,8 @@ export function SelectType(props: FormStepsProps) {
           <Alert.Indicator />
           <Alert.Content>
             <Alert.Title>
-              Tipo atual:{' '}
-              {currentCampaignTypeItem?.title ??
-                props.formData?.campaignType ??
-                'não informado'}
-              . Você pode mantê-lo ou escolher um dos novos tipos abaixo.
+              Campanha já criada. O tipo abaixo reflete o estado atual; altere
+              apenas se quiser mudar o objetivo da campanha.
             </Alert.Title>
           </Alert.Content>
         </Alert.Root>
@@ -134,17 +121,17 @@ export function SelectType(props: FormStepsProps) {
               onValueChange={({ value }) => {
                 field.onChange(value)
                 const item = campaignTypeItems.find((i) => i.value === value)
-                setTarget(item?.target ?? [])
+                if (item?.target) setTarget(item.target)
               }}
               value={field.value}
             >
               <RadioCard.Label>
                 {isEdit
-                  ? 'Alterar tipo para:'
+                  ? 'Tipo da campanha'
                   : 'Selecione o tipo de campanha que deseja criar:'}
               </RadioCard.Label>
               <VStack align="stretch">
-                {creatableCampaignTypeItems.map((item) => (
+                {campaignTypeItems.map((item) => (
                   <RadioCard.Item
                     _hover={{
                       bg: 'bg.muted',
