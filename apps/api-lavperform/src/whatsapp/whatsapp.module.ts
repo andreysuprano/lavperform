@@ -11,6 +11,7 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { CompaniesModule } from '../companies/companies.module';
 import { AiAgentModule } from '../ai-agent/ai-agent.module';
 import { UazapiClient } from './uazapi/uazapi.client';
+import { UazapiCheckInstancePool } from './uazapi/uazapi-check-instance-pool.service';
 import { WhatsappInstanceCleanupTasks } from './crons/whatsapp-instance-cleanup-tasks';
 import { WhatsappAgentWebhookSyncTasks } from './crons/whatsapp-agent-webhook-sync.tasks';
 import { workerProviders } from '../common/queue/worker-runtime.config';
@@ -30,6 +31,7 @@ import { workerProviders } from '../common/queue/worker-runtime.config';
     WhatsappService,
     EvolutionClient,
     UazapiClient,
+    UazapiCheckInstancePool,
     ...workerProviders(
       ConnectionUpdateListener,
       MessageReceivedListener,

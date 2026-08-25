@@ -22,6 +22,7 @@ const mockCustomerRepository = {
   totalCustomersBySegmentation: jest.fn(),
   countLeadsByCompany: jest.fn(),
   getTopBuyers: jest.fn(),
+  findWhatsappValidationCandidates: jest.fn(),
 };
 
 const mockQueue = {
@@ -300,6 +301,58 @@ describe('CustomersService', () => {
       const lead = result.find(c => c.segmentation === LEAD_SEGMENTATION);
       expect(lead).toBeDefined();
       if (lead) expect(lead.count).toBe(5);
+    });
+  });
+
+  describe('enqueueWhatsappValidationForCompany', () => {
+    const companyId = 'company-1';
+
+    it('enqueues all candidates in batches of 500 as validate jobs', async () => {
+      const firstBatch = Array.from({ length: 500 }, (_, index) => ({
+        id: `c-${index}`,
+        companyId,
+        phone: `551199999${String(index).padStart(4, '0')}`,
+      }));
+      const secondBatch = [
+        { id: 'c-500', companyId, phone: '5511988880000' },
+      ];
+
+      mockCustomerRepository.findWhatsappValidationCandidates
+        .mockResolvedValueOnce(firstBatch)
+        .mockResolvedValueOnce(secondBatch)
+        .mockResolvedValueOnce([]);
+
+      const result = await service.enqueueWhatsappValidationForCompany(companyId);
+
+      expect(mockCustomerRepository.findWhatsappValidationCandidates).toHaveBeenNthCalledWith(
+        1,
+        companyId,
+        0,
+        500,
+      );
+      expect(mockCustomerRepository.findWhatsappValidationCandidates).toHaveBeenNthCalledWith(
+        2,
+        companyId,
+        500,
+        500,
+      );
+      expect(mockWhatsappValidationQueue.addBulk).toHaveBeenCalledTimes(2);
+      expect(mockWhatsappValidationQueue.addBulk).toHaveBeenNthCalledWith(
+        1,
+        firstBatch.map((customer) => ({
+          name: 'validate',
+          data: {
+            customerId: customer.id,
+            companyId: customer.companyId,
+            phone: customer.phone,
+          },
+        })),
+      );
+      expect(result).toEqual({
+        message: 'Validação de WhatsApp enfileirada com sucesso',
+        companyId,
+        totalEnqueued: 501,
+      });
     });
   });
 });

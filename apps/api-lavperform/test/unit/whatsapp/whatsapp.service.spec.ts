@@ -40,16 +40,33 @@ describe('WhatsappService', () => {
     ensureActiveAgentWebhook: jest.fn(),
   };
 
+  const checkInstancePool: any = {
+    getConnectedInstances: jest.fn(),
+    nextIndex: jest.fn(),
+    invalidate: jest.fn(),
+  };
+
   let service: WhatsappService;
+  const originalUazapiToken = process.env.UAZAPI_TOKEN;
 
   beforeEach(() => {
     jest.clearAllMocks();
+    delete process.env.UAZAPI_TOKEN;
     service = new WhatsappService(
       uazapiClient,
       whatsappInstanceRepository,
       companyRepository,
       aiAgentService,
+      checkInstancePool,
     );
+  });
+
+  afterAll(() => {
+    if (originalUazapiToken === undefined) {
+      delete process.env.UAZAPI_TOKEN;
+    } else {
+      process.env.UAZAPI_TOKEN = originalUazapiToken;
+    }
   });
 
   describe('createCompanyInstance', () => {
@@ -309,6 +326,106 @@ describe('WhatsappService', () => {
       await service.sendTyping('5511', 'tok');
 
       expect(uazapiClient.sendTyping).toHaveBeenCalledWith('5511', 'tok');
+    });
+  });
+
+  describe('checkWhatsappNumber', () => {
+    it('uses the rotated instance token instead of UAZAPI_TOKEN', async () => {
+      process.env.UAZAPI_TOKEN = 'global-token';
+      checkInstancePool.getConnectedInstances.mockResolvedValue([
+        { name: 'a', token: 'tok-a' },
+        { name: 'b', token: 'tok-b' },
+      ]);
+      checkInstancePool.nextIndex.mockReturnValue(0);
+      uazapiClient.checkNumbers.mockResolvedValue([{ phone: '5511999999999', exists: true }]);
+
+      const result = await service.checkWhatsappNumber('5511999999999');
+
+      expect(result).toBe(true);
+      expect(uazapiClient.checkNumbers).toHaveBeenCalledWith(['5511999999999'], 'tok-a');
+      expect(uazapiClient.checkNumbers).not.toHaveBeenCalledWith(
+        expect.anything(),
+        'global-token',
+      );
+    });
+
+    it('tries the next instance when the first check fails', async () => {
+      checkInstancePool.getConnectedInstances.mockResolvedValue([
+        { name: 'a', token: 'tok-a' },
+        { name: 'b', token: 'tok-b' },
+      ]);
+      checkInstancePool.nextIndex.mockReturnValue(0);
+      uazapiClient.checkNumbers
+        .mockRejectedValueOnce(new Error('instance down'))
+        .mockResolvedValueOnce([{ phone: '5511999999999', exists: false }]);
+
+      const result = await service.checkWhatsappNumber('5511999999999');
+
+      expect(result).toBe(false);
+      expect(uazapiClient.checkNumbers).toHaveBeenNthCalledWith(1, ['5511999999999'], 'tok-a');
+      expect(uazapiClient.checkNumbers).toHaveBeenNthCalledWith(2, ['5511999999999'], 'tok-b');
+      expect(checkInstancePool.invalidate).toHaveBeenCalled();
+    });
+
+    it('throws when the pool is empty and there is no fallback token', async () => {
+      checkInstancePool.getConnectedInstances.mockResolvedValue([]);
+
+      await expect(service.checkWhatsappNumber('5511999999999')).rejects.toThrow(
+        'Nenhuma instância Uazapi conectada para validação',
+      );
+      expect(uazapiClient.checkNumbers).not.toHaveBeenCalled();
+    });
+
+    it('falls back to UAZAPI_TOKEN when the pool is empty', async () => {
+      process.env.UAZAPI_TOKEN = 'fallback-tok';
+      checkInstancePool.getConnectedInstances.mockResolvedValue([]);
+      uazapiClient.checkNumbers.mockResolvedValue([{ phone: '5511999999999', exists: true }]);
+
+      const result = await service.checkWhatsappNumber('5511999999999');
+
+      expect(result).toBe(true);
+      expect(uazapiClient.checkNumbers).toHaveBeenCalledWith(['5511999999999'], 'fallback-tok');
+    });
+
+    it('throws when every connected instance fails', async () => {
+      checkInstancePool.getConnectedInstances.mockResolvedValue([
+        { name: 'a', token: 'tok-a' },
+      ]);
+      checkInstancePool.nextIndex.mockReturnValue(0);
+      uazapiClient.checkNumbers.mockRejectedValue(new Error('down'));
+
+      await expect(service.checkWhatsappNumber('5511999999999')).rejects.toThrow('down');
+      expect(checkInstancePool.invalidate).toHaveBeenCalled();
+    });
+
+    it('starts at nextIndex and wraps around the ring', async () => {
+      checkInstancePool.getConnectedInstances.mockResolvedValue([
+        { name: 'a', token: 'tok-a' },
+        { name: 'b', token: 'tok-b' },
+        { name: 'c', token: 'tok-c' },
+      ]);
+      checkInstancePool.nextIndex.mockReturnValue(1);
+      uazapiClient.checkNumbers
+        .mockRejectedValueOnce(new Error('b down'))
+        .mockRejectedValueOnce(new Error('c down'))
+        .mockResolvedValueOnce([{ phone: '5511999999999', exists: true }]);
+
+      const result = await service.checkWhatsappNumber('5511999999999');
+
+      expect(result).toBe(true);
+      expect(uazapiClient.checkNumbers).toHaveBeenNthCalledWith(1, ['5511999999999'], 'tok-b');
+      expect(uazapiClient.checkNumbers).toHaveBeenNthCalledWith(2, ['5511999999999'], 'tok-c');
+      expect(uazapiClient.checkNumbers).toHaveBeenNthCalledWith(3, ['5511999999999'], 'tok-a');
+    });
+
+    it('returns false when the provider responds with an empty list', async () => {
+      checkInstancePool.getConnectedInstances.mockResolvedValue([
+        { name: 'a', token: 'tok-a' },
+      ]);
+      checkInstancePool.nextIndex.mockReturnValue(0);
+      uazapiClient.checkNumbers.mockResolvedValue([]);
+
+      await expect(service.checkWhatsappNumber('5511999999999')).resolves.toBe(false);
     });
   });
 });

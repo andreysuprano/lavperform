@@ -7,6 +7,7 @@ import { MessageTextWithImageResponse } from './dto/message-text-with-image-resp
 import { IWhatsappInstanceRepository } from '../domain/whatsapp-instance.repository.interface';
 import { ICompanyRepository } from '../../companies/domain/company.repository.interface';
 import { UazapiClient } from '../uazapi/uazapi.client';
+import { UazapiCheckInstancePool } from '../uazapi/uazapi-check-instance-pool.service';
 import { AiAgentService } from '../../ai-agent/application/ai-agent.service';
 
 @Injectable()
@@ -21,6 +22,7 @@ export class WhatsappService {
     private readonly companyRepository: ICompanyRepository,
     @Inject(forwardRef(() => AiAgentService))
     private readonly aiAgentService: AiAgentService,
+    private readonly checkInstancePool: UazapiCheckInstancePool,
   ) { }
 
   private generateInstanceName(companyName: string): string {
@@ -296,7 +298,47 @@ export class WhatsappService {
   }
 
   async checkWhatsappNumber(phone: string): Promise<boolean> {
-    const results = await this.uazapiClient.checkNumbers([phone]);
+    const instances = await this.checkInstancePool.getConnectedInstances();
+
+    if (instances.length === 0) {
+      const fallbackToken = process.env.UAZAPI_TOKEN;
+      if (!fallbackToken) {
+        throw new Error('Nenhuma instância Uazapi conectada para validação');
+      }
+
+      this.logger.warn('Nenhuma instância conectada no pool — usando UAZAPI_TOKEN');
+      return this.existsOnWhatsapp(phone, fallbackToken);
+    }
+
+    const start = this.checkInstancePool.nextIndex(instances.length);
+    let lastError: unknown;
+
+    for (let offset = 0; offset < instances.length; offset++) {
+      const instance = instances[(start + offset) % instances.length];
+
+      try {
+        this.logger.log(`Validando WhatsApp via instância ${instance.name}`);
+        return await this.existsOnWhatsapp(phone, instance.token);
+      } catch (error) {
+        lastError = error;
+        this.logger.warn(
+          `Falha na instância ${instance.name} ao validar WhatsApp: ${
+            error instanceof Error ? error.message : error
+          }`,
+        );
+        this.checkInstancePool.invalidate();
+      }
+    }
+
+    if (lastError instanceof Error) {
+      throw lastError;
+    }
+
+    throw new Error('Todas as instâncias falharam na validação');
+  }
+
+  private async existsOnWhatsapp(phone: string, token: string): Promise<boolean> {
+    const results = await this.uazapiClient.checkNumbers([phone], token);
     return results.length > 0 ? results[0].exists : false;
   }
 }
