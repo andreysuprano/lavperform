@@ -478,6 +478,8 @@ enum AutomaticCampaignType {
   ACQUISITION
   RECURRENCE
   REACTIVATION
+  RECOGNITION
+  SALES
 }
 
 enum CampaignChannel {

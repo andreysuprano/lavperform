@@ -17,11 +17,25 @@ export const DEFAULT_MAX_DAILY_SENDS = 50
 
 export const campaignTypeItems = [
   {
+    value: 'RECOGNITION',
+    title: 'Campanha de Reconhecimento',
+    description:
+      'Fortalece o relacionamento com os clientes e mantém a marca presente por meio de comunicações relevantes.',
+    isActive: true,
+  },
+  {
+    value: 'SALES',
+    title: 'Campanha de Venda',
+    description:
+      'Incentiva novas compras com ofertas e comunicações direcionadas para gerar vendas.',
+    isActive: true,
+  },
+  {
     value: 'RECURRENCE',
     title: 'Campanha de Recorrência',
     description:
       'Campanhas de recorrência buscam transformar clientes ocasionais em compradores frequentes através de promoções e comunicações personalizadas.',
-    isActive: true,
+    isActive: false,
     target: ['campeao', 'fiel'],
   },
   {
@@ -29,17 +43,21 @@ export const campaignTypeItems = [
     title: 'Campanha de Recuperação de Clientes',
     description:
       'É uma campanha que busca reengajar clientes que não compram há algum tempo, incentivando-os a retornar.',
-    isActive: true,
+    isActive: false,
     target: ['em_risco', 'perdido', 'quase_dormente'],
   },
   {
-    value: 'captacao',
+    value: 'ACQUISITION',
     title: 'Campanha de Captação',
     description:
       'É uma campanha focada em atrair novos clientes e convertê-los em compradores.',
     isActive: false,
   },
 ]
+
+export const creatableCampaignTypeItems = campaignTypeItems.filter(
+  (item) => item.value === 'RECOGNITION' || item.value === 'SALES'
+)
 
 export const incitationItems = [
   {

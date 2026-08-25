@@ -51,7 +51,7 @@ describe('Automatic Campaigns (Integration)', () => {
 
       const createDto = {
         name: 'Acquisition Campaign',
-        type: AutomaticCampaignType.ACQUISITION,
+        type: AutomaticCampaignType.SALES,
         segmentation: 'NEW_CUSTOMERS',
         messageText: 'Welcome to our store!',
         startDate: startDate.toISOString(),

@@ -40,8 +40,8 @@ import {
   type CreateAutomaticCampaignInput,
 } from "../../schemas"
 import {
-  AUTOMATIC_CAMPAIGN_TYPE_VALUES,
   CAMPAIGN_CHANNEL_VALUES,
+  CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES,
 } from "../../types"
 import {
   AUTOMATIC_CAMPAIGN_TYPE_LABELS,
@@ -69,7 +69,7 @@ export function AutomaticCampaignCreateForm() {
     defaultValues: {
       companyId: "",
       name: "",
-      type: "REACTIVATION",
+      type: "RECOGNITION",
       segmentation: "",
       startDate: "",
       endDate: "",
@@ -179,7 +179,7 @@ export function AutomaticCampaignCreateForm() {
                       </SelectTrigger>
                       <SelectContent>
                         <SelectGroup>
-                          {AUTOMATIC_CAMPAIGN_TYPE_VALUES.map((type) => (
+                          {CREATABLE_AUTOMATIC_CAMPAIGN_TYPE_VALUES.map((type) => (
                             <SelectItem key={type} value={type}>
                               {AUTOMATIC_CAMPAIGN_TYPE_LABELS[type]}
                             </SelectItem>

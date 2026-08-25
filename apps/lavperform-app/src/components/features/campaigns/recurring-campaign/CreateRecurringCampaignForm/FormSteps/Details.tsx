@@ -213,7 +213,7 @@ export function Details(props: FormStepsProps) {
           customSendListId: customSendListIdValue,
           startDate: startDateValue ?? '',
           endDate: endDateValue?.trim() ? endDateValue : null,
-          campaignType: props.formData?.campaignType || 'REACTIVATION',
+          campaignType: props.formData?.campaignType || 'RECOGNITION',
           messageText: props.formData?.messageText || '',
           deliveryRadius: props.formData?.deliveryRadius ?? 0,
           discountCurrency: props.formData?.discountCurrency ?? 0,

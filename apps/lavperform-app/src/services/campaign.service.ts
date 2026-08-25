@@ -165,9 +165,14 @@ export const recurringCampaignService = {
     )
   },
 
-  async duplicateCampaign(id: string, companyId: string) {
+  async duplicateCampaign(
+    id: string,
+    companyId: string,
+    targetType?: 'RECOGNITION' | 'SALES'
+  ) {
     return await client.post<RecurringCampaign>(
-      `/campaigns/automatic/${companyId}/${id}/duplicate`
+      `/campaigns/automatic/${companyId}/${id}/duplicate`,
+      targetType ? { targetType } : {}
     )
   },
 }
