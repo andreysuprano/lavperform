@@ -11,7 +11,11 @@ import {
   getCompany,
   listCompanies,
   listCompanyUsers,
+  listCustomerDuplicates,
+  mergeCustomers,
+  keepSeparateCustomers,
   reprocessCompanyRfv,
+  scanCustomerDuplicates,
   updateCompany,
   updateCompanyState,
   validateCompanyWhatsapp,
@@ -27,6 +31,7 @@ export const companyKeys = {
   details: () => [...companyKeys.all, "detail"] as const,
   detail: (id: string) => [...companyKeys.details(), id] as const,
   users: (id: string) => [...companyKeys.detail(id), "users"] as const,
+  duplicates: (id: string) => [...companyKeys.detail(id), "duplicates"] as const,
 }
 
 function getErrorMessage(error: unknown, fallback: string): string {
@@ -157,6 +162,74 @@ export function useReprocessCompanyRfv() {
           error,
           "Não foi possível enfileirar o reprocessamento RFV"
         )
+      )
+    },
+  })
+}
+
+export function useCustomerDuplicates(companyId: string | undefined) {
+  return useQuery({
+    queryKey: companyId
+      ? companyKeys.duplicates(companyId)
+      : companyKeys.duplicates("__none__"),
+    queryFn: () => listCustomerDuplicates(companyId as string),
+    enabled: Boolean(companyId),
+  })
+}
+
+export function useScanCustomerDuplicates(companyId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => scanCustomerDuplicates(companyId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: companyKeys.duplicates(companyId),
+      })
+      toast.success("Scan de duplicatas enfileirado", {
+        description: result.message,
+      })
+    },
+    onError: (error) => {
+      toast.error(
+        getErrorMessage(error, "Não foi possível escanear duplicatas")
+      )
+    },
+  })
+}
+
+export function useMergeCustomers(companyId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: { survivorId: string; absorbedIds: string[] }) =>
+      mergeCustomers({ companyId, ...input }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: companyKeys.duplicates(companyId),
+      })
+      toast.success("Cadastros mesclados")
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Não foi possível mesclar os cadastros"))
+    },
+  })
+}
+
+export function useKeepSeparateCustomers(companyId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: (input: {
+      keepIdentifierOnCustomerId: string
+      peerIds: string[]
+    }) => keepSeparateCustomers({ companyId, ...input }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({
+        queryKey: companyKeys.duplicates(companyId),
+      })
+      toast.success("Cadastros mantidos separados")
+    },
+    onError: (error) => {
+      toast.error(
+        getErrorMessage(error, "Não foi possível separar os cadastros")
       )
     },
   })

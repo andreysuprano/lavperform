@@ -47,6 +47,7 @@ import type { CompanyStatus } from "../types"
 import { CompanyActionsMenu } from "./company-actions-menu"
 import { CompanyStatusBadge } from "./company-status-badge"
 import { CompanyUsersSection } from "./company-users-section"
+import { CustomerDuplicatesSection } from "./customer-duplicates-section"
 import { DeleteCompanyDialog } from "./delete-company-dialog"
 import { ReprocessRfvDialog } from "./reprocess-rfv-dialog"
 import { RevalidateWhatsappDialog } from "./revalidate-whatsapp-dialog"
@@ -294,6 +295,8 @@ export function CompanyDetailView({ companyId }: { companyId: string }) {
           <CompanyUsersSection companyId={companyId} />
         </TabsContent>
       </Tabs>
+
+      <CustomerDuplicatesSection companyId={companyId} />
 
       <DeleteCompanyDialog
         open={confirmDelete}

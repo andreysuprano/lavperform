@@ -31,7 +31,9 @@ function mapCustomer(
   const cpf = digitsOnly(customerDetail?.cpf ?? sale.cpfCliente);
 
   if (phoneDigits.length === 0 && cpf.length === 0) {
-    return null;
+    return {
+      name,
+    };
   }
 
   const birthSource = customerDetail?.dataNascimento ?? sale.dtaNascimento;
@@ -77,11 +79,7 @@ function mapPayments(sale: VmLavSale): IngestOrderPaymentDto[] {
 }
 
 export function isVmLavSaleReadyForIngestion(sale: VmLavSale): boolean {
-  if (sale.idVenda == null || !sale.nomeCliente?.trim()) return false;
-
-  const phone = digitsOnly(normalizeVmLavPhone(sale.telefoneCliente));
-  const cpf = digitsOnly(sale.cpfCliente);
-  return phone.length > 0 || cpf.length > 0;
+  return sale.idVenda != null && Boolean(sale.nomeCliente?.trim());
 }
 
 /**

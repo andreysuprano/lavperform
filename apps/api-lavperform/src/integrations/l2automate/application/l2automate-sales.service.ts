@@ -6,9 +6,8 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { L2AutomateSale } from '../api/l2automate.types';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { IDigitalMenuIntegrationRepository } from '../../../partners/domain/digital-menu-integration.repository.interface';
-import { CustomersService } from '../../../customers/application/customers.service';
+import { CustomerIdentityService } from '../../../customers/application/customer-identity.service';
 import { OrderService } from '../../../orders/application/order.service';
-import { formatPhoneNumber } from '../../../common/utils/formatters';
 import { parseUTCDate, toDateOnlyString } from '../../../common/utils/date.utils';
 import {
   buildUtcDateOnlyRange,
@@ -16,7 +15,6 @@ import {
 } from '../../import-date-range.util';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { L2AutomateSaleMapping } from '../mappings/l2automate-sale-mapping';
-import { L2AutomateCustomerMapping } from '../mappings/l2automate-customer-mapping';
 import { L2AutomateImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
 
 @Injectable()
@@ -28,7 +26,7 @@ export class L2AutomateSalesService {
     private readonly prisma: PrismaService,
     @Inject('IDigitalMenuIntegrationRepository')
     private readonly digitalMenuIntegrationRepository: IDigitalMenuIntegrationRepository,
-    private readonly customersService: CustomersService,
+    private readonly customerIdentityService: CustomerIdentityService,
     private readonly orderService: OrderService,
     @InjectQueue(QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT)
     private readonly l2AutomateSalesQueue: Queue,
@@ -121,49 +119,17 @@ export class L2AutomateSalesService {
 
       const l2Customer = sale.customer;
 
-      if (!l2Customer?.mobile) {
-        this.logger.warn(
-          `Venda ${sale.id} sem telefone do cliente, ignorando`,
-        );
-        return;
-      }
-
-      const phoneFormatted = formatPhoneNumber(l2Customer.mobile);
-
-      let customer = await this.customersService.findByPhone(
+      const customer = await this.customerIdentityService.resolveForSale({
         companyId,
-        phoneFormatted,
-      );
-
-      if (!customer) {
-        this.logger.log(
-          `Cliente não encontrado pelo telefone ${phoneFormatted}, criando novo...`,
-        );
-
-        const customerData = L2AutomateCustomerMapping.toCreateCustomerDto(
-          l2Customer,
-          l2Customer.registeredAt ?? undefined,
-          sale.createdAt,
-        );
-
-        customer = await this.customersService.create(companyId, customerData);
-
-        this.logger.log(
-          `Cliente L2 Automate criado com sucesso: ${customer.id}`,
-        );
-      } else {
-        this.logger.log(`Cliente já existe: ${customer.id} - ${customer.name}`);
-
-        const needsUpdate =
-          (l2Customer.document && !customer.cpf) ||
-          (l2Customer.birthDate && !customer.birthDate);
-
-        if (needsUpdate) {
-          const updateData = L2AutomateCustomerMapping.toUpdateData(l2Customer);
-          await this.customersService.update(companyId, customer.id, updateData);
-          this.logger.log(`Cliente ${customer.id} atualizado com sucesso`);
-        }
-      }
+        incoming: {
+          name: l2Customer?.name?.trim() || 'Cliente',
+          phone: l2Customer?.mobile,
+          cpf: l2Customer?.document,
+          birthDate: l2Customer?.birthDate
+            ? toDateOnlyString(parseUTCDate(l2Customer.birthDate)!)
+            : undefined,
+        },
+      });
 
       const integratorOrderId = L2AutomateSaleMapping.getIntegratorOrderId(sale.id);
 

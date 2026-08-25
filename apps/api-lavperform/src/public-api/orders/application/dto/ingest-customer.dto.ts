@@ -5,10 +5,8 @@ import {
   IsIn,
   IsOptional,
   IsString,
-  Validate,
   ValidateNested,
 } from 'class-validator';
-import { PhoneOrCpfConstraint } from './validators/phone-or-cpf.validator';
 
 export class IngestAddressDto {
   @ApiPropertyOptional({ example: 'Av. Paulista' })
@@ -54,7 +52,7 @@ export class IngestCustomerDto {
 
   @ApiPropertyOptional({
     example: '41997269435',
-    description: 'Telefone com ou sem máscara. Obrigatório se cpf não for informado.',
+    description: 'Telefone com ou sem máscara. Opcional; vendas anônimas são aceitas.',
   })
   @IsOptional()
   @IsString()
@@ -62,7 +60,7 @@ export class IngestCustomerDto {
 
   @ApiPropertyOptional({
     example: '12345678900',
-    description: 'CPF do cliente (somente dígitos). Obrigatório se phone não for informado.',
+    description: 'CPF do cliente (somente dígitos). Opcional; vendas anônimas são aceitas.',
   })
   @IsOptional()
   @IsString()
@@ -88,7 +86,4 @@ export class IngestCustomerDto {
   @ValidateNested()
   @Type(() => IngestAddressDto)
   address?: IngestAddressDto;
-
-  @Validate(PhoneOrCpfConstraint)
-  _phoneOrCpfCheck?: boolean;
 }

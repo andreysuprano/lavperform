@@ -6,9 +6,8 @@ import { PrismaService } from '../../../prisma/prisma.service';
 import { CiccloSale } from '../api/cicclo.types';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { IDigitalMenuIntegrationRepository } from '../../../partners/domain/digital-menu-integration.repository.interface';
-import { CustomersService } from '../../../customers/application/customers.service';
+import { CustomerIdentityService } from '../../../customers/application/customer-identity.service';
 import { OrderService } from '../../../orders/application/order.service';
-import { formatPhoneNumber } from '../../../common/utils/formatters';
 import { parseUTCDate, toDateOnlyString } from '../../../common/utils/date.utils';
 import {
   buildUtcDateOnlyRange,
@@ -16,7 +15,6 @@ import {
 } from '../../import-date-range.util';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { CiccloSaleMapping } from '../mappings/cicclo-sale-mapping';
-import { CiccloCustomerMapping } from '../mappings/cicclo-customer-mapping';
 import { CiccloImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
 
 @Injectable()
@@ -28,7 +26,7 @@ export class CiccloSalesService {
     private readonly prisma: PrismaService,
     @Inject('IDigitalMenuIntegrationRepository')
     private readonly digitalMenuIntegrationRepository: IDigitalMenuIntegrationRepository,
-    private readonly customersService: CustomersService,
+    private readonly customerIdentityService: CustomerIdentityService,
     private readonly orderService: OrderService,
     @InjectQueue(QUEUE_NAMES.CICCLO_SALES_IMPORT)
     private readonly ciccloSalesQueue: Queue,
@@ -128,50 +126,18 @@ export class CiccloSalesService {
 
       const ciccloCustomer = sale.customer;
 
-      if (!ciccloCustomer?.mobile) {
-        this.logger.warn(
-          `Venda ${sale.id} sem telefone do cliente, ignorando`,
-        );
-        return;
-      }
-
-      const phoneFormatted = formatPhoneNumber(ciccloCustomer.mobile);
-
-      let customer = await this.customersService.findByPhone(
+      const customer = await this.customerIdentityService.resolveForSale({
         companyId,
-        phoneFormatted,
-      );
-
-      if (!customer) {
-        this.logger.log(
-          `Cliente não encontrado pelo telefone ${phoneFormatted}, criando novo...`,
-        );
-
-        const customerData = CiccloCustomerMapping.toCreateCustomerDto(
-          ciccloCustomer,
-          ciccloCustomer.registeredAt ?? undefined,
-          sale.createdAt,
-        );
-
-        customer = await this.customersService.create(companyId, customerData);
-
-        this.logger.log(`Cliente Cicclo criado com sucesso: ${customer.id}`);
-      } else {
-        this.logger.log(
-          `Cliente já existe: ${customer.id} - ${customer.name}`,
-        );
-
-        const needsUpdate =
-          (ciccloCustomer.email && !customer.email) ||
-          (ciccloCustomer.document && !customer.cpf) ||
-          (ciccloCustomer.birthDate && !customer.birthDate);
-
-        if (needsUpdate) {
-          const updateData = CiccloCustomerMapping.toUpdateData(ciccloCustomer);
-          await this.customersService.update(companyId, customer.id, updateData);
-          this.logger.log(`Cliente ${customer.id} atualizado com sucesso`);
-        }
-      }
+        incoming: {
+          name: ciccloCustomer?.name?.trim() || 'Cliente',
+          phone: ciccloCustomer?.mobile,
+          cpf: ciccloCustomer?.document,
+          email: ciccloCustomer?.email,
+          birthDate: ciccloCustomer?.birthDate
+            ? toDateOnlyString(parseUTCDate(ciccloCustomer.birthDate)!)
+            : undefined,
+        },
+      });
 
       const existingOrder = await this.orderService.findByIntegratorOrderId(
         companyId,
