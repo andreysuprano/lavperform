@@ -50,6 +50,15 @@ export class UpdateAutomaticCampaignAdminDto {
   @IsBoolean()
   active?: boolean;
 
+  @ApiProperty({
+    description: 'Exibir a quantidade de vendas no card da lista',
+    required: false,
+    default: true,
+  })
+  @IsOptional()
+  @IsBoolean()
+  showSalesOnCard?: boolean;
+
   @ApiProperty({ description: 'URLs das imagens (JSON legado)', required: false })
   @IsOptional()
   @IsString()

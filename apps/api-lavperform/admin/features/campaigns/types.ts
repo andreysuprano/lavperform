@@ -142,6 +142,7 @@ export interface AutomaticCampaign {
   segmentation: string
   maxDailySends: number
   active: boolean
+  showSalesOnCard: boolean
   images: string | null
   daysOfWeek: string[]
   startDate: string

@@ -6,6 +6,7 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bull';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { MetaTemplatesService } from 'src/integrations/meta/application/meta-templates.service';
+import { CustomSendListsService } from 'src/custom-send-lists/application/custom-send-lists.service';
 
 describe('AutomaticCampaignService', () => {
   let service: AutomaticCampaignService;
@@ -45,6 +46,10 @@ describe('AutomaticCampaignService', () => {
     syncStatus: jest.fn(),
   };
 
+  const mockCustomSendListsService = {
+    assertCustomSendListBelongsToCompany: jest.fn(),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -56,6 +61,10 @@ describe('AutomaticCampaignService', () => {
         { provide: PrismaService, useValue: mockPrisma },
         { provide: getQueueToken(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE), useValue: mockQueue },
         { provide: MetaTemplatesService, useValue: mockMetaTemplatesService },
+        {
+          provide: CustomSendListsService,
+          useValue: mockCustomSendListsService,
+        },
       ],
     }).compile();
 
@@ -73,6 +82,7 @@ describe('AutomaticCampaignService', () => {
       const result = await service.create('comp1', {
         name: 'Auto',
         type: 'BIRTHDAY',
+        segmentation: 'campeao',
         startDate: '2024-01-01',
         endDate: '2024-02-01',
         gifts: [{ name: 'Gift', value: 10 }],
@@ -336,6 +346,50 @@ describe('AutomaticCampaignService', () => {
 
       expect(repository.restore).toHaveBeenCalledWith('ac1');
       expect(result).toEqual({ id: 'ac1', deletedAt: null });
+    });
+  });
+
+  describe('duplicate', () => {
+    it('preserves the sales visibility setting from the source campaign', async () => {
+      mockRepository.findById.mockResolvedValue({
+        id: 'ac1',
+        companyId: 'comp1',
+        name: 'Original',
+        type: 'RECURRENCE',
+        channel: 'WHATSAPP_WEB',
+        targetingMode: 'RFV',
+        segmentation: 'campeao',
+        maxDailySends: 50,
+        active: true,
+        images: '',
+        startDate: new Date('2024-01-01T00:00:00.000Z'),
+        endDate: null,
+        messageText: 'Mensagem',
+        daysOfWeek: ['seg'],
+        sendTimeStart: null,
+        sendTimeEnd: null,
+        couponId: null,
+        metaMessageTemplateId: null,
+        metaTemplateVariableMappings: null,
+        gifts: [],
+        creatives: [],
+        showSalesOnCard: false,
+      });
+      mockRepository.createWithRelations.mockResolvedValue({
+        id: 'ac-copy',
+        channel: 'WHATSAPP_WEB',
+      });
+
+      await service.duplicate('comp1', 'ac1');
+
+      expect(repository.createWithRelations).toHaveBeenCalledWith(
+        expect.objectContaining({
+          companyId: 'comp1',
+          showSalesOnCard: false,
+        }),
+        undefined,
+        undefined,
+      );
     });
   });
 

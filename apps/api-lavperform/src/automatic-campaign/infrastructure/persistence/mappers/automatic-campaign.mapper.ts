@@ -26,6 +26,7 @@ export class AutomaticCampaignMapper {
             status: prismaCampaign.status,
             maxDailySends: (prismaCampaign as any).maxDailySends ?? 50,
             active: prismaCampaign.active,
+            showSalesOnCard: prismaCampaign.showSalesOnCard ?? true,
             daysOfWeek: prismaCampaign.daysOfWeek,
             images: prismaCampaign.images || '',
             segmentation: prismaCampaign.segmentation,

@@ -26,6 +26,7 @@ import {
   LuPen,
   LuReceipt,
   LuSend,
+  LuShoppingCart,
   LuSquareCheckBig,
   LuTrash2,
   LuUsers,
@@ -174,6 +175,9 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
   const statusConfig = getStatusConfig(data.status, data.active)
 
   const metric = data.campaignMetric[0]
+  const showSales =
+    data.showSalesOnCard !== false &&
+    (metric?.salesTotalQuantity ?? 0) > 0
 
   const derivedMetrics = getCampaignDerivedMetrics(
     metric?.totalCost,
@@ -544,6 +548,16 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
             gap={0}
             justifyContent="space-around"
           >
+            {showSales && (
+              <>
+                <StatCell
+                  icon={<LuShoppingCart size={12} />}
+                  label="Vendas"
+                  value={metric.salesTotalQuantity}
+                />
+                <StatDivider />
+              </>
+            )}
             <StatCell
               icon={<LuUsers size={12} />}
               label="Clientes"
