@@ -136,7 +136,7 @@ export class HelpEscalationService {
       `Nome: ${conversation.userName?.trim() || '—'}`,
       `Telefone: ${conversation.userPhone}`,
       `Última mensagem: ${lastMessage?.trim() || '—'}`,
-      `Horário: ${requestedAt.toISOString()}`,
+      `Horário: ${formatInSaoPaulo(requestedAt)}`,
       '',
       'Responda esta conversa pelo WhatsApp do agente ou pelo painel de atendimento.',
     ].join('\n');
@@ -160,4 +160,18 @@ export class HelpEscalationService {
       );
     }
   }
+}
+
+const SAO_PAULO_TIMEZONE = 'America/Sao_Paulo';
+
+function formatInSaoPaulo(date: Date): string {
+  return date.toLocaleString('pt-BR', {
+    timeZone: SAO_PAULO_TIMEZONE,
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  });
 }

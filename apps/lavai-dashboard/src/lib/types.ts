@@ -104,6 +104,12 @@ export interface AgentJourneyConfig {
   purchaseWebhookEnabled: boolean;
 }
 
+export interface AgentNotificationConfig {
+  helpNotificationEnabled: boolean;
+  helpNotificationPhone: string | null;
+  helpNotificationIgnoreReplies: boolean;
+}
+
 export interface AgentWithConfigs extends AgentData {
   persona: AgentPersona | null;
   modelConfig: AgentModelConfig | null;
@@ -111,6 +117,7 @@ export interface AgentWithConfigs extends AgentData {
   mediaConfig: AgentMediaConfig | null;
   filterConfig: AgentFilterConfig | null;
   journeyConfig: AgentJourneyConfig | null;
+  notificationConfig: AgentNotificationConfig | null;
 }
 
 export interface CompanyWithAgentCount extends Company {

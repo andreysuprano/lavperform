@@ -36,6 +36,7 @@ describe('UpdateAgentNotificationConfigUseCase', () => {
     expect(repository.updateNotificationConfig).toHaveBeenCalledWith('agent-1', {
       helpNotificationEnabled: true,
       helpNotificationPhone: '5511999999999',
+      helpNotificationIgnoreReplies: true,
     });
   });
 
@@ -61,6 +62,7 @@ describe('UpdateAgentNotificationConfigUseCase', () => {
     expect(repository.updateNotificationConfig).toHaveBeenCalledWith('agent-1', {
       helpNotificationEnabled: true,
       helpNotificationPhone: '5511999999999',
+      helpNotificationIgnoreReplies: true,
     });
   });
 
@@ -74,6 +76,7 @@ describe('UpdateAgentNotificationConfigUseCase', () => {
       agentId: 'agent-1',
       helpNotificationEnabled: false,
       helpNotificationPhone: null,
+      helpNotificationIgnoreReplies: true,
       createdAt: new Date(),
       updatedAt: new Date(),
     });
@@ -83,6 +86,7 @@ describe('UpdateAgentNotificationConfigUseCase', () => {
     expect(repository.updateNotificationConfig).toHaveBeenCalledWith('agent-1', {
       helpNotificationEnabled: false,
       helpNotificationPhone: null,
+      helpNotificationIgnoreReplies: true,
     });
   });
 
@@ -108,5 +112,60 @@ describe('UpdateAgentNotificationConfigUseCase', () => {
     await expect(
       useCase.execute('missing', { helpNotificationEnabled: false }),
     ).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('grava ignore de respostas como true por padrão', async () => {
+    repository.findById.mockResolvedValue({
+      id: 'agent-1',
+      notificationConfig: null,
+    } as never);
+    repository.updateNotificationConfig.mockResolvedValue({
+      id: 'cfg-1',
+      agentId: 'agent-1',
+      helpNotificationEnabled: true,
+      helpNotificationPhone: '5511999999999',
+      helpNotificationIgnoreReplies: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await useCase.execute('agent-1', {
+      helpNotificationEnabled: true,
+      helpNotificationPhone: '5511999999999',
+    });
+
+    expect(repository.updateNotificationConfig).toHaveBeenCalledWith(
+      'agent-1',
+      expect.objectContaining({ helpNotificationIgnoreReplies: true }),
+    );
+  });
+
+  it('permite desligar o ignore de respostas', async () => {
+    repository.findById.mockResolvedValue({
+      id: 'agent-1',
+      notificationConfig: {
+        helpNotificationEnabled: true,
+        helpNotificationPhone: '5511999999999',
+        helpNotificationIgnoreReplies: true,
+      },
+    } as never);
+    repository.updateNotificationConfig.mockResolvedValue({
+      id: 'cfg-1',
+      agentId: 'agent-1',
+      helpNotificationEnabled: true,
+      helpNotificationPhone: '5511999999999',
+      helpNotificationIgnoreReplies: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    });
+
+    await useCase.execute('agent-1', {
+      helpNotificationIgnoreReplies: false,
+    });
+
+    expect(repository.updateNotificationConfig).toHaveBeenCalledWith(
+      'agent-1',
+      expect.objectContaining({ helpNotificationIgnoreReplies: false }),
+    );
   });
 });

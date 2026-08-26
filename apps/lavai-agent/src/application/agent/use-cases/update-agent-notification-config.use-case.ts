@@ -55,9 +55,15 @@ export class UpdateAgentNotificationConfigUseCase {
       nextEnabled = false;
     }
 
+    const nextIgnoreReplies =
+      input.helpNotificationIgnoreReplies ??
+      agent.notificationConfig?.helpNotificationIgnoreReplies ??
+      true;
+
     return this.repository.updateNotificationConfig(agentId, {
       helpNotificationEnabled: nextEnabled,
       helpNotificationPhone: nextPhone,
+      helpNotificationIgnoreReplies: nextIgnoreReplies,
     });
   }
 }

@@ -166,6 +166,7 @@ export interface AgentNotificationConfigData {
   agentId: string;
   helpNotificationEnabled: boolean;
   helpNotificationPhone: string | null;
+  helpNotificationIgnoreReplies: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -261,6 +262,7 @@ export interface UpdateAgentJourneyConfigInput {
 export interface UpdateAgentNotificationConfigInput {
   helpNotificationEnabled?: boolean;
   helpNotificationPhone?: string | null;
+  helpNotificationIgnoreReplies?: boolean;
 }
 
 export interface CreateAgentInput {

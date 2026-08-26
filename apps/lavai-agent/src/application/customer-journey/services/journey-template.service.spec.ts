@@ -2,6 +2,7 @@ import {
   computeStepDelayMs,
   matchesHelpKeyword,
   normalizePhone,
+  whatsappPhonesMatch,
 } from './journey-template.service';
 import { JourneyTemplateService } from './journey-template.service';
 
@@ -24,6 +25,22 @@ describe('JourneyTemplateService', () => {
 describe('normalizePhone', () => {
   it('remove caracteres não numéricos', () => {
     expect(normalizePhone('+55 (11) 99988-7766')).toBe('5511999887766');
+  });
+});
+
+describe('whatsappPhonesMatch', () => {
+  it('considera iguais números com e sem DDI 55', () => {
+    expect(whatsappPhonesMatch('5511999999999', '11999999999')).toBe(true);
+  });
+
+  it('aceita chatId com sufixo WhatsApp', () => {
+    expect(
+      whatsappPhonesMatch('5511999999999@s.whatsapp.net', '5511999999999'),
+    ).toBe(true);
+  });
+
+  it('rejeita números diferentes', () => {
+    expect(whatsappPhonesMatch('5511999999999', '5511888888888')).toBe(false);
   });
 });
 

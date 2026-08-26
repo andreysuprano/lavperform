@@ -14,7 +14,7 @@ interface RequestHumanHelpInput {
 export class RequestHumanHelpTool implements AgentTool {
   readonly name = 'request_human_help';
   readonly description =
-    'Solicita a presença de um atendente humano. Use quando o cliente pedir ajuda, atendente ou quiser falar com uma pessoa.';
+    'Solicita a presença de um atendente humano. Use quando o cliente pedir ajuda, atendente, humano, problema ou quiser falar com uma pessoa.';
   readonly inputSchema = {
     type: 'object',
     properties: {

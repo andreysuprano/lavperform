@@ -30,6 +30,7 @@ import {
   formatTelefone,
   normalizeBrazilianWhatsAppPhone,
 } from '@/utils/mask'
+import { DEFAULT_HELP_KEYWORDS } from '@/whitelabel/constants/aiAgentJourneyDefaults'
 
 import { TagsInput } from './TagsInput'
 
@@ -54,6 +55,8 @@ interface JourneyFormData {
   helpAutoEscalate: boolean
   helpAckMessage: string
   purchaseWebhookEnabled: boolean
+  helpNotificationPhone: string
+  helpNotificationIgnoreReplies: boolean
 }
 
 function defaultSteps(): FollowUpStep[] {
@@ -71,32 +74,24 @@ function defaultSteps(): FollowUpStep[] {
 
 function buildJourneyForm(agent: AIAgent): JourneyFormData {
   const jc = agent.journeyConfig
+  const nc = agent.notificationConfig
   return {
     enabled: jc?.enabled ?? false,
     journeyTrigger: jc?.journeyTrigger ?? 'FIRST_MESSAGE',
     followUpEnabled: jc?.followUpEnabled ?? true,
     cancelOnReply: jc?.cancelOnReply ?? true,
     followUpSteps: jc?.followUpSteps?.length ? jc.followUpSteps : defaultSteps(),
-    helpKeywords: jc?.helpKeywords ?? ['atendente', 'humano', 'ajuda'],
+    helpKeywords: jc?.helpKeywords?.length
+      ? jc.helpKeywords
+      : [...DEFAULT_HELP_KEYWORDS],
     helpAutoEscalate: jc?.helpAutoEscalate ?? true,
     helpAckMessage:
       jc?.helpAckMessage ?? 'Aguarde, vou chamar alguém para te ajudar!',
     purchaseWebhookEnabled: jc?.purchaseWebhookEnabled ?? true,
-  }
-}
-
-interface NotificationFormData {
-  helpNotificationEnabled: boolean
-  helpNotificationPhone: string
-}
-
-function buildNotificationForm(agent: AIAgent): NotificationFormData {
-  const nc = agent.notificationConfig
-  return {
-    helpNotificationEnabled: nc?.helpNotificationEnabled ?? false,
     helpNotificationPhone: nc?.helpNotificationPhone
       ? formatTelefone(nc.helpNotificationPhone)
       : '',
+    helpNotificationIgnoreReplies: nc?.helpNotificationIgnoreReplies ?? true,
   }
 }
 
@@ -160,14 +155,10 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
   const form = useForm<JourneyFormData>({
     defaultValues: buildJourneyForm(agent),
   })
-  const notificationForm = useForm<NotificationFormData>({
-    defaultValues: buildNotificationForm(agent),
-  })
 
   useEffect(() => {
     form.reset(buildJourneyForm(agent))
-    notificationForm.reset(buildNotificationForm(agent))
-  }, [agent, form, notificationForm])
+  }, [agent, form])
 
   const { fields, append, remove, move } = useFieldArray({
     control: form.control,
@@ -190,14 +181,46 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
     field: { value: purchaseWebhookEnabled, onChange: setPurchaseWebhookEnabled },
   } = useController({ control: form.control, name: 'purchaseWebhookEnabled' })
   const {
-    field: { value: helpNotificationEnabled, onChange: setHelpNotificationEnabled },
+    field: {
+      value: helpNotificationIgnoreReplies,
+      onChange: setHelpNotificationIgnoreReplies,
+    },
   } = useController({
-    control: notificationForm.control,
-    name: 'helpNotificationEnabled',
+    control: form.control,
+    name: 'helpNotificationIgnoreReplies',
   })
 
-  const handleSaveJourney = async () => {
+  const handleSave = async () => {
     const values = form.getValues()
+    const rawPhone = values.helpNotificationPhone?.trim() || ''
+    const normalizedPhone = rawPhone
+      ? normalizeBrazilianWhatsAppPhone(rawPhone)
+      : null
+
+    if (values.enabled) {
+      if (!normalizedPhone) {
+        toaster.create({
+          title: 'Telefone obrigatório',
+          description:
+            'Informe um número válido com DDD para receber o alerta de escalonamento. Ex: +55 (11) 99999-9999.',
+          type: 'error',
+        })
+        return
+      }
+    }
+
+    await updateNotificationConfig.mutateAsync({
+      agentId: agent.id,
+      silent: true,
+      data: {
+        helpNotificationEnabled: values.enabled,
+        helpNotificationIgnoreReplies: values.helpNotificationIgnoreReplies,
+        ...(normalizedPhone
+          ? { helpNotificationPhone: normalizedPhone }
+          : {}),
+      },
+    })
+
     await updateJourneyConfig.mutateAsync({
       agentId: agent.id,
       data: {
@@ -213,41 +236,6 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
         helpAutoEscalate: values.helpAutoEscalate,
         helpAckMessage: values.helpAckMessage || null,
         purchaseWebhookEnabled: values.purchaseWebhookEnabled,
-      },
-    })
-  }
-
-  const handleSaveNotification = async () => {
-    const values = notificationForm.getValues()
-    const rawPhone = values.helpNotificationPhone?.trim() || ''
-
-    if (!rawPhone) {
-      await updateNotificationConfig.mutateAsync({
-        agentId: agent.id,
-        data: {
-          helpNotificationEnabled: false,
-          helpNotificationPhone: undefined,
-        },
-      })
-      return
-    }
-
-    const normalizedPhone = normalizeBrazilianWhatsAppPhone(rawPhone)
-    if (!normalizedPhone) {
-      toaster.create({
-        title: 'Telefone inválido',
-        description:
-          'Informe um número válido com DDD. Ex: +55 (11) 99999-9999 ou 11999999999.',
-        type: 'error',
-      })
-      return
-    }
-
-    await updateNotificationConfig.mutateAsync({
-      agentId: agent.id,
-      data: {
-        helpNotificationEnabled: values.helpNotificationEnabled,
-        helpNotificationPhone: normalizedPhone,
       },
     })
   }
@@ -270,6 +258,28 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
               checked={!!enabled}
               onChange={setEnabled}
             />
+
+            {enabled && (
+              <Stack gap={4}>
+                <Input
+                  control={form.control}
+                  name="helpNotificationPhone"
+                  label="Telefone para notificação"
+                  placeholder="+55 (11) 99999-9999"
+                  type="tel"
+                />
+                <Text fontSize="xs" color="fg.muted">
+                  Obrigatório. Recebe o alerta no WhatsApp quando o cliente
+                  pedir atendimento humano.
+                </Text>
+                <SwitchRow
+                  label="Ignorar respostas deste número"
+                  description="Se o responsável responder o alerta, a IA não conversa com ele."
+                  checked={!!helpNotificationIgnoreReplies}
+                  onChange={setHelpNotificationIgnoreReplies}
+                />
+              </Stack>
+            )}
 
             <Select
               control={form.control}
@@ -418,7 +428,7 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
                   <TagsInput
                     value={field.value}
                     onChange={field.onChange}
-                    placeholder="Ex: atendente, humano..."
+                    placeholder="Ex: problema, ajuda, atendente..."
                   />
                 </Field.Root>
               )}
@@ -448,47 +458,13 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
         <Card.Footer justifyContent="flex-end">
           <Button
             size="sm"
-            onClick={handleSaveJourney}
-            loading={updateJourneyConfig.isPending}
+            onClick={handleSave}
+            loading={
+              updateJourneyConfig.isPending ||
+              updateNotificationConfig.isPending
+            }
           >
-            Salvar jornada
-          </Button>
-        </Card.Footer>
-      </Card.Root>
-
-      <Card.Root variant="outline">
-        <Card.Header>
-          <Card.Title>Notificação de ajuda</Card.Title>
-          <Card.Description>
-            Envia um alerta para o telefone cadastrado quando o cliente solicitar
-            atendimento humano.
-          </Card.Description>
-        </Card.Header>
-        <Card.Body>
-          <Stack gap={4}>
-            <SwitchRow
-              label="Notificar quando o cliente pedir ajuda"
-              checked={!!helpNotificationEnabled}
-              onChange={setHelpNotificationEnabled}
-            />
-            {helpNotificationEnabled && (
-              <Input
-                control={notificationForm.control}
-                name="helpNotificationPhone"
-                label="Telefone para notificação"
-                placeholder="+55 (11) 99999-9999"
-                type="tel"
-              />
-            )}
-          </Stack>
-        </Card.Body>
-        <Card.Footer justifyContent="flex-end">
-          <Button
-            size="sm"
-            onClick={handleSaveNotification}
-            loading={updateNotificationConfig.isPending}
-          >
-            Salvar notificação
+            Salvar
           </Button>
         </Card.Footer>
       </Card.Root>

@@ -10,17 +10,14 @@ import {
 } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useMemo } from 'react'
 import { useController, useForm } from 'react-hook-form'
-import { useHookFormMask } from 'use-mask-input'
 
 import { CustomDrawer, LoadingState } from '@/components'
 import { Input, Select, Textarea } from '@/components/forms'
-import { toaster } from '@/components/ui/toaster'
 import { useAuth } from '@/context/AuthContext'
 import {
   useAIAgent,
   useUpdateAIAgent,
   useUpdateAIAgentMediaConfig,
-  useUpdateAIAgentNotificationConfig,
   useUpdateAIAgentPersona,
 } from '@/whitelabel/hooks'
 import type { AIAgent, CommunicationStyleType, VoiceToneType } from '@/whitelabel/types'
@@ -28,10 +25,6 @@ import {
   DEFAULT_BEHAVIOR_GUIDELINES,
   DEFAULT_GUARDRAILS,
 } from '@/whitelabel/constants/aiAgentPersonaDefaults'
-import {
-  formatTelefone,
-  normalizeBrazilianWhatsAppPhone,
-} from '@/utils/mask'
 import type { Props } from './AIAgentEditDrawer.types'
 
 // ─── Tom de voz e estilo ───────────────────────────────────────────────────────
@@ -78,14 +71,8 @@ interface MediaFormData {
   videoDefaultMessage: string
 }
 
-interface NotificationFormData {
-  helpNotificationEnabled: boolean
-  helpNotificationPhone: string
-}
-
 function buildFormsFromAgent(a: AIAgent) {
   const mc = a.mediaConfig
-  const nc = a.notificationConfig
   return {
     basic: {
       name: a.name,
@@ -110,12 +97,6 @@ function buildFormsFromAgent(a: AIAgent) {
       videoExtractionPrompt: mc?.videoExtractionPrompt ?? '',
       videoDefaultMessage: mc?.videoDefaultMessage ?? '',
     },
-    notification: {
-      helpNotificationEnabled: nc?.helpNotificationEnabled ?? false,
-      helpNotificationPhone: nc?.helpNotificationPhone
-        ? formatTelefone(nc.helpNotificationPhone)
-        : '',
-    },
   }
 }
 
@@ -132,7 +113,6 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
   const updateAgent = useUpdateAIAgent()
   const updatePersona = useUpdateAIAgentPersona()
   const updateMediaConfig = useUpdateAIAgentMediaConfig()
-  const updateNotificationConfig = useUpdateAIAgentNotificationConfig()
 
   const voiceToneCollection = useMemo(
     () => createListCollection({ items: voiceToneItems }),
@@ -178,19 +158,6 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
     },
   })
 
-  // ─── Form: notificação ──────────────────────────────────────────────────────
-  const notificationForm = useForm<NotificationFormData>({
-    defaultValues: {
-      helpNotificationEnabled:
-        agent.notificationConfig?.helpNotificationEnabled ?? false,
-      helpNotificationPhone: agent.notificationConfig?.helpNotificationPhone
-        ? formatTelefone(agent.notificationConfig.helpNotificationPhone)
-        : '',
-    },
-  })
-  const notificationRegister = notificationForm.register
-  const maskedNotificationRegister = useHookFormMask(notificationRegister)
-
   const {
     field: { value: audioEnabled, onChange: setAudioEnabled },
   } = useController({ control: mediaForm.control, name: 'audioEnabled' })
@@ -203,24 +170,13 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
     field: { value: videoEnabled, onChange: setVideoEnabled },
   } = useController({ control: mediaForm.control, name: 'videoEnabled' })
 
-  const {
-    field: {
-      value: helpNotificationEnabled,
-      onChange: setHelpNotificationEnabled,
-    },
-  } = useController({
-    control: notificationForm.control,
-    name: 'helpNotificationEnabled',
-  })
-
   useEffect(() => {
     const src = agentDetail ?? agent
     const f = buildFormsFromAgent(src)
     basicForm.reset(f.basic)
     personaForm.reset(f.persona)
     mediaForm.reset(f.media)
-    notificationForm.reset(f.notification)
-  }, [agentDetail, agent, basicForm, personaForm, mediaForm, notificationForm])
+  }, [agentDetail, agent, basicForm, personaForm, mediaForm])
 
   const showDetailLoading =
     isOpen &&
@@ -270,41 +226,6 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
       },
     })
   }, [mediaForm, updateMediaConfig, agent.id])
-
-  const handleSaveNotification = useCallback(async () => {
-    const values = notificationForm.getValues()
-    const rawPhone = values.helpNotificationPhone?.trim() || ''
-
-    if (!rawPhone) {
-      await updateNotificationConfig.mutateAsync({
-        agentId: agent.id,
-        data: {
-          helpNotificationEnabled: false,
-          helpNotificationPhone: undefined,
-        },
-      })
-      return
-    }
-
-    const normalizedPhone = normalizeBrazilianWhatsAppPhone(rawPhone)
-    if (!normalizedPhone) {
-      toaster.create({
-        title: 'Telefone inválido',
-        description:
-          'Informe um número válido com DDD. Ex: +55 (11) 99999-9999 ou 11999999999.',
-        type: 'error',
-      })
-      return
-    }
-
-    await updateNotificationConfig.mutateAsync({
-      agentId: agent.id,
-      data: {
-        helpNotificationEnabled: values.helpNotificationEnabled,
-        helpNotificationPhone: normalizedPhone,
-      },
-    })
-  }, [notificationForm, updateNotificationConfig, agent.id])
 
   return (
     <CustomDrawer
@@ -541,70 +462,6 @@ function AIAgentEditDrawerBase({ agent, isOpen, onClose }: Props) {
               loading={updateMediaConfig.isPending}
             >
               Salvar configuração de mídia
-            </Button>
-          </Card.Footer>
-        </Card.Root>
-
-        {/* ─── Notificações ──────────────────────────────────────────────────── */}
-        <Card.Root variant="outline">
-          <Card.Header>
-            <Text fontWeight="semibold">Notificações</Text>
-          </Card.Header>
-          <Card.Body>
-            <Stack gap={4}>
-              <Fieldset.Root>
-                <HStack justify="space-between" align="flex-start">
-                  <Stack gap={0.5}>
-                    <Fieldset.Legend fontSize="sm">
-                      Notificar quando o cliente pedir ajuda
-                    </Fieldset.Legend>
-                    <Text fontSize="xs" color="fg.muted">
-                      Envia um alerta para o telefone cadastrado quando o
-                      cliente solicitar atendimento humano.
-                    </Text>
-                  </Stack>
-                  <Switch.Root
-                    checked={!!helpNotificationEnabled}
-                    onCheckedChange={(e) =>
-                      setHelpNotificationEnabled(e.checked)
-                    }
-                    size="md"
-                  >
-                    <Switch.HiddenInput />
-                    <Switch.Control>
-                      <Switch.Thumb />
-                    </Switch.Control>
-                  </Switch.Root>
-                </HStack>
-                <Fieldset.Content>
-                  {helpNotificationEnabled && (
-                    <Stack gap={1}>
-                      <Input
-                        control={notificationForm.control}
-                        label="Telefone para notificação"
-                        placeholder="+55 (11) 99999-9999"
-                        type="tel"
-                        {...maskedNotificationRegister(
-                          'helpNotificationPhone',
-                          '+99 (99) 99999-9999'
-                        )}
-                      />
-                      <Text fontSize="xs" color="fg.muted">
-                        Com ou sem DDI. Se faltar o 55, adicionamos automaticamente.
-                      </Text>
-                    </Stack>
-                  )}
-                </Fieldset.Content>
-              </Fieldset.Root>
-            </Stack>
-          </Card.Body>
-          <Card.Footer justifyContent="flex-end">
-            <Button
-              size="sm"
-              onClick={handleSaveNotification}
-              loading={updateNotificationConfig.isPending}
-            >
-              Salvar notificações
             </Button>
           </Card.Footer>
         </Card.Root>

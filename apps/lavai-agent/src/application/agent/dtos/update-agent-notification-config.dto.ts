@@ -20,4 +20,13 @@ export class UpdateAgentNotificationConfigDto {
     message: 'helpNotificationPhone deve conter apenas dígitos',
   })
   helpNotificationPhone?: string;
+
+  @ApiPropertyOptional({
+    example: true,
+    description:
+      'Se true, a IA ignora respostas do telefone de notificação para não conversar com o responsável.',
+  })
+  @IsBoolean()
+  @IsOptional()
+  helpNotificationIgnoreReplies?: boolean;
 }

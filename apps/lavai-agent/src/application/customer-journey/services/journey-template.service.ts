@@ -16,6 +16,14 @@ export function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '');
 }
 
+export function whatsappPhonesMatch(a: string, b: string): boolean {
+  const na = normalizePhone(a);
+  const nb = normalizePhone(b);
+  if (!na || !nb) return false;
+  if (na === nb) return true;
+  return na === `55${nb}` || nb === `55${na}`;
+}
+
 export function matchesHelpKeyword(text: string, keywords: string[]): boolean {
   const lower = text.toLowerCase();
   return keywords.some((kw) => {

@@ -242,6 +242,7 @@ export default function AgentDetailPage() {
                 agentId={id}
                 companyId={agent.companyId}
                 journeyConfig={agent.journeyConfig}
+                notificationConfig={agent.notificationConfig ?? null}
               />
             </TabsContent>
             <TabsContent value="rag" className="mt-0 animate-fade-in">
