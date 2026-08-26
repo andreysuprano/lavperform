@@ -295,6 +295,8 @@ model AgentNotificationConfig {
   helpNotificationEnabled  Boolean  @default(false) @map("help_notification_enabled")
   /// Telefone destino (apenas dígitos, com DDI). Ex: 5511999999999.
   helpNotificationPhone    String?  @map("help_notification_phone")
+  /// Se true, a IA não responde mensagens desse telefone (o responsável do alerta).
+  helpNotificationIgnoreReplies Boolean @default(true) @map("help_notification_ignore_replies")
   createdAt                DateTime @default(now()) @map("created_at")
   updatedAt                DateTime @updatedAt @map("updated_at")
 
@@ -312,7 +314,7 @@ model AgentJourneyConfig {
   followUpEnabled        Boolean        @default(true) @map("follow_up_enabled")
   cancelOnReply          Boolean        @default(true) @map("cancel_on_reply")
   followUpSteps          Json           @default("[]") @map("follow_up_steps")
-  helpKeywords           String[]       @default(["atendente", "humano", "ajuda"]) @map("help_keywords")
+  helpKeywords           String[]       @default(["problema", "ajuda", "atendente", "humano"]) @map("help_keywords")
   helpAutoEscalate       Boolean        @default(true) @map("help_auto_escalate")
   helpAckMessage         String?        @map("help_ack_message")
   purchaseWebhookEnabled Boolean        @default(true) @map("purchase_webhook_enabled")

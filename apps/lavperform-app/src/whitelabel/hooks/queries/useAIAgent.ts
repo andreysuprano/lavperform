@@ -265,6 +265,7 @@ export function useUpdateAIAgentNotificationConfig() {
     }: {
       agentId: string
       data: UpdateAIAgentNotificationConfigPayload
+      silent?: boolean
     }) => {
       const response = await aiAgentService.updateAgentNotificationConfig(
         agentId,
@@ -277,6 +278,7 @@ export function useUpdateAIAgentNotificationConfig() {
         invalidateQueries.aiAgentsList(selectedCompany.id)
         invalidateQueries.aiAgentDetail(selectedCompany.id, variables.agentId)
       }
+      if (variables.silent) return
       toaster.create({
         title: 'Sucesso',
         description: 'Configuração de notificação atualizada com sucesso!',

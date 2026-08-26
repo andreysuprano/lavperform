@@ -8,6 +8,7 @@ import {
   AgentMediaConfig,
   AgentFilterConfig,
   AgentJourneyConfig,
+  AgentNotificationConfig,
   LLMModel,
   KnowledgeBase,
   IngestResult,
@@ -93,6 +94,14 @@ export const api = {
       }),
     updateJourneyConfig: (id: string, data: Partial<AgentJourneyConfig>) =>
       request<AgentJourneyConfig>(`/agents/${id}/journey-config`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    updateNotificationConfig: (
+      id: string,
+      data: Partial<AgentNotificationConfig>,
+    ) =>
+      request<AgentNotificationConfig>(`/agents/${id}/notification-config`, {
         method: 'PATCH',
         body: JSON.stringify(data),
       }),

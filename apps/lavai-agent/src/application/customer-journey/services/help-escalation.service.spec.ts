@@ -100,6 +100,10 @@ describe('HelpEscalationService', () => {
         text: expect.stringContaining('Um cliente solicitou atendimento humano.'),
       }),
     );
+
+    const staffText = messageSender.send.mock.calls[0][1].text as string;
+    expect(staffText).toContain('Horário: 05/08/2026, 09:00');
+    expect(staffText).not.toContain('T12:00:00.000Z');
   });
 
   it('não aborta escalação se envio ao staff falhar', async () => {

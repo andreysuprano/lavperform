@@ -241,7 +241,7 @@ async function insertAgent(client, companyId, agent, instanceName) {
        cancel_on_reply, follow_up_steps, help_keywords, help_auto_escalate,
        help_ack_message, purchase_webhook_enabled, created_at, updated_at
      ) VALUES ($1,$2,false,'FIRST_MESSAGE',true,true,'[]'::jsonb,
-       ARRAY['atendente','humano','ajuda']::text[], true, null, true, NOW(), NOW())`,
+       ARRAY['problema','ajuda','atendente','humano']::text[], true, null, true, NOW(), NOW())`,
     [randomUUID(), agentId],
   );
 

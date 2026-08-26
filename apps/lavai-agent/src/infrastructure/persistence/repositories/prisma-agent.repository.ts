@@ -207,7 +207,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
         followUpEnabled: input.followUpEnabled ?? true,
         cancelOnReply: input.cancelOnReply ?? true,
         followUpSteps: (input.followUpSteps ?? []) as unknown as object[],
-        helpKeywords: input.helpKeywords ?? ['atendente', 'humano', 'ajuda'],
+        helpKeywords: input.helpKeywords ?? ['problema', 'ajuda', 'atendente', 'humano'],
         helpAutoEscalate: input.helpAutoEscalate ?? true,
         helpAckMessage: input.helpAckMessage ?? null,
         purchaseWebhookEnabled: input.purchaseWebhookEnabled ?? true,
@@ -229,11 +229,15 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
         ...(input.helpNotificationPhone !== undefined
           ? { helpNotificationPhone: input.helpNotificationPhone }
           : {}),
+        ...(input.helpNotificationIgnoreReplies !== undefined
+          ? { helpNotificationIgnoreReplies: input.helpNotificationIgnoreReplies }
+          : {}),
       },
       create: {
         agentId,
         helpNotificationEnabled: input.helpNotificationEnabled ?? false,
         helpNotificationPhone: input.helpNotificationPhone ?? null,
+        helpNotificationIgnoreReplies: input.helpNotificationIgnoreReplies ?? true,
       },
     });
     return this.mapNotificationConfig(row);
@@ -407,6 +411,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
     agentId: string;
     helpNotificationEnabled: boolean;
     helpNotificationPhone: string | null;
+    helpNotificationIgnoreReplies: boolean;
     createdAt: Date;
     updatedAt: Date;
   }): AgentNotificationConfigData {
@@ -415,6 +420,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
       agentId: row.agentId,
       helpNotificationEnabled: row.helpNotificationEnabled,
       helpNotificationPhone: row.helpNotificationPhone,
+      helpNotificationIgnoreReplies: row.helpNotificationIgnoreReplies,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

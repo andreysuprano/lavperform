@@ -6,7 +6,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '@/lib/api';
-import { AgentJourneyConfig, FollowUpStep } from '@/lib/types';
+import { AgentJourneyConfig, AgentNotificationConfig, FollowUpStep } from '@/lib/types';
 import { toast } from 'sonner';
 import { getPublicApiUrl } from '@/lib/env';
 import { Button } from '@/components/ui/button';
@@ -40,6 +40,8 @@ const followUpStepSchema = z.object({
   active: z.boolean(),
 });
 
+const DEFAULT_HELP_KEYWORDS = ['problema', 'ajuda', 'atendente', 'humano'];
+
 const journeySchema = z.object({
   enabled: z.boolean(),
   journeyTrigger: z.enum(['FIRST_MESSAGE', 'MENU_LINK_SENT', 'MANUAL']),
@@ -50,6 +52,8 @@ const journeySchema = z.object({
   helpAutoEscalate: z.boolean(),
   helpAckMessage: z.string().max(500).optional().nullable(),
   purchaseWebhookEnabled: z.boolean(),
+  helpNotificationPhone: z.string(),
+  helpNotificationIgnoreReplies: z.boolean(),
 });
 
 type JourneyFormValues = z.infer<typeof journeySchema>;
@@ -58,6 +62,7 @@ interface JourneyTabProps {
   agentId: string;
   companyId: string;
   journeyConfig: AgentJourneyConfig | null;
+  notificationConfig: AgentNotificationConfig | null;
 }
 
 function defaultSteps(): FollowUpStep[] {
@@ -135,7 +140,12 @@ function PurchaseWebhookCard({ companyId, agentId }: { companyId: string; agentI
   );
 }
 
-export function JourneyTab({ agentId, companyId, journeyConfig }: JourneyTabProps) {
+export function JourneyTab({
+  agentId,
+  companyId,
+  journeyConfig,
+  notificationConfig,
+}: JourneyTabProps) {
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -149,10 +159,15 @@ export function JourneyTab({ agentId, companyId, journeyConfig }: JourneyTabProp
       followUpSteps: journeyConfig?.followUpSteps?.length
         ? journeyConfig.followUpSteps
         : defaultSteps(),
-      helpKeywords: journeyConfig?.helpKeywords ?? ['atendente', 'humano', 'ajuda'],
+      helpKeywords: journeyConfig?.helpKeywords?.length
+        ? journeyConfig.helpKeywords
+        : DEFAULT_HELP_KEYWORDS,
       helpAutoEscalate: journeyConfig?.helpAutoEscalate ?? true,
       helpAckMessage: journeyConfig?.helpAckMessage ?? 'Aguarde, vou chamar alguém para te ajudar!',
       purchaseWebhookEnabled: journeyConfig?.purchaseWebhookEnabled ?? true,
+      helpNotificationPhone: notificationConfig?.helpNotificationPhone ?? '',
+      helpNotificationIgnoreReplies:
+        notificationConfig?.helpNotificationIgnoreReplies ?? true,
     },
   });
 
@@ -162,10 +177,32 @@ export function JourneyTab({ agentId, companyId, journeyConfig }: JourneyTabProp
   });
 
   const watchedSteps = form.watch('followUpSteps');
+  const enabled = form.watch('enabled');
   const timelineMinutes = computeTimelineMinutes(watchedSteps ?? []);
 
   const mutation = useMutation({
-    mutationFn: (data: JourneyFormValues) => api.agents.updateJourneyConfig(agentId, data),
+    mutationFn: async (data: JourneyFormValues) => {
+      const digits = data.helpNotificationPhone.replace(/\D/g, '');
+      if (data.enabled && !digits) {
+        throw new Error('Informe um telefone de notificação para habilitar a jornada.');
+      }
+      await api.agents.updateNotificationConfig(agentId, {
+        helpNotificationEnabled: data.enabled,
+        helpNotificationIgnoreReplies: data.helpNotificationIgnoreReplies,
+        ...(digits ? { helpNotificationPhone: digits } : {}),
+      });
+      return api.agents.updateJourneyConfig(agentId, {
+        enabled: data.enabled,
+        journeyTrigger: data.journeyTrigger,
+        followUpEnabled: data.followUpEnabled,
+        cancelOnReply: data.cancelOnReply,
+        followUpSteps: data.followUpSteps,
+        helpKeywords: data.helpKeywords,
+        helpAutoEscalate: data.helpAutoEscalate,
+        helpAckMessage: data.helpAckMessage,
+        purchaseWebhookEnabled: data.purchaseWebhookEnabled,
+      });
+    },
     onSuccess: () => {
       toast.success('Jornada atualizada');
       queryClient.invalidateQueries({ queryKey: ['agents', agentId] });
@@ -199,6 +236,16 @@ export function JourneyTab({ agentId, companyId, journeyConfig }: JourneyTabProp
           <div className="flex justify-between py-2 border-b border-border">
             <span className="text-muted-foreground">Jornada habilitada</span>
             <span>{journeyConfig?.enabled ? 'Sim' : 'Não'}</span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-border">
+            <span className="text-muted-foreground">Telefone de notificação</span>
+            <span>{notificationConfig?.helpNotificationPhone ?? '—'}</span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-border">
+            <span className="text-muted-foreground">Ignorar respostas do número</span>
+            <span>
+              {notificationConfig?.helpNotificationIgnoreReplies !== false ? 'Sim' : 'Não'}
+            </span>
           </div>
           <div className="flex justify-between py-2 border-b border-border">
             <span className="text-muted-foreground">Gatilho</span>
@@ -263,6 +310,45 @@ export function JourneyTab({ agentId, companyId, journeyConfig }: JourneyTabProp
             </FormItem>
           )}
         />
+
+        {enabled && (
+          <>
+            <FormField
+              control={form.control}
+              name="helpNotificationPhone"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Telefone para notificação</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="tel"
+                      placeholder="5511999999999"
+                      {...field}
+                    />
+                  </FormControl>
+                  <FormDescription>
+                    Obrigatório. Recebe o alerta no WhatsApp quando o cliente pedir atendimento humano.
+                  </FormDescription>
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={form.control}
+              name="helpNotificationIgnoreReplies"
+              render={({ field }) => (
+                <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
+                  <div>
+                    <FormLabel>Ignorar respostas deste número</FormLabel>
+                    <FormDescription>
+                      Se o responsável responder o alerta, a IA não conversa com ele.
+                    </FormDescription>
+                  </div>
+                  <Switch checked={field.value} onCheckedChange={field.onChange} />
+                </FormItem>
+              )}
+            />
+          </>
+        )}
 
         <FormField
           control={form.control}
@@ -437,7 +523,7 @@ export function JourneyTab({ agentId, companyId, journeyConfig }: JourneyTabProp
             <FormItem>
               <FormLabel>Keywords de escalação</FormLabel>
               <FormControl>
-                <TagInput value={field.value} onChange={field.onChange} placeholder="atendente, humano..." />
+                <TagInput value={field.value} onChange={field.onChange} placeholder="problema, ajuda, atendente..." />
               </FormControl>
             </FormItem>
           )}

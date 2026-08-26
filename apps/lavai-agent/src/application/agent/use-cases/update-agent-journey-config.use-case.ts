@@ -1,4 +1,9 @@
-import { Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Inject,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import {
   AGENT_REPOSITORY,
   AgentJourneyConfigData,
@@ -21,6 +26,16 @@ export class UpdateAgentJourneyConfigUseCase {
     if (!agent) {
       throw new NotFoundException(`Agente ${agentId} não encontrado.`);
     }
+
+    if (input.enabled === true) {
+      const phone = agent.notificationConfig?.helpNotificationPhone?.trim();
+      if (!phone || !agent.notificationConfig?.helpNotificationEnabled) {
+        throw new BadRequestException(
+          'Informe um telefone de notificação para habilitar a jornada.',
+        );
+      }
+    }
+
     return this.repository.updateJourneyConfig(agentId, input);
   }
 }

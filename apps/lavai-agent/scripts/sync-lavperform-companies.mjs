@@ -257,7 +257,7 @@ async function createLavaiAgent(client, lavaiCompanyId, row) {
        purchase_webhook_enabled, created_at, updated_at
      ) VALUES (
        $1, $2, false, 'FIRST_MESSAGE', true, true, '[]'::jsonb,
-       ARRAY['atendente','humano','ajuda']::text[], true, true, NOW(), NOW()
+       ARRAY['problema','ajuda','atendente','humano']::text[], true, true, NOW(), NOW()
      )`,
     [randomUUID(), agentId],
   );

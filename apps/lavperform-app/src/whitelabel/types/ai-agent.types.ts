@@ -92,6 +92,7 @@ export interface AIAgentMediaConfig {
 export interface AIAgentNotificationConfig {
   helpNotificationEnabled?: boolean
   helpNotificationPhone?: string
+  helpNotificationIgnoreReplies?: boolean
 }
 
 // ─── Filtros ─────────────────────────────────────────────────────────────────

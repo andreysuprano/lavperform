@@ -9,6 +9,7 @@ import type {
 } from '../types/incoming-message.types';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
 import { HumanTakeoverService } from './human-takeover.service';
+import { whatsappPhonesMatch } from '../../customer-journey/services/journey-template.service';
 
 export interface FilterResult {
   allowed: boolean;
@@ -28,9 +29,10 @@ export interface FilterResult {
  *  1. isFromMe + wasSentByApi → mensagens do próprio dispositivo do atendente
  *     ativam o período de espera de 10 min; mensagens da API são descartadas silenciosamente.
  *  2. humanTakeover → bloqueia respostas do bot enquanto atendente está em controle.
- *  3. allowedPhones → rejeita remetentes não autorizados
- *  4. allowedGroups → rejeita grupos não autorizados
- *  5. triggerWords → verifica gatilho textual no triggerText fornecido
+ *  3. telefone de notificação ignorado → descarta respostas do responsável do alerta.
+ *  4. allowedPhones → rejeita remetentes não autorizados
+ *  5. allowedGroups → rejeita grupos não autorizados
+ *  6. triggerWords → verifica gatilho textual no triggerText fornecido
  */
 @Injectable()
 export class MessageFilterService {
@@ -66,6 +68,23 @@ export class MessageFilterService {
         `[Filter] Descartado (atendente em controle) | agentId=${agent.id} | chatId=${message.chatId}`,
       );
       return { allowed: false, reason: 'Atendente humano em controle da conversa' };
+    }
+
+    const notification = agent.notificationConfig;
+    const staffPhone = notification?.helpNotificationPhone?.trim();
+    if (
+      notification?.helpNotificationIgnoreReplies &&
+      staffPhone &&
+      (whatsappPhonesMatch(message.senderPhone, staffPhone) ||
+        whatsappPhonesMatch(message.chatId, staffPhone))
+    ) {
+      this.logger.log(
+        `[Filter] Descartado (telefone de notificação ignorado) | sender=${message.senderPhone} | agente=${agent.id}`,
+      );
+      return {
+        allowed: false,
+        reason: 'Telefone de notificação ignorado',
+      };
     }
 
     const filter = agent.filterConfig;
