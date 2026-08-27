@@ -300,7 +300,7 @@ export class AdminWhatsappConnectionLinkService {
     await this.uazapiClient.updateInstanceAdminFields(instanceToken, {
       adminField01: companyName,
       adminField02: companyId,
-      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerformce',
+      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerform',
     });
 
     if (existing) {
@@ -329,7 +329,7 @@ export class AdminWhatsappConnectionLinkService {
     await this.uazapiClient.updateInstanceAdminFields(uazapiInstance.token, {
       adminField01: companyName,
       adminField02: companyId,
-      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerformce',
+      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerform',
     });
 
     await this.ensureInstanceWebhook(uazapiInstance.token);

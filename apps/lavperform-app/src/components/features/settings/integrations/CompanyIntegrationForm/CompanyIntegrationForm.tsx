@@ -21,7 +21,7 @@ import {
   LazyImage,
   toaster,
 } from '@/components'
-import { useWhiteLabel } from '@/config'
+import { getBusinessCopy, useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import { integrationService } from '@/services'
 import { logger } from '@/utils/logger'
@@ -193,8 +193,8 @@ function CompanyIntegrationForm({
         {features.hasDelivery && (
           <Input
             control={control}
-            label="Url do cardápio"
-            placeholder="Url do cardápio"
+            label={getBusinessCopy().digitalMenuUrlLabel}
+            placeholder={getBusinessCopy().digitalMenuUrlLabel}
             {...register('urlCardapio')}
           />
         )}

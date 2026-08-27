@@ -94,7 +94,7 @@ export class AdminWhatsappService {
 
     const uazapiInstance = await this.uazapiClient.createInstance({
       name,
-      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerformce',
+      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerform',
       adminField01: company.name,
       adminField02: companyId,
       browser: 'chrome',

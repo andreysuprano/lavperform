@@ -74,7 +74,7 @@ export class WhatsappService {
     // Cria a instância na Evolution API
     const uazapiInstance = await this.uazapiClient.createInstance({
       name: instanceName,
-      systemName: process.env.WHITELABEL == 'foodcrm' ? 'FoodCRM' : 'LavPerformce',
+      systemName: process.env.WHITELABEL == 'foodcrm' ? 'FoodCRM' : 'LavPerform',
       adminField01: company.name,
       adminField02: company.id,
       browser: 'chrome',

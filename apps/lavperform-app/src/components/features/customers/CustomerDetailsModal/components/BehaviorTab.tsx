@@ -17,6 +17,7 @@ import {
 } from 'react-icons/ri'
 import { MdFastfood } from 'react-icons/md'
 
+import { getBusinessCopy, isFoodTheme, useWhiteLabel } from '@/config'
 import type { Customer } from '@/types'
 import { useAuth } from '@/context/AuthContext'
 import { useCustomerDetails } from '@/hooks/useCustomerDetails'
@@ -27,17 +28,6 @@ import { getOrderOrigin } from '@/utils/orderMapping'
 
 type Props = {
   customer: Customer
-}
-
-const ORDER_STATUS_MAP: Record<string, { label: string; color: string }> = {
-  confirmed: { label: 'Confirmado', color: 'green' },
-  delivered: { label: 'Entregue', color: 'green' },
-  cancelled: { label: 'Cancelado', color: 'red' },
-  placed: { label: 'Recebido', color: 'blue' },
-  in_preparation: { label: 'Preparando', color: 'orange' },
-  ready_to_pickup: { label: 'Pronto', color: 'cyan' },
-  dispatched: { label: 'Em entrega', color: 'purple' },
-  concluded: { label: 'Concluído', color: 'green' },
 }
 
 type MetricCardProps = {
@@ -108,6 +98,9 @@ function MetricCard({ icon, label, value, sub, accent }: MetricCardProps) {
 
 export function BehaviorTab({ customer }: Props) {
   const { selectedCompany } = useAuth()
+  const { theme } = useWhiteLabel()
+  const copy = getBusinessCopy(theme)
+  const salesIcon = isFoodTheme(theme) ? MdFastfood : RiShoppingBag3Line
   const { behavior, loading } = useCustomerDetails(
     selectedCompany?.id,
     customer.id
@@ -176,7 +169,7 @@ export function BehaviorTab({ customer }: Props) {
           _dark={{ bg: 'yellow.900' }}
         >
           <Icon
-            as={MdFastfood}
+            as={salesIcon}
             boxSize={4}
           />
         </Box>
@@ -214,7 +207,7 @@ export function BehaviorTab({ customer }: Props) {
                       : null
 
                   const statusConfig =
-                    ORDER_STATUS_MAP[order.status?.toLowerCase()] ?? null
+                    copy.orderStatusLabels[order.status?.toLowerCase()] ?? null
 
                   return (
                     <Table.Row key={order.id}>
@@ -339,7 +332,7 @@ export function BehaviorTab({ customer }: Props) {
                       py={8}
                     >
                       <Icon
-                        as={MdFastfood}
+                        as={salesIcon}
                         boxSize={8}
                         color="fg.subtle"
                       />

@@ -19,7 +19,7 @@ export class MetaIntegrationResponseDto {
   @ApiPropertyOptional({ example: '2729063490586005' })
   businessId: string | null;
 
-  @ApiPropertyOptional({ example: 'Meu Restaurante' })
+  @ApiPropertyOptional({ example: 'Minha Loja' })
   displayName: string | null;
 
   @ApiPropertyOptional({ example: 'GREEN' })
@@ -66,7 +66,7 @@ export class MetaIntegrationAvailabilityResponseDto {
   })
   phoneNumberRegistered: boolean;
 
-  @ApiPropertyOptional({ example: 'Meu Restaurante' })
+  @ApiPropertyOptional({ example: 'Minha Loja' })
   displayName: string | null;
 
   @ApiPropertyOptional({ example: '5541997269435' })

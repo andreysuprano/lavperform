@@ -6,7 +6,7 @@ const FIELD_LABELS: Record<IntegrationFieldName, string> = {
   username: "Usuário",
   password: "Senha",
   merchantId: "ID da loja (Merchant)",
-  digitalMenuUrl: "URL do cardápio digital",
+  digitalMenuUrl: "URL do PDV",
 }
 
 const SLUG_LABELS: Record<string, string> = {

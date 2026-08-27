@@ -1,3 +1,5 @@
+export { getBusinessCopy, isFoodTheme } from './businessCopy'
+export type { BusinessCopy } from './businessCopy'
 export { availableThemes, defaultTheme } from './themes'
 export * from './white-label.config'
 export * from './white-label.hooks'

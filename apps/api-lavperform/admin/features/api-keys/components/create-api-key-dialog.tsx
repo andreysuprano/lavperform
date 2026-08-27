@@ -55,7 +55,7 @@ export function CreateApiKeyDialog({
         <DialogHeader>
           <DialogTitle>Nova API key</DialogTitle>
           <DialogDescription>
-            Chave para integração direta com a Public API da FoodCRM.
+            Chave para integração direta com a Public API da LavPerform.
           </DialogDescription>
         </DialogHeader>
         <FormProvider {...form}>

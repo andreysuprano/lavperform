@@ -64,7 +64,7 @@ export function CreateInstanceDialog({
             <FieldLabel htmlFor="instance-name">Nome da instância</FieldLabel>
             <Input
               id="instance-name"
-              placeholder="pizzaria-exemplo"
+              placeholder="lavanderia-exemplo"
               {...form.register("name", {
                 onChange: (event) => {
                   const slug = slugifyInstanceName(event.target.value)

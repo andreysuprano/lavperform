@@ -3,7 +3,7 @@ import { Fragment, useMemo } from 'react'
 import { PiEmpty } from 'react-icons/pi'
 
 import { DisplaySelectedWeekday, ZoomableImage } from '@/components'
-import { useWhiteLabel } from '@/config'
+import { getBusinessCopy, useWhiteLabel } from '@/config'
 import { formatCurrency } from '@/utils/money'
 
 import {
@@ -161,7 +161,7 @@ export function Resume(props: FormStepsProps) {
           <Text mb={4}>{incitation.title}</Text>
           {props.formData.incitation === 'tax' && (
             <>
-              <Text fontWeight="bold">Raio de entrega:</Text>
+              <Text fontWeight="bold">{getBusinessCopy().deliveryRadiusLabel}:</Text>
               <Text mb={4}>{props.formData.deliveryRadius} KM</Text>
             </>
           )}

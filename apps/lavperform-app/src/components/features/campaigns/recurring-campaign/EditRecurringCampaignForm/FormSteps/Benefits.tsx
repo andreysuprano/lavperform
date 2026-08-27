@@ -16,10 +16,12 @@ import { useEffect, useMemo } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import * as yup from 'yup'
 
-import { useWhiteLabel } from '@/config'
+import { getBusinessCopy, useWhiteLabel } from '@/config'
 
 import { discountTypeItems, incitationItems } from '../../constants'
 import { FormStepsProps } from './FormSteps.types'
+
+const copy = getBusinessCopy()
 
 const schema = yup.object().shape({
   incitation: yup
@@ -27,7 +29,7 @@ const schema = yup.object().shape({
     .required('O campo "Incentivo" é obrigatório')
     .oneOf(
       ['tax', 'discount', 'none'],
-      'O valor de "Incentivo" deve ser "Frete grátis" ou "Desconto"'
+      `O valor de "Incentivo" deve ser "${copy.freeShippingTitle}" ou "Desconto"`
     ),
   deliveryRadius: yup
     .number()
@@ -37,9 +39,9 @@ const schema = yup.object().shape({
       then: (schema) =>
         schema
           .required(
-            'O "Raio de entrega" é obrigatório quando "Incentivo" é "Frete grátis"'
+            `O "${copy.deliveryRadiusLabel}" é obrigatório quando "Incentivo" é "${copy.freeShippingTitle}"`
           )
-          .min(1, 'O valor mínimo para o "Raio de entrega" é 1'),
+          .min(1, `O valor mínimo para o "${copy.deliveryRadiusLabel}" é 1`),
     }),
   discountType: yup.string().when('incitation', {
     is: 'discount',
@@ -341,7 +343,7 @@ export function Benefits(props: FormStepsProps) {
                     value={[field.value || 0]}
                   >
                     <HStack justify="space-between">
-                      <Slider.Label>Raio de entrega</Slider.Label>
+                      <Slider.Label>{copy.deliveryRadiusLabel}</Slider.Label>
                       <Box>
                         <Slider.ValueText />
                         {' Km'}

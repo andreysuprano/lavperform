@@ -74,7 +74,7 @@ export class CompaniesController {
   @ApiOperation({
     summary: 'Importar histórico de pedidos retroativo',
     description:
-      'Inicia a importação retroativa de pedidos do Cardápio Web para um intervalo de datas. ' +
+      'Inicia a importação retroativa de pedidos do PDV para um intervalo de datas. ' +
       'Os pedidos são importados dia a dia, respeitando o rate limit da API (5 req/min). ' +
       'Se as datas não forem informadas, importa os últimos 90 dias.',
   })

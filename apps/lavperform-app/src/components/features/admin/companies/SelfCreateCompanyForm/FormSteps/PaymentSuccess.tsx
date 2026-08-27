@@ -4,12 +4,14 @@ import { PiCheckCircle, PiClockCountdown } from 'react-icons/pi'
 import { Link as RouterLink } from 'react-router-dom'
 
 import { OnboardingSuccessState } from './FormSteps.types'
+import { useWhiteLabel } from '@/config'
 
 interface PaymentSuccessProps {
   successState?: OnboardingSuccessState
 }
 
 function PaymentSuccessComponent({ successState }: PaymentSuccessProps) {
+  const { texts } = useWhiteLabel()
   const accountActivated = successState?.accountActivated ?? false
 
   return (
@@ -44,7 +46,7 @@ function PaymentSuccessComponent({ successState }: PaymentSuccessProps) {
             fontSize="md"
           >
             {accountActivated
-              ? 'Seu pagamento foi confirmado e sua conta já está liberada. Faça login para começar a usar o FoodCRM.'
+              ? `Seu pagamento foi confirmado e sua conta já está liberada. Faça login para começar a usar o ${texts.appName}.`
               : 'Seu cadastro foi criado, mas o pagamento ainda está sendo processado. Assim que for confirmado, sua conta será liberada automaticamente.'}
           </Text>
           {!accountActivated && successState?.invoiceUrl && (

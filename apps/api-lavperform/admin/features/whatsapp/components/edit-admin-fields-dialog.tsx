@@ -102,7 +102,7 @@ export function EditAdminFieldsDialog({
             <FieldLabel htmlFor="system-name">systemName</FieldLabel>
             <Input
               id="system-name"
-              placeholder="FoodCRM"
+              placeholder="LavPerform"
               {...form.register("systemName")}
             />
             <FieldDescription>
@@ -143,6 +143,6 @@ function getDefaultValues(
   return {
     adminField01: instance?.adminField01 ?? "",
     adminField02: instance?.adminField02 ?? "",
-    systemName: instance?.systemName ?? "FoodCRM",
+    systemName: instance?.systemName ?? "LavPerform",
   }
 }

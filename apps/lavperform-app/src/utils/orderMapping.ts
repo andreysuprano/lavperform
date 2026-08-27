@@ -1,38 +1,8 @@
 /**
- * Mapeia orderType para nome legível
+ * Mapeia orderType e salesChannel para nome legível, conforme o tema ativo.
  */
-function mapOrderType(orderType: string): string {
-  const orderTypeMap: Record<string, string> = {
-    delivery: 'Delivery',
-    takeout: 'Retirada',
-    dine_in: 'Mesa',
-    pickup: 'Retirada',
-  }
+import { getBusinessCopy } from '@/config'
 
-  return orderTypeMap[orderType] || orderType
-}
-
-/**
- * Mapeia salesChannel para nome legível
- */
-function mapSalesChannel(salesChannel: string): string {
-  const salesChannelMap: Record<string, string> = {
-    catalog: '-',
-    ifood: 'iFood',
-    digital_menu: 'Cardápio Digital',
-    app: 'App',
-    website: 'Site',
-  }
-
-  return salesChannelMap[salesChannel] || salesChannel
-}
-
-/**
- * Combina orderType e salesChannel para exibir origem completa da venda
- * @param orderType Tipo da venda (delivery, takeout, etc.)
- * @param salesChannel Canal de vendas (catalog, ifood, etc.)
- * @returns Nome legível da origem (ex: "Cardápio Web", "iFood", etc.)
- */
 export function getOrderOrigin(
   orderType?: string,
   salesChannel?: string
@@ -41,14 +11,14 @@ export function getOrderOrigin(
     return ' '
   }
 
-  // Se temos salesChannel, priorizamos ele (é mais específico)
+  const copy = getBusinessCopy()
+
   if (salesChannel) {
-    return mapSalesChannel(salesChannel)
+    return copy.salesChannelLabels[salesChannel] || salesChannel
   }
 
-  // Caso contrário, usamos orderType
   if (orderType) {
-    return mapOrderType(orderType)
+    return copy.orderTypeLabels[orderType] || orderType
   }
 
   return ' '

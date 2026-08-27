@@ -7,7 +7,7 @@ import { CampaignCouponCard } from '@/components/features/campaigns/coupons/Camp
 import { MetaTemplatePreview } from '@/components/features/campaigns/meta-templates/MetaTemplatePreview'
 import { getTemplateDisplayLabel } from '@/components/features/campaigns/meta-templates/metaTemplate.utils'
 import { CHANNEL_CATALOG } from '@/components/features/channels/channelCatalog.constants'
-import { useWhiteLabel } from '@/config'
+import { getBusinessCopy, useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import { useCompanyCoupons } from '@/hooks/queries'
 import { useMetaTemplates } from '@/hooks/queries/useMetaTemplates'
@@ -218,7 +218,7 @@ export function Resume(props: FormStepsProps) {
           <Text mb={4}>{incitation.title}</Text>
           {props.formData.incitation === 'tax' && (
             <>
-              <Text fontWeight="bold">Raio de entrega:</Text>
+              <Text fontWeight="bold">{getBusinessCopy().deliveryRadiusLabel}:</Text>
               <Text mb={4}>{props.formData.deliveryRadius} KM</Text>
             </>
           )}

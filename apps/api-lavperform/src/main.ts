@@ -20,9 +20,14 @@ async function bootstrap() {
     whitelist: true,
   }));
 
+  const isFoodCrm = process.env.WHITELABEL === 'foodcrm'
   const config = new DocumentBuilder()
-    .setTitle('FoodCRM API')
-    .setDescription('CRM Para Deliverys e Restaurantes')
+    .setTitle(isFoodCrm ? 'FoodCRM API' : 'LavPerform API')
+    .setDescription(
+      isFoodCrm
+        ? 'CRM Para Deliverys e Restaurantes'
+        : 'CRM para lavanderias',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();

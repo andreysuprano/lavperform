@@ -1,3 +1,5 @@
+import { getBusinessCopy } from '@/config'
+
 import {
   LuCheckCheck,
   LuCircleDollarSign,
@@ -50,8 +52,8 @@ export const incitationItems = [
   },
   {
     value: 'tax',
-    title: 'Frete grátis',
-    description: 'Baseado no raio de entrega',
+    title: getBusinessCopy().freeShippingTitle,
+    description: getBusinessCopy().freeShippingDescription,
     icon: <LuMapPin />,
   },
   {

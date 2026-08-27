@@ -31,7 +31,7 @@ export class AdminCompanyIntegrationsController {
   constructor(private readonly adminIntegrationsService: AdminIntegrationsService) {}
 
   @Get()
-  @ApiOperation({ summary: 'Listar integrações de cardápio/PDV da empresa' })
+  @ApiOperation({ summary: 'Listar integrações de PDV da empresa' })
   @ApiParam({ name: 'companyId', description: 'ID da empresa' })
   @ApiQuery({
     name: 'revealSecrets',

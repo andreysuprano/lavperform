@@ -71,7 +71,7 @@ function defaultSteps(): FollowUpStep[] {
       id: crypto.randomUUID(),
       delayMinutes: 15,
       delayFrom: 'JOURNEY_START',
-      message: 'Oi {nome}! Conseguiu fazer seu pedido?',
+      message: 'Oi {nome}! Conseguiu finalizar o serviço?',
       askForHelp: false,
       active: true,
     },
@@ -364,7 +364,7 @@ export function JourneyTab({
                 </FormControl>
                 <SelectContent>
                   <SelectItem value="FIRST_MESSAGE">Primeira mensagem do cliente</SelectItem>
-                  <SelectItem value="MENU_LINK_SENT">Link do cardápio enviado</SelectItem>
+                  <SelectItem value="MENU_LINK_SENT">Link da loja enviado</SelectItem>
                   <SelectItem value="MANUAL">Manual (via API)</SelectItem>
                 </SelectContent>
               </Select>
