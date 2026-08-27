@@ -7,6 +7,8 @@ import { getQueueToken } from '@nestjs/bull';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { MetaTemplatesService } from 'src/integrations/meta/application/meta-templates.service';
 import { CustomSendListsService } from 'src/custom-send-lists/application/custom-send-lists.service';
+import { MessageStatus } from '@prisma/client';
+import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 
 describe('AutomaticCampaignService', () => {
   let service: AutomaticCampaignService;
@@ -27,11 +29,16 @@ describe('AutomaticCampaignService', () => {
   const mockPrisma = {
     message: {
       deleteMany: jest.fn().mockResolvedValue({ count: 0 }),
+      updateMany: jest.fn().mockResolvedValue({ count: 2 }),
       aggregate: jest.fn().mockResolvedValue({
         _min: { createdAt: new Date('2024-01-01T10:00:00.000Z') },
         _max: { createdAt: new Date('2024-01-03T10:00:00.000Z') },
       }),
     },
+    automaticCampaign: {
+      update: jest.fn().mockResolvedValue({}),
+    },
+    $transaction: jest.fn(async (fn) => fn(mockPrisma)),
     coupon: { findFirst: jest.fn() },
   };
 
@@ -315,24 +322,65 @@ describe('AutomaticCampaignService', () => {
   });
 
   describe('toggleActive', () => {
-    it('delegates to repository', async () => {
-      mockRepository.findById.mockResolvedValue({ id: 'ac1' });
-      mockRepository.toggleActive.mockResolvedValue({ id: 'ac1', active: false });
+    it('pauses by aborting PENDING and PROCESSING', async () => {
+      mockRepository.findById.mockResolvedValue({ id: 'ac1', active: true });
+      mockPrisma.$transaction.mockImplementation(async (fn: any) => fn(mockPrisma));
+      mockPrisma.automaticCampaign.update.mockResolvedValue({});
+      mockPrisma.message.updateMany.mockResolvedValue({ count: 2 });
 
-      const result = await service.toggleActive('ac1', 'comp1');
+      await service.toggleActive('ac1', 'comp1');
 
-      expect(repository.toggleActive).toHaveBeenCalledWith('ac1', 'comp1');
-      expect(result).toEqual({ id: 'ac1', active: false });
+      expect(mockPrisma.message.updateMany).toHaveBeenCalledWith({
+        where: {
+          automaticCampaignId: 'ac1',
+          status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING] },
+        },
+        data: {
+          status: MessageStatus.ABORTED,
+          error: CAMPAIGN_PAUSED_ABORT_ERROR,
+        },
+      });
+      expect(mockQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('resumes by clearing lastProcessedAt and enqueueing generation', async () => {
+      mockRepository.findById.mockResolvedValue({ id: 'ac1', active: false });
+      mockPrisma.automaticCampaign.update.mockResolvedValue({});
+
+      await service.toggleActive('ac1', 'comp1');
+
+      expect(mockPrisma.automaticCampaign.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 'ac1', companyId: 'comp1' },
+          data: expect.objectContaining({ active: true, lastProcessedAt: null }),
+        }),
+      );
+      expect(mockQueue.add).toHaveBeenCalledWith(
+        QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE,
+        { automaticCampaignId: 'ac1' },
+        expect.objectContaining({ jobId: expect.stringMatching(/^automatic-campaign:ac1:/) }),
+      );
     });
   });
 
   describe('remove', () => {
-    it('performs soft delete via repository', async () => {
+    it('aborts unsent messages then soft deletes', async () => {
       mockRepository.findById.mockResolvedValue({ id: 'ac1' });
+      mockPrisma.message.updateMany.mockResolvedValue({ count: 2 });
       mockRepository.softDelete.mockResolvedValue({ id: 'ac1', deletedAt: new Date() });
 
       const result = await service.remove('ac1');
 
+      expect(mockPrisma.message.updateMany).toHaveBeenCalledWith({
+        where: {
+          automaticCampaignId: 'ac1',
+          status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING] },
+        },
+        data: {
+          status: MessageStatus.ABORTED,
+          error: CAMPAIGN_PAUSED_ABORT_ERROR,
+        },
+      });
       expect(repository.softDelete).toHaveBeenCalledWith('ac1');
       expect(result).toEqual({ id: 'ac1', deletedAt: expect.any(Date) });
     });
