@@ -1,10 +1,11 @@
 import { MessageStatus } from '@prisma/client';
+import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 import { MessageProcessor } from 'src/message-engine/processor/message-processor';
 
 describe('MessageProcessor', () => {
   const prisma: any = {
     whatsappInstance: { findFirst: jest.fn() },
-    message: { update: jest.fn() },
+    message: { findUnique: jest.fn(), findFirst: jest.fn(), update: jest.fn() },
     campaignMetric: { updateMany: jest.fn() },
     customer: { updateMany: jest.fn() },
     automaticCampaign: { findUnique: jest.fn().mockResolvedValue(null) },
@@ -26,6 +27,15 @@ describe('MessageProcessor', () => {
     jest.clearAllMocks();
     renitencyEvaluator.shouldApplyRenitency.mockReturnValue(false);
     renitencyEvaluator.canContactCustomer.mockResolvedValue({ allowed: true });
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.PROCESSING,
+      automaticCampaignId: 'ac1',
+    });
+    prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
+      id: 'ac1',
+      active: true,
+    });
     processor = new MessageProcessor(prisma, whatsappService, eventEmitter, renitencyEvaluator);
   });
 
@@ -50,6 +60,15 @@ describe('MessageProcessor', () => {
   } as any;
 
   it('sends message and updates metrics/customer on success', async () => {
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.PROCESSING,
+      automaticCampaignId: 'ac1',
+    });
+    prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
+      id: 'ac1',
+      active: true,
+    });
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'instance-token' });
     whatsappService.sendMessageWithImage = jest.fn().mockResolvedValue(undefined);
     prisma.message.update = jest.fn().mockResolvedValue({});
@@ -79,6 +98,11 @@ describe('MessageProcessor', () => {
   });
 
   it('updates campaign metrics when no automatic campaign', async () => {
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.PROCESSING,
+      automaticCampaignId: null,
+    });
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance' });
     whatsappService.sendMessageWithImage = jest.fn().mockResolvedValue(undefined);
     prisma.message.update = jest.fn().mockResolvedValue({});
@@ -99,6 +123,11 @@ describe('MessageProcessor', () => {
   });
 
   it('marks message as error and increments error metrics on failure', async () => {
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.PROCESSING,
+      automaticCampaignId: null,
+    });
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue(null); // triggers error
     prisma.message.update = jest.fn().mockResolvedValue({});
     prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
@@ -170,6 +199,11 @@ describe('MessageProcessor', () => {
   });
 
   it('skips renitency check for manual campaign messages', async () => {
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.PROCESSING,
+      automaticCampaignId: null,
+    });
     renitencyEvaluator.shouldApplyRenitency.mockReturnValue(false);
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'tok' });
     whatsappService.sendMessageWithImage = jest.fn().mockResolvedValue(undefined);
@@ -188,5 +222,49 @@ describe('MessageProcessor', () => {
 
     expect(renitencyEvaluator.canContactCustomer).not.toHaveBeenCalled();
     expect(whatsappService.sendMessageWithImage).toHaveBeenCalled();
+  });
+
+  it('does not send when message is no longer PROCESSING', async () => {
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.ABORTED,
+      automaticCampaignId: 'ac1',
+    });
+    prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'instance-token' });
+    whatsappService.sendMessageWithImage = jest.fn().mockResolvedValue(undefined);
+    prisma.message.update = jest.fn().mockResolvedValue({});
+
+    await processor.process(baseJob);
+
+    expect(whatsappService.sendMessageWithImage).not.toHaveBeenCalled();
+    expect(prisma.message.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: MessageStatus.SENT }),
+      }),
+    );
+  });
+
+  it('aborts without sending when campaign is inactive', async () => {
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.PROCESSING,
+      automaticCampaignId: 'ac1',
+    });
+    prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
+      id: 'ac1',
+      active: false,
+    });
+    prisma.message.update = jest.fn().mockResolvedValue({});
+
+    await processor.process(baseJob);
+
+    expect(whatsappService.sendMessageWithImage).not.toHaveBeenCalled();
+    expect(prisma.message.update).toHaveBeenCalledWith({
+      where: { id: 'msg1' },
+      data: {
+        status: MessageStatus.ABORTED,
+        error: CAMPAIGN_PAUSED_ABORT_ERROR,
+      },
+    });
   });
 });

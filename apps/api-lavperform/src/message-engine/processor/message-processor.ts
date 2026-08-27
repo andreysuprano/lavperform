@@ -22,6 +22,7 @@ import {
 import { RenitencyEvaluatorService } from 'src/renitency/application/renitency-evaluator.service';
 import { endOfDayInTz, nowUTC, startOfDayInTz } from 'src/common/utils/date.utils';
 import { extractErrorMessage } from 'src/common/utils/error.utils';
+import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 
 interface MessageProcessorData {
     message: Message;
@@ -49,6 +50,32 @@ export class MessageProcessor {
     @Process({ name: QUEUE_NAMES.MESSAGE_ENGINE, concurrency: 10 })
     async process(job: Job<MessageProcessorData>) {
         const { message, customer } = job.data;
+
+        const fresh = await this.prisma.message.findUnique({
+            where: { id: message.id },
+            select: { id: true, status: true, automaticCampaignId: true },
+        });
+        if (!fresh || fresh.status !== MessageStatus.PROCESSING) {
+            this.logger.warn(`Mensagem ${message.id} ignorada (status=${fresh?.status})`);
+            return;
+        }
+
+        if (fresh.automaticCampaignId) {
+            const campaignRow = await this.prisma.automaticCampaign.findUnique({
+                where: { id: fresh.automaticCampaignId },
+                select: { id: true, active: true },
+            });
+            if (!campaignRow?.active) {
+                await this.prisma.message.update({
+                    where: { id: message.id },
+                    data: {
+                        status: MessageStatus.ABORTED,
+                        error: CAMPAIGN_PAUSED_ABORT_ERROR,
+                    },
+                });
+                return;
+            }
+        }
 
         if (this.renitencyEvaluator.shouldApplyRenitency(message)) {
             const check = await this.renitencyEvaluator.canContactCustomer({
