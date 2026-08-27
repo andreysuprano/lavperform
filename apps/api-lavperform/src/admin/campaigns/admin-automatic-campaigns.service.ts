@@ -284,13 +284,7 @@ export class AdminAutomaticCampaignsService {
 
   async toggleActive(id: string) {
     const campaign = await this.findOne(id);
-    return this.prisma.automaticCampaign.update({
-      where: { id },
-      data: { active: !campaign.active },
-      include: {
-        company: { select: { id: true, name: true } },
-      },
-    });
+    return this.automaticCampaignService.toggleActive(id, campaign.companyId);
   }
 
   async reprocess(id: string) {

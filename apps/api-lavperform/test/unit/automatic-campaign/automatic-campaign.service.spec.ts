@@ -330,6 +330,10 @@ describe('AutomaticCampaignService', () => {
 
       await service.toggleActive('ac1', 'comp1');
 
+      expect(mockPrisma.automaticCampaign.update).toHaveBeenCalledWith({
+        where: { id: 'ac1', companyId: 'comp1' },
+        data: { active: false },
+      });
       expect(mockPrisma.message.updateMany).toHaveBeenCalledWith({
         where: {
           automaticCampaignId: 'ac1',
