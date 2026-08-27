@@ -55,6 +55,9 @@ export class WhatsappWebStrategy implements ICampaignChannelStrategy {
                         customerId: customer.id,
                         automaticCampaignId: campaign.id,
                         createdAt: { gte: startOfToday, lte: endOfToday },
+                        status: {
+                            in: [MessageStatus.PENDING, MessageStatus.PROCESSING, MessageStatus.SENT],
+                        },
                     },
                 });
 
