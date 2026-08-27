@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { MessageStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 
 type CreateAutomaticCampaignMessageParams = {
@@ -21,6 +21,9 @@ export async function createAutomaticCampaignMessageIfAbsentToday(
                 createdAt: {
                     gte: params.startOfToday,
                     lte: params.endOfToday,
+                },
+                status: {
+                    in: [MessageStatus.PENDING, MessageStatus.PROCESSING, MessageStatus.SENT],
                 },
             },
             select: { id: true },

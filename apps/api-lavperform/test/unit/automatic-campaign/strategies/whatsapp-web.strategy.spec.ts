@@ -225,6 +225,38 @@ describe('WhatsappWebStrategy', () => {
     expect(prisma.message.create).not.toHaveBeenCalled();
   });
 
+  it('creates when today only has ABORTED message for the customer', async () => {
+    prisma.message.findFirst.mockResolvedValueOnce(null);
+
+    await strategy.generateMessages({
+      campaign: {
+        id: 'ac1',
+        companyId: 'comp1',
+        segmentation: 'segA',
+        images: 'img.jpg',
+        messageText: 't',
+        channel: CampaignChannel.WHATSAPP_WEB,
+        creatives: [],
+        coupon: null,
+      } as any,
+      customers: [{ id: 'c1', name: 'Eve', phone: '55' } as any],
+      sendTimeWindow: defaultSendTimeWindow,
+      alreadySentToday: 0,
+      maxDailySends: 50,
+    });
+
+    expect(prisma.message.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          status: {
+            in: [MessageStatus.PENDING, MessageStatus.PROCESSING, MessageStatus.SENT],
+          },
+        }),
+      }),
+    );
+    expect(prisma.message.create).toHaveBeenCalled();
+  });
+
   it('uses fixed schedule helper when sendTimeWindow mode is fixed', async () => {
     getRandomArbitraryMock.mockReturnValueOnce(0);
 

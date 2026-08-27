@@ -39,6 +39,7 @@ import {
 import { normalizeCampaignTargeting } from '../../audiences/application/campaign-targeting.utils';
 import { AudienceTargetingMode } from '@prisma/client';
 import { CustomSendListsService } from '../../custom-send-lists/application/custom-send-lists.service';
+import { CAMPAIGN_PAUSED_ABORT_ERROR } from '../automatic-campaign.constants';
 
 @Injectable()
 export class AutomaticCampaignService {
@@ -563,13 +564,68 @@ export class AutomaticCampaignService {
     return { message: 'Campanha automática enviada para reprocessamento com sucesso', campaignId: campaign.id };
   }
 
+  private async abortUnsentMessagesForPause(campaignId: string): Promise<number> {
+    const { count } = await this.prisma.message.updateMany({
+      where: {
+        automaticCampaignId: campaignId,
+        status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING] },
+      },
+      data: {
+        status: MessageStatus.ABORTED,
+        error: CAMPAIGN_PAUSED_ABORT_ERROR,
+      },
+    });
+    return count;
+  }
+
   async toggleActive(id: string, companyId: string) {
-    const campaign = await this.findOne(id); // Ensure exists
-    return this.automaticCampaignRepository.toggleActive(id, companyId);
+    const campaign = await this.findOne(id);
+
+    if (campaign.active) {
+      await this.prisma.$transaction(async (tx) => {
+        await tx.automaticCampaign.update({
+          where: { id, companyId },
+          data: { active: false },
+        });
+        await tx.message.updateMany({
+          where: {
+            automaticCampaignId: id,
+            status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING] },
+          },
+          data: {
+            status: MessageStatus.ABORTED,
+            error: CAMPAIGN_PAUSED_ABORT_ERROR,
+          },
+        });
+      });
+      return this.findOne(id);
+    }
+
+    await this.prisma.automaticCampaign.update({
+      where: { id, companyId },
+      data: { active: true, lastProcessedAt: null },
+    });
+
+    const todayStr = startOfDayInTz(nowUTC()).toISOString().slice(0, 10);
+    const jobId = `automatic-campaign:${id}:${todayStr}`;
+    try {
+      await this.automaticCampaignsQueue.add(
+        QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE,
+        { automaticCampaignId: id },
+        { jobId, removeOnComplete: true, removeOnFail: true },
+      );
+    } catch (err) {
+      this.logger.error(
+        `Campanha ${id}: falha ao enfileirar job ${jobId}: ${err}`,
+      );
+    }
+
+    return this.findOne(id);
   }
 
   async remove(id: string) {
-    const campaign = await this.findOne(id); // Ensure exists
+    await this.findOne(id);
+    await this.abortUnsentMessagesForPause(id);
     return this.automaticCampaignRepository.softDelete(id);
   }
 

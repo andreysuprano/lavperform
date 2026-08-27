@@ -1,4 +1,5 @@
 import { MessageStatus } from '@prisma/client';
+import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { MessageTasks } from 'src/message-engine/cron/message-task';
 
@@ -81,7 +82,10 @@ describe('MessageTasks', () => {
 
     expect(prisma.message.update).toHaveBeenCalledWith({
       where: { id: 'm2' },
-      data: { status: MessageStatus.ABORTED },
+      data: {
+        status: MessageStatus.ABORTED,
+        error: CAMPAIGN_PAUSED_ABORT_ERROR,
+      },
     });
     expect(messageQueue.add).not.toHaveBeenCalled();
   });
