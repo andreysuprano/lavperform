@@ -15,6 +15,7 @@ import { RiSearchLine } from 'react-icons/ri'
 
 import { convertLinkToResizedImage } from '@/firebase/storage'
 import type { UserCompany } from '@/types'
+import { useWhiteLabel, getBusinessCopy } from '@/config'
 
 import { Props } from './OrganizationSelect.types'
 
@@ -29,14 +30,16 @@ function normalizeCompanySearch(text: string) {
 const SelectedValue = () => {
   const select = useSelectContext()
   const items = select.selectedItems as Array<UserCompany>
+  const { theme } = useWhiteLabel()
+  const placeholder = getBusinessCopy(theme).unitSelectPlaceholder
 
   if (items.length === 0) {
-    return <Select.ValueText placeholder="Selecione um restaurante" />
+    return <Select.ValueText placeholder={placeholder} />
   }
 
   const { name, avatarUrl } = items[0]
   return (
-    <Select.ValueText placeholder="Selecione um restaurante">
+    <Select.ValueText placeholder={placeholder}>
       <HStack>
         <Avatar.Root
           key={avatarUrl}

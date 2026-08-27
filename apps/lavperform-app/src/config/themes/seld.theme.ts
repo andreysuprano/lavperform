@@ -25,7 +25,7 @@ export const seldTheme: ThemeConfig = {
     appDescription: 'Sistema personalizado de gestão de clientes',
     copyright: '© 2025 LavPerform. Todos os direitos reservados.',
     redirectWhatsAppPage:
-      'https://wa.me/5541992044046?text=Conheci%20o%20FoodCRM%20através%20do%20Rafa%20e%20gostaria%20de%20saber%20como%20posso%20impulsionar%20minhas%20vendas%20através%20da%20plataforma!',
+      'https://wa.me/5541992044046?text=Conheci%20o%20LavPerform%20atrav%C3%A9s%20do%20Rafa%20e%20gostaria%20de%20saber%20como%20posso%20impulsionar%20minhas%20vendas%20atrav%C3%A9s%20da%20plataforma!',
     authPageLayout: {
       heroTitle: 'Revolucione a comunicação com seus clientes',
       heroDescription:

@@ -66,7 +66,7 @@ export function IntegrationsTable({
       <div className="rounded-lg border border-dashed p-8 text-center">
         <p className="text-sm font-medium">Nenhuma integração configurada</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Adicione uma integração com um parceiro de cardápio ou PDV.
+          Adicione uma integração com um parceiro de PDV.
         </p>
       </div>
     )

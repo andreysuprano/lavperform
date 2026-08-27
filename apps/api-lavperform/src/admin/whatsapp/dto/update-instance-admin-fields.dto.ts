@@ -5,7 +5,7 @@ export class UpdateInstanceAdminFieldsDto {
   @ApiProperty({
     description: 'Campo administrativo livre 1 (ex: nome da empresa)',
     required: false,
-    example: 'Restaurante Exemplo',
+    example: 'Lavanderia Exemplo',
   })
   @IsOptional()
   @IsString()

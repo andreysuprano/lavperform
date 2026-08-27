@@ -52,7 +52,7 @@ export class AdminWhatsappController {
       type: 'object',
       required: ['name', 'companyId'],
       properties: {
-        name: { type: 'string', example: 'restaurante-exemplo' },
+        name: { type: 'string', example: 'lavanderia-exemplo' },
         companyId: { type: 'string', example: 'company-uuid' },
       },
     },

@@ -21,6 +21,7 @@ import { MdAddCircleOutline } from 'react-icons/md'
 import { RiSaveLine } from 'react-icons/ri'
 
 import { FileUploadList, Input, Textarea, toaster } from '@/components'
+import { getBusinessCopy } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import { useCompanyPage } from '@/hooks/useCompanyPage'
 import { organizationPageService } from '@/services'
@@ -536,7 +537,7 @@ function CompanyPageForm() {
                 <Input
                   control={control}
                   label="Título"
-                  placeholder="(ex: Ifood, Site, Delivery)"
+                  placeholder={getBusinessCopy().companyPageChannelPlaceholder}
                   required
                   {...register(`links.${index}.label`)}
                 />

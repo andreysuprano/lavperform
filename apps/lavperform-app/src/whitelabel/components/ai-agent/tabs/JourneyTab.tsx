@@ -15,6 +15,7 @@ import { memo, useEffect, useMemo } from 'react'
 import { Controller, useController, useFieldArray, useForm } from 'react-hook-form'
 import { RiAddLine, RiArrowDownLine, RiArrowUpLine, RiDeleteBinLine } from 'react-icons/ri'
 
+import { getBusinessCopy } from '@/config'
 import { Input, Select, Textarea } from '@/components/forms'
 import { toaster } from '@/components/ui/toaster'
 import {
@@ -36,7 +37,7 @@ import { TagsInput } from './TagsInput'
 
 const journeyTriggerItems = [
   { value: 'FIRST_MESSAGE', label: 'Primeira mensagem do cliente' },
-  { value: 'MENU_LINK_SENT', label: 'Link do cardápio enviado' },
+  { value: 'MENU_LINK_SENT', label: getBusinessCopy().menuLinkSentLabel },
   { value: 'MANUAL', label: 'Manual (via API)' },
 ]
 
@@ -65,7 +66,7 @@ function defaultSteps(): FollowUpStep[] {
       id: crypto.randomUUID(),
       delayMinutes: 15,
       delayFrom: 'JOURNEY_START',
-      message: 'Oi {nome}! Conseguiu fazer seu pedido?',
+      message: getBusinessCopy().followUpDefaultMessage,
       askForHelp: false,
       active: true,
     },

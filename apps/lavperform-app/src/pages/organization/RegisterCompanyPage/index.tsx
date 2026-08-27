@@ -1,10 +1,13 @@
 import { RegisterPageLayout, SelfCreateCompanyForm } from '@/components'
+import { getBusinessCopy } from '@/config'
 
 export function RegisterCompanyPage() {
+  const copy = getBusinessCopy()
+
   return (
     <RegisterPageLayout
-      description="Esse é o primeiro passo para você fazer parte do ecossistema que mais gera vendas para restaurantes no Brasil."
-      title="Bem-vindo a FoodCRM!"
+      description={copy.registerWelcomeDescription}
+      title={`${copy.registerWelcomeTitle}!`}
     >
       <SelfCreateCompanyForm />
     </RegisterPageLayout>

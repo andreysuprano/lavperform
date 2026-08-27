@@ -9,6 +9,7 @@ import {
   ImportCustomersWizard,
 } from '@/components'
 import { useAuth } from '@/context/AuthContext'
+import { getBusinessCopy } from '@/config'
 import { useCustomers } from '@/hooks/queries'
 import type { Customer } from '@/types'
 import {
@@ -115,9 +116,7 @@ export function CustomerList() {
         <Alert.Indicator />
         <Alert.Content>
           <Alert.Title>
-            <strong>Atenção!</strong> Após a configuração da integração com o
-            seu Cardápio Digital os dados dos seus clientes serão preenchidos
-            automaticamente.
+            <strong>Atenção!</strong> {getBusinessCopy().customersSyncAlert}
           </Alert.Title>
         </Alert.Content>
       </Alert.Root>

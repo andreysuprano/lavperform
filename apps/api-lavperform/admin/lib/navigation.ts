@@ -103,5 +103,5 @@ export function getPageTitle(pathname: string): string {
     return "Detalhes da campanha agendada"
   }
 
-  return "FoodCRM Admin"
+  return "LavPerform Admin"
 }

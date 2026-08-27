@@ -2,6 +2,7 @@ import { Box, Card, Heading } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 
 import { Empty, LoadingState } from '@/components'
+import { getBusinessCopy } from '@/config'
 import { customerService } from '@/services'
 import type { CustomerOrder } from '@/types'
 import { convertISOToDate } from '@/utils/convertISOToDate'
@@ -61,7 +62,7 @@ const CustomerOrderListComponent = ({ customerId }: Props) => {
         >
           <Card.Header gap={2}>
             <p>
-              Taxa de entrega:{' '}
+              {getBusinessCopy().deliveryFeeLabel}:{' '}
               <strong>{formatCurrency(Number(order.deliveryFee))}</strong>
             </p>
             <p>

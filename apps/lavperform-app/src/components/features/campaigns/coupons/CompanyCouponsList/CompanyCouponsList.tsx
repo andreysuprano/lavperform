@@ -2,6 +2,7 @@ import { Badge, Flex, Input, Table, Text } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { RiCheckboxCircleLine, RiCloseCircleLine } from 'react-icons/ri'
 
+import { getBusinessCopy } from '@/config'
 import { CustomTable } from '@/components'
 import { useAuth } from '@/context/AuthContext'
 import { useCompanyCoupons } from '@/hooks/queries'
@@ -12,7 +13,7 @@ import { CreateCouponForm } from '../CreateCouponForm/CreateCouponForm'
 
 const typeMap: Record<string, string> = {
   desconto: 'Desconto',
-  frete: 'Frete',
+  frete: getBusinessCopy().couponTypeFrete,
 }
 
 const unitMap: Record<string, string> = {

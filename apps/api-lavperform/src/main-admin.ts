@@ -24,9 +24,14 @@ async function bootstrap() {
     }),
   );
 
+  const isFoodCrm = process.env.WHITELABEL === 'foodcrm'
   const config = new DocumentBuilder()
-    .setTitle('FoodCRM Admin API')
-    .setDescription('API administrativa da plataforma FoodCRM')
+    .setTitle(isFoodCrm ? 'FoodCRM Admin API' : 'LavPerform Admin API')
+    .setDescription(
+      isFoodCrm
+        ? 'API administrativa da plataforma FoodCRM'
+        : 'API administrativa da plataforma LavPerform',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();

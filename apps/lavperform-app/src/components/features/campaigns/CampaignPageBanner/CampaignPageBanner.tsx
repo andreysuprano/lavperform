@@ -8,7 +8,7 @@ import {
   LuSmartphone,
 } from 'react-icons/lu'
 
-import { useWhiteLabel } from '@/config'
+import { getBusinessCopy, useWhiteLabel } from '@/config'
 
 const CHANNELS = [
   { label: 'WhatsApp', icon: LuMessageCircle },
@@ -29,7 +29,7 @@ function CampaignPageBannerBase() {
   }, [])
 
   const isDefaultTheme = theme.id === 'default'
-  const businessLabel = isDefaultTheme ? 'restaurante' : 'lavanderia'
+  const { unitSingular } = getBusinessCopy(theme)
   const businessPossessive = isDefaultTheme ? 'Seu' : 'Sua'
 
   const gridStyle = useMemo(
@@ -122,7 +122,7 @@ function CampaignPageBannerBase() {
             letterSpacing="-0.02em"
             lineHeight="1.25"
           >
-            {businessPossessive} {businessLabel} é{' '}
+            {businessPossessive} {unitSingular} é{' '}
             <Box
               as="mark"
               bg="colorPalette.solid"

@@ -32,7 +32,7 @@ import {
 import { DisplaySelectedWeekday, LazyImage } from '@/components'
 import { MetaTemplatePreview } from '@/components/features/campaigns/meta-templates/MetaTemplatePreview'
 import { getTemplateDisplayLabel } from '@/components/features/campaigns/meta-templates/metaTemplate.utils'
-import { useWhiteLabel } from '@/config'
+import { getBusinessCopy, useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import {
   CHANNEL_CATALOG,
@@ -235,7 +235,7 @@ function CampaignDetailsTabComponent({
 
   const incentiveSubtitle =
     gift?.type === 'tax'
-      ? 'Raio de entrega grátis'
+      ? getBusinessCopy().deliveryRadiusFreeSubtitle
       : gift?.type === 'discount'
         ? (discountType?.title ?? 'Desconto')
         : null

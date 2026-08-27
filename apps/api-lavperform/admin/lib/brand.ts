@@ -56,7 +56,7 @@ export function getBrandThemeFromEnv(): BrandTheme {
 }
 
 export function getBrandNameFromEnv(): string {
-  return process.env.NEXT_PUBLIC_BRAND_NAME ?? "FoodCRM Admin"
+  return process.env.NEXT_PUBLIC_BRAND_NAME ?? "LavPerform Admin"
 }
 
 export function getBrandAssetPath(

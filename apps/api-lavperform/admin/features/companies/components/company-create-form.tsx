@@ -111,7 +111,7 @@ export function CompanyCreateForm() {
                       slugTouchedRef.current = true
                     },
                   })}
-                  placeholder="ex: pizzaria-exemplo"
+                  placeholder="ex: lavanderia-exemplo"
                 />
                 <FieldError>{errors.slug?.message}</FieldError>
               </Field>

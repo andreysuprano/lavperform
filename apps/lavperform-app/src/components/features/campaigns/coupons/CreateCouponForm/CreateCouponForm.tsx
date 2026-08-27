@@ -12,6 +12,7 @@ import { memo, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { RiAddLine, RiDeleteBinLine, RiSaveLine } from 'react-icons/ri'
 
+import { getBusinessCopy } from '@/config'
 import { CustomDrawer, DeleteConfirmationDialog, Input, Select, Textarea, toaster } from '@/components'
 import { useAuth } from '@/context/AuthContext'
 import { queryKeys } from '@/lib/react-query'
@@ -25,7 +26,7 @@ import { editSchema, FormData, schema } from './schema'
 const typeItems = createListCollection({
   items: [
     { value: 'desconto', label: 'Desconto' },
-    { value: 'frete', label: 'Frete grátis (raio)' },
+    { value: 'frete', label: getBusinessCopy().couponTypeFreteLong },
   ],
   itemToString: (i) => i.label,
   itemToValue: (i) => i.value,

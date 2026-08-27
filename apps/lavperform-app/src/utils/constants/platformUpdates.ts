@@ -1,4 +1,6 @@
 import type { IconType } from 'react-icons'
+
+import { getBusinessCopy } from '@/config'
 import {
   LuBrain,
   LuGraduationCap,
@@ -38,7 +40,7 @@ export const PLATFORM_UPDATES: PlatformUpdate[] = [
   },
   {
     id: 'academy',
-    title: 'Academy FoodCRM',
+    title: getBusinessCopy().academyTitle,
     summary:
       'Cursos e eventos ao vivo para usar a plataforma e vender mais.',
     date: '2026-05-15',
