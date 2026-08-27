@@ -183,47 +183,7 @@ export class MessageProcessor {
                 this.logger.log(`Mensagem de texto enviada para ${message.phone}`);
             }
 
-            await this.prisma.message.update({
-                where: {
-                    id: message.id
-                },
-                data: {
-                    status: MessageStatus.SENT,
-                    attempts: 1,
-                    updatedAt: new Date()
-                }
-            });
-
-            if (message.automaticCampaignId) {
-                await this.prisma.campaignMetric.updateMany({
-                    where: {
-                        automaticCampaignId: message.automaticCampaignId,
-                    },
-                    data: {
-                        messagesSent: { increment: 1 },
-                    }
-                });
-            }
-            else {
-                await this.prisma.campaignMetric.updateMany({
-                    where: {
-                        campaignId: message.campaignId,
-                    },
-                    data: {
-                        messagesSent: { increment: 1 },
-                    }
-                });
-            }
-
-            await this.prisma.customer.updateMany({
-                where: {
-                    id: customer.id
-                },
-                data: {
-                    lastContactDate: new Date()
-                }
-            });
-
+            await this.markSentIfStillProcessing(message, customer);
         } catch (error) {
             await this.prisma.message.update({
                 where: {
@@ -257,6 +217,40 @@ export class MessageProcessor {
                 });
             }
         }
+    }
+
+    private async markSentIfStillProcessing(message: Message, customer: Customer): Promise<boolean> {
+        const result = await this.prisma.message.updateMany({
+            where: { id: message.id, status: MessageStatus.PROCESSING },
+            data: {
+                status: MessageStatus.SENT,
+                attempts: 1,
+                updatedAt: new Date(),
+            },
+        });
+
+        if (result.count === 0) {
+            return false;
+        }
+
+        if (message.automaticCampaignId) {
+            await this.prisma.campaignMetric.updateMany({
+                where: { automaticCampaignId: message.automaticCampaignId },
+                data: { messagesSent: { increment: 1 } },
+            });
+        } else {
+            await this.prisma.campaignMetric.updateMany({
+                where: { campaignId: message.campaignId },
+                data: { messagesSent: { increment: 1 } },
+            });
+        }
+
+        await this.prisma.customer.updateMany({
+            where: { id: customer.id },
+            data: { lastContactDate: new Date() },
+        });
+
+        return true;
     }
 
     private async hassufficientSmsCredits(companyId: string): Promise<boolean> {
@@ -320,31 +314,10 @@ export class MessageProcessor {
         await this.disparoProClient.sendSms(message.phone, message.messageText, message.companyId);
         this.logger.log(`SMS enviado para ${message.phone} (empresa: ${message.companyId})`);
 
-        await this.prisma.message.update({
-            where: { id: message.id },
-            data: {
-                status: MessageStatus.SENT,
-                attempts: 1,
-                updatedAt: new Date(),
-            },
-        });
-
-        if (message.automaticCampaignId) {
-            await this.prisma.campaignMetric.updateMany({
-                where: { automaticCampaignId: message.automaticCampaignId },
-                data: { messagesSent: { increment: 1 } },
-            });
-        } else if (message.campaignId) {
-            await this.prisma.campaignMetric.updateMany({
-                where: { campaignId: message.campaignId },
-                data: { messagesSent: { increment: 1 } },
-            });
+        const markedSent = await this.markSentIfStillProcessing(message, customer);
+        if (!markedSent) {
+            return;
         }
-
-        await this.prisma.customer.updateMany({
-            where: { id: customer.id },
-            data: { lastContactDate: new Date() },
-        });
 
         const creditsPayload: CreditsConsumeRequestedPayload = {
             companyId: message.companyId,
@@ -411,34 +384,7 @@ export class MessageProcessor {
         );
         this.logger.log(`Mensagem Meta enviada para ${message.phone}`);
 
-        await this.prisma.message.update({
-            where: {
-                id: message.id
-            },
-            data: {
-                status: MessageStatus.SENT,
-                attempts: 1,
-                updatedAt: new Date()
-            }
-        });
-
-        await this.prisma.campaignMetric.updateMany({
-            where: {
-                automaticCampaignId: message.automaticCampaignId,
-            },
-            data: {
-                messagesSent: { increment: 1 },
-            }
-        });
-
-        await this.prisma.customer.updateMany({
-            where: {
-                id: customer.id
-            },
-            data: {
-                lastContactDate: new Date()
-            }
-        });
+        await this.markSentIfStillProcessing(message, customer);
     }
 
     private async buildTemplateMessageComponents(

@@ -615,8 +615,8 @@ export class AutomaticCampaignService {
         { jobId, removeOnComplete: true, removeOnFail: true },
       );
     } catch (err) {
-      this.logger.debug(
-        `Campanha ${id}: job ${jobId} já na fila: ${err}`,
+      this.logger.error(
+        `Campanha ${id}: falha ao enfileirar job ${jobId}: ${err}`,
       );
     }
 

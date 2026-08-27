@@ -1,4 +1,4 @@
-import { BadRequestException, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Logger, NotFoundException } from '@nestjs/common';
 import { AutomaticCampaignService } from 'src/automatic-campaign/application/automatic-campaign.service';
 import { Test, TestingModule } from '@nestjs/testing';
 import { IAutomaticCampaignRepository } from 'src/automatic-campaign/domain/automatic-campaign.repository.interface';
@@ -79,6 +79,7 @@ describe('AutomaticCampaignService', () => {
     repository = module.get<IAutomaticCampaignRepository>('IAutomaticCampaignRepository');
 
     jest.clearAllMocks();
+    mockQueue.add.mockResolvedValue(undefined);
   });
 
   describe('create', () => {
@@ -364,6 +365,25 @@ describe('AutomaticCampaignService', () => {
         { automaticCampaignId: 'ac1' },
         expect.objectContaining({ jobId: expect.stringMatching(/^automatic-campaign:ac1:/) }),
       );
+    });
+
+    it('logs queue.add failure as error and keeps lastProcessedAt null', async () => {
+      mockRepository.findById.mockResolvedValue({ id: 'ac1', active: false });
+      mockPrisma.automaticCampaign.update.mockResolvedValue({});
+      mockQueue.add.mockRejectedValue(new Error('redis down'));
+      const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+      await service.toggleActive('ac1', 'comp1');
+
+      expect(mockPrisma.automaticCampaign.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({ active: true, lastProcessedAt: null }),
+        }),
+      );
+      expect(errorSpy).toHaveBeenCalledWith(
+        expect.stringMatching(/falha ao enfileirar job automatic-campaign:ac1:/),
+      );
+      errorSpy.mockRestore();
     });
   });
 

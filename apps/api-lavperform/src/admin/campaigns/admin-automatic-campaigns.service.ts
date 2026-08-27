@@ -284,7 +284,11 @@ export class AdminAutomaticCampaignsService {
 
   async toggleActive(id: string) {
     const campaign = await this.findOne(id);
-    return this.automaticCampaignService.toggleActive(id, campaign.companyId);
+    await this.automaticCampaignService.toggleActive(id, campaign.companyId);
+    return this.prisma.automaticCampaign.findUnique({
+      where: { id },
+      include: { company: { select: { id: true, name: true } } },
+    });
   }
 
   async reprocess(id: string) {
