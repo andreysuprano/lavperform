@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { Cron, CronExpression } from '@nestjs/schedule';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
+import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { MessageStatus } from '@prisma/client';
@@ -115,11 +116,11 @@ export class MessageTasks {
                         await this.prisma.message.update({
                             where: { id: message.id },
                             data: {
-                                status: MessageStatus.PENDING,
-                                error: 'Campanha pausada no momento do envio; mensagem mantida para reenvio quando a campanha for reativada.',
+                                status: MessageStatus.ABORTED,
+                                error: CAMPAIGN_PAUSED_ABORT_ERROR,
                             },
                         });
-                        this.logger.log(`Mensagem ${message.id} mantida como PENDING (campanha inativa)`);
+                        this.logger.log(`Mensagem ${message.id} abortada (campanha inativa)`);
                     }
                 }
 
