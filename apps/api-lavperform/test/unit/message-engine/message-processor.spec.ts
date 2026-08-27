@@ -129,7 +129,7 @@ describe('MessageProcessor', () => {
       automaticCampaignId: null,
     });
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue(null); // triggers error
-    prisma.message.update = jest.fn().mockResolvedValue({});
+    prisma.message.updateMany = jest.fn().mockResolvedValue({ count: 1 });
     prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
 
     await processor.process({
@@ -139,8 +139,8 @@ describe('MessageProcessor', () => {
       },
     } as any);
 
-    expect(prisma.message.update).toHaveBeenCalledWith({
-      where: { id: 'msg1' },
+    expect(prisma.message.updateMany).toHaveBeenCalledWith({
+      where: { id: 'msg1', status: MessageStatus.PROCESSING },
       data: expect.objectContaining({ status: MessageStatus.ERROR, error: expect.any(String) }),
     });
     expect(prisma.campaignMetric.updateMany).toHaveBeenCalledWith({
@@ -151,7 +151,7 @@ describe('MessageProcessor', () => {
 
   it('increments automatic campaign error metrics when media is missing', async () => {
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance' });
-    prisma.message.update = jest.fn().mockResolvedValue({});
+    prisma.message.updateMany = jest.fn().mockResolvedValue({ count: 1 });
     prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
 
     await processor.process({
@@ -170,7 +170,7 @@ describe('MessageProcessor', () => {
   it('handles sendMessage failure with automatic campaign metrics', async () => {
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance' });
     whatsappService.sendMessageWithImage = jest.fn().mockRejectedValue(new Error('send-fail'));
-    prisma.message.update = jest.fn().mockResolvedValue({});
+    prisma.message.updateMany = jest.fn().mockResolvedValue({ count: 1 });
     prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
 
     await processor.process(baseJob as any);
@@ -179,6 +179,21 @@ describe('MessageProcessor', () => {
       where: { automaticCampaignId: 'ac1' },
       data: { messagesError: { increment: 1 } },
     });
+  });
+
+  it('does not mark ERROR or increment metrics when message was aborted before error update', async () => {
+    prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'instance-token' });
+    whatsappService.sendMessageWithImage = jest.fn().mockRejectedValue(new Error('send-fail'));
+    prisma.message.updateMany = jest.fn().mockResolvedValue({ count: 0 });
+    prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
+
+    await processor.process(baseJob);
+
+    expect(prisma.message.updateMany).toHaveBeenCalledWith({
+      where: { id: 'msg1', status: MessageStatus.PROCESSING },
+      data: expect.objectContaining({ status: MessageStatus.ERROR }),
+    });
+    expect(prisma.campaignMetric.updateMany).not.toHaveBeenCalled();
   });
 
   it('aborts message when renitency blocks an automatic campaign message', async () => {

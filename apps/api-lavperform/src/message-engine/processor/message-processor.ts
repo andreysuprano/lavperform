@@ -185,37 +185,7 @@ export class MessageProcessor {
 
             await this.markSentIfStillProcessing(message, customer);
         } catch (error) {
-            await this.prisma.message.update({
-                where: {
-                    id: message.id
-                },
-                data: {
-                    error: extractErrorMessage(error),
-                    status: MessageStatus.ERROR,
-                    updatedAt: new Date()
-                }
-            });
-
-            if (message.automaticCampaignId) {
-                await this.prisma.campaignMetric.updateMany({
-                    where: {
-                        automaticCampaignId: message.automaticCampaignId
-                    },
-                    data: {
-                        messagesError: { increment: 1 },
-                    }
-                });
-            }
-            else {
-                await this.prisma.campaignMetric.updateMany({
-                    where: {
-                        campaignId: message.campaignId,
-                    },
-                    data: {
-                        messagesError: { increment: 1 },
-                    }
-                });
-            }
+            await this.markErrorIfStillProcessing(message, extractErrorMessage(error));
         }
     }
 
@@ -273,15 +243,19 @@ export class MessageProcessor {
         return (wallet?.balanceCents ?? 0) >= smsProduct.priceCents;
     }
 
-    private async abortMessageWithError(message: Message, errorMsg: string): Promise<void> {
-        await this.prisma.message.update({
-            where: { id: message.id },
+    private async markErrorIfStillProcessing(message: Message, errorMsg: string): Promise<boolean> {
+        const result = await this.prisma.message.updateMany({
+            where: { id: message.id, status: MessageStatus.PROCESSING },
             data: {
-                status: MessageStatus.ERROR,
                 error: errorMsg,
+                status: MessageStatus.ERROR,
                 updatedAt: new Date(),
             },
         });
+
+        if (result.count === 0) {
+            return false;
+        }
 
         if (message.automaticCampaignId) {
             await this.prisma.campaignMetric.updateMany({
@@ -294,6 +268,12 @@ export class MessageProcessor {
                 data: { messagesError: { increment: 1 } },
             });
         }
+
+        return true;
+    }
+
+    private async abortMessageWithError(message: Message, errorMsg: string): Promise<void> {
+        await this.markErrorIfStillProcessing(message, errorMsg);
     }
 
     private async sendSmsMessage(
