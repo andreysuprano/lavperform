@@ -1,4 +1,5 @@
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -123,8 +124,26 @@ function LocationFormBase({ data, onChange, branding }: Props) {
 
           <Fieldset.Root>
             <Fieldset.Legend>Unidades / Lojas</Fieldset.Legend>
+            <Fieldset.HelperText>
+              O endereço cadastrado nas configurações da empresa não atualiza a
+              landing. Banner e rodapé também têm campos próprios.
+            </Fieldset.HelperText>
             <Fieldset.Content>
               <Stack gap={4} w="full">
+                <Alert.Root size="sm" status="info" variant="surface">
+                  <Alert.Indicator />
+                  <Alert.Content>
+                    <Alert.Title>Como preencher o mapa</Alert.Title>
+                    <Alert.Description>
+                      Abra o ponto no Google Maps e use Compartilhar. O link
+                      curto (maps.app.goo.gl) vai em URL do mapa e em Link do
+                      Google Maps. A URL de incorporação precisa ser o src do
+                      iframe (começa com maps/embed?pb=), em Incorporar um mapa.
+                      Salve a unidade e depois Salvar alterações no rodapé desta
+                      página.
+                    </Alert.Description>
+                  </Alert.Content>
+                </Alert.Root>
                 <SimpleGrid columns={{ base: 1, sm: 2, lg: 2 }} gap={4} w="full">
                   {locations.map((location, index) => (
                     <Card.Root key={location.id ?? index} w="full">
@@ -251,37 +270,64 @@ function LocationItemForm({ initialData, onSave, onCancel }: LocationItemFormPro
         required
       />
 
-      <Textarea
-        control={control}
-        label="Endereço completo"
-        name="address"
-        placeholder="Digite o endereço completo"
-        required
-        rows={2}
-      />
+      <Stack gap={1}>
+        <Textarea
+          control={control}
+          label="Endereço completo"
+          name="address"
+          placeholder="Digite o endereço completo"
+          required
+          rows={2}
+        />
+        <Text color="fg.muted" fontSize="xs">
+          Use rua, número, bairro e cidade como no Google Maps. Esse texto
+          aparece na landing e é o que o mapa público usa para localizar o
+          ponto.
+        </Text>
+      </Stack>
 
-      <Input
-        control={control}
-        label="URL do mapa (Google Maps)"
-        name="mapUrl"
-        placeholder="https://goo.gl/maps/example"
-      />
+      <Stack gap={1}>
+        <Input
+          control={control}
+          label="URL do mapa (Google Maps)"
+          name="mapUrl"
+          placeholder="https://maps.app.goo.gl/..."
+        />
+        <Text color="fg.muted" fontSize="xs">
+          Opcional. Em Compartilhar, use Copiar link
+          (https://maps.app.goo.gl/...).
+        </Text>
+      </Stack>
 
-      <Input
-        control={control}
-        label="URL de incorporação do mapa"
-        name="mapEmbedUrl"
-        placeholder="https://www.google.com/maps/embed?..."
-        required
-      />
+      <Stack gap={1}>
+        <Input
+          control={control}
+          label="URL de incorporação do mapa"
+          name="mapEmbedUrl"
+          placeholder="https://www.google.com/maps/embed?pb=..."
+          required
+        />
+        <Text color="fg.muted" fontSize="xs">
+          Obrigatório. Em Compartilhar → Incorporar um mapa, copie só o que
+          está em src do iframe. Deve começar com
+          https://www.google.com/maps/embed?pb= — o link curto não funciona
+          neste campo.
+        </Text>
+      </Stack>
 
-      <Input
-        control={control}
-        label="Link do Google Maps"
-        name="googleMapsLink"
-        placeholder="https://goo.gl/maps/example"
-        required
-      />
+      <Stack gap={1}>
+        <Input
+          control={control}
+          label="Link do Google Maps"
+          name="googleMapsLink"
+          placeholder="https://maps.app.goo.gl/..."
+          required
+        />
+        <Text color="fg.muted" fontSize="xs">
+          Obrigatório. Use o mesmo link curto de Copiar link. É o botão Ver
+          no mapa.
+        </Text>
+      </Stack>
 
       <HStack gap={2} justifyContent="flex-end">
         <Button onClick={onCancel} variant="ghost">
