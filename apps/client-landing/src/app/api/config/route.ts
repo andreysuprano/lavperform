@@ -2,10 +2,17 @@ import { NextRequest, NextResponse } from "next/server"
 
 import { normalizeLocationData } from "@/lib/normalize-location"
 
+export const dynamic = "force-dynamic"
+export const revalidate = 0
+
 const API_BASE_URL = process.env.API_BASE_URL || "https://api.lavperform.cloud"
 const COMMON_DOMAIN_RAW = process.env.COMMON_DOMAIN || "lavperform.cloud"
 // Remove a porta do COMMON_DOMAIN para comparação consistente
 const COMMON_DOMAIN = COMMON_DOMAIN_RAW.split(":")[0]
+
+const NO_STORE_HEADERS = {
+  "Cache-Control": "no-store, no-cache, must-revalidate",
+}
 
 /**
  * Extrai o domínio da requisição (sem porta)
@@ -58,8 +65,7 @@ async function fetchLandingPageData(request: NextRequest) {
     headers: {
       "Accept": "*/*",
     },
-    // Cache de 60 segundos para melhor performance
-    next: { revalidate: 60 },
+    cache: "no-store",
   })
   
   if (!response.ok) {
@@ -89,7 +95,7 @@ export async function GET(request: NextRequest) {
     if (data.error) {
       return NextResponse.json(
         { error: data.error, message: data.message },
-        { status: data.status }
+        { status: data.status, headers: NO_STORE_HEADERS }
       )
     }
     
@@ -97,24 +103,27 @@ export async function GET(request: NextRequest) {
     const footerFromApi =
       data.footer && typeof data.footer === 'object' ? data.footer : {}
 
-    return NextResponse.json({
-      ...data,
-      location,
-      footer: {
-        description: '',
-        locationTitle: '',
-        address: location.items[0]?.address ?? '',
-        copyright: '',
-        ...footerFromApi,
+    return NextResponse.json(
+      {
+        ...data,
+        location,
+        footer: {
+          description: '',
+          locationTitle: '',
+          address: location.items[0]?.address ?? '',
+          copyright: '',
+          ...footerFromApi,
+        },
       },
-    })
+      { headers: NO_STORE_HEADERS }
+    )
     
   } catch (error) {
     console.error("Erro ao buscar configuração da landing page:", error)
     
     return NextResponse.json(
       { error: "INTERNAL_ERROR", message: "Erro interno do servidor" },
-      { status: 500 }
+      { status: 500, headers: NO_STORE_HEADERS }
     )
   }
 }
