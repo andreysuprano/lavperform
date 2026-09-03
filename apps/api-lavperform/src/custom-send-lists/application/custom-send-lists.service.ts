@@ -12,6 +12,7 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { formatPhoneNumber } from '../../common/utils/formatters';
+import { buildFreshWhatsappCustomerFilter } from '../../whatsapp/application/whatsapp-verification.policy';
 import { ICustomSendListRepository } from '../domain/custom-send-list.repository.interface';
 import {
   CreateCustomSendListDto,
@@ -211,9 +212,7 @@ export class CustomSendListsService {
     await this.getListOrThrow(companyId, id);
 
     const isSms = channel === CampaignChannel.SMS;
-    const channelFilter = isSms
-      ? {}
-      : { whatsappOptin: true, whatsappVerified: true };
+    const channelFilter = isSms ? {} : buildFreshWhatsappCustomerFilter();
 
     const count = await this.prisma.customer.count({
       where: {

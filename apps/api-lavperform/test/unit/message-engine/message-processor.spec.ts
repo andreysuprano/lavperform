@@ -181,6 +181,28 @@ describe('MessageProcessor', () => {
     });
   });
 
+  it('invalidates customer whatsapp flag on definitive send failure', async () => {
+    prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'tok' });
+    whatsappService.sendMessageWithImage = jest.fn().mockRejectedValue(
+      new Error(
+        'Erro ao enviar mensagem com imagem: the number 5522992519387@s.whatsapp.net is not on WhatsApp',
+      ),
+    );
+    prisma.message.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
+    prisma.customer.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+
+    await processor.process(baseJob as any);
+
+    expect(prisma.customer.updateMany).toHaveBeenCalledWith({
+      where: { id: 'cust1', companyId: 'comp1' },
+      data: {
+        whatsappVerified: false,
+        whatsappVerifiedAt: expect.any(Date),
+      },
+    });
+  });
+
   it('does not mark ERROR or increment metrics when message was aborted before error update', async () => {
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'instance-token' });
     whatsappService.sendMessageWithImage = jest.fn().mockRejectedValue(new Error('send-fail'));

@@ -22,6 +22,7 @@ import {
 import { RenitencyEvaluatorService } from 'src/renitency/application/renitency-evaluator.service';
 import { endOfDayInTz, nowUTC, startOfDayInTz } from 'src/common/utils/date.utils';
 import { extractErrorMessage } from 'src/common/utils/error.utils';
+import { shouldInvalidateWhatsappOnSendError } from 'src/whatsapp/application/whatsapp-verification.policy';
 import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 
 interface MessageProcessorData {
@@ -185,7 +186,9 @@ export class MessageProcessor {
 
             await this.markSentIfStillProcessing(message, customer);
         } catch (error) {
-            await this.markErrorIfStillProcessing(message, extractErrorMessage(error));
+            const errorMsg = extractErrorMessage(error);
+            await this.invalidateWhatsappIfDefinitiveFailure(message, errorMsg);
+            await this.markErrorIfStillProcessing(message, errorMsg);
         }
     }
 
@@ -270,6 +273,29 @@ export class MessageProcessor {
         }
 
         return true;
+    }
+
+    private async invalidateWhatsappIfDefinitiveFailure(
+        message: Message,
+        errorMsg: string,
+    ): Promise<void> {
+        if (
+            message.channel !== CampaignChannel.WHATSAPP_WEB ||
+            !shouldInvalidateWhatsappOnSendError(errorMsg)
+        ) {
+            return;
+        }
+
+        await this.prisma.customer.updateMany({
+            where: {
+                id: message.customerId,
+                companyId: message.companyId,
+            },
+            data: {
+                whatsappVerified: false,
+                whatsappVerifiedAt: new Date(),
+            },
+        });
     }
 
     private async abortMessageWithError(message: Message, errorMsg: string): Promise<void> {

@@ -10,6 +10,7 @@ import { CampaignChannelStrategyFactory } from '../strategies/campaign-channel-s
 import { RenitencyEvaluatorService } from '../../../renitency/application/renitency-evaluator.service';
 import { resolveSendTimeWindow } from '../../application/campaign-send-schedule.utils';
 import { CampaignCustomerResolverService } from '../../../audiences/application/campaign-customer-resolver.service';
+import { CustomersService } from '../../../customers/application/customers.service';
 
 
 @Processor(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
@@ -21,6 +22,7 @@ export class AutomaticCampaignsProcessor {
     private readonly strategyFactory: CampaignChannelStrategyFactory,
     private readonly renitencyEvaluator: RenitencyEvaluatorService,
     private readonly campaignCustomerResolver: CampaignCustomerResolverService,
+    private readonly customersService: CustomersService,
   ) { }
 
   @Process({ name: QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE, concurrency: 20 })
@@ -109,6 +111,10 @@ export class AutomaticCampaignsProcessor {
       this.logger.log(
         `Campanha ${automaticCampaignId}: ${alreadyScheduledToday} agendadas hoje (PENDING/PROCESSING/SENT), ${remainingSlots} slots disponíveis`,
       );
+
+      if (this.shouldRevalidateWhatsappBeforeSend(campaign.channel)) {
+        await this.customersService.enqueueStaleWhatsappValidationForCompany(campaign.companyId);
+      }
 
       const isSmsChannel = campaign.channel === CampaignChannel.SMS;
 
@@ -218,5 +224,12 @@ export class AutomaticCampaignsProcessor {
       where: { id: automaticCampaignId },
       data: { lastProcessedAt: nowUTC() },
     });
+  }
+
+  private shouldRevalidateWhatsappBeforeSend(channel: CampaignChannel): boolean {
+    return (
+      channel === CampaignChannel.WHATSAPP_WEB ||
+      channel === CampaignChannel.WHATSAPP_BUSINESS_API
+    );
   }
 }
