@@ -546,6 +546,43 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         );
     }
 
+    async findStaleWhatsappValidationCandidates(
+        companyId: string,
+        cutoff: Date,
+        skip: number,
+        take: number,
+    ): Promise<Array<{ id: string; phone: string; companyId: string }>> {
+        const rows = await this.prisma.customer.findMany({
+            where: {
+                companyId,
+                whatsappVerified: true,
+                phone: { not: null },
+                NOT: {
+                    phone: {
+                        startsWith: 'cpf:',
+                    },
+                },
+                OR: [
+                    { whatsappVerifiedAt: null },
+                    { whatsappVerifiedAt: { lt: cutoff } },
+                ],
+            },
+            orderBy: { whatsappVerifiedAt: 'asc' },
+            skip,
+            take,
+            select: {
+                id: true,
+                phone: true,
+                companyId: true,
+            },
+        });
+
+        return rows.filter(
+            (row): row is { id: string; phone: string; companyId: string } =>
+                typeof row.phone === 'string' && row.phone.length > 0,
+        );
+    }
+
     async getTopBuyers(
         companyId: string,
         options: {

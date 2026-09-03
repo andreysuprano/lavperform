@@ -1,5 +1,6 @@
 import { BadRequestException, ConflictException, NotFoundException } from '@nestjs/common';
 import { CampaignChannel } from '@prisma/client';
+import { getWhatsappVerificationCutoff } from '../../whatsapp/application/whatsapp-verification.policy';
 import { CustomSendListsService } from './custom-send-lists.service';
 
 describe('CustomSendListsService', () => {
@@ -195,6 +196,9 @@ describe('CustomSendListsService', () => {
   });
 
   it('returns eligible count with channel filters', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-09-03T12:00:00.000Z'));
+
     repository.findById.mockResolvedValue({
       id: 'list-1',
       companyId: 'company-1',
@@ -214,9 +218,14 @@ describe('CustomSendListsService', () => {
         companyId: 'company-1',
         whatsappOptin: true,
         whatsappVerified: true,
+        whatsappVerifiedAt: {
+          gte: getWhatsappVerificationCutoff(new Date('2026-09-03T12:00:00.000Z')),
+        },
         customSendListMembers: { some: { listId: 'list-1' } },
       },
     });
+
+    jest.useRealTimers();
   });
 
   it('returns every member id without pagination limits', async () => {

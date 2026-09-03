@@ -21,6 +21,7 @@ export interface ICustomerRepository extends IRepository<Customer> {
     getLastOrdersByCustomer(customerId: string): Promise<Order[]>;
     getLastMessagesSentToCustomer(customerId: string, pagination?: PaginationDto): Promise<{ data: Message[]; total: number; page: number; limit: number }>;
     findWhatsappValidationCandidates(companyId: string, skip: number, take: number): Promise<Array<{ id: string; phone: string; companyId: string }>>;
+    findStaleWhatsappValidationCandidates(companyId: string, cutoff: Date, skip: number, take: number): Promise<Array<{ id: string; phone: string; companyId: string }>>;
     findTopBuyers(
         companyId: string,
         limit?: number,

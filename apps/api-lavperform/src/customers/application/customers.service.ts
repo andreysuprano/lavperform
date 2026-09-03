@@ -7,6 +7,10 @@ import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { UpdateCustomerDto } from './dto/update-customer.dto';
 import { formatPhoneNumber } from '../../common/utils/formatters';
+import {
+  buildWhatsappValidationJobId,
+  getWhatsappVerificationCutoff,
+} from '../../whatsapp/application/whatsapp-verification.policy';
 import { normalizeCpfDigits } from './customer-identifier';
 import {
   ALL_RFV_CLASSIFICATIONS,
@@ -184,8 +188,17 @@ export class CustomersService {
       }
     }
 
+    const phoneChanged =
+      updateCustomerDto.phone !== undefined &&
+      updateCustomerDto.phone !== customer.phone;
+
     const { address, ...customerData } = updateCustomerDto;
     const data: any = { ...customerData };
+
+    if (phoneChanged) {
+      data.whatsappVerified = false;
+      data.whatsappVerifiedAt = null;
+    }
 
     if (customerData.birthDate) {
       data.birthDate = new Date(customerData.birthDate);
@@ -195,9 +208,45 @@ export class CustomersService {
     }
 
     if (address) {
-      return await this.customerRepository.updateWithAddress(id, data, address);
-    } else {
-      return await this.customerRepository.update(id, data);
+      const updatedCustomer = await this.customerRepository.updateWithAddress(id, data, address);
+      await this.enqueueWhatsappValidationAfterPhoneChange(updatedCustomer.id, companyId, updatedCustomer.phone, phoneChanged);
+      return updatedCustomer;
+    }
+
+    const updatedCustomer = await this.customerRepository.update(id, data);
+    await this.enqueueWhatsappValidationAfterPhoneChange(updatedCustomer.id, companyId, updatedCustomer.phone, phoneChanged);
+    return updatedCustomer;
+  }
+
+  private async enqueueWhatsappValidationAfterPhoneChange(
+    customerId: string,
+    companyId: string,
+    phone: string | null | undefined,
+    phoneChanged: boolean,
+  ): Promise<void> {
+    if (!phoneChanged || !phone || phone.startsWith('cpf:')) {
+      return;
+    }
+
+    try {
+      await this.whatsappValidationQueue.add(
+        'validate',
+        {
+          customerId,
+          companyId,
+          phone,
+        },
+        {
+          jobId: buildWhatsappValidationJobId(customerId, phone),
+          removeOnComplete: true,
+        },
+      );
+    } catch (queueError: any) {
+      this.logger.error(
+        `Erro ao enfileirar validação de WhatsApp após troca de telefone customerId=${customerId}: ${
+          queueError?.message || queueError
+        }`,
+      );
     }
   }
 
@@ -423,6 +472,10 @@ export class CustomersService {
             companyId: customer.companyId,
             phone: customer.phone,
           },
+          opts: {
+            jobId: buildWhatsappValidationJobId(customer.id, customer.phone),
+            removeOnComplete: true,
+          },
         })),
       );
 
@@ -432,6 +485,64 @@ export class CustomersService {
 
     return {
       message: 'Validação de WhatsApp enfileirada com sucesso',
+      companyId,
+      totalEnqueued,
+    };
+  }
+
+  async enqueueStaleWhatsappValidationForCompany(
+    companyId: string,
+    options: { limit?: number } = {},
+  ) {
+    const batchSize = 500;
+    const maxToEnqueue = options.limit ?? batchSize;
+    const cutoff = getWhatsappVerificationCutoff();
+    let skip = 0;
+    let totalEnqueued = 0;
+
+    while (totalEnqueued < maxToEnqueue) {
+      const take = Math.min(batchSize, maxToEnqueue - totalEnqueued);
+      const customers = await this.customerRepository.findStaleWhatsappValidationCandidates(
+        companyId,
+        cutoff,
+        skip,
+        take,
+      );
+
+      if (!customers.length) {
+        break;
+      }
+
+      await this.whatsappValidationQueue.addBulk(
+        customers.map((customer) => ({
+          name: 'validate',
+          data: {
+            customerId: customer.id,
+            companyId: customer.companyId,
+            phone: customer.phone,
+          },
+          opts: {
+            jobId: buildWhatsappValidationJobId(customer.id, customer.phone),
+            removeOnComplete: true,
+          },
+        })),
+      );
+
+      totalEnqueued += customers.length;
+      skip += customers.length;
+
+      if (customers.length < take) {
+        break;
+      }
+    }
+
+    if (totalEnqueued > 0) {
+      this.logger.log(
+        `Revalidação WhatsApp enfileirada para empresa ${companyId}: ${totalEnqueued} cliente(s) com validação expirada`,
+      );
+    }
+
+    return {
       companyId,
       totalEnqueued,
     };

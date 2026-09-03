@@ -23,6 +23,7 @@ const mockCustomerRepository = {
   countLeadsByCompany: jest.fn(),
   getTopBuyers: jest.fn(),
   findWhatsappValidationCandidates: jest.fn(),
+  findStaleWhatsappValidationCandidates: jest.fn(),
 };
 
 const mockQueue = {
@@ -149,6 +150,42 @@ describe('CustomersService', () => {
       mockCustomerRepository.findById.mockResolvedValue(null);
 
       await expect(service.update(companyId, customerId, updateDto)).rejects.toThrow(NotFoundException);
+    });
+
+    it('resets whatsapp verification and enqueues validation when phone changes', async () => {
+      mockCustomerRepository.findById.mockResolvedValue({
+        id: customerId,
+        companyId,
+        phone: '5511999999999',
+      });
+      mockCustomerRepository.findByPhone.mockResolvedValue(null);
+      mockCustomerRepository.update.mockResolvedValue({
+        id: customerId,
+        companyId,
+        phone: '5511888888888',
+      });
+
+      await service.update(companyId, customerId, { phone: '5511888888888' });
+
+      expect(mockCustomerRepository.update).toHaveBeenCalledWith(
+        customerId,
+        expect.objectContaining({
+          phone: '5511888888888',
+          whatsappVerified: false,
+          whatsappVerifiedAt: null,
+        }),
+      );
+      expect(mockWhatsappValidationQueue.add).toHaveBeenCalledWith(
+        'validate',
+        {
+          customerId,
+          companyId,
+          phone: '5511888888888',
+        },
+        expect.objectContaining({
+          jobId: 'validate-cust-1-5511888888888',
+        }),
+      );
     });
   });
 

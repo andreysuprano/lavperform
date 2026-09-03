@@ -1,8 +1,10 @@
 import { NotFoundException } from '@nestjs/common';
 import { AudienceTargetingMode, CampaignChannel } from '@prisma/client';
+import { getWhatsappVerificationCutoff } from '../../whatsapp/application/whatsapp-verification.policy';
 import { CampaignCustomerResolverService } from './campaign-customer-resolver.service';
 
 describe('CampaignCustomerResolverService', () => {
+  const fixedNow = new Date('2026-09-03T12:00:00.000Z');
   const prisma = {
     audience: { findFirst: jest.fn() },
     customSendList: { findFirst: jest.fn() },
@@ -17,8 +19,14 @@ describe('CampaignCustomerResolverService', () => {
   let resolver: CampaignCustomerResolverService;
 
   beforeEach(() => {
+    jest.useFakeTimers();
+    jest.setSystemTime(fixedNow);
     jest.clearAllMocks();
     resolver = new CampaignCustomerResolverService(prisma, audienceQueryEngine);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it('resolves RFV customers with whatsapp filters', async () => {
@@ -38,6 +46,9 @@ describe('CampaignCustomerResolverService', () => {
           companyId: 'company-1',
           whatsappOptin: true,
           whatsappVerified: true,
+          whatsappVerifiedAt: {
+            gte: getWhatsappVerificationCutoff(fixedNow),
+          },
           rfvClassification: { in: ['campeao', 'fiel'] },
         }),
       }),
@@ -133,6 +144,7 @@ describe('CampaignCustomerResolverService', () => {
     const where = prisma.customer.findMany.mock.calls[0][0].where;
     expect(where.whatsappOptin).toBeUndefined();
     expect(where.whatsappVerified).toBeUndefined();
+    expect(where.whatsappVerifiedAt).toBeUndefined();
   });
 
   it('throws when CUSTOMER_LIST is not found', async () => {

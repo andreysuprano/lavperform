@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { AudienceTargetingMode, CampaignChannel, Customer, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CAMPAIGN_CUSTOMER_ORDER_BY } from '../../common/utils/campaign-customer-order.utils';
+import { buildFreshWhatsappCustomerFilter } from '../../whatsapp/application/whatsapp-verification.policy';
 import { AudienceQueryEngine } from './audience-query.engine';
 import { AudienceDefinition } from '../domain/audience-definition.types';
 
@@ -26,7 +27,7 @@ export class CampaignCustomerResolverService {
     const isSms = params.channel === CampaignChannel.SMS;
     const channelFilter: Prisma.CustomerWhereInput = isSms
       ? {}
-      : { whatsappOptin: true, whatsappVerified: true };
+      : buildFreshWhatsappCustomerFilter();
 
     let customerIds: string[] | null = null;
 
