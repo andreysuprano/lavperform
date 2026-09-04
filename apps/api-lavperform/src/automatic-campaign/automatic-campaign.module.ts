@@ -24,6 +24,7 @@ import { AudiencesModule } from '../audiences/audiences.module';
 import { CustomSendListsModule } from '../custom-send-lists/custom-send-lists.module';
 import { CustomersModule } from '../customers/customers.module';
 import { MessageCostModule } from '../message-engine/pricing/message-cost.module';
+import { AutomaticMessageDailyGuardModule } from './automatic-message-daily-guard.module';
 
 @Module({
   imports: [
@@ -34,6 +35,7 @@ import { MessageCostModule } from '../message-engine/pricing/message-cost.module
     CustomSendListsModule,
     CustomersModule,
     MessageCostModule,
+    AutomaticMessageDailyGuardModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE,
       defaultJobOptions: {

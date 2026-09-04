@@ -11,6 +11,7 @@ import { RenitencyEvaluatorService } from '../../../renitency/application/renite
 import { resolveSendTimeWindow } from '../../application/campaign-send-schedule.utils';
 import { CampaignCustomerResolverService } from '../../../audiences/application/campaign-customer-resolver.service';
 import { CustomersService } from '../../../customers/application/customers.service';
+import { AutomaticMessageDailyGuardService } from '../../application/automatic-message-daily-guard.service';
 
 
 @Processor(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
@@ -23,6 +24,7 @@ export class AutomaticCampaignsProcessor {
     private readonly renitencyEvaluator: RenitencyEvaluatorService,
     private readonly campaignCustomerResolver: CampaignCustomerResolverService,
     private readonly customersService: CustomersService,
+    private readonly dailyGuard: AutomaticMessageDailyGuardService,
   ) { }
 
   @Process({ name: QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE, concurrency: 20 })
@@ -137,6 +139,11 @@ export class AutomaticCampaignsProcessor {
         take: remainingSlots * 5,
       });
 
+      const dailySnapshot = await this.dailyGuard.loadDailySnapshot({
+        companyId: campaign.companyId,
+        now,
+      });
+
       const customers: typeof candidates = [];
       for (const candidate of candidates) {
         const { allowed } = await this.renitencyEvaluator.canContactCustomer({
@@ -145,10 +152,21 @@ export class AutomaticCampaignsProcessor {
           channel: campaign.channel,
           automaticCampaignId: campaign.id,
         });
-        if (allowed) {
-          customers.push(candidate);
-          if (customers.length >= remainingSlots) break;
+        if (!allowed) {
+          continue;
         }
+
+        const dailyReservation = dailySnapshot.tryReserve({
+          id: `candidate:${candidate.id}`,
+          customerId: candidate.id,
+          phone: candidate.phone,
+        });
+        if (!dailyReservation.allowed) {
+          continue;
+        }
+
+        customers.push(candidate);
+        if (customers.length >= remainingSlots) break;
       }
 
       this.logger.log(`Encontrados ${customers.length} clientes elegíveis (de ${candidates.length} candidatos) para a campanha ${campaign.id}`);

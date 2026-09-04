@@ -20,10 +20,10 @@ import {
     CreditsConsumeRequestedPayload,
 } from 'src/credits/domain/credits.events';
 import { RenitencyEvaluatorService } from 'src/renitency/application/renitency-evaluator.service';
-import { endOfDayInTz, nowUTC, startOfDayInTz } from 'src/common/utils/date.utils';
 import { extractErrorMessage } from 'src/common/utils/error.utils';
 import { shouldInvalidateWhatsappOnSendError } from 'src/whatsapp/application/whatsapp-verification.policy';
 import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
+import { AutomaticMessageDailyGuardService } from 'src/automatic-campaign/application/automatic-message-daily-guard.service';
 
 interface MessageProcessorData {
     message: Message;
@@ -41,6 +41,7 @@ export class MessageProcessor {
         private readonly whatsappService: WhatsappService,
         private readonly eventEmitter: EventEmitter2,
         private readonly renitencyEvaluator: RenitencyEvaluatorService,
+        private readonly dailyGuard: AutomaticMessageDailyGuardService,
         @Optional()
         private readonly metaMessagingService?: MetaMessagingService,
         @Optional()
@@ -78,6 +79,13 @@ export class MessageProcessor {
             }
         }
 
+        if (fresh.automaticCampaignId) {
+            const claim = await this.dailyGuard.claimForProcessing(message.id);
+            if (!claim.allowed) {
+                return;
+            }
+        }
+
         if (this.renitencyEvaluator.shouldApplyRenitency(message)) {
             const check = await this.renitencyEvaluator.canContactCustomer({
                 companyId: message.companyId,
@@ -88,44 +96,6 @@ export class MessageProcessor {
                 weatherAlertHistoryId: message.weatherAlertHistoryId,
             });
             if (!check.allowed) {
-                const now = nowUTC();
-                const startOfToday = startOfDayInTz(now);
-                const endOfToday = endOfDayInTz(now);
-
-                const duplicateForSameCampaign = message.automaticCampaignId
-                    ? await this.prisma.message.findFirst({
-                        where: {
-                            id: { not: message.id },
-                            automaticCampaignId: message.automaticCampaignId,
-                            customerId: message.customerId,
-                            createdAt: { gte: startOfToday, lte: endOfToday },
-                            status: {
-                                in: [
-                                    MessageStatus.SENT,
-                                    MessageStatus.PROCESSING,
-                                    MessageStatus.PENDING,
-                                ],
-                            },
-                        },
-                        select: { id: true },
-                    })
-                    : null;
-
-                if (duplicateForSameCampaign) {
-                    this.logger.warn(
-                        `Mensagem ${message.id} abortada por duplicidade na campanha ${message.automaticCampaignId}`,
-                    );
-                    await this.prisma.message.update({
-                        where: { id: message.id },
-                        data: {
-                            status: MessageStatus.ABORTED,
-                            error: 'Mensagem duplicada para o mesmo cliente na campanha hoje',
-                            updatedAt: new Date(),
-                        },
-                    });
-                    return;
-                }
-
                 if (check.nextEligibleAt) {
                     this.logger.warn(
                         `Mensagem ${message.id} reagendada por renitência para ${check.nextEligibleAt.toISOString()}: ${check.reason}`,
