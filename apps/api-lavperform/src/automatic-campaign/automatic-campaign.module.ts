@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { AutomaticCampaignService } from './application/automatic-campaign.service';
+import { AutomaticCampaignReachService } from './application/automatic-campaign-reach.service';
 import { AutomaticCampaignController } from './presentation/automatic-campaign.controller';
 import { AutomaticCampaignTasks } from './crons/automatic-campaign-tasks';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
@@ -56,6 +57,7 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
   controllers: [AutomaticCampaignController],
   providers: [
     AutomaticCampaignService,
+    AutomaticCampaignReachService,
     OpenAIService,
     CampaignChannelStrategyFactory,
     WhatsappWebStrategy,
