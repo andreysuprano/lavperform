@@ -11,7 +11,10 @@ import { RenitencyEvaluatorService } from '../../../renitency/application/renite
 import { resolveSendTimeWindow } from '../../application/campaign-send-schedule.utils';
 import { CampaignCustomerResolverService } from '../../../audiences/application/campaign-customer-resolver.service';
 import { CustomersService } from '../../../customers/application/customers.service';
+import { WhatsappService } from '../../../whatsapp/application/whatsapp.service';
+import { isWhatsappVerificationFresh } from '../../../whatsapp/application/whatsapp-verification.policy';
 
+const MAX_WHATSAPP_VALIDATIONS_PER_RUN = 30;
 
 @Processor(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
 export class AutomaticCampaignsProcessor {
@@ -23,6 +26,7 @@ export class AutomaticCampaignsProcessor {
     private readonly renitencyEvaluator: RenitencyEvaluatorService,
     private readonly campaignCustomerResolver: CampaignCustomerResolverService,
     private readonly customersService: CustomersService,
+    private readonly whatsappService: WhatsappService,
   ) { }
 
   @Process({ name: QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE, concurrency: 20 })
@@ -112,12 +116,26 @@ export class AutomaticCampaignsProcessor {
         `Campanha ${automaticCampaignId}: ${alreadyScheduledToday} agendadas hoje (PENDING/PROCESSING/SENT), ${remainingSlots} slots disponíveis`,
       );
 
-      if (this.shouldRevalidateWhatsappBeforeSend(campaign.channel)) {
-        await this.customersService.enqueueStaleWhatsappValidationForCompany(campaign.companyId);
-      }
+      const isWhatsappChannel = this.shouldRevalidateWhatsappBeforeSend(campaign.channel);
 
-      const isSmsChannel = campaign.channel === CampaignChannel.SMS;
+      // Clientes que já receberam mensagem desta campanha hoje ficam fora da
+      // amostra: um retry no mesmo dia deve alcançar quem ainda não foi contatado.
+      const messagedToday = await this.prisma.message.findMany({
+        where: {
+          automaticCampaignId: automaticCampaignId,
+          status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING, MessageStatus.SENT] },
+          createdAt: {
+            gte: startOfToday,
+            lte: endOfToday,
+          },
+        },
+        select: { customerId: true },
+        distinct: ['customerId'],
+      });
 
+      const excludeCustomerIds = messagedToday.map((message) => message.customerId);
+
+      // Métrica de alcance da audiência: não considera slots nem exclusões do dia.
       const totalCustomers = await this.campaignCustomerResolver.countEligibleCustomers({
         companyId: campaign.companyId,
         targetingMode: campaign.targetingMode,
@@ -125,7 +143,10 @@ export class AutomaticCampaignsProcessor {
         audienceId: campaign.audienceId,
         customSendListId: campaign.customSendListId,
         channel: campaign.channel,
+        eligibility: 'contactable',
       });
+
+      const requestedTake = remainingSlots * 5;
 
       const candidates = await this.campaignCustomerResolver.resolveCustomers({
         companyId: campaign.companyId,
@@ -134,10 +155,14 @@ export class AutomaticCampaignsProcessor {
         audienceId: campaign.audienceId,
         customSendListId: campaign.customSendListId,
         channel: campaign.channel,
-        take: remainingSlots * 5,
+        eligibility: 'contactable',
+        excludeCustomerIds,
+        take: requestedTake,
       });
 
-      const customers: typeof candidates = [];
+      const readyCustomers: typeof candidates = [];
+      const staleCustomers: { customer: (typeof candidates)[number]; phone: string }[] = [];
+
       for (const candidate of candidates) {
         const { allowed } = await this.renitencyEvaluator.canContactCustomer({
           companyId: campaign.companyId,
@@ -145,13 +170,76 @@ export class AutomaticCampaignsProcessor {
           channel: campaign.channel,
           automaticCampaignId: campaign.id,
         });
-        if (allowed) {
-          customers.push(candidate);
+
+        if (!allowed) continue;
+
+        if (isWhatsappChannel && !isWhatsappVerificationFresh(candidate.whatsappVerifiedAt, now)) {
+          if (candidate.phone) {
+            staleCustomers.push({ customer: candidate, phone: candidate.phone });
+          }
+          continue;
+        }
+
+        readyCustomers.push(candidate);
+
+        // Só encerra cedo quando os frescos já preenchem os slots — do contrário
+        // precisamos conhecer todos os stale disponíveis para revalidar.
+        if (readyCustomers.length >= remainingSlots) break;
+      }
+
+      const customers = readyCustomers.slice(0, remainingSlots);
+
+      let validationChecks = 0;
+      let validationFailures = 0;
+
+      if (isWhatsappChannel) {
+        // Sequencial de propósito: uma validação por vez para não saturar as
+        // instâncias do pool de checagem.
+        for (const { customer, phone } of staleCustomers) {
           if (customers.length >= remainingSlots) break;
+          if (validationChecks >= MAX_WHATSAPP_VALIDATIONS_PER_RUN) break;
+
+          validationChecks++;
+
+          try {
+            const isReachable = await this.whatsappService.validateAndPersistCustomerWhatsapp(
+              customer.id,
+              phone,
+            );
+
+            if (isReachable) {
+              customers.push(customer);
+            }
+          } catch (error) {
+            // Falha transitória (ex: instância fora do ar) não invalida o cliente
+            // nem derruba a campanha: deixamos para a próxima execução.
+            validationFailures++;
+            this.logger.warn(
+              `Campanha ${campaign.id}: falha ao revalidar WhatsApp do cliente ${customer.id}: ${extractErrorMessage(error)}`,
+            );
+          }
         }
       }
 
-      this.logger.log(`Encontrados ${customers.length} clientes elegíveis (de ${candidates.length} candidatos) para a campanha ${campaign.id}`);
+      const staleNotAttempted = staleCustomers.length - validationChecks;
+      // Amostra cheia: existem contactáveis além dela, então ter esgotado os stale
+      // desta amostra não significa que não há mais nada para revalidar.
+      const sampleTruncated = candidates.length >= requestedTake;
+
+      const revalidationPending =
+        staleNotAttempted > 0 ||
+        validationFailures > 0 ||
+        (sampleTruncated && validationChecks > 0);
+
+      // Execução conclusiva = não há mais nada a revalidar hoje para esta campanha.
+      const isConclusiveRun =
+        !isWhatsappChannel ||
+        customers.length >= remainingSlots ||
+        !revalidationPending;
+
+      this.logger.log(
+        `Encontrados ${customers.length} clientes elegíveis (de ${candidates.length} candidatos, ${validationChecks} revalidações WhatsApp) para a campanha ${campaign.id}`,
+      );
 
       const strategy = this.strategyFactory.get(campaign.channel);
       await strategy.generateMessages({
@@ -170,10 +258,30 @@ export class AutomaticCampaignsProcessor {
         }
       });
 
+      if (isWhatsappChannel) {
+        // Warmup depois da validação síncrona: quem acabou de ser revalidado já
+        // não entra na fila. Só enfileira, sem aguardar os jobs.
+        try {
+          await this.customersService.enqueueStaleWhatsappValidationForCompany(campaign.companyId);
+        } catch (error) {
+          this.logger.warn(
+            `Campanha ${campaign.id}: falha ao enfileirar revalidação em background: ${extractErrorMessage(error)}`,
+          );
+        }
+      }
+
+      if (!isConclusiveRun) {
+        this.logger.log(
+          `Campanha ${campaign.id}: execução inconclusiva (${staleNotAttempted} stale não tentados, ${validationFailures} falhas de validação) — lastProcessedAt não será marcado para permitir retry no mesmo dia`,
+        );
+      }
+
+      // As mensagens criadas agora entram no contador diário da próxima execução,
+      // então o retry não duplica envios.
       await this.prisma.automaticCampaign.update({
         where: { id: campaign.id },
         data: {
-          lastProcessedAt: nowUTC(),
+          ...(isConclusiveRun ? { lastProcessedAt: nowUTC() } : {}),
           lastProcessingError: null,
           lastProcessingErrorAt: null,
           ...(campaign.status === AutomaticCampaignStatus.PROCESSING

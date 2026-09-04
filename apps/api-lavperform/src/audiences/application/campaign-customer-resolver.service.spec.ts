@@ -17,16 +17,26 @@ describe('CampaignCustomerResolverService', () => {
   } as any;
 
   let resolver: CampaignCustomerResolverService;
+  const originalTtl = process.env.WHATSAPP_VERIFICATION_TTL_DAYS;
 
   beforeEach(() => {
     jest.useFakeTimers();
     jest.setSystemTime(fixedNow);
     jest.clearAllMocks();
+    process.env.WHATSAPP_VERIFICATION_TTL_DAYS = '30';
     resolver = new CampaignCustomerResolverService(prisma, audienceQueryEngine);
   });
 
   afterEach(() => {
     jest.useRealTimers();
+  });
+
+  afterAll(() => {
+    if (originalTtl === undefined) {
+      delete process.env.WHATSAPP_VERIFICATION_TTL_DAYS;
+    } else {
+      process.env.WHATSAPP_VERIFICATION_TTL_DAYS = originalTtl;
+    }
   });
 
   it('resolves RFV customers with whatsapp filters', async () => {
@@ -278,6 +288,56 @@ describe('CampaignCustomerResolverService', () => {
         ],
       }),
     );
+  });
+
+  it('excludes customers by id when excludeCustomerIds is provided', async () => {
+    prisma.customer.findMany.mockResolvedValue([{ id: 'c1' }]);
+
+    await resolver.resolveCustomers({
+      companyId: 'company-1',
+      targetingMode: AudienceTargetingMode.RFV,
+      channel: CampaignChannel.WHATSAPP_WEB,
+      excludeCustomerIds: ['blocked-1', 'blocked-2'],
+    });
+
+    expect(prisma.customer.findMany.mock.calls[0][0].where.id).toEqual({
+      notIn: ['blocked-1', 'blocked-2'],
+    });
+  });
+
+  it('combines audience ids with excludeCustomerIds in a single id filter', async () => {
+    prisma.audience.findFirst.mockResolvedValue({
+      id: 'aud-1',
+      definition: { version: 1, include: { operator: 'AND', rules: [] } },
+    });
+    audienceQueryEngine.resolveCustomerIds.mockResolvedValue(['c1', 'c2', 'c3']);
+    prisma.customer.findMany.mockResolvedValue([{ id: 'c2' }]);
+
+    await resolver.resolveCustomers({
+      companyId: 'company-1',
+      targetingMode: AudienceTargetingMode.AUDIENCE,
+      audienceId: 'aud-1',
+      channel: CampaignChannel.WHATSAPP_WEB,
+      excludeCustomerIds: ['c1'],
+    });
+
+    expect(prisma.customer.findMany.mock.calls[0][0].where.id).toEqual({
+      in: ['c1', 'c2', 'c3'],
+      notIn: ['c1'],
+    });
+  });
+
+  it('ignores an empty excludeCustomerIds list', async () => {
+    prisma.customer.findMany.mockResolvedValue([{ id: 'c1' }]);
+
+    await resolver.resolveCustomers({
+      companyId: 'company-1',
+      targetingMode: AudienceTargetingMode.RFV,
+      channel: CampaignChannel.WHATSAPP_WEB,
+      excludeCustomerIds: [],
+    });
+
+    expect(prisma.customer.findMany.mock.calls[0][0].where.id).toBeUndefined();
   });
 
   it('counts eligible customers via prisma.customer.count with shared where', async () => {

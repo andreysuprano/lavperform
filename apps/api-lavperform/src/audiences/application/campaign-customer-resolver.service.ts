@@ -14,6 +14,7 @@ export interface ResolveCampaignCustomersParams {
   customSendListId?: string | null;
   channel?: CampaignChannel;
   eligibility?: 'fresh' | 'contactable';
+  excludeCustomerIds?: string[];
   take?: number;
 }
 
@@ -75,7 +76,7 @@ export class CampaignCustomerResolverService {
     return {
       companyId: params.companyId,
       ...this.buildChannelFilter(params.channel, params.eligibility),
-      ...(customerIds !== null ? { id: { in: customerIds.length ? customerIds : ['__none__'] } } : {}),
+      ...this.buildIdFilter(customerIds, params.excludeCustomerIds),
       ...(params.targetingMode === AudienceTargetingMode.RFV && params.segmentation
         ? {
             rfvClassification: {
@@ -84,6 +85,23 @@ export class CampaignCustomerResolverService {
           }
         : {}),
     };
+  }
+
+  private buildIdFilter(
+    customerIds: string[] | null,
+    excludeCustomerIds?: string[],
+  ): Prisma.CustomerWhereInput {
+    const id: Prisma.StringFilter = {};
+
+    if (customerIds !== null) {
+      id.in = customerIds.length ? customerIds : ['__none__'];
+    }
+
+    if (excludeCustomerIds?.length) {
+      id.notIn = excludeCustomerIds;
+    }
+
+    return Object.keys(id).length ? { id } : {};
   }
 
   private buildChannelFilter(
