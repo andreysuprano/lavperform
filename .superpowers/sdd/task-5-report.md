@@ -33,7 +33,7 @@ npx jest --runInBand --runTestsByPath test/unit/automatic-campaign/automatic-mes
 ```text
 PASS test/unit/automatic-campaign/automatic-message-daily-guard.service.spec.ts
 Test Suites: 1 passed, 1 total
-Tests:       9 passed, 9 total
+Tests:       13 passed, 13 total
 ```
 
 ### RED integração
@@ -67,7 +67,7 @@ npm run test:integration -- --runTestsByPath test/integration/automatic-campaign
 ```text
 PASS test/integration/automatic-campaigns/automatic-message-daily-guard.integration.spec.ts
 Test Suites: 1 passed, 1 total
-Tests:       1 passed, 1 total
+Tests:       2 passed, 2 total
 ```
 
 O teste usa PostgreSQL 15 real via Testcontainers, duas mensagens `PROCESSING`, clientes diferentes, telefones equivalentes em formatos distintos e `Promise.all`. O resultado observado é exatamente um `allowed: true` e uma mensagem `ABORTED`.
@@ -108,7 +108,7 @@ All matched files use Prettier code style!
 - As chaves de advisory lock incluem empresa, dia, tipo da identidade e valor; todas são ordenadas antes da aquisição para evitar inversões entre workers.
 - O lock é transacional (`pg_advisory_xact_lock`) e consultado com `$queryRaw`; `::text` evita a desserialização de `void` no adapter `@prisma/adapter-pg`.
 - A precedência é determinística por `(createdAt, id)`. Somente candidatos estritamente anteriores podem bloquear.
-- Ao encontrar bloqueador, o update para `ABORTED` é condicionado ao estado atual `PROCESSING` e registra `DAILY_AUTOMATIC_DUPLICATE_ERROR`.
+- Ao encontrar bloqueador, o update para `ABORTED` é condicionado atomicamente aos estados atuais `PENDING` ou `PROCESSING` e registra `DAILY_AUTOMATIC_DUPLICATE_ERROR`.
 
 ## Self-review
 
@@ -121,7 +121,8 @@ All matched files use Prettier code style!
 ## Commits
 
 - `633f6fa` — `feat: add atomic daily automatic message guard`
-- O relatório é versionado em commit documental subsequente.
+- `ee3947e` — `docs: report task 5 daily guard`
+- `1b5c18b` — `fix: harden automatic daily message guard`
 
 ## Preocupações
 
@@ -129,3 +130,101 @@ All matched files use Prettier code style!
 - O runner de integração continua imprimindo o aviso preexistente de `--forceExit`/handles abertos.
 - O hash advisory de 64 bits (`hashtextextended`) admite colisão teórica extremamente improvável; uma colisão apenas serializaria identidades não relacionadas, sem permitir duplicidade.
 - O guard só terá efeito no fluxo produtivo depois da integração prevista na Task 6.
+
+## Revisão bloqueante — correções Alto/Médio
+
+### RED
+
+Os testes foram ampliados antes das correções de produção:
+
+```bash
+npx jest --runInBand --runTestsByPath test/unit/automatic-campaign/automatic-message-daily-guard.service.spec.ts
+```
+
+Primeiro RED:
+
+```text
+TS2339: Property 'loadDailySnapshot' does not exist on type
+'AutomaticMessageDailyGuardService'.
+Test Suites: 1 failed, 1 total
+```
+
+Após criar a API de snapshot, foi adicionado o caso de reserva dentro do lote:
+
+```text
+TS2339: Property 'tryReserve' does not exist on type
+'AutomaticMessageDailyGuardSnapshot'.
+Test Suites: 1 failed, 1 total
+```
+
+O ciclo intermediário também detectou a representação canônica real usada por
+`normalizeStoredPhone`: a chave esperada foi corrigida de `+5511999999999` para
+`5511999999999`, mantendo a asserção exata dos valores e da ordem.
+
+### GREEN final
+
+```bash
+npx jest --runInBand --runTestsByPath test/unit/automatic-campaign/automatic-message-daily-guard.service.spec.ts
+```
+
+```text
+PASS test/unit/automatic-campaign/automatic-message-daily-guard.service.spec.ts
+Test Suites: 1 passed, 1 total
+Tests:       13 passed, 13 total
+```
+
+```bash
+npm run test:integration -- --runTestsByPath test/integration/automatic-campaigns/automatic-message-daily-guard.integration.spec.ts
+```
+
+```text
+PASS test/integration/automatic-campaigns/automatic-message-daily-guard.integration.spec.ts
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+```
+
+```bash
+npm run build
+```
+
+```text
+Exit code: 0
+Generated Prisma Client v7.9.1
+Nest build completed
+```
+
+O build ainda imprime o aviso preexistente de `DATABASE_URL` ausente durante o
+carregamento da configuração Prisma.
+
+### Alterações da revisão
+
+- O aborto usa `updateMany` com estado atual em `PENDING`/`PROCESSING`. Se
+  `count === 0`, o estado é relido uma vez e o resultado continua
+  `allowed: false`; não há loop nem caminho que libere o envio.
+- O teste cobre a recuperação concorrente `PROCESSING -> PENDING` e confirma uma
+  única tentativa de aborto.
+- As chaves unitárias são verificadas exatamente e na ordem:
+  `company/day/customer` antes de `company/day/phone`.
+- A integração mantém a chave de cliente em outra transação, sinaliza
+  deterministicamente quando o claim entra em `$queryRaw`, confirma que a
+  Promise ainda não concluiu e somente então libera o lock. Não há polling nem
+  retry probabilístico.
+- A seleção de ocupantes passou a ser cronológica e gulosa. No caso
+  `Z=(u1,P1)`, `X=(u1,P2)`, `B=(u2,P2)`, os vencedores são `Z` e `B`; `X` não
+  bloqueia `B`.
+- `loadDailySnapshot(companyId, now)` faz uma única consulta diária.
+  `snapshot.canGenerate` consulta identidades existentes e
+  `snapshot.tryReserve` reserva aceitos no lote, evitando duplicatas entre os
+  próprios N candidatos sem cache global stale.
+- A transação usa `maxWait: 5000`, `timeout: 15000` e
+  `SET LOCAL lock_timeout = '5000ms'`. Falhas do advisory lock propagam como
+  exceção para retry e não retornam `allowed: true`.
+- Nenhum processor ou gerador foi integrado nesta revisão.
+
+### Preocupações após revisão
+
+- O snapshot é intencionalmente local ao lote. A Task 6 deve criar um snapshot
+  por empresa/dia e usar `tryReserve` na ordem determinística dos candidatos;
+  compartilhar a instância entre jobs recriaria risco de estado stale.
+- O drift entre Prisma schema/client e migrations e o aviso de handles abertos
+  do runner permanecem preexistentes e fora do escopo desta correção.
