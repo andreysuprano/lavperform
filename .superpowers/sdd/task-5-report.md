@@ -228,3 +228,88 @@ carregamento da configuração Prisma.
   compartilhar a instância entre jobs recriaria risco de estado stale.
 - O drift entre Prisma schema/client e migrations e o aviso de handles abertos
   do runner permanecem preexistentes e fora do escopo desta correção.
+
+## Follow-ups Médios finais
+
+### RED
+
+O teste da API compartilhada foi escrito primeiro para exigir decisão com
+`blockerId` e validar a sequência transitiva:
+
+```bash
+npx jest --runInBand --runTestsByPath test/unit/automatic-campaign/automatic-message-daily-guard.service.spec.ts
+```
+
+```text
+TS2353: 'id' does not exist in type
+'Pick<AutomaticMessageGuardIdentity, "phone" | "customerId">'.
+Test Suites: 1 failed, 1 total
+```
+
+Depois, o caso `count === 0` passou a exigir efeito observável:
+
+```text
+Expected Logger.warn:
+"Mensagem current continuou bloqueada, mas seu estado mudou antes do aborto"
+Number of calls: 0
+Tests: 1 failed, 13 passed, 14 total
+```
+
+### GREEN final
+
+```bash
+npx jest --runInBand --runTestsByPath test/unit/automatic-campaign/automatic-message-daily-guard.service.spec.ts
+```
+
+```text
+PASS test/unit/automatic-campaign/automatic-message-daily-guard.service.spec.ts
+Test Suites: 1 passed, 1 total
+Tests:       14 passed, 14 total
+```
+
+```bash
+npm run test:integration -- --runTestsByPath test/integration/automatic-campaigns/automatic-message-daily-guard.integration.spec.ts
+```
+
+```text
+PASS test/integration/automatic-campaigns/automatic-message-daily-guard.integration.spec.ts
+Test Suites: 1 passed, 1 total
+Tests:       2 passed, 2 total
+```
+
+```bash
+npm run build
+```
+
+```text
+Exit code: 0
+Generated Prisma Client v7.9.1
+Nest build completed
+```
+
+### Implementação
+
+- Commit de código: `a5abb04` (`fix: linearize daily guard selection`).
+- `ChronologicalIdentityIndex` faz uma única passagem cronológica e usa dois
+  `Map`s para decisões O(1) por candidato.
+- Cada mensagem é convertida uma vez para `{ customerId, phone normalizado }`;
+  o claim reutiliza essa identidade tanto nas chaves quanto na decisão.
+- As referências nos mapas guardam `blockerId` e ordem cronológica, inclusive
+  quando cliente e telefone apontam para vencedores diferentes.
+- Snapshot e transação reutilizam o mesmo índice; a seleção gulosa duplicada e
+  o `.some()` O(N²) foram removidos.
+- O teste compartilhado confirma `Z=(u1,P1)`, `X=(u1,P2)`, `B=(u2,P2)`:
+  `B` vence, uma mensagem posterior em `P2` recebe `blockerId=B`, e outra em
+  `u1` recebe `blockerId=Z`.
+- O teste PostgreSQL registra:
+  `holder-acquired -> claim-lock-requested -> holder-release ->
+  claim-lock-acquired -> claim-settled`.
+  O holder usa barreira real `pg_sleep(1.5)` mantendo o advisory lock e
+  transação com `maxWait=5s`/`timeout=10s`; sem o lock, a ordem se inverteria.
+- O read sem uso após `count === 0` foi removido. O envio continua bloqueado e
+  agora o caso gera `Logger.warn`, coberto por teste.
+
+### Preocupações
+
+- Permanecem somente as condições preexistentes já registradas: drift de
+  migrations, aviso de handles abertos e aviso de `DATABASE_URL` no build.
