@@ -140,6 +140,7 @@ export type PublicConnectSession = {
   instanceName: string
   expiresAt: string
   status: WhatsappInstanceDbStatus
+  phoneNumber: string | null
 }
 
 export type PublicConnectConnection = {
@@ -155,4 +156,5 @@ export type PublicConnectStatus = {
   companyName: string
   status: string
   message?: string
+  phoneNumber: string | null
 }

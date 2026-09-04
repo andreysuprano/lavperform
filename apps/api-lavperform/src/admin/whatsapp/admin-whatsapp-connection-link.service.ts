@@ -137,6 +137,7 @@ export class AdminWhatsappConnectionLinkService {
       instanceName: link.whatsappInstance.name,
       expiresAt: link.expiresAt,
       status: link.whatsappInstance.status,
+      phoneNumber: link.whatsappInstance.phoneNumber || null,
     };
   }
 

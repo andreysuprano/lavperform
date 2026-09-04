@@ -14,4 +14,12 @@ export class InstanceStatusResponseDto {
     required: false
   })
   message?: string;
+
+  @ApiProperty({
+    description:
+      'Número do WhatsApp conectado (somente dígitos). Mantém o último número conhecido quando a instância está desconectada.',
+    example: '5511999990000',
+    nullable: true
+  })
+  phoneNumber: string | null;
 } 

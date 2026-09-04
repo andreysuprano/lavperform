@@ -8,6 +8,7 @@ const ChannelDropdownCardBase = ({
   name,
   icon: Icon,
   badge,
+  subtitle,
   statusIndicator,
 }: Props) => {
   const navigate = useNavigate()
@@ -50,6 +51,14 @@ const ChannelDropdownCardBase = ({
           {name}
         </Text>
         {badge && <Box>{badge}</Box>}
+        {subtitle && (
+          <Text
+            color="fg.muted"
+            fontSize="xs"
+          >
+            {subtitle}
+          </Text>
+        )}
       </VStack>
       {statusIndicator && (
         <Box flexShrink={0}>{statusIndicator}</Box>

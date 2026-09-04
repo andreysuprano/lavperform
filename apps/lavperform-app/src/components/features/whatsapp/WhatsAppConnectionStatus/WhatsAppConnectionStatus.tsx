@@ -4,6 +4,7 @@ import { memo } from 'react'
 
 import { useAuth } from '@/context/AuthContext'
 import { useWhatsAppManager } from '@/hooks/useWhatsAppManager'
+import { formatWhatsAppNumber } from '@/utils/mask'
 
 import { ConnectWhatsAppButton } from '../ConnectWhatsAppButton/ConnectWhatsAppButton'
 import { DisconnectWhatsAppButton } from '../DisconnectWhatsAppButton/DisconnectWhatsAppButton'
@@ -61,18 +62,29 @@ export const WhatsAppConnectionStatus = () => {
 }
 
 const WhatsAppButton = memo(({ companyId }: { companyId: string }) => {
-  const { isConnected } = useWhatsAppManager(companyId)
+  const { isConnected, status } = useWhatsAppManager(companyId)
+
+  const phoneNumber = formatWhatsAppNumber(status?.phoneNumber)
 
   if (isConnected) {
     return (
       <>
         <Text
           fontSize={'sm'}
-          pb={4}
+          pb={phoneNumber ? 1 : 4}
         >
           Atenção, o WhatsApp está conectado! Para desconectar, clique no botão
           ao lado.
         </Text>
+        {phoneNumber && (
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+            pb={4}
+          >
+            Número conectado: {phoneNumber}
+          </Text>
+        )}
         <DisconnectWhatsAppButton />
       </>
     )
@@ -82,10 +94,19 @@ const WhatsAppButton = memo(({ companyId }: { companyId: string }) => {
     <>
       <Text
         fontSize={'sm'}
-        pb={4}
+        pb={phoneNumber ? 1 : 4}
       >
         Atenção, o WhatsApp deve ser conectado para enviar mensagens.
       </Text>
+      {phoneNumber && (
+        <Text
+          color="fg.muted"
+          fontSize="sm"
+          pb={4}
+        >
+          Último número conectado: {phoneNumber}
+        </Text>
+      )}
       <ConnectWhatsAppButton />
     </>
   )
