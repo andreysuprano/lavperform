@@ -27,6 +27,14 @@ import {
 export class VmLavSalesService {
   private readonly logger = new Logger(VmLavSalesService.name);
 
+  private importJobId(companyId: string, date: string): string {
+    return `vmlav-import:${companyId}:${date}`;
+  }
+
+  private saleJobId(companyId: string, idVenda: number): string {
+    return `vmlav-sale:${companyId}:${idVenda}`;
+  }
+
   constructor(
     private readonly vmLavService: VmLavService,
     private readonly prisma: PrismaService,
@@ -107,6 +115,7 @@ export class VmLavSalesService {
             partnerId: partner.id,
           },
           {
+            jobId: this.saleJobId(companyId, sale.idVenda),
             attempts: 3,
             backoff: {
               type: 'exponential',
@@ -283,6 +292,7 @@ export class VmLavSalesService {
             date,
           },
           {
+            jobId: this.importJobId(companyId, date),
             attempts: 3,
             backoff: {
               type: 'exponential',
