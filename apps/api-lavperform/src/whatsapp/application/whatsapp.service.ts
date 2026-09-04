@@ -10,6 +10,7 @@ import { UazapiClient } from '../uazapi/uazapi.client';
 import { UazapiCheckInstancePool } from '../uazapi/uazapi-check-instance-pool.service';
 import { resolveConnectedPhoneNumber } from './whatsapp-phone.util';
 import { AiAgentService } from '../../ai-agent/application/ai-agent.service';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class WhatsappService {
@@ -24,6 +25,7 @@ export class WhatsappService {
     @Inject(forwardRef(() => AiAgentService))
     private readonly aiAgentService: AiAgentService,
     private readonly checkInstancePool: UazapiCheckInstancePool,
+    private readonly prisma: PrismaService,
   ) { }
 
   private generateInstanceName(companyName: string): string {
@@ -312,6 +314,20 @@ export class WhatsappService {
 
   async sendTyping(phone: string, token: string): Promise<void> {
     await this.uazapiClient.sendTyping(phone, token);
+  }
+
+  async validateAndPersistCustomerWhatsapp(customerId: string, phone: string): Promise<boolean> {
+    const isValid = await this.checkWhatsappNumber(phone);
+
+    await this.prisma.customer.update({
+      where: { id: customerId },
+      data: {
+        whatsappVerified: isValid,
+        whatsappVerifiedAt: new Date(),
+      },
+    });
+
+    return isValid;
   }
 
   async checkWhatsappNumber(phone: string): Promise<boolean> {

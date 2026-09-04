@@ -1,10 +1,16 @@
-import { Badge, Card, HStack, Text, VStack } from '@chakra-ui/react'
+import { Badge, Card, HStack, Skeleton, Text, VStack } from '@chakra-ui/react'
 import { useMemo } from 'react'
 
+import { CHANNEL_CATALOG } from '@/components/features/channels/channelCatalog.constants'
 import { useAuth } from '@/context/AuthContext'
 import { useCustomerSummary } from '@/context/CustomerSummaryContext'
 import { useAudiences } from '@/hooks/queries/useAudiences'
+import { useCampaignReachPreview } from '@/hooks/queries/useCampaigns'
 import { useCustomSendLists } from '@/hooks/queries/useCustomSendLists'
+import {
+  hasReachPreviewChannel,
+  toReachPreviewRequest,
+} from '@/utils/campaigns/reachPreviewRequest'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { convertISOToDate } from '@/utils/convertISOToDate'
 
@@ -18,10 +24,13 @@ export function CardResume(props: FormStepsProps) {
     page: 1,
     limit: 100,
   })
-  const { data: customSendListsData } = useCustomSendLists(selectedCompany?.id, {
-    page: 1,
-    limit: 100,
-  })
+  const { data: customSendListsData } = useCustomSendLists(
+    selectedCompany?.id,
+    {
+      page: 1,
+      limit: 100,
+    }
+  )
 
   const campaign = useMemo(
     () =>
@@ -49,10 +58,14 @@ export function CardResume(props: FormStepsProps) {
     if (!isCustomListMode || !props.formData?.customSendListId) return null
     return (
       customSendListsData?.data?.find(
-        (list) => list.id === props.formData!.customSendListId,
+        (list) => list.id === props.formData!.customSendListId
       ) ?? null
     )
-  }, [customSendListsData?.data, isCustomListMode, props.formData?.customSendListId])
+  }, [
+    customSendListsData?.data,
+    isCustomListMode,
+    props.formData?.customSendListId,
+  ])
 
   const totalCustomers = useMemo(() => {
     if (isAudienceMode) {
@@ -75,7 +88,35 @@ export function CardResume(props: FormStepsProps) {
         props.formData!.segmentation.includes(customer.segmentation)
       )
       .reduce((total, customer) => total + (customer.count || 0), 0)
-  }, [customersSummary, isAudienceMode, isCustomListMode, props.formData, selectedAudience, selectedCustomSendList])
+  }, [
+    customersSummary,
+    isAudienceMode,
+    isCustomListMode,
+    props.formData,
+    selectedAudience,
+    selectedCustomSendList,
+  ])
+
+  const selectedChannelKey = props.formData?.channels?.[0]
+  const hasChannel = hasReachPreviewChannel(props.formData?.channels)
+  const reachPreviewRequest = useMemo(
+    () => toReachPreviewRequest(props.formData ?? {}),
+    [props.formData]
+  )
+  const {
+    data: reachPreview,
+    isError: isReachPreviewError,
+    isPending: isReachPreviewPending,
+    isSuccess: isReachPreviewSuccess,
+  } = useCampaignReachPreview(selectedCompany?.id, reachPreviewRequest)
+
+  const channelCatalogName = selectedChannelKey
+    ? CHANNEL_CATALOG.find((item) => item.key === selectedChannelKey)?.name
+    : undefined
+  const reachLabel =
+    hasChannel && channelCatalogName
+      ? `Alcance no ${channelCatalogName}`
+      : 'Alcance'
 
   const hasRfvSegmentation =
     !isAudienceMode &&
@@ -150,14 +191,56 @@ export function CardResume(props: FormStepsProps) {
             p={4}
             variant="surface"
           >
-            <Text>Alcance</Text>
-            <Text
-              fontSize="2xl"
-              fontWeight={700}
-            >
-              {totalCustomers.toLocaleString('pt-BR')}
-            </Text>
+            <Text>{reachLabel}</Text>
+            {hasChannel ? (
+              !reachPreviewRequest || isReachPreviewError ? (
+                <Text
+                  fontSize="2xl"
+                  fontWeight={700}
+                >
+                  -
+                </Text>
+              ) : isReachPreviewPending || !isReachPreviewSuccess ? (
+                <Skeleton
+                  h="2rem"
+                  rounded="md"
+                  w="4.5rem"
+                />
+              ) : (
+                <Text
+                  fontSize="2xl"
+                  fontWeight={700}
+                >
+                  {reachPreview.count.toLocaleString('pt-BR')}
+                </Text>
+              )
+            ) : (
+              <Text
+                fontSize="2xl"
+                fontWeight={700}
+              >
+                {totalCustomers.toLocaleString('pt-BR')}
+              </Text>
+            )}
           </Badge>
+          {hasChannel && isReachPreviewSuccess && reachPreview?.count === 0 ? (
+            <Text
+              fontSize="xs"
+              maxW="16rem"
+              textAlign="right"
+            >
+              Nenhum cliente pode receber neste canal.
+            </Text>
+          ) : null}
+          {hasChannel && isReachPreviewError ? (
+            <Text
+              fontSize="xs"
+              maxW="16rem"
+              textAlign="right"
+            >
+              Não foi possível calcular o alcance.
+            </Text>
+          ) : null}
           {props.formData?.startDate && (
             <Text fontSize="xs">
               {convertISOToDate(props.formData.startDate, {

@@ -1,6 +1,9 @@
-import { Controller, Get, Post, Body, Param, UseGuards, Put, Delete, Query } from '@nestjs/common';
+import { Controller, Get, Post, Body, Param, UseGuards, Put, Delete, Query, HttpCode, HttpStatus } from '@nestjs/common';
 import { AutomaticCampaignService } from '../application/automatic-campaign.service';
+import { AutomaticCampaignReachService } from '../application/automatic-campaign-reach.service';
 import { CreateAutomaticCampaignDto } from '../application/dto/create-automatic-campaign.dto';
+import { ReachPreviewDto } from '../application/dto/reach-preview.dto';
+import { ReachPreviewResponseDto } from '../application/dto/reach-preview-response.dto';
 import { UpdateAutomaticCampaignDto } from '../application/dto/update-automatic-campaign.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
 import { AutomaticCampaignFilterDto } from '../application/dto/automatic-campaign-filter.dto';
@@ -17,7 +20,10 @@ import { ALL_RFV_CLASSIFICATIONS } from '../../common/utils/rfvClassification';
 @UseGuards(AuthGuard('jwt'))
 @ApiBearerAuth()
 export class AutomaticCampaignController {
-  constructor(private readonly automaticCampaignService: AutomaticCampaignService) { }
+  constructor(
+    private readonly automaticCampaignService: AutomaticCampaignService,
+    private readonly automaticCampaignReachService: AutomaticCampaignReachService,
+  ) { }
 
   @Post()
   @ApiOperation({ summary: 'Criar uma nova campanha automática' })
@@ -29,6 +35,19 @@ export class AutomaticCampaignController {
     @Body() createAutomaticCampaignDto: CreateAutomaticCampaignDto
   ) {
     return this.automaticCampaignService.create(companyId, createAutomaticCampaignDto);
+  }
+
+  @Post('reach-preview')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Prévia de alcance da campanha automática' })
+  @ApiResponse({ status: 200, description: 'Quantidade de clientes elegíveis', type: ReachPreviewResponseDto })
+  @ApiResponse({ status: 400, description: 'Dados inválidos' })
+  @ApiBody({ type: ReachPreviewDto })
+  previewReach(
+    @Param('companyId') companyId: string,
+    @Body() dto: ReachPreviewDto,
+  ): Promise<ReachPreviewResponseDto> {
+    return this.automaticCampaignReachService.preview(companyId, dto);
   }
 
   @Post(':id/duplicate')

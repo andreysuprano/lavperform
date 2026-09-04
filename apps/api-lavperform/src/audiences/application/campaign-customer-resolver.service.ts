@@ -12,9 +12,20 @@ export interface ResolveCampaignCustomersParams {
   segmentation?: string;
   audienceId?: string | null;
   customSendListId?: string | null;
-  channel: CampaignChannel;
+  channel?: CampaignChannel;
+  eligibility?: 'fresh' | 'contactable';
+  excludeCustomerIds?: string[];
   take?: number;
 }
+
+const REAL_PHONE_FILTER: Prisma.CustomerWhereInput = {
+  phone: { not: null },
+  NOT: {
+    phone: {
+      startsWith: 'cpf:',
+    },
+  },
+};
 
 @Injectable()
 export class CampaignCustomerResolverService {
@@ -24,13 +35,112 @@ export class CampaignCustomerResolverService {
   ) {}
 
   async resolveCustomers(params: ResolveCampaignCustomersParams): Promise<Customer[]> {
-    const isSms = params.channel === CampaignChannel.SMS;
-    const channelFilter: Prisma.CustomerWhereInput = isSms
-      ? {}
-      : buildFreshWhatsappCustomerFilter();
+    const where = await this.buildCustomerWhere(params);
 
-    let customerIds: string[] | null = null;
+    return this.prisma.customer.findMany({
+      where,
+      orderBy: CAMPAIGN_CUSTOMER_ORDER_BY,
+      ...(params.take ? { take: params.take } : {}),
+    });
+  }
 
+  async countEligibleCustomers(params: ResolveCampaignCustomersParams): Promise<number> {
+    const where = await this.buildCustomerWhere(params);
+    return this.prisma.customer.count({ where });
+  }
+
+  resolveSegmentationLabel(params: {
+    targetingMode: AudienceTargetingMode;
+    segmentation?: string;
+    audienceName?: string | null;
+    customSendListName?: string | null;
+  }): string {
+    if (params.targetingMode === AudienceTargetingMode.AUDIENCE) {
+      return params.audienceName ? `audience:${params.audienceName}` : 'audience:custom';
+    }
+
+    if (params.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+      return params.customSendListName
+        ? `lista:${params.customSendListName}`
+        : 'lista:custom';
+    }
+
+    return params.segmentation ?? '';
+  }
+
+  private async buildCustomerWhere(
+    params: ResolveCampaignCustomersParams,
+  ): Promise<Prisma.CustomerWhereInput> {
+    const customerIds = await this.resolveTargetCustomerIds(params);
+
+    return {
+      companyId: params.companyId,
+      ...this.buildChannelFilter(params.channel, params.eligibility),
+      ...this.buildIdFilter(customerIds, params.excludeCustomerIds),
+      ...(params.targetingMode === AudienceTargetingMode.RFV && params.segmentation
+        ? {
+            rfvClassification: {
+              in: params.segmentation.replaceAll(' ', '').split(','),
+            },
+          }
+        : {}),
+    };
+  }
+
+  private buildIdFilter(
+    customerIds: string[] | null,
+    excludeCustomerIds?: string[],
+  ): Prisma.CustomerWhereInput {
+    const id: Prisma.StringFilter = {};
+
+    if (customerIds !== null) {
+      id.in = customerIds.length ? customerIds : ['__none__'];
+    }
+
+    if (excludeCustomerIds?.length) {
+      id.notIn = excludeCustomerIds;
+    }
+
+    return Object.keys(id).length ? { id } : {};
+  }
+
+  private buildChannelFilter(
+    channel?: CampaignChannel,
+    eligibility: 'fresh' | 'contactable' = 'fresh',
+  ): Prisma.CustomerWhereInput {
+    if (!channel) {
+      return {};
+    }
+
+    if (
+      channel === CampaignChannel.WHATSAPP_WEB ||
+      channel === CampaignChannel.WHATSAPP_BUSINESS_API
+    ) {
+      if (eligibility === 'contactable') {
+        return {
+          whatsappOptin: true,
+          whatsappVerified: true,
+          ...REAL_PHONE_FILTER,
+        };
+      }
+
+      return buildFreshWhatsappCustomerFilter();
+    }
+
+    if (channel === CampaignChannel.SMS) {
+      return REAL_PHONE_FILTER;
+    }
+
+    if (channel === CampaignChannel.EMAIL) {
+      return { email: { not: null } };
+    }
+
+    return {};
+  }
+
+  private async resolveTargetCustomerIds(
+    params: ResolveCampaignCustomersParams,
+  ): Promise<string[] | null> {
     if (params.targetingMode === AudienceTargetingMode.AUDIENCE) {
       if (!params.audienceId) {
         throw new NotFoundException('Audiência não informada para a campanha');
@@ -48,7 +158,7 @@ export class CampaignCustomerResolverService {
         throw new NotFoundException('Audiência não encontrada');
       }
 
-      customerIds = await this.audienceQueryEngine.resolveCustomerIds(
+      return this.audienceQueryEngine.resolveCustomerIds(
         params.companyId,
         audience.definition as unknown as AudienceDefinition,
       );
@@ -76,50 +186,9 @@ export class CampaignCustomerResolverService {
         select: { customerId: true },
       });
 
-      customerIds = members.map((member) => member.customerId);
+      return members.map((member) => member.customerId);
     }
 
-    const where: Prisma.CustomerWhereInput = {
-      companyId: params.companyId,
-      ...channelFilter,
-      ...(customerIds !== null ? { id: { in: customerIds.length ? customerIds : ['__none__'] } } : {}),
-      ...(params.targetingMode === AudienceTargetingMode.RFV && params.segmentation
-        ? {
-            rfvClassification: {
-              in: params.segmentation.replaceAll(' ', '').split(','),
-            },
-          }
-        : {}),
-    };
-
-    return this.prisma.customer.findMany({
-      where,
-      orderBy: CAMPAIGN_CUSTOMER_ORDER_BY,
-      ...(params.take ? { take: params.take } : {}),
-    });
-  }
-
-  async countEligibleCustomers(params: ResolveCampaignCustomersParams): Promise<number> {
-    const customers = await this.resolveCustomers(params);
-    return customers.length;
-  }
-
-  resolveSegmentationLabel(params: {
-    targetingMode: AudienceTargetingMode;
-    segmentation?: string;
-    audienceName?: string | null;
-    customSendListName?: string | null;
-  }): string {
-    if (params.targetingMode === AudienceTargetingMode.AUDIENCE) {
-      return params.audienceName ? `audience:${params.audienceName}` : 'audience:custom';
-    }
-
-    if (params.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
-      return params.customSendListName
-        ? `lista:${params.customSendListName}`
-        : 'lista:custom';
-    }
-
-    return params.segmentation ?? '';
+    return null;
   }
 }
