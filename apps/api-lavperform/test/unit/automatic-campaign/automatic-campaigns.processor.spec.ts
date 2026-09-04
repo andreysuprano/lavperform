@@ -588,11 +588,23 @@ describe('AutomaticCampaignsProcessor', () => {
       whatsappCampaign({ maxDailySends: 10 }),
     );
     prisma.message.count = jest.fn().mockResolvedValue(10);
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(256);
 
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
 
     expect(strategy.generateMessages).not.toHaveBeenCalled();
     expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
+    expect(campaignCustomerResolver.countEligibleCustomers).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'comp1',
+        channel: CampaignChannel.WHATSAPP_WEB,
+        eligibility: 'contactable',
+      }),
+    );
+    expect(prisma.campaignMetric.updateMany).toHaveBeenCalledWith({
+      where: { automaticCampaignId: 'ac1' },
+      data: { totalCustomers: 256 },
+    });
   });
 
   it('handles missing campaign gracefully', async () => {
