@@ -778,9 +778,9 @@ git diff --stat
 
 Os arquivos preexistentes `apps/api-lavperform/debug_log.txt`, `apps/api-lavperform/debug_onboarding.txt` e `docs/superpowers/specs/2026-08-27-duplicatas-agendadas-completo.md` não devem ser adicionados nem alterados.
 
-- [ ] **Step 5: executar operações de rollout na ordem segura**
+- [ ] **Step 5: documentar operações de rollout sem executá-las**
 
-Em homologação/produção, após deploy:
+Registrar no handoff que, em homologação/produção e somente após autorização explícita, o responsável deve executar:
 
 ```bash
 npm run script:normalize-vmlav-customers -- --dry-run
@@ -789,7 +789,7 @@ npm run script:cleanup-automatic-duplicates -- --dry-run
 npm run script:cleanup-automatic-duplicates -- --apply
 ```
 
-Confirmar logs antes de cada `--apply`. O cron de 30 minutos só entra em execução no deploy que já contém o guard e a idempotência.
+Não executar nenhum comando `--apply` nesta sessão. O responsável pelo rollout deve confirmar os logs antes de cada `--apply`. O cron de 30 minutos só entra em execução no deploy que já contém o guard e a idempotência.
 
 - [ ] **Step 6: commit final somente se a verificação exigiu ajustes**
 
