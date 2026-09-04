@@ -125,4 +125,105 @@ describe('AutomaticMessageDailyGuardService concurrency (Integration)', () => {
       { id: secondMessage.id, status: MessageStatus.ABORTED },
     ]);
   });
+
+  it('waits for a held advisory lock and only completes after its release', async () => {
+    const company = await prisma.company.create({
+      data: {
+        name: 'Lock explícito',
+        cnpj: '98.765.432/0001-10',
+        email: 'held-lock@example.com',
+        slug: 'daily-guard-held-lock',
+        state: 'ACTIVE',
+      },
+    });
+    const customer = await prisma.customer.create({
+      data: {
+        name: 'Cliente bloqueado',
+        phone: '11 98888-7777',
+        companyId: company.id,
+      },
+    });
+    const campaignId = randomUUID();
+    await prisma.$executeRaw`
+      INSERT INTO "AutomaticCampaign"
+        ("id", "name", "type", "companyId", "segmentation", "startDate",
+         "endDate", "messageText", "createdAt", "updatedAt")
+      VALUES
+        (${campaignId}, ${'Campanha lock'},
+         ${AutomaticCampaignType.ACQUISITION}::"AutomaticCampaignType",
+         ${company.id}, ${'ALL'}, ${new Date('2026-09-01T03:00:00.000Z')},
+         ${new Date('2026-09-30T02:59:59.999Z')}, ${'Olá'}, NOW(), NOW())
+    `;
+    const message = await prisma.message.create({
+      data: {
+        segmentation: 'ALL',
+        status: MessageStatus.PROCESSING,
+        messageText: 'Mensagem',
+        customerName: customer.name,
+        phone: customer.phone!,
+        customerId: customer.id,
+        companyId: company.id,
+        automaticCampaignId: campaignId,
+        createdAt: new Date('2026-09-04T12:00:00.000Z'),
+      },
+    });
+    const lockKey = `${company.id}:2026-09-04:customer:${customer.id}`;
+
+    let releaseHolder!: () => void;
+    const holderRelease = new Promise<void>((resolve) => {
+      releaseHolder = resolve;
+    });
+    let holderAcquired!: () => void;
+    const acquired = new Promise<void>((resolve) => {
+      holderAcquired = resolve;
+    });
+    const holder = prisma.$transaction(async (tx) => {
+      await tx.$queryRaw`
+        SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text AS lock
+      `;
+      holderAcquired();
+      await holderRelease;
+    });
+    await acquired;
+
+    let claimReachedLock!: () => void;
+    const reachedLock = new Promise<void>((resolve) => {
+      claimReachedLock = resolve;
+    });
+    const instrumentedPrisma = {
+      $transaction: (callback: (tx: unknown) => unknown, options: unknown) =>
+        prisma.$transaction(async (tx) => {
+          const instrumentedTx = new Proxy(tx as object, {
+            get(target, property, receiver) {
+              const value = Reflect.get(target, property, receiver);
+              if (property === '$queryRaw') {
+                return (...args: unknown[]) => {
+                  claimReachedLock();
+                  return value.apply(target, args);
+                };
+              }
+              return typeof value === 'function' ? value.bind(target) : value;
+            },
+          });
+          return callback(instrumentedTx);
+        }, options as any),
+    };
+    const instrumentedGuard = new AutomaticMessageDailyGuardService(
+      instrumentedPrisma as any,
+    );
+    let claimSettled = false;
+    const claim = instrumentedGuard
+      .claimForProcessing(message.id)
+      .finally(() => {
+        claimSettled = true;
+      });
+
+    await reachedLock;
+    expect(claimSettled).toBe(false);
+
+    releaseHolder();
+    await holder;
+    await expect(claim).resolves.toEqual({ allowed: true });
+    expect(claimSettled).toBe(true);
+  });
 });

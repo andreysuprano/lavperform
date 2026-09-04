@@ -26,6 +26,7 @@ describe('AutomaticMessageDailyGuardService', () => {
         updateMany: jest.fn().mockResolvedValue({ count: 1 }),
       },
       $queryRaw: jest.fn().mockResolvedValue([{ pg_advisory_xact_lock: null }]),
+      $executeRawUnsafe: jest.fn().mockResolvedValue(0),
     };
     const prisma = {
       message: {
@@ -146,6 +147,43 @@ describe('AutomaticMessageDailyGuardService', () => {
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
       });
     });
+
+    it('loads one daily snapshot for multiple candidate identities', async () => {
+      const { guard, prisma } = setup();
+      prisma.message.findMany.mockResolvedValue([
+        candidate({
+          id: 'winner-1',
+          customerId: 'u1',
+          phone: '+5511111111111',
+        }),
+        candidate({ id: 'winner-2', customerId: 'u2', phone: '11 99999-9999' }),
+      ]);
+
+      const snapshot = await guard.loadDailySnapshot({
+        companyId: 'c1',
+        now,
+      });
+
+      expect(
+        snapshot.canGenerate({ customerId: 'u1', phone: '+5522222222222' }),
+      ).toBe(false);
+      expect(
+        snapshot.canGenerate({
+          customerId: 'u3',
+          phone: '+55 (11) 99999-9999',
+        }),
+      ).toBe(false);
+      expect(
+        snapshot.canGenerate({ customerId: 'u3', phone: '+5533333333333' }),
+      ).toBe(true);
+      expect(
+        snapshot.tryReserve({ customerId: 'u3', phone: '+5533333333333' }),
+      ).toBe(true);
+      expect(
+        snapshot.tryReserve({ customerId: 'u4', phone: '+55 33 33333-3333' }),
+      ).toBe(false);
+      expect(prisma.message.findMany).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('claimForProcessing', () => {
@@ -167,9 +205,20 @@ describe('AutomaticMessageDailyGuardService', () => {
         blockerId: 'blocker',
       });
 
-      expect(tx.$queryRaw).toHaveBeenCalledTimes(2);
+      expect(tx.$executeRawUnsafe).toHaveBeenCalledWith(
+        "SET LOCAL lock_timeout = '5000ms'",
+      );
+      expect(tx.$queryRaw.mock.calls.map((call) => call[1])).toEqual([
+        'c1:2026-09-04:customer:u1',
+        'c1:2026-09-04:phone:5511999999999',
+      ]);
       expect(tx.message.updateMany).toHaveBeenCalledWith({
-        where: { id: 'current', status: MessageStatus.PROCESSING },
+        where: {
+          id: 'current',
+          status: {
+            in: [MessageStatus.PENDING, MessageStatus.PROCESSING],
+          },
+        },
         data: {
           status: MessageStatus.ABORTED,
           error: DAILY_AUTOMATIC_DUPLICATE_ERROR,
@@ -196,6 +245,89 @@ describe('AutomaticMessageDailyGuardService', () => {
         }),
         select: expect.any(Object),
         orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      });
+    });
+
+    it('returns blocked without looping when PROCESSING changes to PENDING before abort', async () => {
+      const { guard, tx } = setup();
+      tx.message.findUnique
+        .mockResolvedValueOnce(
+          candidate({
+            id: 'current',
+            status: MessageStatus.PROCESSING,
+            createdAt: new Date('2026-09-04T13:00:00.000Z'),
+          }),
+        )
+        .mockResolvedValueOnce({ status: MessageStatus.PENDING });
+      tx.message.findMany.mockResolvedValue([candidate()]);
+      tx.message.updateMany.mockResolvedValue({ count: 0 });
+
+      await expect(guard.claimForProcessing('current')).resolves.toEqual({
+        allowed: false,
+        blockerId: 'blocker',
+      });
+
+      expect(tx.message.updateMany).toHaveBeenCalledTimes(1);
+      expect(tx.message.findUnique).toHaveBeenCalledTimes(2);
+      expect(tx.message.findUnique).toHaveBeenLastCalledWith({
+        where: { id: 'current' },
+        select: { status: true },
+      });
+    });
+
+    it('uses greedy chronological winners for a transitive identity chain', async () => {
+      const { guard, tx } = setup();
+      tx.message.findUnique.mockResolvedValue(
+        candidate({
+          id: 'B',
+          customerId: 'u2',
+          phone: 'P2',
+          status: MessageStatus.PROCESSING,
+          createdAt: new Date('2026-09-04T14:00:00.000Z'),
+        }),
+      );
+      tx.message.findMany.mockResolvedValue([
+        candidate({
+          id: 'Z',
+          customerId: 'u1',
+          phone: 'P1',
+          createdAt: new Date('2026-09-04T12:00:00.000Z'),
+        }),
+        candidate({
+          id: 'X',
+          customerId: 'u1',
+          phone: 'P2',
+          createdAt: new Date('2026-09-04T13:00:00.000Z'),
+        }),
+      ]);
+
+      await expect(guard.claimForProcessing('B')).resolves.toEqual({
+        allowed: true,
+      });
+      expect(tx.message.updateMany).not.toHaveBeenCalled();
+    });
+
+    it('propagates lock timeout for retry without allowing the message', async () => {
+      const { guard, prisma, tx } = setup();
+      tx.message.findUnique.mockResolvedValue(
+        candidate({
+          id: 'current',
+          status: MessageStatus.PROCESSING,
+        }),
+      );
+      tx.$queryRaw.mockRejectedValue(
+        new Error('canceling statement due to lock timeout'),
+      );
+
+      await expect(guard.claimForProcessing('current')).rejects.toThrow(
+        'lock timeout',
+      );
+
+      expect(tx.message.findMany).not.toHaveBeenCalled();
+      expect(tx.message.updateMany).not.toHaveBeenCalled();
+      expect(prisma.$transaction).toHaveBeenCalledWith(expect.any(Function), {
+        maxWait: 5000,
+        timeout: 15000,
       });
     });
 
