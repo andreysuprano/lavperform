@@ -62,6 +62,29 @@ export function formatTelefone(value?: string | null): string {
   return formatTelefoneDDI(telefone)
 }
 
+/**
+ * Formata o número conectado do WhatsApp, que chega com DDI (ex. 5511999990000).
+ * Números fora do padrão brasileiro são exibidos como dígitos.
+ */
+export function formatWhatsAppNumber(value?: string | null): string {
+  const digits = cleanNumber(value)
+  if (!digits) return ''
+
+  const local =
+    digits.startsWith('55') && (digits.length === 12 || digits.length === 13)
+      ? digits.slice(2)
+      : digits
+
+  if (local.length === 11) {
+    return local.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3')
+  }
+  if (local.length === 10) {
+    return local.replace(/(\d{2})(\d{4})(\d{4})/, '($1) $2-$3')
+  }
+
+  return digits
+}
+
 function formatTelefoneDDI(value: string): string {
   const telefone = cleanNumber(value)
   return telefone.replace(

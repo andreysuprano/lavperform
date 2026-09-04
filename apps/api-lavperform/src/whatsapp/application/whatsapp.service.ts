@@ -8,6 +8,7 @@ import { IWhatsappInstanceRepository } from '../domain/whatsapp-instance.reposit
 import { ICompanyRepository } from '../../companies/domain/company.repository.interface';
 import { UazapiClient } from '../uazapi/uazapi.client';
 import { UazapiCheckInstancePool } from '../uazapi/uazapi-check-instance-pool.service';
+import { resolveConnectedPhoneNumber } from './whatsapp-phone.util';
 import { AiAgentService } from '../../ai-agent/application/ai-agent.service';
 
 @Injectable()
@@ -148,6 +149,7 @@ export class WhatsappService {
     if (!instance) {
       return {
         status: WhatsappInstanceStatus.DISCONNECTED,
+        phoneNumber: null,
       }
     }
 
@@ -181,9 +183,24 @@ export class WhatsappService {
       }
     }
 
+    // O número só é confiável enquanto a sessão está conectada; fora disso
+    // mantemos o último conhecido.
+    const lastKnownPhone = instance.phoneNumber || null;
+    const connectedPhone =
+      mappedStatus === WhatsappInstanceStatus.CONNECTED
+        ? resolveConnectedPhoneNumber(connectionState)
+        : null;
+
+    if (connectedPhone && connectedPhone !== lastKnownPhone) {
+      await this.whatsappInstanceRepository.update(instance.id, {
+        phoneNumber: connectedPhone,
+      });
+    }
+
     return {
       status: mappedStatus,
-      message: `Instância ${connectionState.instance.name} está ${mappedStatus.toLowerCase()}`
+      message: `Instância ${connectionState.instance.name} está ${mappedStatus.toLowerCase()}`,
+      phoneNumber: connectedPhone ?? lastKnownPhone,
     };
   }
 

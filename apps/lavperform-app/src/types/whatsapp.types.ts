@@ -4,6 +4,8 @@ export interface WhatsAppInstance {
   id: string
   status: WhatsAppStatus
   code?: string
+  /** Número conectado (somente dígitos); mantém o último conhecido se desconectar. */
+  phoneNumber?: string | null
 }
 
 export interface WhatsAppConnection {

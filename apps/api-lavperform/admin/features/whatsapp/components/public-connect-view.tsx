@@ -20,7 +20,7 @@ import {
   getPublicConnectStatus,
 } from "../public-connect-api"
 import type { PublicConnectConnection, PublicConnectSession } from "../types"
-import { formatDate } from "../utils"
+import { formatDate, formatPhone } from "../utils"
 
 const POLL_INTERVAL_MS = 4000
 
@@ -30,6 +30,7 @@ export function PublicConnectView({ token }: { token: string }) {
     null
   )
   const [status, setStatus] = useState<string | null>(null)
+  const [phoneNumber, setPhoneNumber] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -44,6 +45,7 @@ export function PublicConnectView({ token }: { token: string }) {
   const refreshStatus = useCallback(async () => {
     const nextStatus = await getPublicConnectStatus(token)
     setStatus(nextStatus.status)
+    setPhoneNumber(nextStatus.phoneNumber)
     return nextStatus.status
   }, [token])
 
@@ -58,10 +60,15 @@ export function PublicConnectView({ token }: { token: string }) {
         if (cancelled) return
         setSession(nextSession)
         setStatus(nextSession.status)
+        setPhoneNumber(nextSession.phoneNumber)
 
         if (nextSession.status !== "CONNECTED") {
           await loadConnection()
+        } else {
+          // Sessão lê só o banco; o status consulta a Uazapi e preenche o número.
+          await refreshStatus()
         }
+        if (cancelled) return
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Link inválido")
@@ -75,7 +82,7 @@ export function PublicConnectView({ token }: { token: string }) {
     return () => {
       cancelled = true
     }
-  }, [token, loadConnection])
+  }, [token, loadConnection, refreshStatus])
 
   useEffect(() => {
     if (status === "CONNECTED" || error) return
@@ -157,6 +164,14 @@ export function PublicConnectView({ token }: { token: string }) {
               <p className="text-center text-sm text-muted-foreground">
                 WhatsApp conectado com sucesso. Você já pode fechar esta página.
               </p>
+              {phoneNumber && (
+                <p className="text-center text-sm text-muted-foreground">
+                  Número conectado:{" "}
+                  <span className="font-medium text-foreground">
+                    {formatPhone(phoneNumber)}
+                  </span>
+                </p>
+              )}
             </>
           ) : (
             <>

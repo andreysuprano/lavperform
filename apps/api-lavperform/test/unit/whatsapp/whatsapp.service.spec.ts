@@ -226,6 +226,7 @@ describe('WhatsappService', () => {
       expect(result).toEqual({
         status: WhatsappInstanceStatus.CONNECTED,
         message: 'Instância comp-x está connected',
+        phoneNumber: null,
       });
     });
 
@@ -264,7 +265,134 @@ describe('WhatsappService', () => {
 
       const result = await service.getInstanceStatus('comp1');
 
-      expect(result).toEqual({ status: WhatsappInstanceStatus.DISCONNECTED });
+      expect(result).toEqual({
+        status: WhatsappInstanceStatus.DISCONNECTED,
+        phoneNumber: null,
+      });
+    });
+
+    it('persists the connected phone number taken from the session jid', async () => {
+      whatsappInstanceRepository.findByCompanyId = jest.fn().mockResolvedValue({
+        id: 'inst1',
+        token: 'tok',
+        companyId: 'comp1',
+        status: WhatsappInstanceStatus.PENDING,
+        phoneNumber: null,
+      });
+      uazapiClient.getConnectionState = jest.fn().mockResolvedValue({
+        instance: { status: 'connected', name: 'comp-x' },
+        status: { jid: '5511999990000@s.whatsapp.net' },
+      });
+      whatsappInstanceRepository.updateStatus = jest.fn().mockResolvedValue({});
+      whatsappInstanceRepository.update = jest.fn().mockResolvedValue({});
+
+      const result = await service.getInstanceStatus('comp1');
+
+      expect(whatsappInstanceRepository.update).toHaveBeenCalledWith('inst1', {
+        phoneNumber: '5511999990000',
+      });
+      expect(result.phoneNumber).toBe('5511999990000');
+    });
+
+    it('falls back to the instance owner when the jid is missing', async () => {
+      whatsappInstanceRepository.findByCompanyId = jest.fn().mockResolvedValue({
+        id: 'inst1',
+        token: 'tok',
+        companyId: 'comp1',
+        status: WhatsappInstanceStatus.CONNECTED,
+        phoneNumber: '',
+      });
+      uazapiClient.getConnectionState = jest.fn().mockResolvedValue({
+        instance: { status: 'connected', name: 'comp-x', owner: '5511888880000' },
+        status: { jid: '' },
+      });
+      whatsappInstanceRepository.update = jest.fn().mockResolvedValue({});
+
+      const result = await service.getInstanceStatus('comp1');
+
+      expect(whatsappInstanceRepository.update).toHaveBeenCalledWith('inst1', {
+        phoneNumber: '5511888880000',
+      });
+      expect(result.phoneNumber).toBe('5511888880000');
+    });
+
+    it('keeps the last known number when uazapi returns no jid or owner', async () => {
+      whatsappInstanceRepository.findByCompanyId = jest.fn().mockResolvedValue({
+        id: 'inst1',
+        token: 'tok',
+        companyId: 'comp1',
+        status: WhatsappInstanceStatus.CONNECTED,
+        phoneNumber: '5511999990000',
+      });
+      uazapiClient.getConnectionState = jest.fn().mockResolvedValue({
+        instance: { status: 'connected', name: 'comp-x' },
+        status: {},
+      });
+      whatsappInstanceRepository.update = jest.fn().mockResolvedValue({});
+
+      const result = await service.getInstanceStatus('comp1');
+
+      expect(whatsappInstanceRepository.update).not.toHaveBeenCalled();
+      expect(result.phoneNumber).toBe('5511999990000');
+    });
+
+    it('does not rewrite the number when it did not change', async () => {
+      whatsappInstanceRepository.findByCompanyId = jest.fn().mockResolvedValue({
+        id: 'inst1',
+        token: 'tok',
+        companyId: 'comp1',
+        status: WhatsappInstanceStatus.CONNECTED,
+        phoneNumber: '5511999990000',
+      });
+      uazapiClient.getConnectionState = jest.fn().mockResolvedValue({
+        instance: { status: 'connected', name: 'comp-x' },
+        status: { jid: '5511999990000:12@s.whatsapp.net' },
+      });
+      whatsappInstanceRepository.update = jest.fn().mockResolvedValue({});
+
+      await service.getInstanceStatus('comp1');
+
+      expect(whatsappInstanceRepository.update).not.toHaveBeenCalled();
+    });
+
+    it('returns the last known number while disconnected without clearing it', async () => {
+      whatsappInstanceRepository.findByCompanyId = jest.fn().mockResolvedValue({
+        id: 'inst1',
+        token: 'tok',
+        companyId: 'comp1',
+        status: WhatsappInstanceStatus.CONNECTED,
+        phoneNumber: '5511999990000',
+      });
+      uazapiClient.getConnectionState = jest.fn().mockResolvedValue({
+        instance: { status: 'disconnected', name: 'comp-x' },
+        status: {},
+      });
+      whatsappInstanceRepository.updateStatus = jest.fn().mockResolvedValue({});
+      whatsappInstanceRepository.update = jest.fn().mockResolvedValue({});
+
+      const result = await service.getInstanceStatus('comp1');
+
+      expect(whatsappInstanceRepository.update).not.toHaveBeenCalled();
+      expect(result.status).toBe(WhatsappInstanceStatus.DISCONNECTED);
+      expect(result.phoneNumber).toBe('5511999990000');
+    });
+
+    it('reports an empty stored number as null', async () => {
+      whatsappInstanceRepository.findByCompanyId = jest.fn().mockResolvedValue({
+        id: 'inst1',
+        token: 'tok',
+        companyId: 'comp1',
+        status: WhatsappInstanceStatus.DISCONNECTED,
+        phoneNumber: '',
+      });
+      uazapiClient.getConnectionState = jest.fn().mockResolvedValue({
+        instance: { status: 'disconnected', name: 'comp-x' },
+        status: {},
+      });
+
+      const result = await service.getInstanceStatus('comp1');
+
+      expect(result.phoneNumber).toBeNull();
     });
 
     it('maps unknown states to pending and updates when different', async () => {
