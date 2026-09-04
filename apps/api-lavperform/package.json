@@ -36,6 +36,7 @@
     "script:enforce-customer-uniqueness": "ts-node -r tsconfig-paths/register src/scripts/enforce-customer-uniqueness.ts",
     "script:scan-customer-duplicates": "ts-node -r tsconfig-paths/register src/scripts/scan-customer-duplicates.ts",
     "script:normalize-vmlav-customers": "ts-node -r tsconfig-paths/register src/scripts/normalize-vmlav-customer-identifiers.ts",
+    "script:cleanup-automatic-duplicates": "ts-node -r tsconfig-paths/register src/scripts/cleanup-duplicate-automatic-messages.ts",
     "script:fix-duplicate-orders": "ts-node -r tsconfig-paths/register src/scripts/fix-duplicate-display-ids.ts",
     "script:migrate-landing-pages": "ts-node prisma/scripts/migrate-landing-pages.ts",
     "script:migrate-landing-pages-location": "ts-node scripts/migrate-landing-pages-location.ts",
