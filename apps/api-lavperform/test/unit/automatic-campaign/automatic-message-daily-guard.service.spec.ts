@@ -1,4 +1,5 @@
 import { MessageStatus } from '@prisma/client';
+import { Logger } from '@nestjs/common';
 import {
   AutomaticMessageDailyGuardService,
   DAILY_AUTOMATIC_DUPLICATE_ERROR,
@@ -177,11 +178,42 @@ describe('AutomaticMessageDailyGuardService', () => {
         snapshot.canGenerate({ customerId: 'u3', phone: '+5533333333333' }),
       ).toBe(true);
       expect(
-        snapshot.tryReserve({ customerId: 'u3', phone: '+5533333333333' }),
-      ).toBe(true);
+        snapshot.tryReserve({
+          id: 'winner-3',
+          customerId: 'u3',
+          phone: '+5533333333333',
+        }),
+      ).toEqual({ allowed: true });
       expect(
-        snapshot.tryReserve({ customerId: 'u4', phone: '+55 33 33333-3333' }),
-      ).toBe(false);
+        snapshot.tryReserve({
+          id: 'loser-4',
+          customerId: 'u4',
+          phone: '+55 33 33333-3333',
+        }),
+      ).toEqual({ allowed: false, blockerId: 'winner-3' });
+      expect(prisma.message.findMany).toHaveBeenCalledTimes(1);
+    });
+
+    it('preserves greedy transitivity and blocker ids through the shared snapshot API', async () => {
+      const { guard, prisma } = setup();
+      prisma.message.findMany.mockResolvedValue([
+        candidate({ id: 'Z', customerId: 'u1', phone: 'P1' }),
+        candidate({ id: 'X', customerId: 'u1', phone: 'P2' }),
+      ]);
+      const snapshot = await guard.loadDailySnapshot({
+        companyId: 'c1',
+        now,
+      });
+
+      expect(
+        snapshot.tryReserve({ id: 'B', customerId: 'u2', phone: 'P2' }),
+      ).toEqual({ allowed: true });
+      expect(
+        snapshot.tryReserve({ id: 'C', customerId: 'u3', phone: 'P2' }),
+      ).toEqual({ allowed: false, blockerId: 'B' });
+      expect(
+        snapshot.tryReserve({ id: 'D', customerId: 'u1', phone: 'P3' }),
+      ).toEqual({ allowed: false, blockerId: 'Z' });
       expect(prisma.message.findMany).toHaveBeenCalledTimes(1);
     });
   });
@@ -250,15 +282,14 @@ describe('AutomaticMessageDailyGuardService', () => {
 
     it('returns blocked without looping when PROCESSING changes to PENDING before abort', async () => {
       const { guard, tx } = setup();
-      tx.message.findUnique
-        .mockResolvedValueOnce(
-          candidate({
-            id: 'current',
-            status: MessageStatus.PROCESSING,
-            createdAt: new Date('2026-09-04T13:00:00.000Z'),
-          }),
-        )
-        .mockResolvedValueOnce({ status: MessageStatus.PENDING });
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+      tx.message.findUnique.mockResolvedValueOnce(
+        candidate({
+          id: 'current',
+          status: MessageStatus.PROCESSING,
+          createdAt: new Date('2026-09-04T13:00:00.000Z'),
+        }),
+      );
       tx.message.findMany.mockResolvedValue([candidate()]);
       tx.message.updateMany.mockResolvedValue({ count: 0 });
 
@@ -268,11 +299,11 @@ describe('AutomaticMessageDailyGuardService', () => {
       });
 
       expect(tx.message.updateMany).toHaveBeenCalledTimes(1);
-      expect(tx.message.findUnique).toHaveBeenCalledTimes(2);
-      expect(tx.message.findUnique).toHaveBeenLastCalledWith({
-        where: { id: 'current' },
-        select: { status: true },
-      });
+      expect(tx.message.findUnique).toHaveBeenCalledTimes(1);
+      expect(warn).toHaveBeenCalledWith(
+        'Mensagem current continuou bloqueada, mas seu estado mudou antes do aborto',
+      );
+      warn.mockRestore();
     });
 
     it('uses greedy chronological winners for a transitive identity chain', async () => {

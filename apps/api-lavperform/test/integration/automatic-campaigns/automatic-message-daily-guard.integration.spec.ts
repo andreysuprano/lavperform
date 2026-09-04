@@ -169,27 +169,31 @@ describe('AutomaticMessageDailyGuardService concurrency (Integration)', () => {
     });
     const lockKey = `${company.id}:2026-09-04:customer:${customer.id}`;
 
-    let releaseHolder!: () => void;
-    const holderRelease = new Promise<void>((resolve) => {
-      releaseHolder = resolve;
+    const events: string[] = [];
+    let claimRequested!: () => void;
+    const claimWasRequested = new Promise<void>((resolve) => {
+      claimRequested = resolve;
     });
     let holderAcquired!: () => void;
     const acquired = new Promise<void>((resolve) => {
       holderAcquired = resolve;
     });
-    const holder = prisma.$transaction(async (tx) => {
-      await tx.$queryRaw`
-        SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text AS lock
-      `;
-      holderAcquired();
-      await holderRelease;
-    });
+    const holder = prisma.$transaction(
+      async (tx) => {
+        await tx.$queryRaw`
+          SELECT pg_advisory_xact_lock(hashtextextended(${lockKey}, 0))::text AS lock
+        `;
+        events.push('holder-acquired');
+        holderAcquired();
+        await claimWasRequested;
+        await tx.$queryRaw`SELECT pg_sleep(1.5)::text AS barrier`;
+        events.push('holder-release');
+      },
+      { maxWait: 5_000, timeout: 10_000 },
+    );
     await acquired;
 
-    let claimReachedLock!: () => void;
-    const reachedLock = new Promise<void>((resolve) => {
-      claimReachedLock = resolve;
-    });
+    let advisoryCalls = 0;
     const instrumentedPrisma = {
       $transaction: (callback: (tx: unknown) => unknown, options: unknown) =>
         prisma.$transaction(async (tx) => {
@@ -197,9 +201,18 @@ describe('AutomaticMessageDailyGuardService concurrency (Integration)', () => {
             get(target, property, receiver) {
               const value = Reflect.get(target, property, receiver);
               if (property === '$queryRaw') {
-                return (...args: unknown[]) => {
-                  claimReachedLock();
-                  return value.apply(target, args);
+                return async (...args: unknown[]) => {
+                  const isHeldKey = advisoryCalls === 0;
+                  advisoryCalls += 1;
+                  if (isHeldKey) {
+                    events.push('claim-lock-requested');
+                    claimRequested();
+                  }
+                  const result = await value.apply(target, args);
+                  if (isHeldKey) {
+                    events.push('claim-lock-acquired');
+                  }
+                  return result;
                 };
               }
               return typeof value === 'function' ? value.bind(target) : value;
@@ -211,19 +224,21 @@ describe('AutomaticMessageDailyGuardService concurrency (Integration)', () => {
     const instrumentedGuard = new AutomaticMessageDailyGuardService(
       instrumentedPrisma as any,
     );
-    let claimSettled = false;
     const claim = instrumentedGuard
       .claimForProcessing(message.id)
-      .finally(() => {
-        claimSettled = true;
+      .then((result) => {
+        events.push('claim-settled');
+        return result;
       });
 
-    await reachedLock;
-    expect(claimSettled).toBe(false);
-
-    releaseHolder();
-    await holder;
     await expect(claim).resolves.toEqual({ allowed: true });
-    expect(claimSettled).toBe(true);
+    await holder;
+    expect(events).toEqual([
+      'holder-acquired',
+      'claim-lock-requested',
+      'holder-release',
+      'claim-lock-acquired',
+      'claim-settled',
+    ]);
   });
 });

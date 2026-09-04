@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { MessageStatus, Prisma } from '@prisma/client';
 import { DateTime } from 'luxon';
 import { endOfDayInTz, startOfDayInTz } from '../../common/utils/date.utils';
@@ -32,49 +32,92 @@ type IdentityCandidate = {
   phone: string;
 };
 
+export type AutomaticMessageSnapshotIdentity = {
+  id: string;
+  customerId: string;
+  phone?: string | null;
+};
+
+type NormalizedIdentity = {
+  id?: string;
+  customerId: string;
+  phone: string | null;
+};
+
+type IdentityDecision =
+  { allowed: true } | { allowed: false; blockerId: string };
+
+type BlockerReference = {
+  id: string;
+  order: number;
+};
+
+class ChronologicalIdentityIndex {
+  private readonly customers = new Map<string, BlockerReference>();
+  private readonly phones = new Map<string, BlockerReference>();
+  private nextOrder = 0;
+
+  constructor(candidates: IdentityCandidate[] = []) {
+    for (const candidate of candidates) {
+      this.tryReserveNormalized(normalizeIdentity(candidate));
+    }
+  }
+
+  blockerForNormalized(input: NormalizedIdentity): IdentityDecision {
+    const customerBlocker = this.customers.get(input.customerId);
+    const phoneBlocker = input.phone ? this.phones.get(input.phone) : undefined;
+    const blocker =
+      !customerBlocker ||
+      (phoneBlocker && phoneBlocker.order < customerBlocker.order)
+        ? phoneBlocker
+        : customerBlocker;
+    return blocker
+      ? { allowed: false, blockerId: blocker.id }
+      : { allowed: true };
+  }
+
+  tryReserveNormalized(input: NormalizedIdentity): IdentityDecision {
+    const decision = this.blockerForNormalized(input);
+    if (!decision.allowed) {
+      return decision;
+    }
+    if (!input.id) {
+      throw new Error('A reserva de identidade exige um id');
+    }
+
+    const reference = { id: input.id, order: this.nextOrder };
+    this.nextOrder += 1;
+    this.customers.set(input.customerId, reference);
+    if (input.phone) {
+      this.phones.set(input.phone, reference);
+    }
+    return { allowed: true };
+  }
+}
+
 export class AutomaticMessageDailyGuardSnapshot {
-  private readonly customerIds = new Set<string>();
-  private readonly phones = new Set<string>();
+  private readonly identities: ChronologicalIdentityIndex;
 
   constructor(winners: IdentityCandidate[]) {
-    for (const winner of winners) {
-      this.reserve(winner);
-    }
+    this.identities = new ChronologicalIdentityIndex(winners);
   }
 
   canGenerate(
     input: Pick<AutomaticMessageGuardIdentity, 'customerId' | 'phone'>,
   ): boolean {
-    const phone = normalizeStoredPhone(input.phone);
-    return (
-      !this.customerIds.has(input.customerId) &&
-      (phone === null || !this.phones.has(phone))
-    );
+    return this.identities.blockerForNormalized(normalizeIdentity(input))
+      .allowed;
   }
 
-  tryReserve(
-    input: Pick<AutomaticMessageGuardIdentity, 'customerId' | 'phone'>,
-  ): boolean {
-    if (!this.canGenerate(input)) {
-      return false;
-    }
-    this.reserve(input);
-    return true;
-  }
-
-  private reserve(
-    input: Pick<AutomaticMessageGuardIdentity, 'customerId' | 'phone'>,
-  ): void {
-    this.customerIds.add(input.customerId);
-    const phone = normalizeStoredPhone(input.phone);
-    if (phone !== null) {
-      this.phones.add(phone);
-    }
+  tryReserve(input: AutomaticMessageSnapshotIdentity): IdentityDecision {
+    return this.identities.tryReserveNormalized(normalizeIdentity(input));
   }
 }
 
 @Injectable()
 export class AutomaticMessageDailyGuardService {
+  private readonly logger = new Logger(AutomaticMessageDailyGuardService.name);
+
   constructor(private readonly prisma: PrismaService) {}
 
   async canGenerate(input: AutomaticMessageGuardIdentity): Promise<boolean> {
@@ -95,9 +138,7 @@ export class AutomaticMessageDailyGuardService {
       orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
     });
 
-    return new AutomaticMessageDailyGuardSnapshot(
-      this.selectChronologicalWinners(candidates),
-    );
+    return new AutomaticMessageDailyGuardSnapshot(candidates);
   }
 
   async claimForProcessing(
@@ -127,10 +168,15 @@ export class AutomaticMessageDailyGuardService {
           return { allowed: true };
         }
 
+        const currentIdentity = normalizeIdentity(current);
         const day = DateTime.fromJSDate(current.createdAt, { zone: 'utc' })
           .setZone(SAO_PAULO_TIME_ZONE)
           .toISODate()!;
-        for (const key of this.identityKeys(current, day)) {
+        for (const key of this.identityKeys(
+          current,
+          currentIdentity.phone,
+          day,
+        )) {
           await tx.$queryRaw`
             SELECT pg_advisory_xact_lock(hashtextextended(${key}, 0))::text AS lock
           `;
@@ -154,11 +200,11 @@ export class AutomaticMessageDailyGuardService {
           },
           orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         });
-        const blocker = this.selectChronologicalWinners(candidates).find(
-          (winner) => identitiesMatch(winner, current),
-        );
+        const decision = new ChronologicalIdentityIndex(
+          candidates,
+        ).blockerForNormalized(currentIdentity);
 
-        if (!blocker) {
+        if (decision.allowed) {
           return { allowed: true };
         }
 
@@ -174,13 +220,12 @@ export class AutomaticMessageDailyGuardService {
         });
 
         if (aborted.count === 0) {
-          await tx.message.findUnique({
-            where: { id: current.id },
-            select: { status: true },
-          });
+          this.logger.warn(
+            `Mensagem ${current.id} continuou bloqueada, mas seu estado mudou antes do aborto`,
+          );
         }
 
-        return { allowed: false, blockerId: blocker.id };
+        return { allowed: false, blockerId: decision.blockerId };
       },
       {
         maxWait: TRANSACTION_MAX_WAIT_MS,
@@ -202,39 +247,27 @@ export class AutomaticMessageDailyGuardService {
   }
 
   private identityKeys(
-    input: Pick<
-      AutomaticMessageGuardIdentity,
-      'companyId' | 'customerId' | 'phone'
-    >,
+    input: Pick<AutomaticMessageGuardIdentity, 'companyId' | 'customerId'>,
+    normalizedPhone: string | null,
     day: string,
   ): string[] {
-    const phone = normalizeStoredPhone(input.phone);
     return [
       `${input.companyId}:${day}:customer:${input.customerId}`,
-      ...(phone ? [`${input.companyId}:${day}:phone:${phone}`] : []),
+      ...(normalizedPhone
+        ? [`${input.companyId}:${day}:phone:${normalizedPhone}`]
+        : []),
     ].sort();
-  }
-
-  private selectChronologicalWinners(
-    candidates: IdentityCandidate[],
-  ): IdentityCandidate[] {
-    const winners: IdentityCandidate[] = [];
-    for (const candidate of candidates) {
-      if (!winners.some((winner) => identitiesMatch(winner, candidate))) {
-        winners.push(candidate);
-      }
-    }
-    return winners;
   }
 }
 
-function identitiesMatch(
-  left: Pick<AutomaticMessageGuardIdentity, 'customerId' | 'phone'>,
-  right: Pick<AutomaticMessageGuardIdentity, 'customerId' | 'phone'>,
-): boolean {
-  if (left.customerId === right.customerId) {
-    return true;
-  }
-  const leftPhone = normalizeStoredPhone(left.phone);
-  return leftPhone !== null && leftPhone === normalizeStoredPhone(right.phone);
+function normalizeIdentity(
+  input: Pick<AutomaticMessageSnapshotIdentity, 'customerId' | 'phone'> & {
+    id?: string;
+  },
+): NormalizedIdentity {
+  return {
+    id: input.id,
+    customerId: input.customerId,
+    phone: normalizeStoredPhone(input.phone),
+  };
 }
