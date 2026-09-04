@@ -69,6 +69,14 @@ export class CustomerIdentityService {
     const matchedBy: 'phone' | 'cpf' | null = byPhone ? 'phone' : byCpf ? 'cpf' : null;
 
     if (matched) {
+      const forceIdentifierReuse = partner?.partnerSlug?.toUpperCase() === 'VMLAV';
+      if (forceIdentifierReuse) {
+        const updateDto = mapIngestCustomerToUpdateDto(matched, ingestIncoming);
+        return Object.keys(updateDto).length
+          ? this.customersService.update(companyId, matched.id, updateDto)
+          : matched;
+      }
+
       const sameName = isSimilarName(matched.name, incoming.name);
       if (sameName) {
         const updateDto = mapIngestCustomerToUpdateDto(matched, ingestIncoming);

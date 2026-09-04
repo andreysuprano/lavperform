@@ -137,6 +137,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
     async findByPhone(companyId: string, phone: string): Promise<Customer | null> {
         const result = await this.prisma.customer.findFirst({
             where: { companyId, phone },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
             include: { address: true }
         });
         if (!result) return null;
@@ -147,6 +148,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
     async findByCpf(companyId: string, cpf: string): Promise<Customer | null> {
         const result = await this.prisma.customer.findFirst({
             where: { companyId, cpf },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
             include: { address: true }
         });
         if (!result) return null;

@@ -86,7 +86,29 @@ describe('CustomerIdentityService', () => {
     );
   });
 
-  it('cria cliente SEM telefone quando o nome diverge', async () => {
+  it('VMLAV reusa match de telefone mesmo com nome divergente', async () => {
+    customersService.findByPhone.mockResolvedValue({
+      id: 'cust-existing',
+      name: 'João Silva',
+      phone: '5541997269435',
+    });
+    customersService.update.mockResolvedValue({
+      id: 'cust-existing',
+      name: 'Maria Oliveira',
+      phone: '5541997269435',
+    });
+
+    const result = await service.resolveForSale({
+      companyId: 'company-1',
+      incoming: incoming({ name: 'Maria Oliveira' }),
+      partner: { partnerSlug: 'VMLAV' },
+    });
+
+    expect(result.id).toBe('cust-existing');
+    expect(customersService.create).not.toHaveBeenCalled();
+  });
+
+  it('cria cliente SEM telefone quando o nome diverge em origem nao-VMLAV', async () => {
     customersService.findByPhone.mockResolvedValue({
       id: 'cust-existing',
       name: 'João Silva',
