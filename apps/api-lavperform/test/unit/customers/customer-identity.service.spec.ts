@@ -108,6 +108,50 @@ describe('CustomerIdentityService', () => {
     expect(customersService.create).not.toHaveBeenCalled();
   });
 
+  it('VMLAV retorna o cliente matched quando o update falha', async () => {
+    const matched = {
+      id: 'cust-existing',
+      name: 'João Silva',
+      phone: '5541997269435',
+    };
+    customersService.findByPhone.mockResolvedValue(matched);
+    customersService.update.mockRejectedValue(new Error('unique constraint'));
+
+    const result = await service.resolveForSale({
+      companyId: 'company-1',
+      incoming: incoming({ name: 'Maria Oliveira', email: 'maria@exemplo.com' }),
+      partner: { partnerSlug: 'VMLAV' },
+    });
+
+    expect(result).toBe(matched);
+    expect(customersService.create).not.toHaveBeenCalled();
+  });
+
+  it('VMLAV com nome divergente nao sobrescreve o nome canonico', async () => {
+    customersService.findByPhone.mockResolvedValue({
+      id: 'cust-existing',
+      name: 'João Silva',
+      phone: '5541997269435',
+      email: null,
+    });
+    customersService.update.mockResolvedValue({
+      id: 'cust-existing',
+      name: 'João Silva',
+      email: 'maria@exemplo.com',
+    });
+
+    await service.resolveForSale({
+      companyId: 'company-1',
+      incoming: incoming({ name: 'Maria Oliveira', email: 'maria@exemplo.com' }),
+      partner: { partnerSlug: 'VMLAV' },
+    });
+
+    expect(customersService.update).toHaveBeenCalledTimes(1);
+    const updateDto = customersService.update.mock.calls[0][2];
+    expect(updateDto.name).toBeUndefined();
+    expect(updateDto.email).toBe('maria@exemplo.com');
+  });
+
   it('cria cliente SEM telefone quando o nome diverge em origem nao-VMLAV', async () => {
     customersService.findByPhone.mockResolvedValue({
       id: 'cust-existing',

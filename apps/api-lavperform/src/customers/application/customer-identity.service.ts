@@ -72,9 +72,20 @@ export class CustomerIdentityService {
       const forceIdentifierReuse = partner?.partnerSlug?.toUpperCase() === 'VMLAV';
       if (forceIdentifierReuse) {
         const updateDto = mapIngestCustomerToUpdateDto(matched, ingestIncoming);
-        return Object.keys(updateDto).length
-          ? this.customersService.update(companyId, matched.id, updateDto)
-          : matched;
+        if (!isSimilarName(matched.name, incoming.name)) {
+          delete updateDto.name;
+        }
+        if (Object.keys(updateDto).length === 0) {
+          return matched;
+        }
+        try {
+          return await this.customersService.update(companyId, matched.id, updateDto);
+        } catch (error) {
+          this.logger.warn(
+            `Falha ao atualizar cliente ${matched.id} (company ${companyId}): ${(error as Error)?.message}`,
+          );
+          return matched;
+        }
       }
 
       const sameName = isSimilarName(matched.name, incoming.name);
