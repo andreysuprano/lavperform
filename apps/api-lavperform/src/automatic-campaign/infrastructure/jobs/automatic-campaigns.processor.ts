@@ -2,7 +2,7 @@ import { Processor, Process } from '@nestjs/bull';
 import { Job } from 'bull';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { Logger } from '@nestjs/common';
-import { AutomaticCampaignStatus, CampaignChannel, MessageStatus } from '@prisma/client';
+import { AutomaticCampaignStatus, AudienceTargetingMode, CampaignChannel, MessageStatus } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { getDayOfWeekPtBr, nowUTC, startOfDayInTz, endOfDayInTz } from '../../../common/utils/date.utils';
 import { extractErrorMessage } from '../../../common/utils/error.utils';
@@ -108,6 +108,7 @@ export class AutomaticCampaignsProcessor {
         this.logger.log(
           `Campanha ${automaticCampaignId}: limite diário atingido (${alreadyScheduledToday}/${maxDailySends} agendadas) — nenhuma nova mensagem será criada`,
         );
+        await this.persistContactableReach(campaign);
         await this.markLastProcessedAt(automaticCampaignId);
         return;
       }
@@ -136,15 +137,7 @@ export class AutomaticCampaignsProcessor {
       const excludeCustomerIds = messagedToday.map((message) => message.customerId);
 
       // Métrica de alcance da audiência: não considera slots nem exclusões do dia.
-      const totalCustomers = await this.campaignCustomerResolver.countEligibleCustomers({
-        companyId: campaign.companyId,
-        targetingMode: campaign.targetingMode,
-        segmentation: campaign.segmentation,
-        audienceId: campaign.audienceId,
-        customSendListId: campaign.customSendListId,
-        channel: campaign.channel,
-        eligibility: 'contactable',
-      });
+      await this.persistContactableReach(campaign);
 
       const requestedTake = remainingSlots * 5;
 
@@ -251,13 +244,6 @@ export class AutomaticCampaignsProcessor {
         maxDailySends,
       });
 
-      await this.prisma.campaignMetric.updateMany({
-        where: { automaticCampaignId: automaticCampaignId },
-        data: {
-          totalCustomers: totalCustomers,
-        }
-      });
-
       if (isWhatsappChannel) {
         // Warmup depois da validação síncrona: quem acabou de ser revalidado já
         // não entra na fila. Só enfileira, sem aguardar os jobs.
@@ -325,6 +311,33 @@ export class AutomaticCampaignsProcessor {
         },
       });
     }
+  }
+
+  private async persistContactableReach(campaign: {
+    id: string;
+    companyId: string;
+    targetingMode: AudienceTargetingMode;
+    segmentation: string | null;
+    audienceId: string | null;
+    customSendListId: string | null;
+    channel: CampaignChannel;
+  }): Promise<number> {
+    const totalCustomers = await this.campaignCustomerResolver.countEligibleCustomers({
+      companyId: campaign.companyId,
+      targetingMode: campaign.targetingMode,
+      segmentation: campaign.segmentation ?? undefined,
+      audienceId: campaign.audienceId,
+      customSendListId: campaign.customSendListId,
+      channel: campaign.channel,
+      eligibility: 'contactable',
+    });
+
+    await this.prisma.campaignMetric.updateMany({
+      where: { automaticCampaignId: campaign.id },
+      data: { totalCustomers },
+    });
+
+    return totalCustomers;
   }
 
   private async markLastProcessedAt(automaticCampaignId: string): Promise<void> {
