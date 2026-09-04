@@ -53,6 +53,8 @@ describe('VmLavSalesTasks', () => {
         jobId: expect.stringMatching(/^vmlav-import:company-1:/),
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: true,
       }),
     );
 
@@ -67,6 +69,29 @@ describe('VmLavSalesTasks', () => {
       }),
     );
     expect(mockQueue.add).toHaveBeenCalledTimes(2);
+  });
+
+  it('continua enfileirando próxima empresa quando job ativo já existe', async () => {
+    mockPrisma.company.findMany.mockResolvedValue([
+      { id: 'company-1', name: 'Empresa 1' },
+      { id: 'company-2', name: 'Empresa 2' },
+    ]);
+    mockQueue.add
+      .mockRejectedValueOnce(new Error('Job already exists'))
+      .mockResolvedValueOnce({ id: 'job-2' });
+
+    await tasks.handleDailySalesImport();
+
+    expect(mockQueue.add).toHaveBeenCalledTimes(2);
+    expect(mockQueue.add).toHaveBeenLastCalledWith(
+      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      expect.objectContaining({ companyId: 'company-2' }),
+      expect.objectContaining({
+        jobId: expect.stringMatching(/^vmlav-import:company-2:/),
+        removeOnComplete: true,
+        removeOnFail: true,
+      }),
+    );
   });
 
   it('executa cron a cada 30 minutos', () => {

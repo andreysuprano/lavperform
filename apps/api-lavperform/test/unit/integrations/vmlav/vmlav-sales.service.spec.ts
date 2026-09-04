@@ -44,6 +44,8 @@ describe('VmLavSalesService', () => {
   const apiKey = 'api-key-1';
   const date = '2026-09-04';
 
+  const sale2 = { idVenda: 456, nomeCliente: 'Cliente 2' } as VmLavSale;
+
   const sale = { idVenda: 123, nomeCliente: 'Cliente Teste' } as VmLavSale;
 
   beforeEach(async () => {
@@ -100,6 +102,28 @@ describe('VmLavSalesService', () => {
         jobId: 'vmlav-sale:company-1:123',
         attempts: 3,
         backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      }),
+    );
+  });
+
+  it('continua enfileirando próxima venda quando job ativo já existe', async () => {
+    mockVmLavService.getDailySales.mockResolvedValue([sale, sale2]);
+    mockSaleQueue.add
+      .mockRejectedValueOnce(new Error('Job already exists'))
+      .mockResolvedValueOnce({ id: 'sale-job-2' });
+
+    await service.processDailySales(companyId, date);
+
+    expect(mockSaleQueue.add).toHaveBeenCalledTimes(2);
+    expect(mockSaleQueue.add).toHaveBeenLastCalledWith(
+      QUEUE_NAMES.VMLAV_SALE_PROCESS,
+      expect.objectContaining({ companyId, sale: sale2 }),
+      expect.objectContaining({
+        jobId: 'vmlav-sale:company-1:456',
+        removeOnComplete: true,
+        removeOnFail: true,
       }),
     );
   });
@@ -117,6 +141,8 @@ describe('VmLavSalesService', () => {
         jobId: 'vmlav-import:company-1:2026-09-01',
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: true,
       }),
     );
 
@@ -128,5 +154,27 @@ describe('VmLavSalesService', () => {
       }),
     );
     expect(mockImportQueue.add).toHaveBeenCalledTimes(2);
+  });
+
+  it('continua importação histórica quando job ativo já existe', async () => {
+    mockImportQueue.add
+      .mockRejectedValueOnce(new Error('Job already exists'))
+      .mockResolvedValueOnce({ id: 'import-job-2' });
+
+    await service.importHistoricalSales(companyId, {
+      startDate: '2026-09-01',
+      endDate: '2026-09-02',
+    });
+
+    expect(mockImportQueue.add).toHaveBeenCalledTimes(2);
+    expect(mockImportQueue.add).toHaveBeenLastCalledWith(
+      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      { companyId, date: '2026-09-02' },
+      expect.objectContaining({
+        jobId: 'vmlav-import:company-1:2026-09-02',
+        removeOnComplete: true,
+        removeOnFail: true,
+      }),
+    );
   });
 });

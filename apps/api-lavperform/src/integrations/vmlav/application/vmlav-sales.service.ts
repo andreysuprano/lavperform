@@ -22,18 +22,17 @@ import {
   VMLAV_INGESTION_API_KEY_ID,
   VMLAV_PARTNER_SLUG,
 } from '../vmlav.constants';
+import {
+  buildVmLavImportJobOptions,
+  buildVmLavSaleJobOptions,
+  enqueueVmLavJob,
+  vmlavImportJobId,
+  vmlavSaleJobId,
+} from '../vmlav-queue.util';
 
 @Injectable()
 export class VmLavSalesService {
   private readonly logger = new Logger(VmLavSalesService.name);
-
-  private importJobId(companyId: string, date: string): string {
-    return `vmlav-import:${companyId}:${date}`;
-  }
-
-  private saleJobId(companyId: string, idVenda: number): string {
-    return `vmlav-sale:${companyId}:${idVenda}`;
-  }
 
   constructor(
     private readonly vmLavService: VmLavService,
@@ -106,7 +105,8 @@ export class VmLavSalesService {
       this.logger.log(`Encontradas ${sales.length} vendas para processar`);
 
       for (const sale of sales) {
-        await this.vmLavSaleProcessQueue.add(
+        const result = await enqueueVmLavJob(
+          this.vmLavSaleProcessQueue,
           QUEUE_NAMES.VMLAV_SALE_PROCESS,
           {
             companyId,
@@ -114,15 +114,14 @@ export class VmLavSalesService {
             apiKey: integration.apiKey,
             partnerId: partner.id,
           },
-          {
-            jobId: this.saleJobId(companyId, sale.idVenda),
-            attempts: 3,
-            backoff: {
-              type: 'exponential',
-              delay: 2000,
-            },
-          },
+          buildVmLavSaleJobOptions(vmlavSaleJobId(companyId, sale.idVenda)),
         );
+
+        if (result === 'skipped') {
+          this.logger.debug(
+            `Venda ${sale.idVenda} já enfileirada para empresa ${companyId}`,
+          );
+        }
       }
 
       this.logger.log(
@@ -285,22 +284,23 @@ export class VmLavSalesService {
 
       let jobsCreated = 0;
       for (const date of dates) {
-        await this.vmLavSalesQueue.add(
+        const result = await enqueueVmLavJob(
+          this.vmLavSalesQueue,
           QUEUE_NAMES.VMLAV_SALES_IMPORT,
           {
             companyId,
             date,
           },
-          {
-            jobId: this.importJobId(companyId, date),
-            attempts: 3,
-            backoff: {
-              type: 'exponential',
-              delay: 5000,
-            },
-          },
+          buildVmLavImportJobOptions(vmlavImportJobId(companyId, date)),
         );
-        jobsCreated++;
+
+        if (result === 'queued') {
+          jobsCreated++;
+        } else {
+          this.logger.debug(
+            `Importação histórica ${date} já enfileirada para empresa ${companyId}`,
+          );
+        }
       }
 
       this.logger.log(
