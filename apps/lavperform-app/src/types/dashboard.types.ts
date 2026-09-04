@@ -105,6 +105,7 @@ export type DashCampaignsProps = {
 export type DashboardPerformanceSummary = {
   dailySalesAmount: number
   dailySalesCount: number
+  dailyCycleCount: number
 }
 
 export type DashboardPerformanceChartPoint = {

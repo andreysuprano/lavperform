@@ -38,10 +38,10 @@ export function SkeletonLoading() {
           w="200px"
         />
         <SimpleGrid
-          columns={{ base: 1, sm: 2, md: 3, xl: 5 }}
+          columns={{ base: 1, sm: 2, md: 3, xl: 6 }}
           gap={4}
         >
-          {Array.from({ length: 5 }).map((_, idx) => (
+          {Array.from({ length: 6 }).map((_, idx) => (
             <Skeleton
               height="96px"
               key={idx}

@@ -1,6 +1,7 @@
 export type OrdersTodaySummary = {
   count: number
   totalValue: number
+  cycleCount: number
 }
 
 export type MonthlySalesPoint = {
