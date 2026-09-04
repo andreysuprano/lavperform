@@ -64,7 +64,11 @@ export function PublicConnectView({ token }: { token: string }) {
 
         if (nextSession.status !== "CONNECTED") {
           await loadConnection()
+        } else {
+          // Sessão lê só o banco; o status consulta a Uazapi e preenche o número.
+          await refreshStatus()
         }
+        if (cancelled) return
       } catch (err) {
         if (!cancelled) {
           setError(err instanceof Error ? err.message : "Link inválido")
@@ -78,7 +82,7 @@ export function PublicConnectView({ token }: { token: string }) {
     return () => {
       cancelled = true
     }
-  }, [token, loadConnection])
+  }, [token, loadConnection, refreshStatus])
 
   useEffect(() => {
     if (status === "CONNECTED" || error) return
