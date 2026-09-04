@@ -338,6 +338,36 @@ describe('AutomaticMessageDailyGuardService', () => {
       expect(tx.message.updateMany).not.toHaveBeenCalled();
     });
 
+    it('blocks a retry when a later SENT directly occupies its phone', async () => {
+      const { guard, tx } = setup();
+      tx.message.findUnique.mockResolvedValue(
+        candidate({
+          id: 'X',
+          customerId: 'u1',
+          phone: 'P2',
+          status: MessageStatus.PROCESSING,
+          createdAt: new Date('2026-09-04T13:00:00.000Z'),
+        }),
+      );
+      tx.message.findMany.mockResolvedValue([
+        candidate({
+          id: 'C',
+          customerId: 'u2',
+          phone: 'P2',
+          status: MessageStatus.SENT,
+          createdAt: new Date('2026-09-04T14:00:00.000Z'),
+        }),
+      ]);
+
+      await expect(guard.claimForProcessing('X')).resolves.toEqual({
+        allowed: false,
+        blockerId: 'C',
+      });
+      expect(tx.message.updateMany).toHaveBeenCalledWith(
+        expect.objectContaining({ where: expect.objectContaining({ id: 'X' }) }),
+      );
+    });
+
     it('propagates lock timeout for retry without allowing the message', async () => {
       const { guard, prisma, tx } = setup();
       tx.message.findUnique.mockResolvedValue(
