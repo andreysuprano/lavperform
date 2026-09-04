@@ -1,5 +1,7 @@
 import type {
   CreateAutomaticCampaignRequest,
+  ReachPreviewRequest,
+  ReachPreviewResponse,
   RecurringCampaign,
   RecurringCampaignMessage,
   RecurringCampaignMessagesQuery,
@@ -7,6 +9,8 @@ import type {
   ScheduledDispatchCampaign,
   ScheduledDispatchCampaignResponse,
 } from '@/types'
+
+export type { ReachPreviewRequest, ReachPreviewResponse }
 
 import { client } from './client'
 import type { CampaignsSummaryParams } from './dashboard.service'
@@ -113,7 +117,10 @@ export const recurringCampaignService = {
     )
   },
 
-  async createCampaign(companyId: string, campaign: CreateAutomaticCampaignRequest) {
+  async createCampaign(
+    companyId: string,
+    campaign: CreateAutomaticCampaignRequest
+  ) {
     return await client.post(`/campaigns/automatic/${companyId}`, campaign)
   },
 
@@ -168,6 +175,13 @@ export const recurringCampaignService = {
   async duplicateCampaign(id: string, companyId: string) {
     return await client.post<RecurringCampaign>(
       `/campaigns/automatic/${companyId}/${id}/duplicate`
+    )
+  },
+
+  async getReachPreview(companyId: string, request: ReachPreviewRequest) {
+    return await client.post<ReachPreviewResponse>(
+      `/campaigns/automatic/${companyId}/reach-preview`,
+      request
     )
   },
 }
