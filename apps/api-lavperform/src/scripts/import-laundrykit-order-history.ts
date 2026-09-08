@@ -236,7 +236,7 @@ async function ingestOrder(
   payload: IngestOrderDto,
   dryRun: boolean,
 ): Promise<'queued' | 'already_received' | 'skipped' | 'error'> {
-  if (!payload.customer.phone && !payload.customer.cpf) {
+  if (!payload.customer?.phone && !payload.customer?.cpf) {
     return 'skipped';
   }
 

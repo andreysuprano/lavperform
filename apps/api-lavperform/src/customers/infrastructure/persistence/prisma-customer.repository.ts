@@ -301,14 +301,18 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         });
 
         const statsByCustomerId = new Map<string, CustomerOrderStats>(
-            orderStats.map((row) => [
-                row.customerId,
-                {
-                    _min: row._min,
-                    _max: row._max,
-                    _count: row._count,
-                },
-            ]),
+            orderStats.flatMap((row) =>
+                row.customerId
+                    ? [[
+                        row.customerId,
+                        {
+                            _min: row._min,
+                            _max: row._max,
+                            _count: row._count,
+                        },
+                    ] as const]
+                    : [],
+            ),
         );
 
         return items.map((item) =>
@@ -434,7 +438,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         // corretamente em alguns casos; ordenamos em memória para garantir.
         const grouped = await this.prisma.order.groupBy({
             by: ['customerId'],
-            where: { companyId },
+            where: { companyId, customerId: { not: null } },
             _sum: { total: true },
             _count: { _all: true },
         });
@@ -458,7 +462,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             return bOrders - aOrders;
         }).slice(0, take);
 
-        const customerIds = ranked.map((row) => row.customerId);
+        const customerIds = ranked
+            .map((row) => row.customerId)
+            .filter((id): id is string => id != null);
 
         const customers = await this.prisma.customer.findMany({
             where: {
@@ -485,6 +491,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((row) => {
+                if (!row.customerId) return null;
                 const customer = customerMap.get(row.customerId);
                 if (!customer) return null;
 
@@ -625,6 +632,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             by: ['customerId'],
             where: {
                 companyId,
+                customerId: { not: null },
                 ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
             },
             _count: { _all: true },
@@ -654,7 +662,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             })
             .slice(0, take);
 
-        const customerIds = ranked.map((group) => group.customerId);
+        const customerIds = ranked
+            .map((group) => group.customerId)
+            .filter((id): id is string => id != null);
         const customers = await this.prisma.customer.findMany({
             where: {
                 companyId,
@@ -680,6 +690,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((group) => {
+                if (!group.customerId) return null;
                 const customer = customersById.get(group.customerId);
                 if (!customer) return null;
 
