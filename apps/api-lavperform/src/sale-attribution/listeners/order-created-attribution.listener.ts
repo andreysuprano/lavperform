@@ -8,7 +8,7 @@ export const SALE_ATTRIBUTION_JOB_NAME = 'attribute-sale';
 
 export interface OrderCreatedPayload {
   orderId: string;
-  customerId: string;
+  customerId?: string | null;
   companyId: string;
 }
 
@@ -24,6 +24,9 @@ export class OrderCreatedAttributionListener {
   @OnEvent('order.created')
   async handleOrderCreated(payload: OrderCreatedPayload) {
     const { orderId, customerId, companyId } = payload;
+    if (!customerId) {
+      return;
+    }
 
     try {
       await this.attributionQueue.add(

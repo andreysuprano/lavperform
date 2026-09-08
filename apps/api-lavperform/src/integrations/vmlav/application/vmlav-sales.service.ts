@@ -22,6 +22,19 @@ import {
   VMLAV_INGESTION_API_KEY_ID,
   VMLAV_PARTNER_SLUG,
 } from '../vmlav.constants';
+import { normalizeVmLavCnpj } from '../api/vmlav-sales-response.util';
+
+export type VmLavDailySalesResult = {
+  companyId: string;
+  date: string;
+  cnpj: string;
+  salesFound: number;
+  enqueued: number;
+};
+
+export type VmLavProcessSaleResult =
+  | { status: 'queued' | 'already_received'; saleId: number }
+  | { status: 'skipped'; saleId: number | null; reason: string };
 
 @Injectable()
 export class VmLavSalesService {
@@ -45,7 +58,10 @@ export class VmLavSalesService {
    * @param companyId - ID da empresa
    * @param date - Data das vendas no formato ISO (YYYY-MM-DD)
    */
-  async processDailySales(companyId: string, date: string): Promise<void> {
+  async processDailySales(
+    companyId: string,
+    date: string,
+  ): Promise<VmLavDailySalesResult> {
     try {
       this.logger.log(
         `Iniciando processamento de vendas para empresa ${companyId} - ${date}`,
@@ -73,25 +89,23 @@ export class VmLavSalesService {
       );
 
       if (!integration) {
-        this.logger.warn(`Integração VM Lav não encontrada para empresa ${companyId}`);
-        return;
+        throw new Error(`Integração VM Lav não encontrada para empresa ${companyId}`);
       }
 
       if (!integration.apiKey) {
-        this.logger.warn(`API Key não configurada para empresa ${companyId}`);
-        return;
+        throw new Error(`API Key não configurada para empresa ${companyId}`);
       }
 
-      if (!company.cnpj) {
-        this.logger.warn(`CNPJ não configurado para empresa ${companyId}`);
-        return;
+      const cnpj = normalizeVmLavCnpj(company.cnpj ?? '');
+      if (!cnpj) {
+        throw new Error(`CNPJ não configurado para empresa ${companyId}`);
       }
 
       this.logger.log(`Integração encontrada. Buscando vendas na API...`);
 
       const sales = await this.vmLavService.getDailySales(
         integration.apiKey,
-        company.cnpj,
+        cnpj,
         date,
       );
 
@@ -119,6 +133,14 @@ export class VmLavSalesService {
       this.logger.log(
         `${sales.length} vendas adicionadas à fila de processamento para empresa ${companyId}`,
       );
+
+      return {
+        companyId,
+        date,
+        cnpj,
+        salesFound: sales.length,
+        enqueued: sales.length,
+      };
     } catch (error) {
       this.logger.error(
         `Erro ao processar vendas para empresa ${companyId}:`,
@@ -137,15 +159,19 @@ export class VmLavSalesService {
     sale: VmLavSale,
     apiKey?: string,
     partnerId?: string,
-  ): Promise<void> {
+  ): Promise<VmLavProcessSaleResult> {
     try {
       this.logger.log(`Processando venda ${sale.idVenda} - Cliente: ${sale.nomeCliente}`);
 
       if (!isVmLavSaleReadyForIngestion(sale)) {
         this.logger.warn(
-          `Venda ${sale.idVenda} incompleta para ingestão (sem nome), ignorando`,
+          `Venda ${sale.idVenda} incompleta para ingestão (sem idVenda)`,
         );
-        return;
+        return {
+          status: 'skipped',
+          saleId: sale.idVenda ?? null,
+          reason: 'missing_idVenda',
+        };
       }
 
       let resolvedPartnerId = partnerId;
@@ -180,10 +206,9 @@ export class VmLavSalesService {
       );
 
       if (!ingestPayload) {
-        this.logger.warn(
-          `Falha ao mapear venda ${sale.idVenda} para ingestão; ignorando`,
+        throw new Error(
+          `Falha ao mapear venda ${sale.idVenda} para ingestão (data inválida ou payload incompleto)`,
         );
-        return;
       }
 
       const result = await this.orderIngestionService.enqueue(
@@ -198,6 +223,11 @@ export class VmLavSalesService {
         `Venda VM Lav ${sale.idVenda} ${result.status} na fila public-api-order-ingestion ` +
           `para empresa ${companyId}`,
       );
+
+      return {
+        status: result.status === 'already_received' ? 'already_received' : 'queued',
+        saleId: sale.idVenda,
+      };
     } catch (error) {
       this.logger.error(`Erro ao processar venda ${sale.idVenda}:`, error.message);
       throw error;

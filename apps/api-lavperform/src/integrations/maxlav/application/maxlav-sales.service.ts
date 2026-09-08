@@ -153,7 +153,7 @@ export class MaxlavSalesService {
 
       this.logger.log(`Criando pedido para venda Maxlav ${order.id}`);
 
-      const orderData = MaxlavSaleMapping.toOrder(order, customer.id, companyId);
+      const orderData = MaxlavSaleMapping.toOrder(order, customer?.id ?? null, companyId);
       const {
         integratorOrderId: _integratorOrderId,
         items,

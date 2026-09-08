@@ -171,7 +171,7 @@ export class ConsumerWebhookService {
 
     const orderData = ConsumerWebhookOrderMapping.toOrder(
       payload,
-      customer.id,
+      customer?.id ?? null,
       companyId,
     );
 

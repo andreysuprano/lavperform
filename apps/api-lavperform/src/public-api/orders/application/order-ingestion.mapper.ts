@@ -85,7 +85,7 @@ export function mapIngestCustomerToUpdateDto(
 export function mapIngestOrderToCreateDto(
   payload: IngestOrderDto,
   ctx: PublicApiContext,
-  customerId: string,
+  customerId: string | null,
   partner?: { partnerSlug: string | null; name: string },
 ): CreateOrderDto {
   const salesChannel =

@@ -153,7 +153,7 @@ export class CiccloSalesService {
 
       this.logger.log(`Criando pedido para venda Cicclo ${sale.id}`);
 
-      const orderData = CiccloSaleMapping.toOrder(sale, customer.id, companyId);
+      const orderData = CiccloSaleMapping.toOrder(sale, customer?.id ?? null, companyId);
       const {
         integratorOrderId,
         items,

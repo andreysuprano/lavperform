@@ -6,8 +6,8 @@ import { CustomerDuplicateService } from '../deduplication/application/customer-
 import { PrismaService } from '../prisma/prisma.service';
 
 /**
- * Escaneia empresas com telefone/CPF duplicados, mescla grupos de nomes
- * parecidos e deixa o restante para revisão no admin.
+ * Escaneia empresas com telefone/CPF duplicados, mescla todos os grupos
+ * com o mesmo telefone e deixa conflitos só de CPF para revisão no admin.
  *
  * Uso:
  *   npm run script:scan-customer-duplicates
@@ -106,7 +106,7 @@ async function main() {
     console.log(`  grupos auto ainda pendentes: ${pendingAuto}`);
     if (!isDryRun && reviewGroups > 0) {
       console.log(
-        '\nO que restou com nomes divergentes fica na ficha da empresa no admin.',
+        '\nO que restou (em geral só conflito de CPF) fica na ficha da empresa no admin.',
       );
     }
   } finally {

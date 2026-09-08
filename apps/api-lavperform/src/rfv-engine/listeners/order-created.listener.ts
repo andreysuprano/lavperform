@@ -9,8 +9,11 @@ export class OrderCreatedListener {
     constructor(private readonly rfvEngineService: RfvEngineService) {}
 
     @OnEvent('order.created')
-    async handleOrderCreated(payload: { customerId: string }) {
+    async handleOrderCreated(payload: { customerId?: string | null }) {
         const { customerId } = payload;
+        if (!customerId) {
+            return;
+        }
 
         try {
             await this.rfvEngineService.calculateForCustomer(customerId);

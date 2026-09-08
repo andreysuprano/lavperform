@@ -743,8 +743,8 @@ model Order {
   partner                  Partner? @relation(fields: [partnerId], references: [id], onDelete: SetNull)
   companyId                String
   company                  Company  @relation(fields: [companyId], references: [id], onDelete: Restrict)
-  customerId               String
-  customer                 Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  customerId               String?
+  customer                 Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
 
   deliveryAddress OrderDeliveryAddress?
   schedule        OrderSchedule?

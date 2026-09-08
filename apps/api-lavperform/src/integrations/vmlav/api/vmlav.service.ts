@@ -10,6 +10,10 @@ import {
   VmLavCustomersResponse,
   VmLavCustomerDetail,
 } from './vmlav.types';
+import {
+  extractVmLavSalesList,
+  normalizeVmLavCnpj,
+} from './vmlav-sales-response.util';
 
 @Injectable()
 export class VmLavService {
@@ -35,13 +39,13 @@ export class VmLavService {
    */
   async getSales(apiKey: string, params: GetSalesParams): Promise<VmLavSalesResponse> {
     try {
-      this.logger.log(`Buscando vendas de ${params.dataInicio} até ${params.dataTermino} para CNPJ ${params.cnpj}`);
-      
+      const cnpj = normalizeVmLavCnpj(params.cnpj);
+      this.logger.log(`Buscando vendas de ${params.dataInicio} até ${params.dataTermino} para CNPJ ${cnpj}`);
       const queryParams = {
         dataInicio: params.dataInicio,
         dataTermino: params.dataTermino,
         somenteSucesso: params.somenteSucesso ?? true,
-        cnpj: params.cnpj,
+        cnpj,
         pagina: params.pagina ?? 0,
         quantidade: params.quantidade ?? 100,
       };
@@ -62,8 +66,9 @@ export class VmLavService {
         )
       );
 
-      this.logger.log(`Encontradas ${response.data?.length || 0} vendas`);
-      return response.data;
+      const sales = extractVmLavSalesList(response.data);
+      this.logger.log(`Encontradas ${sales.length} vendas`);
+      return sales;
     } catch (error) {
       const errorMessage = formatError(error);
       this.logger.error(`Não foi possível buscar as vendas: ${errorMessage}`);
