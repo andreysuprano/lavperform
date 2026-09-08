@@ -26,11 +26,17 @@ export class VmLavSalesProcessor {
         `Processando importação de vendas VM Lav para empresa ${companyId} - data: ${date}`,
       );
 
-      await this.vmLavSalesService.processDailySales(companyId, date);
+      const result = await this.vmLavSalesService.processDailySales(
+        companyId,
+        date,
+      );
 
       this.logger.log(
-        `Importação de vendas concluída para empresa ${companyId}`,
+        `Importação de vendas concluída para empresa ${companyId}: ` +
+          `${result.salesFound} encontradas, ${result.enqueued} enfileiradas (CNPJ ${result.cnpj})`,
       );
+
+      return result;
     } catch (error) {
       this.logger.error(
         `Erro ao processar importação de vendas para empresa ${companyId}:`,

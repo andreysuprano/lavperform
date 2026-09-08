@@ -11,7 +11,7 @@ export class CiccloSaleMapping {
    */
   static toOrder(
     sale: CiccloSale,
-    customerId: string,
+    customerId: string | null,
     companyId: string,
   ): CreateOrderDto {
     const saleDate = parseUTCDate(sale.createdAt);

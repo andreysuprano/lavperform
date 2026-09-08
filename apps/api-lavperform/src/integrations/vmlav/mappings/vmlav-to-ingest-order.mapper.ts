@@ -20,9 +20,9 @@ function mapGender(genero: string | undefined | null): IngestCustomerDto['gender
 function mapCustomer(
   sale: VmLavSale,
   customerDetail?: VmLavCustomerDetail | null,
-): IngestCustomerDto | null {
-  const name = (customerDetail?.nome ?? sale.nomeCliente)?.trim();
-  if (!name) return null;
+): IngestCustomerDto {
+  const name =
+    (customerDetail?.nome ?? sale.nomeCliente)?.trim() || 'Cliente';
 
   const rawPhone = normalizeVmLavPhone(
     customerDetail?.telefone ?? sale.telefoneCliente,
@@ -38,7 +38,10 @@ function mapCustomer(
 
   const birthSource = customerDetail?.dataNascimento ?? sale.dtaNascimento;
   const birthParsed = parseUTCDate(birthSource);
-  const birthDate = birthParsed ? toDateOnlyString(birthParsed) : undefined;
+  const birthDate =
+    birthParsed && !Number.isNaN(birthParsed.getTime())
+      ? toDateOnlyString(birthParsed)
+      : undefined;
 
   return {
     name,
@@ -79,7 +82,7 @@ function mapPayments(sale: VmLavSale): IngestOrderPaymentDto[] {
 }
 
 export function isVmLavSaleReadyForIngestion(sale: VmLavSale): boolean {
-  return sale.idVenda != null && Boolean(sale.nomeCliente?.trim());
+  return sale.idVenda != null;
 }
 
 /**
@@ -94,10 +97,9 @@ export function mapVmLavSaleToIngestOrder(
   if (sale.idVenda == null) return null;
 
   const customer = mapCustomer(sale, customerDetail);
-  if (!customer) return null;
 
   const saleDate = parseUTCDate(sale.data);
-  if (!saleDate) return null;
+  if (!saleDate || Number.isNaN(saleDate.getTime())) return null;
 
   const createdAt = saleDate.toISOString();
   const discountValue =

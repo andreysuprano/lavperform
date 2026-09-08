@@ -9,7 +9,7 @@ export class VmLavSaleMapping {
    * @param customerId - ID do cliente no sistema
    * @param companyId - ID da empresa
    */
-  static toOrder(sale: VmLavSale, customerId: string, companyId: string): CreateOrderDto {
+  static toOrder(sale: VmLavSale, customerId: string | null, companyId: string): CreateOrderDto {
     const saleDate = parseUTCDate(sale.data);
     
     return {

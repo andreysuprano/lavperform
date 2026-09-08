@@ -63,7 +63,7 @@ function buildItems(order: MaxlavOrder) {
 export class MaxlavSaleMapping {
   static toOrder(
     order: MaxlavOrder,
-    customerId: string,
+    customerId: string | null,
     companyId: string,
   ): CreateOrderDto {
     const saleDate = parseUTCDate(order.createdAt);

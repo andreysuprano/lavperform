@@ -23,8 +23,8 @@ export class Order {
     createdAt: Date;
     updatedAt: Date;
     companyId: string;
-    customerId: string;
-    customer?: Customer;
+    customerId?: string | null;
+    customer?: Customer | null;
     digitalMenuIntegrationId?: string | null;
     deliveryAddress?: OrderDeliveryAddress | null;
     schedule?: OrderSchedule | null;

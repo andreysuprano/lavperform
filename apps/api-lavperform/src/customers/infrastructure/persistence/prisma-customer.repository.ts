@@ -7,6 +7,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { OrderMapper } from 'src/orders/infrastructure/persistence/mappers/order.mapper';
 import { Order } from 'src/orders/domain/order.entity';
 import { Message, MessageStatus } from '@prisma/client';
+import { phoneLookupVariants } from '../../application/customer-identifier';
 
 @Injectable()
 export class CustomerPrismaRepository implements ICustomerRepository {
@@ -135,9 +136,14 @@ export class CustomerPrismaRepository implements ICustomerRepository {
     }
 
     async findByPhone(companyId: string, phone: string): Promise<Customer | null> {
+        const variants = phoneLookupVariants(phone);
         const result = await this.prisma.customer.findFirst({
-            where: { companyId, phone },
-            include: { address: true }
+            where: {
+                companyId,
+                phone: variants.length > 0 ? { in: variants } : phone,
+            },
+            include: { address: true },
+            orderBy: { createdAt: 'asc' },
         });
         if (!result) return null;
         const [customer] = await this.mapCustomersWithOrderStats([result]);

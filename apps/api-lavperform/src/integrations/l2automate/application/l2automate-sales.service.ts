@@ -145,7 +145,7 @@ export class L2AutomateSalesService {
 
       this.logger.log(`Criando pedido para venda L2 Automate ${sale.id}`);
 
-      const orderData = L2AutomateSaleMapping.toOrder(sale, customer.id, companyId);
+      const orderData = L2AutomateSaleMapping.toOrder(sale, customer?.id ?? null, companyId);
       const {
         integratorOrderId: _integratorOrderId,
         items,

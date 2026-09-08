@@ -95,6 +95,34 @@ describe('OrderIngestionProcessor', () => {
     expect(orderService.create).not.toHaveBeenCalled();
   });
 
+  it('grava o pedido sem customerId quando a venda nao tem cliente', async () => {
+    customerIdentityService.resolveForSale.mockResolvedValue(null);
+
+    const job = buildJob({
+      customer: { name: 'Balcão' },
+    });
+
+    const result = await processor.handle(job);
+
+    expect(customerIdentityService.resolveForSale).toHaveBeenCalled();
+    expect(orderService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: null }),
+    );
+    expect(result).toEqual({ orderId: 'order-1' });
+  });
+
+  it('grava o pedido sem resolver cliente quando o payload nao traz customer', async () => {
+    const job = buildJob();
+
+    const result = await processor.handle(job);
+
+    expect(customerIdentityService.resolveForSale).not.toHaveBeenCalled();
+    expect(orderService.create).toHaveBeenCalledWith(
+      expect.objectContaining({ customerId: null }),
+    );
+    expect(result).toEqual({ orderId: 'order-1' });
+  });
+
   it('usa o nome correto do job', () => {
     expect(PUBLIC_API_ORDER_INGESTION_JOB).toBe('ingest-order');
   });
