@@ -30,6 +30,7 @@
     "script:create-ai-agents": "ts-node -r tsconfig-paths/register src/scripts/create-ai-agents-for-existing-companies.ts",
     "script:create-weather-alerts": "ts-node -r tsconfig-paths/register src/scripts/create-weather-alerts-for-existing-companies.ts",
     "script:validate-whatsapp-customers": "ts-node -r tsconfig-paths/register src/scripts/validate-whatsapp-for-existing-customers.ts",
+    "script:refresh-active-campaign-reach": "ts-node -r tsconfig-paths/register src/scripts/refresh-active-campaign-reach.ts",
     "script:delete-customers-without-orders": "ts-node -r tsconfig-paths/register src/scripts/delete-customers-without-orders.ts",
     "script:delete-company": "ts-node -r tsconfig-paths/register src/scripts/delete-company.ts",
     "script:fix-duplicate-display-ids": "ts-node -r tsconfig-paths/register src/scripts/fix-duplicate-display-ids.ts",

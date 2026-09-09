@@ -76,8 +76,9 @@ export class CreateOrderDto {
   @IsString()
   companyId: string;
 
+  @IsOptional()
   @IsString()
-  customerId: string;
+  customerId?: string | null;
 
   @IsDate()
   @Type(() => Date)

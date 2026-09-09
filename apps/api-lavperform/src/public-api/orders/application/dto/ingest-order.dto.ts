@@ -113,10 +113,14 @@ export class IngestOrderDto {
   @IsNumber()
   total: number;
 
-  @ApiProperty({ type: IngestCustomerDto })
+  @ApiPropertyOptional({
+    type: IngestCustomerDto,
+    description: 'Cliente da venda. Se omitido ou sem telefone/CPF, o pedido é gravado sem customerId.',
+  })
+  @IsOptional()
   @ValidateNested()
   @Type(() => IngestCustomerDto)
-  customer: IngestCustomerDto;
+  customer?: IngestCustomerDto;
 
   @ApiPropertyOptional({ type: IngestOrderDeliveryAddressDto })
   @IsOptional()

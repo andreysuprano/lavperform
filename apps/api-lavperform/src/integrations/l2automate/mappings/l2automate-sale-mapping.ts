@@ -25,7 +25,7 @@ export class L2AutomateSaleMapping {
    */
   static toOrder(
     sale: L2AutomateSale,
-    customerId: string,
+    customerId: string | null,
     companyId: string,
   ): CreateOrderDto {
     const saleDate = parseUTCDate(sale.createdAt);

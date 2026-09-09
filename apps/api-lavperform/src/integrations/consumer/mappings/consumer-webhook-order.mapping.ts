@@ -90,7 +90,7 @@ function buildDiscounts(pedido: ConsumerWebhookPayload['pedido']): CreateOrderDi
 export class ConsumerWebhookOrderMapping {
   static toOrder(
     payload: ConsumerWebhookPayload,
-    customerId: string,
+    customerId: string | null,
     companyId: string,
   ): CreateOrderDto | null {
     const pedido = payload.pedido;

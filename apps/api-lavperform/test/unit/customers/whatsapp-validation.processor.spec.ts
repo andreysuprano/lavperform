@@ -2,13 +2,8 @@ import { WhatsappValidationProcessor } from 'src/customers/infrastructure/jobs/w
 import { Job } from 'bull';
 
 describe('WhatsappValidationProcessor', () => {
-  const prisma = {
-    customer: {
-      update: jest.fn(),
-    },
-  };
   const whatsappService = {
-    checkWhatsappNumber: jest.fn(),
+    validateAndPersistCustomerWhatsapp: jest.fn(),
   };
 
   let processor: WhatsappValidationProcessor;
@@ -23,30 +18,36 @@ describe('WhatsappValidationProcessor', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    processor = new WhatsappValidationProcessor(prisma as any, whatsappService as any);
+    processor = new WhatsappValidationProcessor(whatsappService as any);
   });
 
-  it('persists exists:false and completes the job', async () => {
-    whatsappService.checkWhatsappNumber.mockResolvedValue(false);
-    prisma.customer.update.mockResolvedValue({});
+  it('delegates validation and returns false from the service', async () => {
+    whatsappService.validateAndPersistCustomerWhatsapp.mockResolvedValue(false);
 
     const result = await processor.handleValidate(job);
 
-    expect(whatsappService.checkWhatsappNumber).toHaveBeenCalledWith('5511999999999');
-    expect(prisma.customer.update).toHaveBeenCalledWith({
-      where: { id: 'cust-1' },
-      data: {
-        whatsappVerified: false,
-        whatsappVerifiedAt: expect.any(Date),
-      },
-    });
+    expect(whatsappService.validateAndPersistCustomerWhatsapp).toHaveBeenCalledWith(
+      'cust-1',
+      '5511999999999',
+    );
     expect(result).toEqual({ success: true, valid: false });
   });
 
+  it('delegates validation and returns true from the service', async () => {
+    whatsappService.validateAndPersistCustomerWhatsapp.mockResolvedValue(true);
+
+    const result = await processor.handleValidate(job);
+
+    expect(whatsappService.validateAndPersistCustomerWhatsapp).toHaveBeenCalledWith(
+      'cust-1',
+      '5511999999999',
+    );
+    expect(result).toEqual({ success: true, valid: true });
+  });
+
   it('rethrows API errors so the queue can retry', async () => {
-    whatsappService.checkWhatsappNumber.mockRejectedValue(new Error('down'));
+    whatsappService.validateAndPersistCustomerWhatsapp.mockRejectedValue(new Error('down'));
 
     await expect(processor.handleValidate(job)).rejects.toThrow('down');
-    expect(prisma.customer.update).not.toHaveBeenCalled();
   });
 });

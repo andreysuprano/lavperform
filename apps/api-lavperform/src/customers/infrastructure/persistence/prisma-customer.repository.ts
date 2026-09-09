@@ -7,6 +7,7 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { OrderMapper } from 'src/orders/infrastructure/persistence/mappers/order.mapper';
 import { Order } from 'src/orders/domain/order.entity';
 import { Message, MessageStatus } from '@prisma/client';
+import { phoneLookupVariants } from '../../application/customer-identifier';
 
 @Injectable()
 export class CustomerPrismaRepository implements ICustomerRepository {
@@ -135,10 +136,14 @@ export class CustomerPrismaRepository implements ICustomerRepository {
     }
 
     async findByPhone(companyId: string, phone: string): Promise<Customer | null> {
+        const variants = phoneLookupVariants(phone);
         const result = await this.prisma.customer.findFirst({
-            where: { companyId, phone },
+            where: {
+                companyId,
+                phone: variants.length > 0 ? { in: variants } : phone,
+            },
+            include: { address: true },
             orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-            include: { address: true }
         });
         if (!result) return null;
         const [customer] = await this.mapCustomersWithOrderStats([result]);
@@ -303,14 +308,18 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         });
 
         const statsByCustomerId = new Map<string, CustomerOrderStats>(
-            orderStats.map((row) => [
-                row.customerId,
-                {
-                    _min: row._min,
-                    _max: row._max,
-                    _count: row._count,
-                },
-            ]),
+            orderStats.flatMap((row) =>
+                row.customerId
+                    ? [[
+                        row.customerId,
+                        {
+                            _min: row._min,
+                            _max: row._max,
+                            _count: row._count,
+                        },
+                    ] as const]
+                    : [],
+            ),
         );
 
         return items.map((item) =>
@@ -436,7 +445,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         // corretamente em alguns casos; ordenamos em memória para garantir.
         const grouped = await this.prisma.order.groupBy({
             by: ['customerId'],
-            where: { companyId },
+            where: { companyId, customerId: { not: null } },
             _sum: { total: true },
             _count: { _all: true },
         });
@@ -460,7 +469,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             return bOrders - aOrders;
         }).slice(0, take);
 
-        const customerIds = ranked.map((row) => row.customerId);
+        const customerIds = ranked
+            .map((row) => row.customerId)
+            .filter((id): id is string => id != null);
 
         const customers = await this.prisma.customer.findMany({
             where: {
@@ -487,6 +498,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((row) => {
+                if (!row.customerId) return null;
                 const customer = customerMap.get(row.customerId);
                 if (!customer) return null;
 
@@ -627,6 +639,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             by: ['customerId'],
             where: {
                 companyId,
+                customerId: { not: null },
                 ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
             },
             _count: { _all: true },
@@ -656,7 +669,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             })
             .slice(0, take);
 
-        const customerIds = ranked.map((group) => group.customerId);
+        const customerIds = ranked
+            .map((group) => group.customerId)
+            .filter((id): id is string => id != null);
         const customers = await this.prisma.customer.findMany({
             where: {
                 companyId,
@@ -682,6 +697,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((group) => {
+                if (!group.customerId) return null;
                 const customer = customersById.get(group.customerId);
                 if (!customer) return null;
 

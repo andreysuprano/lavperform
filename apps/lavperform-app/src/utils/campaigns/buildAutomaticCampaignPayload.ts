@@ -1,4 +1,3 @@
-import type { ChannelKey } from '@/components/features/channels/channelCatalog.constants'
 import type {
   AudienceTargetingMode,
   AutomaticCampaignApiChannel,
@@ -11,12 +10,8 @@ import type {
   FormDataProps,
 } from '@/components/features/campaigns/recurring-campaign/CreateRecurringCampaignForm/FormSteps/FormSteps.types'
 import { buildSendScheduleApiFields } from '@/components/features/campaigns/recurring-campaign/sendSchedule.utils'
+import { channelKeyToApiChannel } from '@/utils/campaigns/channelKeyToApiChannel'
 import { isWhatsAppBusinessApiChannel } from '@/utils/campaigns/isWhatsAppBusinessApiChannel'
-
-
-function channelKeyToApi(key: ChannelKey): AutomaticCampaignApiChannel {
-  return key.toUpperCase() as AutomaticCampaignApiChannel
-}
 
 /**
  * Resolve o título de um criativo para exibição no form.
@@ -43,12 +38,20 @@ function toApiDate(dateStr: string | null | undefined): string | null {
 }
 
 function buildGifts(form: FormDataProps): CreateAutomaticCampaignGift[] {
-  const { incitation, discountType, discountPercent, discountCurrency, deliveryRadius } = form
+  const {
+    incitation,
+    discountType,
+    discountPercent,
+    discountCurrency,
+    deliveryRadius,
+  } = form
 
   if (incitation === 'discount') {
     const unit = discountType === 'currency' ? 'currency' : 'percent'
     const value =
-      discountType === 'currency' ? (discountCurrency ?? 0) : (discountPercent ?? 0)
+      discountType === 'currency'
+        ? (discountCurrency ?? 0)
+        : (discountPercent ?? 0)
     return [{ type: 'discount', unit, value }]
   }
 
@@ -61,7 +64,7 @@ function buildGifts(form: FormDataProps): CreateAutomaticCampaignGift[] {
 
 function buildCreatives(
   creatives: CampaignCreative[],
-  fallbackMessage: string,
+  fallbackMessage: string
 ): CreateAutomaticCampaignCreativeRequest[] {
   return creatives.map((c) => {
     const imageUrls = (c.imageUrls ?? []).filter(
@@ -85,7 +88,7 @@ type BuildPayloadParams = {
 
 function buildTargetingPayload(
   form: FormDataProps,
-  segmentation: string,
+  segmentation: string
 ): Pick<
   CreateAutomaticCampaignRequest,
   'targetingMode' | 'segmentation' | 'audienceId' | 'customSendListId'
@@ -120,21 +123,21 @@ export function buildAutomaticCampaignPayload({
   creatives,
   maxDailySends,
 }: BuildPayloadParams): CreateAutomaticCampaignRequest {
-  const channel: AutomaticCampaignApiChannel = form.channels?.[0]
-    ? channelKeyToApi(form.channels[0])
-    : 'WHATSAPP_WEB'
+  const channel: AutomaticCampaignApiChannel =
+    channelKeyToApiChannel(form.channels?.[0]) ?? 'WHATSAPP_WEB'
 
   const usesOfficialTemplate =
     isWhatsAppBusinessApiChannel(form.channels) && !!form.metaMessageTemplateId
 
-  const segmentationArray =
-    form.segmentation?.length ? form.segmentation : (form.target ?? [])
+  const segmentationArray = form.segmentation?.length
+    ? form.segmentation
+    : (form.target ?? [])
   const segmentation = segmentationArray.join(',')
 
   const sendSchedule = buildSendScheduleApiFields(
     form.sendScheduleMode ?? 'establishment',
     form.sendTimeStart,
-    form.sendTimeEnd,
+    form.sendTimeEnd
   )
 
   if (usesOfficialTemplate) {

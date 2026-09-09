@@ -39,6 +39,10 @@ export function classifyDuplicateGroup(group: DuplicateGroup): GroupClassificati
     return 'review';
   }
 
+  if (group.matchType === 'phone') {
+    return 'auto';
+  }
+
   for (let i = 0; i < members.length; i += 1) {
     for (let j = i + 1; j < members.length; j += 1) {
       if (!isSimilarName(members[i].name, members[j].name)) {
@@ -47,10 +51,9 @@ export function classifyDuplicateGroup(group: DuplicateGroup): GroupClassificati
     }
   }
 
-  const otherField: 'phone' | 'cpf' = group.matchType === 'phone' ? 'cpf' : 'phone';
   const otherValues = new Set(
     members
-      .map((member) => member[otherField])
+      .map((member) => member.phone)
       .filter((value): value is string => typeof value === 'string' && value.length > 0),
   );
   if (otherValues.size > 1) {
@@ -97,6 +100,10 @@ export function splitDuplicateGroup(group: DuplicateGroup): {
   autoClusters: DuplicateGroup[];
   reviewMembers: DuplicateMember[];
 } {
+  if (group.matchType === 'phone' && group.matchValue && group.members.length >= 2) {
+    return { autoClusters: [group], reviewMembers: [] };
+  }
+
   const autoClusters: DuplicateGroup[] = [];
   const leftover: DuplicateMember[] = [];
 

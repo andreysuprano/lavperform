@@ -33,7 +33,7 @@ describe('classifyDuplicateGroup', () => {
     expect(result).toBe('auto');
   });
 
-  it('classifies divergent names as review', () => {
+  it('classifies divergent names sharing the same phone as auto', () => {
     const result = classifyDuplicateGroup({
       matchType: 'phone',
       matchValue: '5511999999999',
@@ -43,10 +43,10 @@ describe('classifyDuplicateGroup', () => {
       ],
     });
 
-    expect(result).toBe('review');
+    expect(result).toBe('auto');
   });
 
-  it('classifies same phone with distinct cpfs as review', () => {
+  it('classifies same phone with distinct cpfs as auto', () => {
     const result = classifyDuplicateGroup({
       matchType: 'phone',
       matchValue: '5511999999999',
@@ -56,7 +56,7 @@ describe('classifyDuplicateGroup', () => {
       ],
     });
 
-    expect(result).toBe('review');
+    expect(result).toBe('auto');
   });
 
   it('does not treat null-only customers as a group to auto-merge', () => {
@@ -74,7 +74,7 @@ describe('classifyDuplicateGroup', () => {
 });
 
 describe('splitDuplicateGroup', () => {
-  it('auto-merges similar-name clusters and leaves divergent names for review with the survivor', () => {
+  it('auto-merges every customer that shares the same phone', () => {
     const result = splitDuplicateGroup({
       matchType: 'phone',
       matchValue: '5511999999999',
@@ -89,20 +89,28 @@ describe('splitDuplicateGroup', () => {
     expect(result.autoClusters[0].members.map((item) => item.id).sort()).toEqual([
       'joao-new',
       'joao-old',
-    ]);
-    expect(result.reviewMembers.map((item) => item.id).sort()).toEqual([
-      'joao-old',
       'maria',
     ]);
+    expect(result.reviewMembers).toEqual([]);
   });
 
-  it('does not auto-merge similar names that disagree on the other identifier', () => {
+  it('does not auto-merge similar names that disagree on the other identifier when match is CPF', () => {
     const result = splitDuplicateGroup({
-      matchType: 'phone',
-      matchValue: '5511999999999',
+      matchType: 'cpf',
+      matchValue: '11111111111',
       members: [
-        member({ id: 'a', name: 'João Silva', cpf: '11111111111' }),
-        member({ id: 'b', name: 'Joao Silva', cpf: '22222222222' }),
+        member({
+          id: 'a',
+          name: 'João Silva',
+          phone: '5511999999999',
+          cpf: '11111111111',
+        }),
+        member({
+          id: 'b',
+          name: 'Joao Silva',
+          phone: '5511888888888',
+          cpf: '11111111111',
+        }),
       ],
     });
 

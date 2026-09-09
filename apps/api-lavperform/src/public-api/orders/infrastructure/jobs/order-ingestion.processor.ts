@@ -37,14 +37,18 @@ export class OrderIngestionProcessor {
       return { skipped: true, orderId: existing.id };
     }
 
-    const customer = await this.customerIdentityService.resolveForSale({
-      companyId: ctx.companyId,
-      incoming: payload.customer,
-      salesChannel: payload.salesChannel,
-      partner,
-    });
+    let customerId: string | null = null;
+    if (payload.customer) {
+      const customer = await this.customerIdentityService.resolveForSale({
+        companyId: ctx.companyId,
+        incoming: payload.customer,
+        salesChannel: payload.salesChannel,
+        partner,
+      });
+      customerId = customer?.id ?? null;
+    }
 
-    const orderDto = mapIngestOrderToCreateDto(payload, ctx, customer.id, partner);
+    const orderDto = mapIngestOrderToCreateDto(payload, ctx, customerId, partner);
 
     try {
       const order = await this.orderService.create(orderDto);

@@ -6,7 +6,6 @@ import { CreateCustomerDto } from './dto/create-customer.dto';
 import { CustomersService } from './customers.service';
 import { canonicalPair } from './customer-identifier';
 import { isMarketplaceChannel } from '../../public-api/orders/constants/marketplace-channels';
-import { isSimilarName } from '../../common/utils/name-similarity';
 import { safeFormatPhoneNumber } from '../../common/utils/formatters';
 import {
   mapIngestCustomerToCreateDto,
@@ -14,6 +13,7 @@ import {
   normalizeCpfForLookup,
 } from '../../public-api/orders/application/order-ingestion.mapper';
 import { IngestCustomerDto } from '../../public-api/orders/application/dto/ingest-customer.dto';
+import { isSimilarName } from '../../common/utils/name-similarity';
 
 export type SaleCustomerIncoming = {
   name: string;
@@ -44,13 +44,17 @@ export class CustomerIdentityService {
     incoming: SaleCustomerIncoming;
     salesChannel?: string;
     partner?: SaleCustomerPartner;
-  }): Promise<Customer> {
+  }): Promise<Customer | null> {
     const { companyId, incoming, salesChannel, partner } = params;
     const formattedPhone = safeFormatPhoneNumber(incoming.phone);
     const cpf = normalizeCpfForLookup(incoming.cpf ?? undefined);
     const marketplace = this.isMarketplaceOrigin(salesChannel, partner);
     const phoneForLookup = marketplace ? null : formattedPhone;
     const ingestIncoming = this.toIngestDto(incoming);
+
+    if (!phoneForLookup && !cpf) {
+      return null;
+    }
 
     const byPhone = phoneForLookup
       ? await this.customersService.findByPhone(companyId, phoneForLookup)
@@ -62,58 +66,12 @@ export class CustomerIdentityService {
         `Conflito de identidade na empresa ${companyId}: telefone=${byPhone.id} cpf=${byCpf.id}`,
       );
       await this.ensureCrossIdentifierReview(companyId, byPhone.id, byCpf.id);
-      return byPhone;
+      return this.applyIncomingUpdates(companyId, byPhone, ingestIncoming, partner);
     }
 
     const matched = byPhone ?? byCpf ?? null;
-    const matchedBy: 'phone' | 'cpf' | null = byPhone ? 'phone' : byCpf ? 'cpf' : null;
-
     if (matched) {
-      const forceIdentifierReuse = partner?.partnerSlug?.toUpperCase() === 'VMLAV';
-      if (forceIdentifierReuse) {
-        const updateDto = mapIngestCustomerToUpdateDto(matched, ingestIncoming);
-        if (!isSimilarName(matched.name, incoming.name)) {
-          delete updateDto.name;
-        }
-        if (Object.keys(updateDto).length === 0) {
-          return matched;
-        }
-        try {
-          return await this.customersService.update(companyId, matched.id, updateDto);
-        } catch (error) {
-          this.logger.warn(
-            `Falha ao atualizar cliente ${matched.id} (company ${companyId}): ${(error as Error)?.message}`,
-          );
-          return matched;
-        }
-      }
-
-      const sameName = isSimilarName(matched.name, incoming.name);
-      if (sameName) {
-        const updateDto = mapIngestCustomerToUpdateDto(matched, ingestIncoming);
-        if (Object.keys(updateDto).length > 0) {
-          try {
-            return await this.customersService.update(companyId, matched.id, updateDto);
-          } catch (error) {
-            this.logger.warn(
-              `Falha ao atualizar cliente ${matched.id} (company ${companyId}): ${(error as Error)?.message}`,
-            );
-            return matched;
-          }
-        }
-        return matched;
-      }
-
-      this.logger.warn(
-        `Cliente existente ${matched.id} (company ${companyId}) tem nome divergente ` +
-          `("${matched.name}" vs "${incoming.name}"); criando novo cliente sem ` +
-          `o campo ${matchedBy ?? 'identificador'} para evitar conflito.`,
-      );
-      const createDto = this.buildCreateDtoSkippingMatch(ingestIncoming, matchedBy, marketplace);
-      return this.createWithRaceProtection(companyId, createDto, {
-        phone: matchedBy === 'phone' || marketplace ? null : formattedPhone,
-        cpf: matchedBy === 'cpf' ? undefined : cpf,
-      });
+      return this.applyIncomingUpdates(companyId, matched, ingestIncoming, partner);
     }
 
     const createDto = mapIngestCustomerToCreateDto(ingestIncoming);
@@ -148,6 +106,33 @@ export class CustomerIdentityService {
     return false;
   }
 
+  private async applyIncomingUpdates(
+    companyId: string,
+    matched: Customer,
+    ingestIncoming: IngestCustomerDto,
+    partner?: SaleCustomerPartner,
+  ): Promise<Customer> {
+    const updateDto = mapIngestCustomerToUpdateDto(matched, ingestIncoming);
+    if (
+      partner?.partnerSlug?.toUpperCase() === 'VMLAV' &&
+      !isSimilarName(matched.name, ingestIncoming.name)
+    ) {
+      delete updateDto.name;
+    }
+    if (Object.keys(updateDto).length === 0) {
+      return matched;
+    }
+
+    try {
+      return await this.customersService.update(companyId, matched.id, updateDto);
+    } catch (error) {
+      this.logger.warn(
+        `Falha ao atualizar cliente ${matched.id} (company ${companyId}): ${(error as Error)?.message}`,
+      );
+      return matched;
+    }
+  }
+
   private async lookupExisting(
     companyId: string,
     phone: string | null | undefined,
@@ -164,26 +149,11 @@ export class CustomerIdentityService {
     return null;
   }
 
-  private buildCreateDtoSkippingMatch(
-    incoming: IngestCustomerDto,
-    matchedBy: 'phone' | 'cpf' | null,
-    marketplace: boolean,
-  ): CreateCustomerDto {
-    const dto = mapIngestCustomerToCreateDto(incoming);
-    if (matchedBy === 'phone' || marketplace) {
-      delete dto.phone;
-    }
-    if (matchedBy === 'cpf') {
-      delete dto.cpf;
-    }
-    return dto;
-  }
-
   private async createWithRaceProtection(
     companyId: string,
     dto: CreateCustomerDto,
     lookupHints: { phone: string | null | undefined; cpf: string | undefined },
-  ): Promise<Customer> {
+  ): Promise<Customer | null> {
     const preCreate = await this.lookupExisting(
       companyId,
       lookupHints.phone,

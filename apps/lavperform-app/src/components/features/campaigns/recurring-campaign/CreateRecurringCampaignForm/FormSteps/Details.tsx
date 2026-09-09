@@ -4,7 +4,14 @@ import { useEffect, useMemo } from 'react'
 import { Controller, FieldErrors, useForm } from 'react-hook-form'
 import * as yup from 'yup'
 
-import { AudienceSelect, CustomSendListSelect, Input, SegmentationSelect, WeekdaySelect, toaster } from '@/components'
+import {
+  AudienceSelect,
+  CustomSendListSelect,
+  Input,
+  SegmentationSelect,
+  WeekdaySelect,
+  toaster,
+} from '@/components'
 import { clientTypesOptions } from '@/utils/constants/clientType'
 import { WEEKDAYS } from '@/utils/weekdays'
 
@@ -37,7 +44,9 @@ function buildDetailsSchema(opts: {
     segmentation: yup.array().when('targetingMode', {
       is: (mode: string) => mode === 'RFV',
       then: (schema) =>
-        schema.min(1, 'Informe ao menos 1 segmento').required('Informe os segmentos da campanha'),
+        schema
+          .min(1, 'Informe ao menos 1 segmento')
+          .required('Informe os segmentos da campanha'),
       otherwise: (schema) => schema.optional(),
     }),
     audienceId: yup.string().when('targetingMode', {
@@ -135,12 +144,12 @@ export function Details(props: FormStepsProps) {
         props.formData?.sendScheduleMode ??
         inferSendScheduleMode(
           props.formData?.sendTimeStart,
-          props.formData?.sendTimeEnd,
+          props.formData?.sendTimeEnd
         ),
       sendTimeStart: props.formData?.sendTimeStart ?? '',
       sendTimeEnd: props.formData?.sendTimeEnd ?? '',
     }),
-    [props.formData],
+    [props.formData]
   )
 
   const { handleSubmit, control, watch, register, reset, setValue } =
@@ -168,7 +177,7 @@ export function Details(props: FormStepsProps) {
 
   const onInvalid = (errors: FieldErrors<FormData>) => {
     const firstError = Object.values(errors).find(
-      (entry) => entry && typeof entry === 'object' && 'message' in entry,
+      (entry) => entry && typeof entry === 'object' && 'message' in entry
     )
     toaster.create({
       title: 'Não foi possível avançar',
@@ -193,7 +202,9 @@ export function Details(props: FormStepsProps) {
       daysOfWeek,
       sendScheduleMode: scheduleMode,
       sendTimeStart:
-        scheduleMode === 'establishment' ? null : formValues.sendTimeStart || null,
+        scheduleMode === 'establishment'
+          ? null
+          : formValues.sendTimeStart || null,
       sendTimeEnd:
         scheduleMode === 'range' ? formValues.sendTimeEnd || null : null,
     } as FormDataProps)
@@ -211,6 +222,7 @@ export function Details(props: FormStepsProps) {
           targetingMode: targetingModeValue,
           audienceId: audienceIdValue,
           customSendListId: customSendListIdValue,
+          channels: props.formData?.channels ?? [],
           startDate: startDateValue ?? '',
           endDate: endDateValue?.trim() ? endDateValue : null,
           campaignType: props.formData?.campaignType || 'REACTIVATION',
@@ -267,7 +279,9 @@ export function Details(props: FormStepsProps) {
                 <RadioGroup.Item value="AUDIENCE">
                   <RadioGroup.ItemHiddenInput />
                   <RadioGroup.ItemIndicator />
-                  <RadioGroup.ItemText>Audiência customizada</RadioGroup.ItemText>
+                  <RadioGroup.ItemText>
+                    Audiência customizada
+                  </RadioGroup.ItemText>
                 </RadioGroup.Item>
                 <RadioGroup.Item value="CUSTOMER_LIST">
                   <RadioGroup.ItemHiddenInput />

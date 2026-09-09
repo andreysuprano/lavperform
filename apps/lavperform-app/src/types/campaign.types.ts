@@ -1,8 +1,5 @@
 export type ScheduledDispatchStatus =
-  | 'WAITING'
-  | 'COMPLETED'
-  | 'PROCESSING'
-  | 'FAILED'
+  'WAITING' | 'COMPLETED' | 'PROCESSING' | 'FAILED'
 
 export interface ScheduledDispatchCampaignMetric {
   automaticCampaignId: string
@@ -105,10 +102,7 @@ export interface RecurringCampaignCreative {
 }
 
 export type RecurringCampaignStatus =
-  | 'PROCESSING'
-  | 'IN_PROGRESS'
-  | 'COMPLETED'
-  | 'FAILED'
+  'PROCESSING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
 
 export interface RecurringCampaign {
   active: boolean
@@ -155,11 +149,7 @@ export interface RecurringCampaignResponse {
 }
 
 export type RecurringCampaignMessageStatus =
-  | 'PENDING'
-  | 'SENT'
-  | 'PROCESSING'
-  | 'ERROR'
-  | 'ABORTED'
+  'PENDING' | 'SENT' | 'PROCESSING' | 'ERROR' | 'ABORTED'
 
 export type RecurringCampaignMessageOrder = {
   id: string
@@ -299,6 +289,19 @@ export type MetaTemplateVariableMapping = {
  * - `couponId`: null quando nenhum cupom selecionado.
  */
 export type AudienceTargetingMode = 'RFV' | 'AUDIENCE' | 'CUSTOMER_LIST'
+
+/** Body de POST `/campaigns/automatic/:companyId/reach-preview`. */
+export type ReachPreviewRequest = {
+  targetingMode?: AudienceTargetingMode
+  segmentation?: string
+  audienceId?: string
+  customSendListId?: string
+  channel?: AutomaticCampaignApiChannel
+}
+
+export type ReachPreviewResponse = {
+  count: number
+}
 
 export type CreateAutomaticCampaignRequest = {
   name: string

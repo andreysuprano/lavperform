@@ -25,7 +25,7 @@ export class VmLavSaleProcessor {
     const { companyId, sale, apiKey, partnerId } = job.data;
 
     try {
-      await this.vmLavSalesService.processSale(
+      return this.vmLavSalesService.processSale(
         companyId,
         sale,
         apiKey,

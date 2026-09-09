@@ -1,5 +1,7 @@
 import { QueryClient } from '@tanstack/react-query'
 
+import type { ReachPreviewRequest } from '@/types'
+
 export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
@@ -34,7 +36,7 @@ export const queryKeys = {
       companyId: string,
       page: number,
       limit: number,
-      period: string = 'all',
+      period: string = 'all'
     ) => ['orders', 'sales', companyId, page, limit, period] as const,
   },
 
@@ -88,7 +90,7 @@ export const queryKeys = {
     preview: (
       companyId: string,
       definition: unknown,
-      params: { page?: number; limit?: number } = {},
+      params: { page?: number; limit?: number } = {}
     ) => ['audiences', 'preview', companyId, definition, params] as const,
   },
 
@@ -103,7 +105,13 @@ export const queryKeys = {
     memberIds: (companyId: string, listId: string) =>
       ['customSendLists', 'memberIds', companyId, listId] as const,
     eligibleCount: (companyId: string, listId: string, channel?: string) =>
-      ['customSendLists', 'eligibleCount', companyId, listId, channel ?? null] as const,
+      [
+        'customSendLists',
+        'eligibleCount',
+        companyId,
+        listId,
+        channel ?? null,
+      ] as const,
   },
 
   campaigns: {
@@ -125,6 +133,8 @@ export const queryKeys = {
       ['campaigns', 'company-coupons', companyId] as const,
     companyCouponsList: (companyId: string, params: any) =>
       ['campaigns', 'company-coupons', companyId, params] as const,
+    reachPreview: (companyId: string, payload: ReachPreviewRequest | null) =>
+      ['campaigns', 'reach-preview', companyId, payload] as const,
   },
 
   company: {
@@ -171,15 +181,19 @@ export const queryKeys = {
     },
     whatsappBusinessApi: {
       availability: (companyId: string) =>
-        ['channels', 'whatsapp-business-api', 'availability', companyId] as const,
+        [
+          'channels',
+          'whatsapp-business-api',
+          'availability',
+          companyId,
+        ] as const,
       detail: (companyId: string) =>
         ['channels', 'whatsapp-business-api', 'detail', companyId] as const,
     },
   },
 
   metaTemplates: {
-    list: (companyId: string) =>
-      ['meta-templates', 'list', companyId] as const,
+    list: (companyId: string) => ['meta-templates', 'list', companyId] as const,
   },
 
   courses: {

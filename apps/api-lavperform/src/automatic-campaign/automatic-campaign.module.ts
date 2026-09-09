@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { HttpModule } from '@nestjs/axios';
 import { AutomaticCampaignService } from './application/automatic-campaign.service';
+import { AutomaticCampaignReachService } from './application/automatic-campaign-reach.service';
 import { AutomaticCampaignController } from './presentation/automatic-campaign.controller';
 import { AutomaticCampaignTasks } from './crons/automatic-campaign-tasks';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
@@ -25,6 +26,7 @@ import { CustomSendListsModule } from '../custom-send-lists/custom-send-lists.mo
 import { CustomersModule } from '../customers/customers.module';
 import { MessageCostModule } from '../message-engine/pricing/message-cost.module';
 import { AutomaticMessageDailyGuardModule } from './automatic-message-daily-guard.module';
+import { WhatsappModule } from '../whatsapp/whatsapp.module';
 
 @Module({
   imports: [
@@ -34,6 +36,7 @@ import { AutomaticMessageDailyGuardModule } from './automatic-message-daily-guar
     AudiencesModule,
     CustomSendListsModule,
     CustomersModule,
+    WhatsappModule,
     MessageCostModule,
     AutomaticMessageDailyGuardModule,
     BullModule.registerQueue({
@@ -56,6 +59,7 @@ import { AutomaticMessageDailyGuardModule } from './automatic-message-daily-guar
   controllers: [AutomaticCampaignController],
   providers: [
     AutomaticCampaignService,
+    AutomaticCampaignReachService,
     OpenAIService,
     CampaignChannelStrategyFactory,
     WhatsappWebStrategy,

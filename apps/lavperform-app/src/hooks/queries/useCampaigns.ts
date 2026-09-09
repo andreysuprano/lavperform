@@ -9,7 +9,9 @@ import {
 } from '@/services'
 import type {
   CompanyCoupon,
+  CreateAutomaticCampaignRequest,
   PaginationMeta,
+  ReachPreviewRequest,
   RecurringCampaign,
   RecurringCampaignMessagesQuery,
 } from '@/types'
@@ -145,6 +147,46 @@ export function useCampaignMessages(
     enabled: !!campaignId && !!companyId,
     staleTime: 1000 * 60 * 2,
     placeholderData: (previousData) => previousData,
+  })
+}
+
+function isReachPreviewEnabled(
+  companyId: string | undefined,
+  request: ReachPreviewRequest | null
+): request is ReachPreviewRequest {
+  if (!companyId || !request?.channel) return false
+
+  const targetingMode = request.targetingMode ?? 'RFV'
+  if (targetingMode === 'AUDIENCE') return Boolean(request.audienceId)
+  if (targetingMode === 'CUSTOMER_LIST')
+    return Boolean(request.customSendListId)
+  return Boolean(request.segmentation)
+}
+
+/**
+ * Prévia de alcance contactável no canal (POST reach-preview).
+ * Só dispara com companyId, channel e targeting completo.
+ */
+export function useCampaignReachPreview(
+  companyId: string | undefined,
+  request: ReachPreviewRequest | null
+) {
+  const enabled = isReachPreviewEnabled(companyId, request)
+
+  return useQuery({
+    queryKey: queryKeys.campaigns.reachPreview(companyId || '', request),
+    queryFn: async () => {
+      if (!companyId || !request) {
+        throw new Error('Company ID and reach preview request are required')
+      }
+      const response = await recurringCampaignService.getReachPreview(
+        companyId,
+        request
+      )
+      return response.data
+    },
+    enabled,
+    staleTime: 1000 * 30,
   })
 }
 
@@ -352,7 +394,10 @@ export function useCompanyCoupons(
     queryKey: params
       ? queryKeys.campaigns.companyCouponsList(companyId || '', params)
       : queryKeys.campaigns.companyCoupons(companyId || ''),
-    queryFn: async (): Promise<{ data: CompanyCoupon[]; meta?: PaginationMeta }> => {
+    queryFn: async (): Promise<{
+      data: CompanyCoupon[]
+      meta?: PaginationMeta
+    }> => {
       if (!companyId) throw new Error('Company ID is required')
       const { data: body } = await couponService.listCoupons(companyId, params)
       if (Array.isArray(body)) {

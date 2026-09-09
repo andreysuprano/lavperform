@@ -56,7 +56,7 @@ describe('CustomerIdentityService', () => {
       '5541997269435',
     );
     expect(customersService.create).toHaveBeenCalledTimes(1);
-    expect(result.id).toBe('cust-1');
+    expect(result?.id).toBe('cust-1');
   });
 
   it('reusa cliente existente com nome similar e atualiza dados', async () => {
@@ -104,7 +104,7 @@ describe('CustomerIdentityService', () => {
       partner: { partnerSlug: 'VMLAV' },
     });
 
-    expect(result.id).toBe('cust-existing');
+    expect(result?.id).toBe('cust-existing');
     expect(customersService.create).not.toHaveBeenCalled();
   });
 
@@ -152,26 +152,30 @@ describe('CustomerIdentityService', () => {
     expect(updateDto.email).toBe('maria@exemplo.com');
   });
 
-  it('cria cliente SEM telefone quando o nome diverge em origem nao-VMLAV', async () => {
+  it('reusa o cliente do mesmo telefone mesmo quando o nome diverge', async () => {
     customersService.findByPhone.mockResolvedValue({
       id: 'cust-existing',
       name: 'João Silva',
       phone: '5541997269435',
     });
-    customersService.create.mockResolvedValue({
-      id: 'cust-new',
-      name: 'Maria Oliveira',
+    customersService.update.mockResolvedValue({
+      id: 'cust-existing',
+      name: 'Maria Oliveira Santos',
+      phone: '5541997269435',
     });
 
-    await service.resolveForSale({
+    const result = await service.resolveForSale({
       companyId: 'company-1',
-      incoming: incoming({ name: 'Maria Oliveira' }),
+      incoming: incoming({ name: 'Maria Oliveira Santos' }),
     });
 
-    expect(customersService.update).not.toHaveBeenCalled();
-    const [, createDto] = customersService.create.mock.calls[0];
-    expect(createDto.phone).toBeUndefined();
-    expect(createDto.name).toBe('Maria Oliveira');
+    expect(result?.id).toBe('cust-existing');
+    expect(customersService.create).not.toHaveBeenCalled();
+    expect(customersService.update).toHaveBeenCalledWith(
+      'company-1',
+      'cust-existing',
+      expect.objectContaining({ name: 'Maria Oliveira Santos' }),
+    );
   });
 
   it('usa CPF quando nao ha telefone', async () => {
@@ -200,6 +204,18 @@ describe('CustomerIdentityService', () => {
     expect(customersService.update).toHaveBeenCalled();
   });
 
+  it('nao cria customer em marketplace sem CPF', async () => {
+    const result = await service.resolveForSale({
+      companyId: 'company-1',
+      incoming: incoming({ phone: '41999999999' }),
+      salesChannel: 'ifood',
+    });
+
+    expect(result).toBeNull();
+    expect(customersService.findByPhone).not.toHaveBeenCalled();
+    expect(customersService.create).not.toHaveBeenCalled();
+  });
+
   it('ignora telefone em marketplace e identifica por CPF', async () => {
     customersService.findByCpf.mockResolvedValue({
       id: 'cust-existing',
@@ -226,23 +242,16 @@ describe('CustomerIdentityService', () => {
     );
   });
 
-  it('permite cliente sem telefone e sem CPF', async () => {
-    customersService.create.mockResolvedValue({
-      id: 'anon-1',
-      name: 'Cliente',
-      phone: null,
-      cpf: null,
-    });
-
+  it('nao cria customer quando a venda nao tem telefone nem CPF', async () => {
     const result = await service.resolveForSale({
       companyId: 'company-1',
       incoming: { name: 'Walk-in' },
     });
 
+    expect(result).toBeNull();
     expect(customersService.findByPhone).not.toHaveBeenCalled();
     expect(customersService.findByCpf).not.toHaveBeenCalled();
-    expect(customersService.create).toHaveBeenCalled();
-    expect(result.id).toBe('anon-1');
+    expect(customersService.create).not.toHaveBeenCalled();
   });
 
   it('grava revisao e usa o match de telefone quando telefone e CPF apontam para pessoas diferentes', async () => {
@@ -256,15 +265,19 @@ describe('CustomerIdentityService', () => {
       name: 'Bruno',
       cpf: '12345678900',
     });
+    customersService.update.mockResolvedValue({
+      id: 'cust-phone',
+      name: 'João Silva',
+      phone: '5541997269435',
+    });
 
     const result = await service.resolveForSale({
       companyId: 'company-1',
       incoming: incoming({ cpf: '123.456.789-00' }),
     });
 
-    expect(result.id).toBe('cust-phone');
+    expect(result?.id).toBe('cust-phone');
     expect(customersService.create).not.toHaveBeenCalled();
-    expect(customersService.update).not.toHaveBeenCalled();
     expect(prisma.customerMergeReview.create).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -295,6 +308,6 @@ describe('CustomerIdentityService', () => {
     });
 
     expect(customersService.create).toHaveBeenCalledTimes(1);
-    expect(result.id).toBe('cust-race');
+    expect(result?.id).toBe('cust-race');
   });
 });

@@ -3,6 +3,7 @@ import { WhatsappService } from 'src/whatsapp/application/whatsapp.service';
 import { UazapiCheckInstancePool } from 'src/whatsapp/uazapi/uazapi-check-instance-pool.service';
 import { UazapiClient } from 'src/whatsapp/uazapi/uazapi.client';
 import { AiAgentService } from 'src/ai-agent/application/ai-agent.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 
 describe('UazapiCheckInstancePool Nest wiring', () => {
   it('resolves WhatsappService with the in-memory pool', async () => {
@@ -20,6 +21,7 @@ describe('UazapiCheckInstancePool Nest wiring', () => {
         { provide: 'IWhatsappInstanceRepository', useValue: {} },
         { provide: 'ICompanyRepository', useValue: {} },
         { provide: AiAgentService, useValue: { ensureActiveAgentWebhook: jest.fn() } },
+        { provide: PrismaService, useValue: { customer: { update: jest.fn() } } },
       ],
     }).compile();
 

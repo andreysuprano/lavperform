@@ -46,6 +46,12 @@ describe('WhatsappService', () => {
     invalidate: jest.fn(),
   };
 
+  const prisma: any = {
+    customer: {
+      update: jest.fn(),
+    },
+  };
+
   let service: WhatsappService;
   const originalUazapiToken = process.env.UAZAPI_TOKEN;
 
@@ -58,6 +64,7 @@ describe('WhatsappService', () => {
       companyRepository,
       aiAgentService,
       checkInstancePool,
+      prisma,
     );
   });
 
@@ -554,6 +561,50 @@ describe('WhatsappService', () => {
       uazapiClient.checkNumbers.mockResolvedValue([]);
 
       await expect(service.checkWhatsappNumber('5511999999999')).resolves.toBe(false);
+    });
+  });
+
+  describe('validateAndPersistCustomerWhatsapp', () => {
+    it('checks the number, persists the result and returns it', async () => {
+      jest.spyOn(service, 'checkWhatsappNumber').mockResolvedValue(false);
+      prisma.customer.update.mockResolvedValue({});
+
+      const result = await service.validateAndPersistCustomerWhatsapp('cust-1', '5511999999999');
+
+      expect(service.checkWhatsappNumber).toHaveBeenCalledWith('5511999999999');
+      expect(prisma.customer.update).toHaveBeenCalledWith({
+        where: { id: 'cust-1' },
+        data: {
+          whatsappVerified: false,
+          whatsappVerifiedAt: expect.any(Date),
+        },
+      });
+      expect(result).toBe(false);
+    });
+
+    it('persists true when the number exists on WhatsApp', async () => {
+      jest.spyOn(service, 'checkWhatsappNumber').mockResolvedValue(true);
+      prisma.customer.update.mockResolvedValue({});
+
+      const result = await service.validateAndPersistCustomerWhatsapp('cust-1', '5511999999999');
+
+      expect(prisma.customer.update).toHaveBeenCalledWith({
+        where: { id: 'cust-1' },
+        data: {
+          whatsappVerified: true,
+          whatsappVerifiedAt: expect.any(Date),
+        },
+      });
+      expect(result).toBe(true);
+    });
+
+    it('propagates check errors without persisting', async () => {
+      jest.spyOn(service, 'checkWhatsappNumber').mockRejectedValue(new Error('down'));
+
+      await expect(
+        service.validateAndPersistCustomerWhatsapp('cust-1', '5511999999999'),
+      ).rejects.toThrow('down');
+      expect(prisma.customer.update).not.toHaveBeenCalled();
     });
   });
 });
