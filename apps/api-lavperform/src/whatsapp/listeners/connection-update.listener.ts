@@ -5,11 +5,13 @@ import { WhatsappInstanceStatus } from '@prisma/client';
 import { AiAgentService } from '../../ai-agent/application/ai-agent.service';
 import { UazapiClient } from '../uazapi/uazapi.client';
 import { resolveConnectedPhoneNumber } from '../application/whatsapp-phone.util';
+import { WhatsappCompanyConnectionSnapshotService } from '../application/whatsapp-company-connection-snapshot.service';
 
 interface ConnectionUpdateEvent {
   instance: string;
   status: 'CONNECTED' | 'DISCONNECTED';
   date: string;
+  token?: string;
 }
 
 @Injectable()
@@ -21,32 +23,65 @@ export class ConnectionUpdateListener {
     @Inject(forwardRef(() => AiAgentService))
     private readonly aiAgentService: AiAgentService,
     private readonly uazapiClient: UazapiClient,
+    private readonly snapshotService: WhatsappCompanyConnectionSnapshotService,
   ) {}
 
   @OnEvent('whatsapp.connection.updated')
   async handleConnectionUpdate(data: ConnectionUpdateEvent) {
-    const instance = await this.prisma.whatsappInstance.findFirst({
-      where: { name: data.instance },
-    });
+    const instance = await this.findInstance(data);
 
     if (!instance) {
+      this.logger.warn(
+        `Instância não encontrada para connection update (token=${data.token ?? 'n/a'}, name=${data.instance ?? 'n/a'})`,
+      );
       return;
     }
 
+    const status =
+      data.status === 'CONNECTED'
+        ? WhatsappInstanceStatus.CONNECTED
+        : WhatsappInstanceStatus.DISCONNECTED;
+
     await this.prisma.whatsappInstance.update({
       where: { id: instance.id },
-      data: {
-        status:
-          data.status === 'CONNECTED'
-            ? WhatsappInstanceStatus.CONNECTED
-            : WhatsappInstanceStatus.DISCONNECTED,
-      },
+      data: { status },
+    });
+
+    const eventAt = data.date ? new Date(data.date) : new Date();
+    const safeEventAt = Number.isNaN(eventAt.getTime()) ? new Date() : eventAt;
+
+    await this.snapshotService.upsertFromEvent({
+      companyId: instance.companyId,
+      instanceToken: instance.token,
+      instanceName: instance.name,
+      status:
+        data.status === 'CONNECTED'
+          ? 'connected'
+          : 'disconnected',
+      eventAt: safeEventAt,
+      touchDisconnectedAt: data.status === 'DISCONNECTED',
     });
 
     if (data.status === 'CONNECTED') {
       await this.persistConnectedPhoneNumber(instance.id, instance.token, instance.phoneNumber);
       await this.aiAgentService.ensureActiveAgentWebhook(instance.companyId);
     }
+  }
+
+  private async findInstance(data: ConnectionUpdateEvent) {
+    if (data.token) {
+      return this.prisma.whatsappInstance.findFirst({
+        where: { token: data.token },
+      });
+    }
+
+    if (data.instance) {
+      return this.prisma.whatsappInstance.findFirst({
+        where: { name: data.instance },
+      });
+    }
+
+    return null;
   }
 
   /** O evento de conexão não traz o número, então buscamos na UAZAPI. */

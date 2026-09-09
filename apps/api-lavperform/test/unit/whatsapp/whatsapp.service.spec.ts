@@ -52,12 +52,19 @@ describe('WhatsappService', () => {
     },
   };
 
+  const snapshotService: any = {
+    upsertFromEvent: jest.fn(),
+    markAbsent: jest.fn(),
+  };
+
   let service: WhatsappService;
   const originalUazapiToken = process.env.UAZAPI_TOKEN;
 
   beforeEach(() => {
     jest.clearAllMocks();
     delete process.env.UAZAPI_TOKEN;
+    snapshotService.upsertFromEvent = jest.fn().mockResolvedValue({});
+    snapshotService.markAbsent = jest.fn().mockResolvedValue({});
     service = new WhatsappService(
       uazapiClient,
       whatsappInstanceRepository,
@@ -65,6 +72,7 @@ describe('WhatsappService', () => {
       aiAgentService,
       checkInstancePool,
       prisma,
+      snapshotService,
     );
   });
 

@@ -91,7 +91,7 @@ export function InstancesTable({
         <Table>
           <TableHeader className="bg-muted/50">
             <TableRow>
-              {["Nome", "Status", "Empresa", "Token", "Desconexão", "Ações"].map(
+              {["Nome", "Status", "Empresa", "Sistema", "Token", "Desconexão", "Ações"].map(
                 (header) => (
                   <TableHead key={header}>{header}</TableHead>
                 )
@@ -101,7 +101,7 @@ export function InstancesTable({
           <TableBody>
             {Array.from({ length: 5 }).map((_, idx) => (
               <TableRow key={`skeleton-${idx}`}>
-                {Array.from({ length: 6 }).map((__, colIdx) => (
+                {Array.from({ length: 7 }).map((__, colIdx) => (
                   <TableCell key={colIdx}>
                     <div className="h-4 w-full max-w-[140px] animate-pulse rounded bg-muted" />
                   </TableCell>
@@ -133,6 +133,7 @@ export function InstancesTable({
             <TableHead>Nome</TableHead>
             <TableHead>Status UAZAPI</TableHead>
             <TableHead>Empresa</TableHead>
+            <TableHead>Sistema</TableHead>
             <TableHead>Token</TableHead>
             <TableHead>Última desconexão</TableHead>
             <TableHead className="w-12">
@@ -149,11 +150,12 @@ export function InstancesTable({
               <TableCell>
                 <div className="flex flex-col gap-0.5">
                   <span className="font-medium">{instance.name}</span>
-                  {instance.systemName && (
-                    <span className="text-xs text-muted-foreground">
-                      {instance.systemName}
-                    </span>
-                  )}
+                  {instance.adminField01 &&
+                    instance.adminField01 !== instance.company?.name && (
+                      <span className="text-xs text-muted-foreground">
+                        {instance.adminField01}
+                      </span>
+                    )}
                 </div>
               </TableCell>
               <TableCell>
@@ -170,6 +172,9 @@ export function InstancesTable({
                 ) : (
                   <Badge variant="outline">Órfã</Badge>
                 )}
+              </TableCell>
+              <TableCell className="text-muted-foreground">
+                {instance.systemName ?? "—"}
               </TableCell>
               <TableCell>
                 <span

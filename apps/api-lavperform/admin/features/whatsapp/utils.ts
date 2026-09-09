@@ -1,4 +1,5 @@
 import type {
+  ConnectionSnapshotStatus,
   InstanceListFilters,
   UazapiInstanceStatus,
   WhatsappInstanceDbStatus,
@@ -49,6 +50,17 @@ export const UAZAPI_STATUS_LABELS: Record<UazapiInstanceStatus, string> = {
   pending: "Aguardando QR",
 }
 
+export const CONNECTION_SNAPSHOT_STATUS_LABELS: Record<
+  ConnectionSnapshotStatus,
+  string
+> = {
+  connected: "Conectado",
+  connecting: "Conectando",
+  disconnected: "Desconectado",
+  pending: "Aguardando QR",
+  absent: "Ausente na UAZAPI",
+}
+
 export const DB_INSTANCE_STATUS_LABELS: Record<WhatsappInstanceDbStatus, string> =
   {
     CONNECTED: "Conectado",
@@ -68,11 +80,27 @@ export function slugifyInstanceName(value: string): string {
     .replace(/-+/g, "-")
 }
 
+export const DEFAULT_INSTANCE_LIST_FILTERS: InstanceListFilters = {
+  linked: "linked",
+}
+
+export function uniqueSystemNames(
+  instances: WhatsappInstanceListItem[]
+): string[] {
+  const names = new Set<string>()
+  for (const instance of instances) {
+    const name = instance.systemName?.trim()
+    if (name) names.add(name)
+  }
+  return [...names].sort((a, b) => a.localeCompare(b, "pt-BR"))
+}
+
 export function filterInstances(
   instances: WhatsappInstanceListItem[],
   filters: InstanceListFilters
 ): WhatsappInstanceListItem[] {
   const search = filters.search?.trim().toLowerCase()
+  const systemName = filters.systemName?.trim().toLowerCase()
 
   return instances.filter((instance) => {
     if (filters.status && instance.status !== filters.status) {
@@ -87,6 +115,13 @@ export function filterInstances(
       return false
     }
 
+    if (
+      systemName &&
+      (instance.systemName ?? "").trim().toLowerCase() !== systemName
+    ) {
+      return false
+    }
+
     if (!search) return true
 
     const haystack = [
@@ -95,6 +130,7 @@ export function filterInstances(
       instance.company?.name,
       instance.company?.email,
       instance.token,
+      instance.systemName,
     ]
       .filter(Boolean)
       .join(" ")

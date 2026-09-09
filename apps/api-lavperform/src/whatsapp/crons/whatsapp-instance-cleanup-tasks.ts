@@ -3,6 +3,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { UazapiClient } from '../uazapi/uazapi.client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UazapiInstanceSummaryDto } from '../uazapi/application/dto/instance-list.dto';
+import { WhatsappCompanyConnectionSnapshotService } from '../application/whatsapp-company-connection-snapshot.service';
 
 @Injectable()
 export class WhatsappInstanceCleanupTasks {
@@ -14,6 +15,7 @@ export class WhatsappInstanceCleanupTasks {
   constructor(
     private readonly uazapiClient: UazapiClient,
     private readonly prisma: PrismaService,
+    private readonly snapshotService: WhatsappCompanyConnectionSnapshotService,
   ) {}
 
   /**
@@ -99,6 +101,13 @@ export class WhatsappInstanceCleanupTasks {
         this.logger.log(
           `Registro órfão removido: "${orphan.name}" (id: ${orphan.id}, empresa: ${orphan.companyId}, token: ${orphan.token})`,
         );
+        try {
+          await this.snapshotService.markAbsent(orphan.companyId);
+        } catch (snapshotError: any) {
+          this.logger.warn(
+            `Não foi possível marcar snapshot absent para empresa ${orphan.companyId}: ${snapshotError?.message}`,
+          );
+        }
       } catch (error) {
         this.logger.error(
           `Falha ao remover registro órfão "${orphan.name}" (id: ${orphan.id}): ${error?.message}`,
@@ -148,7 +157,7 @@ export class WhatsappInstanceCleanupTasks {
       );
     }
 
-    // 2. Remove do banco de dados (busca pelo token)
+    // 2. Remove do banco de dados (busca pelo token) e marca snapshot como absent
     const dbInstance = await this.prisma.whatsappInstance.findFirst({
       where: { token: instance.token },
     });
@@ -158,6 +167,14 @@ export class WhatsappInstanceCleanupTasks {
       this.logger.log(
         `Instância "${instance.name}" removida do banco de dados (id: ${dbInstance.id}, empresa: ${dbInstance.companyId})`,
       );
+
+      try {
+        await this.snapshotService.markAbsent(dbInstance.companyId);
+      } catch (error: any) {
+        this.logger.warn(
+          `Não foi possível marcar snapshot absent para empresa ${dbInstance.companyId}: ${error?.message}`,
+        );
+      }
     } else {
       this.logger.warn(
         `Instância "${instance.name}" (token: ${instance.token}) não encontrada no banco de dados   apenas removida da Uazapi`,

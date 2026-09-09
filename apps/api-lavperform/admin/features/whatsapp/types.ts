@@ -38,6 +38,32 @@ export type WhatsappInstanceListItem = {
   company: WhatsappCompanySummary | null
 }
 
+export const CONNECTION_SNAPSHOT_STATUS_VALUES = [
+  "connected",
+  "disconnected",
+  "connecting",
+  "pending",
+  "absent",
+] as const
+
+export type ConnectionSnapshotStatus =
+  (typeof CONNECTION_SNAPSHOT_STATUS_VALUES)[number]
+
+export type WhatsappConnectionSnapshot = {
+  id: string
+  companyId: string
+  company: WhatsappCompanySummary
+  instanceToken: string | null
+  instanceName: string | null
+  systemName: string | null
+  status: ConnectionSnapshotStatus
+  lastDisconnectedAt: string | null
+  lastConnectedAt: string | null
+  lastReconciledAt: string | null
+  existsOnUazapi: boolean
+  updatedAt: string
+}
+
 export type UazapiInstanceDetails = {
   id: string
   token: string
@@ -71,6 +97,18 @@ export type CompanyWhatsappResponse = {
     state: string
   }
   instance: WhatsappDbInstance | null
+  connection: {
+    id: string
+    companyId: string
+    instanceToken: string | null
+    instanceName: string | null
+    systemName: string | null
+    status: ConnectionSnapshotStatus
+    lastDisconnectedAt: string | null
+    lastConnectedAt: string | null
+    lastReconciledAt: string | null
+    updatedAt: string
+  } | null
 }
 
 export type CreateWhatsappInstanceResponse = {
@@ -110,6 +148,8 @@ export type InstanceListFilters = {
   search?: string
   status?: UazapiInstanceStatus
   linked?: "linked" | "orphan"
+  /** Nome do produto na UAZAPI (ex. LavPerform, FoodCRM). */
+  systemName?: string
 }
 
 export type WhatsappConnectionLink = {

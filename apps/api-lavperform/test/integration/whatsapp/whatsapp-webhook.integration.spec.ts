@@ -10,7 +10,6 @@ describe('WhatsApp Webhook (Integration)', () => {
   let app: INestApplication;
   let testApp: TestApp;
   let dbCleaner: DatabaseCleaner;
-  let eventEmitter: EventEmitter2;
 
   const eventEmitterMock = {
     emit: jest.fn(),
@@ -20,8 +19,8 @@ describe('WhatsApp Webhook (Integration)', () => {
 
   beforeAll(async () => {
     testApp = new TestApp();
-    app = await testApp.setup((builder) => 
-      builder.overrideProvider(EventEmitter2).useValue(eventEmitterMock)
+    app = await testApp.setup((builder) =>
+      builder.overrideProvider(EventEmitter2).useValue(eventEmitterMock),
     );
     dbCleaner = new DatabaseCleaner(testApp.getModule().get(PrismaService));
   });
@@ -38,12 +37,14 @@ describe('WhatsApp Webhook (Integration)', () => {
   describe('POST /whatsapp/webhook', () => {
     it('should handle connection update event (CONNECTED)', async () => {
       const payload = {
-        event: 'connection.update',
-        instance: 'test-instance',
-        data: {
-          state: 'open'
+        EventType: 'connection',
+        instanceName: 'test-instance',
+        token: 'tok-123',
+        instance: {
+          name: 'test-instance',
+          status: 'connected',
+          qrcode: '',
         },
-        date_time: new Date().toISOString()
       };
 
       await request(app.getHttpServer())
@@ -55,19 +56,22 @@ describe('WhatsApp Webhook (Integration)', () => {
         WHATSAPP_EVENTS.CONNECTION_UPDATED,
         expect.objectContaining({
           instance: 'test-instance',
-          status: 'CONNECTED'
-        })
+          token: 'tok-123',
+          status: 'CONNECTED',
+        }),
       );
     });
 
     it('should handle connection update event (DISCONNECTED)', async () => {
       const payload = {
-        event: 'connection.update',
-        instance: 'test-instance',
-        data: {
-          state: 'close'
+        EventType: 'connection',
+        instanceName: 'test-instance',
+        token: 'tok-123',
+        instance: {
+          name: 'test-instance',
+          status: 'disconnected',
+          qrcode: '',
         },
-        date_time: new Date().toISOString()
       };
 
       await request(app.getHttpServer())
@@ -79,20 +83,21 @@ describe('WhatsApp Webhook (Integration)', () => {
         WHATSAPP_EVENTS.CONNECTION_UPDATED,
         expect.objectContaining({
           instance: 'test-instance',
-          status: 'DISCONNECTED'
-        })
+          token: 'tok-123',
+          status: 'DISCONNECTED',
+        }),
       );
     });
 
     it('should handle message received event', async () => {
       const payload = {
-        event: 'messages.upsert',
-        instance: 'test-instance',
+        EventType: 'messages',
+        instanceName: 'test-instance',
+        token: 'tok-123',
         data: {
           key: { remoteJid: '123456789@s.whatsapp.net' },
-          message: { conversation: 'Hello' }
+          message: { conversation: 'Hello' },
         },
-        date_time: new Date().toISOString()
       };
 
       await request(app.getHttpServer())
@@ -102,15 +107,15 @@ describe('WhatsApp Webhook (Integration)', () => {
 
       expect(eventEmitterMock.emit).toHaveBeenCalledWith(
         'whatsapp.message.received',
-        payload.data
+        payload.data,
       );
     });
 
     it('should ignore unknown events', async () => {
       const payload = {
-        event: 'unknown.event',
-        instance: 'test-instance',
-        data: {}
+        EventType: 'unknown',
+        instanceName: 'test-instance',
+        data: {},
       };
 
       await request(app.getHttpServer())

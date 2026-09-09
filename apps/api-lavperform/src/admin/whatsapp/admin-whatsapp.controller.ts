@@ -24,10 +24,21 @@ export class AdminWhatsappController {
     summary: 'Listar todas as instâncias UAZAPI',
     description:
       'Retorna todas as instâncias registradas na UAZAPI enriquecidas com os dados ' +
-      'da empresa correspondente do nosso banco (via adminField02 = companyId).',
+      'da empresa correspondente do nosso banco (via adminField02 = companyId ou token).',
   })
   listAllInstances() {
     return this.adminWhatsappService.listAllInstances();
+  }
+
+  @Get('connections/disconnected')
+  @ApiOperation({
+    summary: 'Listar empresas sem WhatsApp conectado',
+    description:
+      'Retorna o snapshot nosso de conexões (sobrevive à limpeza de 1 dia na UAZAPI), ' +
+      'com empresa, status e data da última desconexão.',
+  })
+  listDisconnectedConnections() {
+    return this.adminWhatsappService.listDisconnectedConnections();
   }
 
   @Get('instances/company/:companyId')

@@ -8,6 +8,7 @@ import type {
   RotateTokenResponse,
   WebhookErrorEntry,
   WhatsappConnectionLink,
+  WhatsappConnectionSnapshot,
   WhatsappInstanceListItem,
 } from "./types"
 import type {
@@ -19,6 +20,14 @@ import { buildAdminFieldsPayload, buildWebhookPayload } from "./schemas"
 
 export function listWhatsappInstances(): Promise<WhatsappInstanceListItem[]> {
   return apiClient<WhatsappInstanceListItem[]>("/admin/whatsapp/instances")
+}
+
+export function listDisconnectedConnections(): Promise<
+  WhatsappConnectionSnapshot[]
+> {
+  return apiClient<WhatsappConnectionSnapshot[]>(
+    "/admin/whatsapp/connections/disconnected"
+  )
 }
 
 export function getCompanyWhatsappInstance(

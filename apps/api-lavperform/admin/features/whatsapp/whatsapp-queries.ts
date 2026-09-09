@@ -12,6 +12,7 @@ import {
   getGlobalWebhook,
   getGlobalWebhookErrors,
   listConnectionLinks,
+  listDisconnectedConnections,
   listWhatsappInstances,
   restartWhatsappApplication,
   revokeConnectionLink,
@@ -29,6 +30,7 @@ import type {
 export const whatsappKeys = {
   all: ["whatsapp"] as const,
   instances: () => [...whatsappKeys.all, "instances"] as const,
+  disconnected: () => [...whatsappKeys.all, "disconnected"] as const,
   companyInstance: (companyId: string) =>
     [...whatsappKeys.all, "company-instance", companyId] as const,
   globalWebhook: () => [...whatsappKeys.all, "global-webhook"] as const,
@@ -47,6 +49,13 @@ export function useWhatsappInstances() {
   return useQuery({
     queryKey: whatsappKeys.instances(),
     queryFn: listWhatsappInstances,
+  })
+}
+
+export function useDisconnectedConnections() {
+  return useQuery({
+    queryKey: whatsappKeys.disconnected(),
+    queryFn: listDisconnectedConnections,
   })
 }
 
@@ -76,6 +85,7 @@ export function useGlobalWebhookErrors() {
 
 function invalidateInstances(queryClient: ReturnType<typeof useQueryClient>) {
   queryClient.invalidateQueries({ queryKey: whatsappKeys.instances() })
+  queryClient.invalidateQueries({ queryKey: whatsappKeys.disconnected() })
   queryClient.invalidateQueries({
     queryKey: whatsappKeys.all,
     predicate: (query) =>

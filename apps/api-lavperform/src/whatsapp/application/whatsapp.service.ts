@@ -11,6 +11,7 @@ import { UazapiCheckInstancePool } from '../uazapi/uazapi-check-instance-pool.se
 import { resolveConnectedPhoneNumber } from './whatsapp-phone.util';
 import { AiAgentService } from '../../ai-agent/application/ai-agent.service';
 import { PrismaService } from '../../prisma/prisma.service';
+import { WhatsappCompanyConnectionSnapshotService } from './whatsapp-company-connection-snapshot.service';
 
 @Injectable()
 export class WhatsappService {
@@ -26,6 +27,7 @@ export class WhatsappService {
     private readonly aiAgentService: AiAgentService,
     private readonly checkInstancePool: UazapiCheckInstancePool,
     private readonly prisma: PrismaService,
+    private readonly snapshotService: WhatsappCompanyConnectionSnapshotService,
   ) { }
 
   private generateInstanceName(companyName: string): string {
@@ -73,11 +75,12 @@ export class WhatsappService {
 
     // Gera o nome da instância baseado no nome da empresa
     const instanceName = this.generateInstanceName(company.name);
+    const systemName = process.env.WHITELABEL == 'foodcrm' ? 'FoodCRM' : 'LavPerform';
 
     // Cria a instância na Evolution API
     const uazapiInstance = await this.uazapiClient.createInstance({
       name: instanceName,
-      systemName: process.env.WHITELABEL == 'foodcrm' ? 'FoodCRM' : 'LavPerform',
+      systemName,
       adminField01: company.name,
       adminField02: company.id,
       browser: 'chrome',
@@ -96,6 +99,15 @@ export class WhatsappService {
       token: uazapiInstance.token,
       phoneNumber: '',
       companyId: companyId
+    });
+
+    await this.snapshotService.upsertFromEvent({
+      companyId,
+      instanceToken: uazapiInstance.token,
+      instanceName,
+      systemName,
+      status: 'pending',
+      reconciled: true,
     });
 
     // Busca os dados de conexão
@@ -172,6 +184,14 @@ export class WhatsappService {
     if (mappedStatus !== instance.status) {
       await this.whatsappInstanceRepository.updateStatus(instance.id, mappedStatus);
 
+      await this.snapshotService.upsertFromEvent({
+        companyId: instance.companyId,
+        instanceToken: instance.token,
+        instanceName: instance.name,
+        status: WhatsappCompanyConnectionSnapshotService.mapDbInstanceStatus(mappedStatus),
+        touchDisconnectedAt: mappedStatus === WhatsappInstanceStatus.DISCONNECTED,
+      });
+
       // Na transição para CONNECTED, garante o webhook do agente ativo mesmo
       // que o evento `connection` da UAZAPI não tenha sido entregue.
       if (mappedStatus === WhatsappInstanceStatus.CONNECTED) {
@@ -220,6 +240,7 @@ export class WhatsappService {
 
       // Deleta a instância no banco de dados
       await this.whatsappInstanceRepository.delete(instance.id);
+      await this.snapshotService.markAbsent(companyId);
     } catch (error: any) {
       throw new Error(`Erro ao deletar instância: ${error.message}`);
     }

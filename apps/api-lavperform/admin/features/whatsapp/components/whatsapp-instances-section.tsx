@@ -13,17 +13,24 @@ import {
 } from "@/components/ui/card"
 
 import { CreateInstanceDialog } from "./create-instance-dialog"
+import { DisconnectedConnectionsSection } from "./disconnected-connections-section"
 import { EditAdminFieldsDialog } from "./edit-admin-fields-dialog"
 import { InstancesFilters } from "./instances-filters"
 import { InstancesTable } from "./instances-table"
 import type { InstanceListFilters, WhatsappInstanceListItem } from "../types"
-import { filterInstances } from "../utils"
+import {
+  DEFAULT_INSTANCE_LIST_FILTERS,
+  filterInstances,
+  uniqueSystemNames,
+} from "../utils"
 import { useWhatsappInstances } from "../whatsapp-queries"
 
 export function WhatsappInstancesSection() {
   const instancesQuery = useWhatsappInstances()
 
-  const [filters, setFilters] = useState<InstanceListFilters>({})
+  const [filters, setFilters] = useState<InstanceListFilters>(
+    DEFAULT_INSTANCE_LIST_FILTERS
+  )
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<WhatsappInstanceListItem | null>(
     null
@@ -40,6 +47,14 @@ export function WhatsappInstancesSection() {
     [instancesQuery.data]
   )
 
+  const systemNames = useMemo(
+    () => uniqueSystemNames(instancesQuery.data ?? []),
+    [instancesQuery.data]
+  )
+
+  const totalCount = instancesQuery.data?.length ?? 0
+  const filteredCount = filteredInstances.length
+
   function handleEditAdminFields(instance: WhatsappInstanceListItem) {
     setEditTarget(instance)
     setEditOpen(true)
@@ -51,7 +66,7 @@ export function WhatsappInstancesSection() {
         <div>
           <p className="text-sm text-muted-foreground">
             {instancesQuery.data
-              ? `${instancesQuery.data.length} instância(s) na UAZAPI`
+              ? `${filteredCount} de ${totalCount} instância(s) na UAZAPI`
               : "Carregando instâncias..."}
             {orphanCount > 0 && (
               <span className="ml-2 text-amber-600 dark:text-amber-400">
@@ -66,18 +81,22 @@ export function WhatsappInstancesSection() {
         </Button>
       </div>
 
+      <DisconnectedConnectionsSection />
+
       <InstancesFilters
         values={filters}
+        systemNames={systemNames}
         onChange={setFilters}
-        onClear={() => setFilters({})}
+        onClear={() => setFilters(DEFAULT_INSTANCE_LIST_FILTERS)}
       />
 
       <Card>
         <CardHeader>
-          <CardTitle>Instâncias UAZAPI</CardTitle>
+          <CardTitle>Instâncias UAZAPI (ao vivo)</CardTitle>
           <CardDescription>
-            Todas as instâncias registradas no servidor, enriquecidas com dados
-            da empresa quando adminField02 estiver preenchido.
+            Por padrão mostra só as vinculadas às empresas deste produto. A
+            assinatura UAZAPI é compartilhada — use Sistema / Vínculo = Todas
+            para ver o servidor inteiro.
           </CardDescription>
         </CardHeader>
         <CardContent>

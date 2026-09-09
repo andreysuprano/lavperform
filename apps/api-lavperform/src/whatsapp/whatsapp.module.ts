@@ -14,6 +14,8 @@ import { UazapiClient } from './uazapi/uazapi.client';
 import { UazapiCheckInstancePool } from './uazapi/uazapi-check-instance-pool.service';
 import { WhatsappInstanceCleanupTasks } from './crons/whatsapp-instance-cleanup-tasks';
 import { WhatsappAgentWebhookSyncTasks } from './crons/whatsapp-agent-webhook-sync.tasks';
+import { WhatsappConnectionReconcileTasks } from './crons/whatsapp-connection-reconcile-tasks';
+import { WhatsappCompanyConnectionSnapshotService } from './application/whatsapp-company-connection-snapshot.service';
 import { workerProviders } from '../common/queue/worker-runtime.config';
 
 @Module({
@@ -32,17 +34,25 @@ import { workerProviders } from '../common/queue/worker-runtime.config';
     EvolutionClient,
     UazapiClient,
     UazapiCheckInstancePool,
+    WhatsappCompanyConnectionSnapshotService,
     ...workerProviders(
       ConnectionUpdateListener,
       MessageReceivedListener,
       WhatsappInstanceCleanupTasks,
       WhatsappAgentWebhookSyncTasks,
+      WhatsappConnectionReconcileTasks,
     ),
     {
       provide: 'IWhatsappInstanceRepository',
       useClass: WhatsappInstancePrismaRepository,
     },
   ],
-  exports: [WhatsappService, EvolutionClient, UazapiClient, 'IWhatsappInstanceRepository'],
+  exports: [
+    WhatsappService,
+    EvolutionClient,
+    UazapiClient,
+    'IWhatsappInstanceRepository',
+    WhatsappCompanyConnectionSnapshotService,
+  ],
 })
 export class WhatsappModule {}

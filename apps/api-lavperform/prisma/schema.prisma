@@ -65,6 +65,7 @@ model Company {
   campaigns                 Campaign[]
   whatsappInstances         WhatsappInstance[]
   whatsappConnectionLinks   WhatsappConnectionLink[]
+  whatsappCompanyConnection WhatsappCompanyConnection?
   digitalMenuIntegration    DigitalMenuIntegration[]
   orders                    Order[]
   automaticCampaigns        AutomaticCampaign[]
@@ -696,6 +697,35 @@ model WhatsappInstance {
   connectionLinks WhatsappConnectionLink[]
 
   @@index([phoneNumber])
+  @@index([token])
+}
+
+/// Snapshot de conexão WhatsApp por empresa. Sobrevive à limpeza de 1 dia na UAZAPI.
+enum WhatsappCompanyConnectionStatus {
+  connected
+  disconnected
+  connecting
+  pending
+  absent
+}
+
+model WhatsappCompanyConnection {
+  id                  String                           @id @default(uuid())
+  companyId           String                           @unique
+  company             Company                          @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  instanceToken       String?
+  instanceName        String?
+  systemName          String?
+  status              WhatsappCompanyConnectionStatus  @default(pending)
+  lastDisconnectedAt  DateTime?
+  lastConnectedAt     DateTime?
+  lastReconciledAt    DateTime?
+  createdAt           DateTime                         @default(now())
+  updatedAt           DateTime                         @updatedAt
+
+  @@index([status])
+  @@index([lastDisconnectedAt])
+  @@index([instanceToken])
 }
 
 model WhatsappConnectionLink {
