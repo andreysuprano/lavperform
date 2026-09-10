@@ -20,6 +20,9 @@ describe('MessageProcessor', () => {
     shouldApplyRenitency: jest.fn().mockReturnValue(false),
     canContactCustomer: jest.fn().mockResolvedValue({ allowed: true }),
   };
+  const dailyGuard: any = {
+    claimForProcessing: jest.fn().mockResolvedValue({ allowed: true }),
+  };
 
   let processor: MessageProcessor;
 
@@ -27,6 +30,7 @@ describe('MessageProcessor', () => {
     jest.clearAllMocks();
     renitencyEvaluator.shouldApplyRenitency.mockReturnValue(false);
     renitencyEvaluator.canContactCustomer.mockResolvedValue({ allowed: true });
+    dailyGuard.claimForProcessing.mockResolvedValue({ allowed: true });
     prisma.message.findUnique = jest.fn().mockResolvedValue({
       id: 'msg1',
       status: MessageStatus.PROCESSING,
@@ -36,7 +40,13 @@ describe('MessageProcessor', () => {
       id: 'ac1',
       active: true,
     });
-    processor = new MessageProcessor(prisma, whatsappService, eventEmitter, renitencyEvaluator);
+    processor = new MessageProcessor(
+      prisma,
+      whatsappService,
+      eventEmitter,
+      renitencyEvaluator,
+      dailyGuard,
+    );
   });
 
   const baseJob = {
@@ -321,5 +331,43 @@ describe('MessageProcessor', () => {
     });
     expect(prisma.campaignMetric.updateMany).not.toHaveBeenCalled();
     expect(prisma.customer.updateMany).not.toHaveBeenCalled();
+  });
+
+  it('does not send when daily guard blocks an automatic campaign message', async () => {
+    dailyGuard.claimForProcessing.mockResolvedValue({
+      allowed: false,
+      blockerId: 'older-message',
+    });
+
+    await processor.process(baseJob);
+
+    expect(dailyGuard.claimForProcessing).toHaveBeenCalledWith('msg1');
+    expect(whatsappService.sendMessageWithImage).not.toHaveBeenCalled();
+    expect(renitencyEvaluator.canContactCustomer).not.toHaveBeenCalled();
+  });
+
+  it('does not call daily guard for messages without automaticCampaignId', async () => {
+    prisma.message.findUnique = jest.fn().mockResolvedValue({
+      id: 'msg1',
+      status: MessageStatus.PROCESSING,
+      automaticCampaignId: null,
+    });
+    prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'tok' });
+    whatsappService.sendMessageWithImage = jest.fn().mockResolvedValue(undefined);
+    prisma.message.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
+    prisma.customer.updateMany = jest.fn().mockResolvedValue({});
+
+    const manualJob = {
+      data: {
+        ...baseJob.data,
+        message: { ...baseJob.data.message, automaticCampaignId: null },
+      },
+    } as any;
+
+    await processor.process(manualJob);
+
+    expect(dailyGuard.claimForProcessing).not.toHaveBeenCalled();
+    expect(whatsappService.sendMessageWithImage).toHaveBeenCalled();
   });
 });

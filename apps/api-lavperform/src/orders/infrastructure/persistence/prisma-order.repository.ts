@@ -6,7 +6,7 @@ import { Order } from '../../domain/order.entity';
 import { OrderMapper } from './mappers/order.mapper';
 import { OrderFilterDto } from '../../application/dto/order-filter.dto';
 import { resolveCreatedAtFilter } from '../../application/order-created-at.filter';
-import { MonthlySalesItemDto } from '../../application/dto/monthly-sales-history.dto';
+import { MonthlySalesItemDto, TodaySalesSummary } from '../../application/dto/monthly-sales-history.dto';
 
 type MonthlyRaw = {
     month: Date;
@@ -461,22 +461,32 @@ export class OrderPrismaRepository implements IOrderRepository {
         }).then(result => result._sum.total || 0));
     }
 
-    async getTodaySales(companyId: string): Promise<{ count: number; totalValue: number }> {
-        const result = await this.prisma.$queryRaw<[{ count: bigint; total_value: string }]>(
+    async getTodaySales(companyId: string): Promise<TodaySalesSummary> {
+        const result = await this.prisma.$queryRaw<[{ count: bigint; total_value: string; cycle_count: bigint }]>(
             Prisma.sql`
                 SELECT
-                    COUNT(*)::bigint            AS count,
-                    COALESCE(SUM("total"), 0)   AS total_value
-                FROM "Order"
-                WHERE "companyId" = ${companyId}
-                  AND "createdAt" >= DATE_TRUNC('day', NOW())
-                  AND "createdAt" <  DATE_TRUNC('day', NOW()) + INTERVAL '1 day';
+                    COUNT(*)::bigint AS count,
+                    COALESCE(SUM(o."total"), 0) AS total_value,
+                    COALESCE((
+                        SELECT SUM(oi."quantity")
+                        FROM "OrderItem" oi
+                        INNER JOIN "Order" cycle_order ON cycle_order.id = oi."orderId"
+                        WHERE cycle_order."companyId" = ${companyId}
+                          AND cycle_order."createdAt" >= DATE_TRUNC('day', NOW())
+                          AND cycle_order."createdAt" < DATE_TRUNC('day', NOW()) + INTERVAL '1 day'
+                          AND oi."parentItemId" IS NULL
+                    ), 0)::bigint AS cycle_count
+                FROM "Order" o
+                WHERE o."companyId" = ${companyId}
+                  AND o."createdAt" >= DATE_TRUNC('day', NOW())
+                  AND o."createdAt" < DATE_TRUNC('day', NOW()) + INTERVAL '1 day';
             `,
         );
 
         return {
             count: Number(result[0].count),
             totalValue: Number(result[0].total_value),
+            cycleCount: Number(result[0].cycle_count),
         };
     }
 

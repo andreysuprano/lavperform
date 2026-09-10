@@ -11,12 +11,21 @@ export class MonthlySalesItemDto {
   totalValue: number;
 }
 
+export type TodaySalesSummary = {
+  count: number;
+  totalValue: number;
+  cycleCount: number;
+};
+
 export class TodaySalesDto {
   @ApiProperty({ example: 12, description: 'Quantidade de vendas realizadas hoje' })
   count: number;
 
   @ApiProperty({ example: 650.0, description: 'Valor total acumulado das vendas de hoje' })
   totalValue: number;
+
+  @ApiProperty({ example: 18, description: 'Quantidade de ciclos vendidos hoje' })
+  cycleCount: number;
 }
 
 export class MonthlySalesHistoryResponseDto {

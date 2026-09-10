@@ -20,6 +20,7 @@ export function mapMonthlySalesToPerformance(
     summary: {
       dailySalesAmount: data.today.totalValue,
       dailySalesCount: data.today.count,
+      dailyCycleCount: data.today.cycleCount,
     },
     chartData: data.series.map((point) => ({
       label: point.month,

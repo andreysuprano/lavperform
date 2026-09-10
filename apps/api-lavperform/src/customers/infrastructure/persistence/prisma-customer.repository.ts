@@ -143,7 +143,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                 phone: variants.length > 0 ? { in: variants } : phone,
             },
             include: { address: true },
-            orderBy: { createdAt: 'asc' },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
         });
         if (!result) return null;
         const [customer] = await this.mapCustomersWithOrderStats([result]);
@@ -153,6 +153,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
     async findByCpf(companyId: string, cpf: string): Promise<Customer | null> {
         const result = await this.prisma.customer.findFirst({
             where: { companyId, cpf },
+            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
             include: { address: true }
         });
         if (!result) return null;

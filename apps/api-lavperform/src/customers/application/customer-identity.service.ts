@@ -13,6 +13,7 @@ import {
   normalizeCpfForLookup,
 } from '../../public-api/orders/application/order-ingestion.mapper';
 import { IngestCustomerDto } from '../../public-api/orders/application/dto/ingest-customer.dto';
+import { isSimilarName } from '../../common/utils/name-similarity';
 
 export type SaleCustomerIncoming = {
   name: string;
@@ -65,12 +66,12 @@ export class CustomerIdentityService {
         `Conflito de identidade na empresa ${companyId}: telefone=${byPhone.id} cpf=${byCpf.id}`,
       );
       await this.ensureCrossIdentifierReview(companyId, byPhone.id, byCpf.id);
-      return this.applyIncomingUpdates(companyId, byPhone, ingestIncoming);
+      return this.applyIncomingUpdates(companyId, byPhone, ingestIncoming, partner);
     }
 
     const matched = byPhone ?? byCpf ?? null;
     if (matched) {
-      return this.applyIncomingUpdates(companyId, matched, ingestIncoming);
+      return this.applyIncomingUpdates(companyId, matched, ingestIncoming, partner);
     }
 
     const createDto = mapIngestCustomerToCreateDto(ingestIncoming);
@@ -109,8 +110,15 @@ export class CustomerIdentityService {
     companyId: string,
     matched: Customer,
     ingestIncoming: IngestCustomerDto,
+    partner?: SaleCustomerPartner,
   ): Promise<Customer> {
     const updateDto = mapIngestCustomerToUpdateDto(matched, ingestIncoming);
+    if (
+      partner?.partnerSlug?.toUpperCase() === 'VMLAV' &&
+      !isSimilarName(matched.name, ingestIncoming.name)
+    ) {
+      delete updateDto.name;
+    }
     if (Object.keys(updateDto).length === 0) {
       return matched;
     }

@@ -22,6 +22,13 @@ import {
   VMLAV_INGESTION_API_KEY_ID,
   VMLAV_PARTNER_SLUG,
 } from '../vmlav.constants';
+import {
+  buildVmLavImportJobOptions,
+  buildVmLavSaleJobOptions,
+  enqueueVmLavJob,
+  vmlavImportJobId,
+  vmlavSaleJobId,
+} from '../vmlav-queue.util';
 import { normalizeVmLavCnpj } from '../api/vmlav-sales-response.util';
 
 export type VmLavDailySalesResult = {
@@ -111,8 +118,10 @@ export class VmLavSalesService {
 
       this.logger.log(`Encontradas ${sales.length} vendas para processar`);
 
+      let enqueued = 0;
       for (const sale of sales) {
-        await this.vmLavSaleProcessQueue.add(
+        const result = await enqueueVmLavJob(
+          this.vmLavSaleProcessQueue,
           QUEUE_NAMES.VMLAV_SALE_PROCESS,
           {
             companyId,
@@ -120,18 +129,20 @@ export class VmLavSalesService {
             apiKey: integration.apiKey,
             partnerId: partner.id,
           },
-          {
-            attempts: 3,
-            backoff: {
-              type: 'exponential',
-              delay: 2000,
-            },
-          },
+          buildVmLavSaleJobOptions(vmlavSaleJobId(companyId, sale.idVenda)),
         );
+
+        if (result === 'queued') {
+          enqueued++;
+        } else {
+          this.logger.debug(
+            `Venda ${sale.idVenda} já enfileirada para empresa ${companyId}`,
+          );
+        }
       }
 
       this.logger.log(
-        `${sales.length} vendas adicionadas à fila de processamento para empresa ${companyId}`,
+        `${enqueued} vendas adicionadas à fila de processamento para empresa ${companyId}`,
       );
 
       return {
@@ -139,7 +150,7 @@ export class VmLavSalesService {
         date,
         cnpj,
         salesFound: sales.length,
-        enqueued: sales.length,
+        enqueued,
       };
     } catch (error) {
       this.logger.error(
@@ -306,21 +317,23 @@ export class VmLavSalesService {
 
       let jobsCreated = 0;
       for (const date of dates) {
-        await this.vmLavSalesQueue.add(
+        const result = await enqueueVmLavJob(
+          this.vmLavSalesQueue,
           QUEUE_NAMES.VMLAV_SALES_IMPORT,
           {
             companyId,
             date,
           },
-          {
-            attempts: 3,
-            backoff: {
-              type: 'exponential',
-              delay: 5000,
-            },
-          },
+          buildVmLavImportJobOptions(vmlavImportJobId(companyId, date)),
         );
-        jobsCreated++;
+
+        if (result === 'queued') {
+          jobsCreated++;
+        } else {
+          this.logger.debug(
+            `Importação histórica ${date} já enfileirada para empresa ${companyId}`,
+          );
+        }
       }
 
       this.logger.log(

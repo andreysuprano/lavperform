@@ -1,6 +1,7 @@
 import { VmLavSalesService } from 'src/integrations/vmlav/application/vmlav-sales.service';
 import { VmLavSale } from 'src/integrations/vmlav/api/vmlav.types';
 import { VMLAV_PARTNER_SLUG } from 'src/integrations/vmlav/vmlav.constants';
+import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 
 function buildSale(overrides: Partial<VmLavSale> = {}): VmLavSale {
   return {
@@ -142,6 +143,146 @@ describe('VmLavSalesService', () => {
         enqueued: 0,
       });
       expect(vmLavSaleProcessQueue.add).not.toHaveBeenCalled();
+    });
+
+    it('enfileira venda com jobId estável por empresa e idVenda', async () => {
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        cnpj: '12345678000199',
+      });
+      prisma.partner.findUnique.mockResolvedValue({
+        id: 'partner-1',
+        partnerSlug: VMLAV_PARTNER_SLUG,
+      });
+      digitalMenuIntegrationRepository.findByCompanyAndPartner.mockResolvedValue(
+        { apiKey: 'api-key' },
+      );
+      const sale = buildSale({ idVenda: 123, nomeCliente: 'Cliente Teste' });
+      vmLavService.getDailySales.mockResolvedValue([sale]);
+      vmLavSaleProcessQueue.add.mockResolvedValue({ id: 'sale-job-1' });
+
+      await service.processDailySales('company-1', '2026-09-04');
+
+      expect(vmLavSaleProcessQueue.add).toHaveBeenCalledWith(
+        QUEUE_NAMES.VMLAV_SALE_PROCESS,
+        expect.objectContaining({ companyId: 'company-1' }),
+        expect.objectContaining({
+          jobId: 'vmlav-sale:company-1:123',
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 2000 },
+          removeOnComplete: true,
+          removeOnFail: true,
+        }),
+      );
+    });
+
+    it('continua enfileirando próxima venda quando job ativo já existe', async () => {
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        cnpj: '12345678000199',
+      });
+      prisma.partner.findUnique.mockResolvedValue({
+        id: 'partner-1',
+        partnerSlug: VMLAV_PARTNER_SLUG,
+      });
+      digitalMenuIntegrationRepository.findByCompanyAndPartner.mockResolvedValue(
+        { apiKey: 'api-key' },
+      );
+      const sale = buildSale({ idVenda: 123, nomeCliente: 'Cliente Teste' });
+      const sale2 = buildSale({ idVenda: 456, nomeCliente: 'Cliente 2' });
+      vmLavService.getDailySales.mockResolvedValue([sale, sale2]);
+      vmLavSaleProcessQueue.add
+        .mockRejectedValueOnce(new Error('Job already exists'))
+        .mockResolvedValueOnce({ id: 'sale-job-2' });
+
+      await service.processDailySales('company-1', '2026-09-04');
+
+      expect(vmLavSaleProcessQueue.add).toHaveBeenCalledTimes(2);
+      expect(vmLavSaleProcessQueue.add).toHaveBeenLastCalledWith(
+        QUEUE_NAMES.VMLAV_SALE_PROCESS,
+        expect.objectContaining({ companyId: 'company-1', sale: sale2 }),
+        expect.objectContaining({
+          jobId: 'vmlav-sale:company-1:456',
+          removeOnComplete: true,
+          removeOnFail: true,
+        }),
+      );
+    });
+  });
+
+  describe('importHistoricalSales', () => {
+    it('enfileira importação histórica com jobId estável por empresa e data', async () => {
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        cnpj: '12345678000199',
+      });
+      prisma.partner.findUnique.mockResolvedValue({
+        id: 'partner-1',
+        partnerSlug: VMLAV_PARTNER_SLUG,
+      });
+      digitalMenuIntegrationRepository.findByCompanyAndPartner.mockResolvedValue(
+        { apiKey: 'api-key' },
+      );
+      vmLavSalesQueue.add.mockResolvedValue({ id: 'import-job-1' });
+
+      await service.importHistoricalSales('company-1', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-02',
+      });
+
+      expect(vmLavSalesQueue.add).toHaveBeenCalledWith(
+        QUEUE_NAMES.VMLAV_SALES_IMPORT,
+        { companyId: 'company-1', date: '2026-09-01' },
+        expect.objectContaining({
+          jobId: 'vmlav-import:company-1:2026-09-01',
+          attempts: 3,
+          backoff: { type: 'exponential', delay: 5000 },
+          removeOnComplete: true,
+          removeOnFail: true,
+        }),
+      );
+
+      expect(vmLavSalesQueue.add).toHaveBeenCalledWith(
+        QUEUE_NAMES.VMLAV_SALES_IMPORT,
+        { companyId: 'company-1', date: '2026-09-02' },
+        expect.objectContaining({
+          jobId: 'vmlav-import:company-1:2026-09-02',
+        }),
+      );
+      expect(vmLavSalesQueue.add).toHaveBeenCalledTimes(2);
+    });
+
+    it('continua importação histórica quando job ativo já existe', async () => {
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        cnpj: '12345678000199',
+      });
+      prisma.partner.findUnique.mockResolvedValue({
+        id: 'partner-1',
+        partnerSlug: VMLAV_PARTNER_SLUG,
+      });
+      digitalMenuIntegrationRepository.findByCompanyAndPartner.mockResolvedValue(
+        { apiKey: 'api-key' },
+      );
+      vmLavSalesQueue.add
+        .mockRejectedValueOnce(new Error('Job already exists'))
+        .mockResolvedValueOnce({ id: 'import-job-2' });
+
+      await service.importHistoricalSales('company-1', {
+        startDate: '2026-09-01',
+        endDate: '2026-09-02',
+      });
+
+      expect(vmLavSalesQueue.add).toHaveBeenCalledTimes(2);
+      expect(vmLavSalesQueue.add).toHaveBeenLastCalledWith(
+        QUEUE_NAMES.VMLAV_SALES_IMPORT,
+        { companyId: 'company-1', date: '2026-09-02' },
+        expect.objectContaining({
+          jobId: 'vmlav-import:company-1:2026-09-02',
+          removeOnComplete: true,
+          removeOnFail: true,
+        }),
+      );
     });
   });
 });

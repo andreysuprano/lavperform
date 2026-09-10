@@ -2,6 +2,7 @@ import { SimpleGrid, Skeleton } from '@chakra-ui/react'
 import { memo, useMemo } from 'react'
 import {
   LuCircleDollarSign,
+  LuRefreshCw,
   LuShoppingCart,
   LuUserRoundCheck,
   LuUserRoundMinus,
@@ -49,6 +50,13 @@ function DashboardOpsMetricsBase() {
         valueType: 'number' as const,
       },
       {
+        id: 'daily-cycle-count',
+        icon: LuRefreshCw,
+        label: 'Ciclos do dia',
+        value: performance?.summary.dailyCycleCount ?? 0,
+        valueType: 'number' as const,
+      },
+      {
         id: 'active-customers',
         icon: LuUserRoundCheck,
         label: 'Clientes ativos',
@@ -76,11 +84,11 @@ function DashboardOpsMetricsBase() {
   if (isLoading) {
     return (
       <SimpleGrid
-        columns={{ base: 1, sm: 2, md: 3, xl: 5 }}
+        columns={{ base: 1, sm: 2, md: 3, xl: 6 }}
         gap={4}
         w="full"
       >
-        {Array.from({ length: 5 }).map((_, idx) => (
+        {Array.from({ length: 6 }).map((_, idx) => (
           <Skeleton
             height="96px"
             key={idx}
@@ -92,7 +100,7 @@ function DashboardOpsMetricsBase() {
 
   return (
     <SimpleGrid
-      columns={{ base: 1, sm: 2, md: 3, xl: 5 }}
+      columns={{ base: 1, sm: 2, md: 3, xl: 6 }}
       gap={4}
       w="full"
     >

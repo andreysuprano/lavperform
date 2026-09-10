@@ -1,10 +1,15 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { toDateOnlyString } from '../../../common/utils/date.utils';
+import {
+  buildVmLavImportJobOptions,
+  enqueueVmLavJob,
+  vmlavImportJobId,
+} from '../vmlav-queue.util';
 
 @Injectable()
 export class VmLavSalesTasks {
@@ -17,11 +22,11 @@ export class VmLavSalesTasks {
   ) {}
 
   /**
-   * Cron job que executa a cada 12 horas
+   * Cron job que executa a cada 30 minutos
    * Busca todas as empresas com integração VM Lav ativa
    * e adiciona na fila para processamento das vendas do dia
    */
-  @Cron(CronExpression.EVERY_12_HOURS)
+  @Cron('0 */30 * * * *')
   async handleDailySalesImport() {
     this.logger.debug('Iniciando importação de vendas VM Lav');
 
@@ -62,20 +67,22 @@ export class VmLavSalesTasks {
 
       // Adiciona cada empresa na fila para processamento
       for (const company of companies) {
-        await this.vmLavSalesQueue.add(
+        const result = await enqueueVmLavJob(
+          this.vmLavSalesQueue,
           QUEUE_NAMES.VMLAV_SALES_IMPORT,
           {
             companyId: company.id,
             date: today,
           },
-          {
-            attempts: 3,
-            backoff: {
-              type: 'exponential',
-              delay: 5000,
-            },
-          },
+          buildVmLavImportJobOptions(vmlavImportJobId(company.id, today)),
         );
+
+        if (result === 'skipped') {
+          this.logger.debug(
+            `Importação VM Lav já enfileirada para ${company.name} (${company.id}) em ${today}`,
+          );
+          continue;
+        }
 
         this.logger.log(
           `Empresa ${company.name} (${company.id}) adicionada à fila de importação`,

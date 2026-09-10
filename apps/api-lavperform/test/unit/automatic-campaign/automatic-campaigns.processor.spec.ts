@@ -70,6 +70,9 @@ describe('AutomaticCampaignsProcessor', () => {
   const customersService: any = {
     enqueueStaleWhatsappValidationForCompany: jest.fn(),
   };
+  const dailyGuard: any = {
+    loadDailySnapshot: jest.fn(),
+  };
   const whatsappService: any = {
     validateAndPersistCustomerWhatsapp: jest.fn(),
   };
@@ -116,6 +119,9 @@ describe('AutomaticCampaignsProcessor', () => {
     renitencyEvaluator.canContactCustomer.mockResolvedValue({ allowed: true });
     campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(0);
     campaignCustomerResolver.resolveCustomers.mockResolvedValue([]);
+    dailyGuard.loadDailySnapshot.mockResolvedValue({
+      tryReserve: jest.fn().mockReturnValue({ allowed: true }),
+    });
     customersService.enqueueStaleWhatsappValidationForCompany.mockResolvedValue({
       totalEnqueued: 0,
     });
@@ -126,6 +132,7 @@ describe('AutomaticCampaignsProcessor', () => {
       renitencyEvaluator,
       campaignCustomerResolver,
       customersService,
+      dailyGuard,
       whatsappService,
     );
   });
@@ -668,5 +675,66 @@ describe('AutomaticCampaignsProcessor', () => {
         status: AutomaticCampaignStatus.FAILED,
       }),
     });
+  });
+
+  it('excludes candidates blocked by the daily guard from message generation', async () => {
+    (getDayOfWeekPtBr as jest.Mock).mockReturnValue('seg');
+
+    prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
+      id: 'ac1',
+      companyId: 'comp1',
+      active: true,
+      targetingMode: 'RFV',
+      segmentation: 'segA',
+      daysOfWeek: ['seg'],
+      messageText: 'Hi',
+      maxDailySends: 50,
+      channel: CampaignChannel.WHATSAPP_WEB,
+      status: AutomaticCampaignStatus.IN_PROGRESS,
+      creatives: [],
+      coupon: null,
+    });
+    prisma.openingHours.findFirst = jest.fn().mockResolvedValue({
+      isOpen: true,
+      openTime: '10:00',
+      closeTime: '18:00',
+    });
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(2);
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([
+      { id: 'cust-blocked', name: 'Blocked', phone: '1', whatsappVerifiedAt: FRESH_VERIFIED_AT },
+      { id: 'cust-allowed', name: 'Allowed', phone: '2', whatsappVerifiedAt: FRESH_VERIFIED_AT },
+    ]);
+    prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    prisma.automaticCampaign.update = jest.fn().mockResolvedValue({});
+    strategy.generateMessages.mockResolvedValue(undefined);
+
+    const tryReserve = jest.fn(({ customerId }) =>
+      customerId === 'cust-blocked'
+        ? { allowed: false, blockerId: 'existing-msg' }
+        : { allowed: true },
+    );
+    dailyGuard.loadDailySnapshot.mockResolvedValue({ tryReserve });
+
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+
+    expect(dailyGuard.loadDailySnapshot).toHaveBeenCalledTimes(1);
+    expect(dailyGuard.loadDailySnapshot).toHaveBeenCalledWith({
+      companyId: 'comp1',
+      now: expect.any(Date),
+    });
+    expect(tryReserve).toHaveBeenCalledWith({
+      id: 'candidate:cust-blocked',
+      customerId: 'cust-blocked',
+      phone: '1',
+    });
+    expect(tryReserve).toHaveBeenCalledWith({
+      id: 'candidate:cust-allowed',
+      customerId: 'cust-allowed',
+      phone: '2',
+    });
+    expect(strategy.generateMessages).toHaveBeenCalledTimes(1);
+    expect(strategy.generateMessages.mock.calls[0][0].customers).toEqual([
+      { id: 'cust-allowed', name: 'Allowed', phone: '2', whatsappVerifiedAt: FRESH_VERIFIED_AT },
+    ]);
   });
 });
