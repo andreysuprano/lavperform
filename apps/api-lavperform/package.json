@@ -45,6 +45,7 @@
     "script:remove-campaign-sale-attributions": "ts-node scripts/remove-campaign-sale-attributions.ts",
     "script:revert-orphan-credit-topups": "ts-node scripts/revert-orphan-credit-topups.ts",
     "script:replay-webhooks-to-queue": "ts-node -r tsconfig-paths/register scripts/replay-webhooks-to-queue.ts",
+    "script:reconcile-whatsapp-connections": "ts-node -r tsconfig-paths/register scripts/reconcile-whatsapp-connections.ts",
     "script:seed-mass-rfv": "ts-node -r tsconfig-paths/register src/scripts/seed-mass-rfv-data.ts",
     "script:auto-configure-rfv": "ts-node -r tsconfig-paths/register src/scripts/auto-configure-rfv-for-existing-companies.ts",
     "script:seed-laundry-from-json": "ts-node -r tsconfig-paths/register src/scripts/seed-laundry-customers-from-json.ts",

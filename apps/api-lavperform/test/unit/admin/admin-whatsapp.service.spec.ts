@@ -10,6 +10,9 @@ describe('AdminWhatsappService', () => {
     whatsappCompanyConnection: {
       findMany: jest.fn(),
     },
+    company: {
+      findMany: jest.fn(),
+    },
   };
 
   let service: AdminWhatsappService;
@@ -47,6 +50,7 @@ describe('AdminWhatsappService', () => {
         updatedAt: new Date('2026-08-11T01:00:00.000Z'),
       },
     ]);
+    prisma.company.findMany.mockResolvedValue([]);
 
     const result = await service.listDisconnectedConnections();
 
@@ -57,6 +61,41 @@ describe('AdminWhatsappService', () => {
         status: WhatsappCompanyConnectionStatus.absent,
         lastDisconnectedAt: disconnectedAt,
         existsOnUazapi: false,
+      }),
+    ]);
+  });
+
+  it('lists active companies that never created a WhatsApp instance as disconnected', async () => {
+    prisma.whatsappCompanyConnection.findMany.mockResolvedValue([]);
+    prisma.company.findMany.mockResolvedValue([
+      {
+        id: 'acqua-salvador',
+        name: 'Acqua Express Salvador-BA',
+        email: 'Guermandic@gmail.com',
+        cnpj: '00000000000000',
+        state: 'ACTIVE',
+      },
+    ]);
+
+    const result = await service.listDisconnectedConnections();
+
+    expect(prisma.company.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          deletedAt: null,
+          state: 'ACTIVE',
+        }),
+      }),
+    );
+    expect(result).toEqual([
+      expect.objectContaining({
+        companyId: 'acqua-salvador',
+        instanceToken: null,
+        instanceName: null,
+        status: WhatsappCompanyConnectionStatus.disconnected,
+        lastDisconnectedAt: null,
+        existsOnUazapi: false,
+        neverCreated: true,
       }),
     ]);
   });

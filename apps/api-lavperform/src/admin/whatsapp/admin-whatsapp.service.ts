@@ -74,7 +74,9 @@ export class AdminWhatsappService {
   }
 
   /**
-   * Empresas sem WhatsApp conectado (snapshot nosso), ordenadas pela desconexão mais recente.
+   * Empresas sem WhatsApp conectado: snapshot (desconectou / ausente na UAZAPI)
+   * e empresas ativas que nunca criaram instância — o app do cliente também
+   * trata ausência de instância como desconectado.
    */
   async listDisconnectedConnections() {
     const rows = await this.prisma.whatsappCompanyConnection.findMany({
@@ -96,7 +98,7 @@ export class AdminWhatsappService {
       orderBy: [{ lastDisconnectedAt: 'desc' }, { updatedAt: 'desc' }],
     });
 
-    return rows.map((row) => ({
+    const snapshotItems = rows.map((row) => ({
       id: row.id,
       companyId: row.companyId,
       company: row.company,
@@ -108,8 +110,44 @@ export class AdminWhatsappService {
       lastConnectedAt: row.lastConnectedAt,
       lastReconciledAt: row.lastReconciledAt,
       existsOnUazapi: row.status !== WhatsappCompanyConnectionStatus.absent,
+      neverCreated: false,
       updatedAt: row.updatedAt,
     }));
+
+    const neverCreatedCompanies = await this.prisma.company.findMany({
+      where: {
+        deletedAt: null,
+        state: 'ACTIVE',
+        whatsappCompanyConnection: { is: null },
+        whatsappInstances: { none: { status: WhatsappInstanceStatus.CONNECTED } },
+      },
+      select: { id: true, name: true, email: true, cnpj: true, state: true, updatedAt: true },
+      orderBy: { name: 'asc' },
+    });
+
+    const neverCreatedItems = neverCreatedCompanies.map((company) => ({
+      id: `never-created-${company.id}`,
+      companyId: company.id,
+      company: {
+        id: company.id,
+        name: company.name,
+        email: company.email,
+        cnpj: company.cnpj,
+        state: company.state,
+      },
+      instanceToken: null,
+      instanceName: null,
+      systemName: null,
+      status: WhatsappCompanyConnectionStatus.disconnected,
+      lastDisconnectedAt: null,
+      lastConnectedAt: null,
+      lastReconciledAt: null,
+      existsOnUazapi: false,
+      neverCreated: true,
+      updatedAt: company.updatedAt,
+    }));
+
+    return [...snapshotItems, ...neverCreatedItems];
   }
 
   /**

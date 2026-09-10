@@ -45,9 +45,9 @@ export function DisconnectedConnectionsSection() {
       <CardHeader>
         <CardTitle>Sem conexão</CardTitle>
         <CardDescription>
-          Histórico nosso por empresa (não some após a limpeza de 1 dia na
-          UAZAPI). Só empresas deste produto — não mistura a outra marca da
-          mesma assinatura.
+          Empresas deste produto sem WhatsApp conectado: quem desconectou
+          (com data), quem sumiu na limpeza da UAZAPI e quem nunca criou
+          instância. Não mistura a outra marca da mesma assinatura.
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -125,7 +125,8 @@ function DisconnectedConnectionsTable({
       <div className="rounded-lg border border-dashed p-8 text-center">
         <p className="text-sm font-medium">Nenhuma empresa sem conexão</p>
         <p className="mt-1 text-sm text-muted-foreground">
-          Quando uma lavanderia desconectar, ela aparece aqui com a data.
+          Quando uma lavanderia desconectar ou ainda não tiver instância, ela
+          aparece aqui.
         </p>
       </div>
     )
@@ -160,7 +161,7 @@ function DisconnectedConnectionsTable({
               <TableCell>
                 <div className="flex flex-col gap-0.5">
                   <span className="font-medium">
-                    {row.instanceName ?? "—"}
+                    {row.instanceName ?? (row.neverCreated ? "Sem instância" : "—")}
                   </span>
                   {row.systemName && (
                     <span className="text-xs text-muted-foreground">
@@ -178,6 +179,8 @@ function DisconnectedConnectionsTable({
               <TableCell>
                 {row.existsOnUazapi ? (
                   <Badge variant="outline">Sim</Badge>
+                ) : row.neverCreated ? (
+                  <Badge variant="secondary">Não (nunca criada)</Badge>
                 ) : (
                   <Badge variant="secondary">Não (removida)</Badge>
                 )}
