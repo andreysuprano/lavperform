@@ -7,7 +7,10 @@ import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { OrderMapper } from 'src/orders/infrastructure/persistence/mappers/order.mapper';
 import { Order } from 'src/orders/domain/order.entity';
 import { Message, MessageStatus } from '@prisma/client';
-import { phoneLookupVariants } from '../../application/customer-identifier';
+import {
+    DuplicateCustomerIdentityError,
+    lockCustomerCreateIdentities,
+} from '../../application/customer-create-lock';
 
 @Injectable()
 export class CustomerPrismaRepository implements ICustomerRepository {
@@ -47,6 +50,77 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                     addressId: newAddress.id,
                 },
                 include: { address: true }
+            });
+        });
+
+        return CustomerMapper.toDomain(created);
+    }
+
+    async createExclusive(
+        data: Partial<Customer> & {
+            companyId: string;
+            name: string;
+            phone: string | null;
+            cpf: string | null;
+        },
+        addressData?: unknown,
+    ): Promise<Customer> {
+        const { address: _ignoredAddress, ...customerData } = data as any;
+
+        const created = await this.prisma.$transaction(async (tx) => {
+            await lockCustomerCreateIdentities(
+                tx,
+                data.companyId,
+                data.phone,
+                data.cpf,
+            );
+
+            if (data.phone) {
+                const existingByPhone = await tx.customer.findFirst({
+                    where: { companyId: data.companyId, phone: data.phone },
+                    select: { id: true },
+                });
+                if (existingByPhone) {
+                    throw new DuplicateCustomerIdentityError('phone', existingByPhone.id);
+                }
+            }
+
+            if (data.cpf) {
+                const existingByCpf = await tx.customer.findFirst({
+                    where: { companyId: data.companyId, cpf: data.cpf },
+                    select: { id: true },
+                });
+                if (existingByCpf) {
+                    throw new DuplicateCustomerIdentityError('cpf', existingByCpf.id);
+                }
+            }
+
+            if (addressData) {
+                const address = addressData as Record<string, unknown>;
+                const newAddress = await tx.address.create({
+                    data: {
+                        street: address.street as string | undefined,
+                        number: address.number as string | undefined,
+                        complement: address.complement as string | undefined,
+                        neighborhood: address.neighborhood as string | undefined,
+                        city: address.city as string | undefined,
+                        state: address.state as string | undefined,
+                        zipCode: address.zipCode as string | undefined,
+                    },
+                });
+
+                return tx.customer.create({
+                    data: {
+                        ...customerData,
+                        addressId: newAddress.id,
+                    },
+                    include: { address: true },
+                });
+            }
+
+            return tx.customer.create({
+                data: customerData,
+                include: { address: true },
             });
         });
 
@@ -136,14 +210,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
     }
 
     async findByPhone(companyId: string, phone: string): Promise<Customer | null> {
-        const variants = phoneLookupVariants(phone);
         const result = await this.prisma.customer.findFirst({
-            where: {
-                companyId,
-                phone: variants.length > 0 ? { in: variants } : phone,
-            },
-            include: { address: true },
-            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+            where: { companyId, phone },
+            include: { address: true }
         });
         if (!result) return null;
         const [customer] = await this.mapCustomersWithOrderStats([result]);
@@ -153,7 +222,6 @@ export class CustomerPrismaRepository implements ICustomerRepository {
     async findByCpf(companyId: string, cpf: string): Promise<Customer | null> {
         const result = await this.prisma.customer.findFirst({
             where: { companyId, cpf },
-            orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
             include: { address: true }
         });
         if (!result) return null;
@@ -308,18 +376,14 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         });
 
         const statsByCustomerId = new Map<string, CustomerOrderStats>(
-            orderStats.flatMap((row) =>
-                row.customerId
-                    ? [[
-                        row.customerId,
-                        {
-                            _min: row._min,
-                            _max: row._max,
-                            _count: row._count,
-                        },
-                    ] as const]
-                    : [],
-            ),
+            orderStats.map((row) => [
+                row.customerId,
+                {
+                    _min: row._min,
+                    _max: row._max,
+                    _count: row._count,
+                },
+            ]),
         );
 
         return items.map((item) =>
@@ -445,7 +509,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         // corretamente em alguns casos; ordenamos em memória para garantir.
         const grouped = await this.prisma.order.groupBy({
             by: ['customerId'],
-            where: { companyId, customerId: { not: null } },
+            where: { companyId },
             _sum: { total: true },
             _count: { _all: true },
         });
@@ -469,9 +533,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             return bOrders - aOrders;
         }).slice(0, take);
 
-        const customerIds = ranked
-            .map((row) => row.customerId)
-            .filter((id): id is string => id != null);
+        const customerIds = ranked.map((row) => row.customerId);
 
         const customers = await this.prisma.customer.findMany({
             where: {
@@ -498,7 +560,6 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((row) => {
-                if (!row.customerId) return null;
                 const customer = customerMap.get(row.customerId);
                 if (!customer) return null;
 
@@ -639,7 +700,6 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             by: ['customerId'],
             where: {
                 companyId,
-                customerId: { not: null },
                 ...(createdAtFilter ? { createdAt: createdAtFilter } : {}),
             },
             _count: { _all: true },
@@ -669,9 +729,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             })
             .slice(0, take);
 
-        const customerIds = ranked
-            .map((group) => group.customerId)
-            .filter((id): id is string => id != null);
+        const customerIds = ranked.map((group) => group.customerId);
         const customers = await this.prisma.customer.findMany({
             where: {
                 companyId,
@@ -697,7 +755,6 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((group) => {
-                if (!group.customerId) return null;
                 const customer = customersById.get(group.customerId);
                 if (!customer) return null;
 

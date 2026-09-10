@@ -12,6 +12,7 @@ import {
   getWhatsappVerificationCutoff,
 } from '../../whatsapp/application/whatsapp-verification.policy';
 import { normalizeCpfDigits } from './customer-identifier';
+import { DuplicateCustomerIdentityError } from './customer-create-lock';
 import {
   ALL_RFV_CLASSIFICATIONS,
   getIconBySegmentation,
@@ -42,7 +43,7 @@ export class CustomersService {
   async create(companyId: string, createCustomerDto: CreateCustomerDto) {
     try {
       const incomingPhone = createCustomerDto.phone;
-      let formattedPhone: string | undefined;
+      let formattedPhone: string | null = null;
 
       if (incomingPhone !== undefined && incomingPhone !== null && String(incomingPhone).trim() !== '') {
         formattedPhone =
@@ -51,26 +52,15 @@ export class CustomersService {
             : formatPhoneNumber(incomingPhone);
       }
 
-      // Evita INSERT desnecessário; a unicidade real fica no índice (phone, companyId).
-      if (formattedPhone) {
-        const existingByPhone = await this.customerRepository.findByPhone(
-          companyId,
-          formattedPhone,
-        );
-        if (existingByPhone) {
-          throw new BadRequestException(
-            'Já existe um cliente cadastrado com este telefone nesta empresa',
-          );
-        }
-      }
-
       const { address, ...customerData } = createCustomerDto;
+      const cpf = normalizeCpfDigits(customerData.cpf);
 
       const data: any = {
         ...customerData,
-        phone: formattedPhone ?? null,
-        cpf: normalizeCpfDigits(customerData.cpf),
+        phone: formattedPhone,
+        cpf,
         companyId,
+        name: createCustomerDto.name,
       };
 
       if (customerData.birthDate) {
@@ -81,9 +71,12 @@ export class CustomersService {
         data.firstOrderDate = new Date(customerData.firstOrderDate);
       }
 
-      const customer = address
-        ? await this.customerRepository.createWithAddress(data, address)
-        : await this.customerRepository.create(data);
+      const customer =
+        formattedPhone || cpf
+          ? await this.customerRepository.createExclusive(data, address)
+          : address
+            ? await this.customerRepository.createWithAddress(data, address)
+            : await this.customerRepository.create(data);
 
       const isPlaceholderPhone =
         typeof customer.phone === 'string' && customer.phone.startsWith('cpf:');
@@ -106,6 +99,16 @@ export class CustomersService {
 
       return customer;
     } catch (error: any) {
+      if (error instanceof BadRequestException) {
+        throw error;
+      }
+      if (error instanceof DuplicateCustomerIdentityError) {
+        throw new BadRequestException(
+          error.matchedBy === 'cpf'
+            ? 'Já existe um cliente cadastrado com este CPF nesta empresa'
+            : 'Já existe um cliente cadastrado com este telefone nesta empresa',
+        );
+      }
       if (error.code === 'P2002' || error.message?.includes('Unique constraint')) {
         throw new BadRequestException('Já existe um cliente cadastrado com este telefone nesta empresa');
       }
