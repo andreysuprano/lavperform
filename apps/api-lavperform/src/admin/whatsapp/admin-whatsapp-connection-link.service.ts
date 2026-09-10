@@ -10,6 +10,7 @@ import { WhatsappInstanceStatus } from '@prisma/client';
 import { randomBytes } from 'crypto';
 import { PrismaService } from '../../prisma/prisma.service';
 import { WhatsappService } from '../../whatsapp/application/whatsapp.service';
+import { WhatsappCompanyConnectionSnapshotService } from '../../whatsapp/application/whatsapp-company-connection-snapshot.service';
 import { IWhatsappInstanceRepository } from '../../whatsapp/domain/whatsapp-instance.repository.interface';
 import { UazapiClient } from '../../whatsapp/uazapi/uazapi.client';
 import { CreateConnectionLinkDto } from './dto/create-connection-link.dto';
@@ -25,6 +26,7 @@ export class AdminWhatsappConnectionLinkService {
     private readonly whatsappService: WhatsappService,
     @Inject('IWhatsappInstanceRepository')
     private readonly instanceRepository: IWhatsappInstanceRepository,
+    private readonly snapshotService: WhatsappCompanyConnectionSnapshotService,
   ) {}
 
   async createConnectionLink(dto: CreateConnectionLinkDto) {
@@ -310,13 +312,26 @@ export class AdminWhatsappConnectionLinkService {
 
     await this.ensureInstanceWebhook(instanceToken);
 
-    return this.instanceRepository.create({
+    const created = await this.instanceRepository.create({
       name: uazapiInstance.name,
       status: WhatsappInstanceStatus.PENDING,
       token: instanceToken,
       phoneNumber: '',
       companyId,
     });
+
+    await this.snapshotService.upsertFromEvent({
+      companyId,
+      instanceToken,
+      instanceName: uazapiInstance.name,
+      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerform',
+      status: WhatsappCompanyConnectionSnapshotService.mapUazapiStatus(
+        uazapiInstance.status,
+      ),
+      reconciled: true,
+    });
+
+    return created;
   }
 
   private async syncInstanceFromUazapi(companyId: string, companyName: string) {
@@ -335,12 +350,25 @@ export class AdminWhatsappConnectionLinkService {
 
     await this.ensureInstanceWebhook(uazapiInstance.token);
 
-    return this.instanceRepository.create({
+    const created = await this.instanceRepository.create({
       name: uazapiInstance.name,
       status: WhatsappInstanceStatus.PENDING,
       token: uazapiInstance.token,
       phoneNumber: '',
       companyId,
     });
+
+    await this.snapshotService.upsertFromEvent({
+      companyId,
+      instanceToken: uazapiInstance.token,
+      instanceName: uazapiInstance.name,
+      systemName: process.env.WHITELABEL === 'foodcrm' ? 'FoodCRM' : 'LavPerform',
+      status: WhatsappCompanyConnectionSnapshotService.mapUazapiStatus(
+        uazapiInstance.status,
+      ),
+      reconciled: true,
+    });
+
+    return created;
   }
 }

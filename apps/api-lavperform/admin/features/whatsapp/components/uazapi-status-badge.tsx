@@ -9,7 +9,7 @@ const VARIANTS: Record<
 > = {
   connected: "default",
   connecting: "outline",
-  disconnected: "secondary",
+  disconnected: "destructive",
   pending: "outline",
 }
 

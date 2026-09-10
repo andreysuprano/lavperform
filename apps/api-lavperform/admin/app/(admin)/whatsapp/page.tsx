@@ -8,7 +8,8 @@ export default function WhatsappPage() {
       <div>
         <h2 className="text-xl font-semibold tracking-tight">WhatsApp</h2>
         <p className="text-sm text-muted-foreground">
-          Administração das instâncias UAZAPI vinculadas às empresas.
+          Instâncias ao vivo na UAZAPI e histórico interno de desconexões por
+          empresa.
         </p>
       </div>
 

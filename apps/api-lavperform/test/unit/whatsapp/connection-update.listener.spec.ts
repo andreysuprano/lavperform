@@ -17,6 +17,10 @@ describe('ConnectionUpdateListener', () => {
     getConnectionState: jest.fn(),
   };
 
+  const snapshotService: any = {
+    upsertFromEvent: jest.fn(),
+  };
+
   let listener: ConnectionUpdateListener;
 
   beforeEach(() => {
@@ -25,34 +29,116 @@ describe('ConnectionUpdateListener', () => {
       instance: {},
       status: {},
     });
-    listener = new ConnectionUpdateListener(prisma, aiAgentService, uazapiClient);
+    snapshotService.upsertFromEvent = jest.fn().mockResolvedValue({});
+    listener = new ConnectionUpdateListener(
+      prisma,
+      aiAgentService,
+      uazapiClient,
+      snapshotService,
+    );
   });
 
-  it('updates instance status and ensures agent webhook when connected', async () => {
+  it('updates instance status by token and ensures agent webhook when connected', async () => {
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({
       id: 'inst1',
       companyId: 'company1',
+      token: 'tok-1',
+      name: 'inst',
+      phoneNumber: null,
     });
     prisma.whatsappInstance.update = jest.fn().mockResolvedValue({});
 
-    await listener.handleConnectionUpdate({ instance: 'inst', status: 'CONNECTED', date: '' });
+    await listener.handleConnectionUpdate({
+      instance: 'inst',
+      token: 'tok-1',
+      status: 'CONNECTED',
+      date: '',
+    });
 
+    expect(prisma.whatsappInstance.findFirst).toHaveBeenCalledWith({
+      where: { token: 'tok-1' },
+    });
     expect(prisma.whatsappInstance.update).toHaveBeenCalledWith({
       where: { id: 'inst1' },
       data: { status: WhatsappInstanceStatus.CONNECTED },
     });
+    expect(snapshotService.upsertFromEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        companyId: 'company1',
+        instanceToken: 'tok-1',
+        status: 'connected',
+      }),
+    );
     expect(aiAgentService.ensureActiveAgentWebhook).toHaveBeenCalledWith('company1');
+  });
+
+  it('falls back to name lookup when token is missing', async () => {
+    prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({
+      id: 'inst1',
+      companyId: 'company1',
+      token: 'tok',
+      name: 'inst',
+      phoneNumber: null,
+    });
+    prisma.whatsappInstance.update = jest.fn().mockResolvedValue({});
+
+    await listener.handleConnectionUpdate({
+      instance: 'inst',
+      status: 'DISCONNECTED',
+      date: '2026-08-10T12:00:00.000Z',
+    });
+
+    expect(prisma.whatsappInstance.findFirst).toHaveBeenCalledWith({
+      where: { name: 'inst' },
+    });
+    expect(snapshotService.upsertFromEvent).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'disconnected',
+        touchDisconnectedAt: true,
+      }),
+    );
+    expect(aiAgentService.ensureActiveAgentWebhook).not.toHaveBeenCalled();
+  });
+
+  it('does not fall back to a duplicate name when a token was provided', async () => {
+    prisma.whatsappInstance.findFirst = jest
+      .fn()
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        id: 'wrong-instance',
+        companyId: 'wrong-company',
+        token: 'another-token',
+        name: 'duplicate-name',
+      });
+
+    await listener.handleConnectionUpdate({
+      instance: 'duplicate-name',
+      token: 'unknown-token',
+      status: 'DISCONNECTED',
+      date: '',
+    });
+
+    expect(prisma.whatsappInstance.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.whatsappInstance.findFirst).toHaveBeenCalledWith({
+      where: { token: 'unknown-token' },
+    });
+    expect(prisma.whatsappInstance.update).not.toHaveBeenCalled();
+    expect(snapshotService.upsertFromEvent).not.toHaveBeenCalled();
   });
 
   it('does not ensure webhook when disconnected', async () => {
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({
       id: 'inst1',
       companyId: 'company1',
+      token: 'tok',
+      name: 'inst',
+      phoneNumber: null,
     });
     prisma.whatsappInstance.update = jest.fn().mockResolvedValue({});
 
     await listener.handleConnectionUpdate({
       instance: 'inst',
+      token: 'tok',
       status: 'DISCONNECTED',
       date: '',
     });
@@ -65,6 +151,7 @@ describe('ConnectionUpdateListener', () => {
       id: 'inst1',
       companyId: 'company1',
       token: 'tok',
+      name: 'inst',
       phoneNumber: null,
     });
     prisma.whatsappInstance.update = jest.fn().mockResolvedValue({});
@@ -73,7 +160,12 @@ describe('ConnectionUpdateListener', () => {
       status: { jid: '5511999990000@s.whatsapp.net' },
     });
 
-    await listener.handleConnectionUpdate({ instance: 'inst', status: 'CONNECTED', date: '' });
+    await listener.handleConnectionUpdate({
+      instance: 'inst',
+      token: 'tok',
+      status: 'CONNECTED',
+      date: '',
+    });
 
     expect(uazapiClient.getConnectionState).toHaveBeenCalledWith('tok');
     expect(prisma.whatsappInstance.update).toHaveBeenCalledWith({
@@ -87,11 +179,17 @@ describe('ConnectionUpdateListener', () => {
       id: 'inst1',
       companyId: 'company1',
       token: 'tok',
+      name: 'inst',
       phoneNumber: '5511999990000',
     });
     prisma.whatsappInstance.update = jest.fn().mockResolvedValue({});
 
-    await listener.handleConnectionUpdate({ instance: 'inst', status: 'CONNECTED', date: '' });
+    await listener.handleConnectionUpdate({
+      instance: 'inst',
+      token: 'tok',
+      status: 'CONNECTED',
+      date: '',
+    });
 
     expect(prisma.whatsappInstance.update).toHaveBeenCalledTimes(1);
     expect(prisma.whatsappInstance.update).toHaveBeenCalledWith({
@@ -105,6 +203,7 @@ describe('ConnectionUpdateListener', () => {
       id: 'inst1',
       companyId: 'company1',
       token: 'tok',
+      name: 'inst',
       phoneNumber: null,
     });
     prisma.whatsappInstance.update = jest.fn().mockResolvedValue({});
@@ -112,7 +211,12 @@ describe('ConnectionUpdateListener', () => {
       .fn()
       .mockRejectedValue(new Error('uazapi down'));
 
-    await listener.handleConnectionUpdate({ instance: 'inst', status: 'CONNECTED', date: '' });
+    await listener.handleConnectionUpdate({
+      instance: 'inst',
+      token: 'tok',
+      status: 'CONNECTED',
+      date: '',
+    });
 
     expect(prisma.whatsappInstance.update).toHaveBeenCalledWith({
       where: { id: 'inst1' },
@@ -126,12 +230,14 @@ describe('ConnectionUpdateListener', () => {
       id: 'inst1',
       companyId: 'company1',
       token: 'tok',
+      name: 'inst',
       phoneNumber: '5511999990000',
     });
     prisma.whatsappInstance.update = jest.fn().mockResolvedValue({});
 
     await listener.handleConnectionUpdate({
       instance: 'inst',
+      token: 'tok',
       status: 'DISCONNECTED',
       date: '',
     });
@@ -143,9 +249,15 @@ describe('ConnectionUpdateListener', () => {
   it('no-ops when instance missing', async () => {
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue(null);
 
-    await listener.handleConnectionUpdate({ instance: 'missing', status: 'DISCONNECTED', date: '' });
+    await listener.handleConnectionUpdate({
+      instance: 'missing',
+      token: 'unknown',
+      status: 'DISCONNECTED',
+      date: '',
+    });
 
     expect(prisma.whatsappInstance.update).not.toHaveBeenCalled();
+    expect(snapshotService.upsertFromEvent).not.toHaveBeenCalled();
     expect(aiAgentService.ensureActiveAgentWebhook).not.toHaveBeenCalled();
   });
 });

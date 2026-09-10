@@ -20,7 +20,7 @@ import {
 } from "@/components/ui/select"
 
 import type { InstanceListFilters, UazapiInstanceStatus } from "../types"
-import { UAZAPI_STATUS_LABELS } from "../utils"
+import { DEFAULT_INSTANCE_LIST_FILTERS, UAZAPI_STATUS_LABELS } from "../utils"
 
 const ALL_VALUE = ALL_SELECT_VALUE
 
@@ -32,10 +32,12 @@ const LINKED_LABELS = {
 
 export function InstancesFilters({
   values,
+  systemNames,
   onChange,
   onClear,
 }: {
   values: InstanceListFilters
+  systemNames: string[]
   onChange: (next: InstanceListFilters) => void
   onClear: () => void
 }) {
@@ -54,7 +56,9 @@ export function InstancesFilters({
     return () => window.clearTimeout(timeout)
   }, [searchInput, values, onChange])
 
-  const hasFilters = Boolean(values.search || values.status || values.linked)
+  const hasFilters =
+    Boolean(values.search || values.status || values.systemName) ||
+    values.linked !== DEFAULT_INSTANCE_LIST_FILTERS.linked
 
   return (
     <div className="flex flex-col gap-3 md:flex-row md:flex-wrap md:items-end">
@@ -101,6 +105,41 @@ export function InstancesFilters({
               {Object.entries(UAZAPI_STATUS_LABELS).map(([value, label]) => (
                 <SelectItem key={value} value={value}>
                   {label}
+                </SelectItem>
+              ))}
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </Field>
+
+      <Field className="md:w-48">
+        <FieldLabel htmlFor="filter-instance-system">Sistema</FieldLabel>
+        <Select
+          value={values.systemName ?? ALL_VALUE}
+          onValueChange={(value) => {
+            const next = typeof value === "string" ? value : ALL_VALUE
+            onChange({
+              ...values,
+              systemName: next === ALL_VALUE ? undefined : next,
+            })
+          }}
+        >
+          <SelectTrigger id="filter-instance-system" className="w-full">
+            <SelectValueLabel
+              labels={{
+                ...Object.fromEntries(systemNames.map((name) => [name, name])),
+                [ALL_VALUE]: ALL_FILTER_LABEL,
+              }}
+              placeholder={ALL_FILTER_LABEL}
+              emptyValues={[ALL_VALUE]}
+            />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectGroup>
+              <SelectItem value={ALL_VALUE}>Todos os sistemas</SelectItem>
+              {systemNames.map((name) => (
+                <SelectItem key={name} value={name}>
+                  {name}
                 </SelectItem>
               ))}
             </SelectGroup>

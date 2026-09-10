@@ -23,7 +23,12 @@ import { ConnectionLinksSection } from "./connection-links-section"
 import { EditAdminFieldsDialog } from "./edit-admin-fields-dialog"
 import { UazapiStatusBadge } from "./uazapi-status-badge"
 import type { WhatsappInstanceListItem } from "../types"
-import { formatDate, formatPhone, truncateToken } from "../utils"
+import {
+  CONNECTION_SNAPSHOT_STATUS_LABELS,
+  formatDate,
+  formatPhone,
+  truncateToken,
+} from "../utils"
 import { useCompanyWhatsappInstance } from "../whatsapp-queries"
 
 export function CompanyWhatsappView({ companyId }: { companyId: string }) {
@@ -218,6 +223,48 @@ export function CompanyWhatsappView({ companyId }: { companyId: string }) {
             </CardContent>
           </Card>
         </div>
+      )}
+
+      {data.connection && (
+        <Card>
+          <CardHeader>
+            <CardTitle>Histórico de conexão (snapshot)</CardTitle>
+            <CardDescription>
+              Registro nosso que sobrevive à limpeza de 1 dia na UAZAPI.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <dl className="grid gap-4 sm:grid-cols-2">
+              <DetailRow
+                label="Status"
+                value={
+                  CONNECTION_SNAPSHOT_STATUS_LABELS[data.connection.status] ??
+                  data.connection.status
+                }
+              />
+              <DetailRow
+                label="Instância"
+                value={data.connection.instanceName ?? "—"}
+              />
+              <DetailRow
+                label="Sistema"
+                value={data.connection.systemName ?? "—"}
+              />
+              <DetailRow
+                label="Última desconexão"
+                value={formatDate(data.connection.lastDisconnectedAt)}
+              />
+              <DetailRow
+                label="Última conexão"
+                value={formatDate(data.connection.lastConnectedAt)}
+              />
+              <DetailRow
+                label="Última reconciliação"
+                value={formatDate(data.connection.lastReconciledAt)}
+              />
+            </dl>
+          </CardContent>
+        </Card>
       )}
 
       <ConnectionLinksSection
