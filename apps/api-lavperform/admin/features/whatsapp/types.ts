@@ -61,6 +61,7 @@ export type WhatsappConnectionSnapshot = {
   lastConnectedAt: string | null
   lastReconciledAt: string | null
   existsOnUazapi: boolean
+  neverCreated?: boolean
   updatedAt: string
 }
 
