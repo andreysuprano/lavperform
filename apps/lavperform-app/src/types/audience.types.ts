@@ -28,6 +28,7 @@ export type CriterionType =
   | 'whatsapp_verified'
   | 'has_orders'
   | 'birthday_within_days'
+  | 'birthday_in_month'
   | 'top_customers_month'
 
 export interface AudiencePeriod {
@@ -133,6 +134,8 @@ export function createEmptyCriterion(type: CriterionType = 'last_order_days'): C
       return { type, operator: 'eq', value: true }
     case 'birthday_within_days':
       return { type, operator: 'within_days', value: 30 }
+    case 'birthday_in_month':
+      return { type, operator: 'eq', value: new Date().getMonth() + 1 }
     case 'top_customers_month':
       return { type, operator: 'eq', value: 10 }
     case 'neighborhood':

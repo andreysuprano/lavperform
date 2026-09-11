@@ -1,4 +1,5 @@
 import { clientTypesOptions } from '@/utils/constants/clientType'
+import { getMonthLabel } from '@/utils/date/monthOptions'
 import type {
   ComparisonOperator,
   Criterion,
@@ -27,6 +28,7 @@ export const CRITERION_LABELS: Record<CriterionType, string> = {
   whatsapp_verified: 'Tem WhatsApp confirmado',
   has_orders: 'Já fez venda',
   birthday_within_days: 'Faz aniversário em breve',
+  birthday_in_month: 'Aniversariantes do mês',
   top_customers_month: 'Top clientes do mês',
 }
 
@@ -43,6 +45,7 @@ export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   whatsapp_verified: 'Filtra quem tem ou não o WhatsApp confirmado.',
   has_orders: 'Filtra quem já comprou alguma vez ou ainda não.',
   birthday_within_days: 'Inclui quem faz aniversário nos próximos dias informados.',
+  birthday_in_month: 'Inclui quem faz aniversário no mês selecionado.',
   top_customers_month: 'Inclui os clientes com mais pedidos no mês atual.',
 }
 
@@ -93,7 +96,7 @@ function formatMoney(value: number) {
   })
 }
 
-function formatCriterionSummary(criterion: Criterion): string {
+export function formatCriterionSummary(criterion: Criterion): string {
   const label = CRITERION_LABELS[criterion.type]
   const operatorLabel = OPERATOR_LABELS[criterion.operator] ?? criterion.operator
   const summary = formatCriterionSummaryBase(criterion, label, operatorLabel)
@@ -196,6 +199,8 @@ function formatCriterionSummaryBase(
       return Boolean(criterion.value) ? 'Já fez venda' : 'Ainda não fez venda'
     case 'birthday_within_days':
       return `Faz aniversário nos próximos ${Number(criterion.value ?? 0)} dias`
+    case 'birthday_in_month':
+      return `Faz aniversário em ${getMonthLabel(Number(criterion.value))}`
     case 'top_customers_month':
       return `Está entre os ${Number(criterion.value ?? 0)} com mais pedidos no mês`
     default:

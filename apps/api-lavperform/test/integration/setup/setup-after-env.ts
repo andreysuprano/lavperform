@@ -7,6 +7,7 @@ if (fs.existsSync(testEnvPath)) {
   process.env.DATABASE_URL = env.DATABASE_URL;
   process.env.REDIS_HOST = env.REDIS_HOST;
   process.env.REDIS_PORT = env.REDIS_PORT;
+  process.env.JWT_SECRET = env.JWT_SECRET;
   process.env.ASAAS_BASE_URL = env.ASAAS_BASE_URL;
   process.env.ASAAS_API_KEY = env.ASAAS_API_KEY;
 }

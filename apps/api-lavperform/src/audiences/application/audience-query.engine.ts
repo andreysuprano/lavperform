@@ -138,6 +138,10 @@ export class AudienceQueryEngine {
       return this.resolveBirthdayWithinDaysIds(criterion, companyId);
     }
 
+    if (criterion.type === 'birthday_in_month') {
+      return this.resolveBirthdayInMonthIds(criterion, companyId);
+    }
+
     if (criterion.type === 'top_customers_month') {
       return this.resolveTopCustomersMonthIds(criterion, companyId);
     }
@@ -616,6 +620,22 @@ export class AudienceQueryEngine {
         AND c."birthDate" IS NOT NULL
         AND (${pairConditions})
         ${periodSql}
+    `;
+
+    return rows.map((row) => row.id);
+  }
+
+  private async resolveBirthdayInMonthIds(
+    criterion: Criterion,
+    companyId: string,
+  ): Promise<string[]> {
+    const month = Number(criterion.value);
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT c.id
+      FROM "Customer" c
+      WHERE c."companyId" = ${companyId}
+        AND c."birthDate" IS NOT NULL
+        AND EXTRACT(MONTH FROM c."birthDate") = ${month}
     `;
 
     return rows.map((row) => row.id);
