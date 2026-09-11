@@ -13,6 +13,7 @@ import {
 import { memo, useCallback, useMemo } from 'react'
 import { RiArrowLeftSLine, RiArrowRightSLine } from 'react-icons/ri'
 
+import { TABLE_PAGE_SIZES } from './TablePagination.constants'
 import { Props } from './TablePagination.types'
 
 const TablePaginationComponent = <T,>({
@@ -21,7 +22,7 @@ const TablePaginationComponent = <T,>({
   handleLimitChange,
   handlePageChange,
 }: Props<T>) => {
-  const pageSizes = useMemo(() => [5, 10, 20, 50], [])
+  const pageSizes = useMemo(() => TABLE_PAGE_SIZES, [])
 
   const renderPaginationItem = useMemo(
     () => (item: { value: number }) =>
