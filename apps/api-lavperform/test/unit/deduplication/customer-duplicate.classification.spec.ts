@@ -33,7 +33,7 @@ describe('classifyDuplicateGroup', () => {
     expect(result).toBe('auto');
   });
 
-  it('classifies divergent names sharing the same phone as auto', () => {
+  it('classifies divergent names as review', () => {
     const result = classifyDuplicateGroup({
       matchType: 'phone',
       matchValue: '5511999999999',
@@ -43,10 +43,10 @@ describe('classifyDuplicateGroup', () => {
       ],
     });
 
-    expect(result).toBe('auto');
+    expect(result).toBe('review');
   });
 
-  it('classifies same phone with distinct cpfs as auto', () => {
+  it('classifies same phone with distinct cpfs as review', () => {
     const result = classifyDuplicateGroup({
       matchType: 'phone',
       matchValue: '5511999999999',
@@ -56,7 +56,49 @@ describe('classifyDuplicateGroup', () => {
       ],
     });
 
-    expect(result).toBe('auto');
+    expect(result).toBe('review');
+  });
+
+  it('classifies seven identical Seld-shaped members as auto', () => {
+    const members = Array.from({ length: 7 }, (_, index) =>
+      member({
+        id: `camila-${index}`,
+        name: 'Camila Gabriela Rocha Santos',
+        phone: '5519993120772',
+        cpf: '48737017837',
+        createdAt: new Date(Date.UTC(2026, 8, 10, 6, 0, 28 + index)),
+      }),
+    );
+    expect(
+      classifyDuplicateGroup({
+        matchType: 'phone',
+        matchValue: '5519993120772',
+        members,
+      }),
+    ).toBe('auto');
+  });
+
+  it('classifies family sharing email but distinct phones and cpfs as review when forced on phone', () => {
+    expect(
+      classifyDuplicateGroup({
+        matchType: 'phone',
+        matchValue: '5519994715891',
+        members: [
+          member({
+            id: 'a',
+            name: 'Miriam Americo Simplicio',
+            phone: '5519994715891',
+            cpf: '35332661843',
+          }),
+          member({
+            id: 'b',
+            name: 'Alexandre Rombi Simplicio',
+            phone: '5519993069686',
+            cpf: '29211833825',
+          }),
+        ],
+      }),
+    ).toBe('review');
   });
 
   it('does not treat null-only customers as a group to auto-merge', () => {
@@ -74,7 +116,7 @@ describe('classifyDuplicateGroup', () => {
 });
 
 describe('splitDuplicateGroup', () => {
-  it('auto-merges every customer that shares the same phone', () => {
+  it('auto-merges similar-name clusters and leaves divergent names for review with the survivor', () => {
     const result = splitDuplicateGroup({
       matchType: 'phone',
       matchValue: '5511999999999',
@@ -89,28 +131,20 @@ describe('splitDuplicateGroup', () => {
     expect(result.autoClusters[0].members.map((item) => item.id).sort()).toEqual([
       'joao-new',
       'joao-old',
+    ]);
+    expect(result.reviewMembers.map((item) => item.id).sort()).toEqual([
+      'joao-old',
       'maria',
     ]);
-    expect(result.reviewMembers).toEqual([]);
   });
 
-  it('does not auto-merge similar names that disagree on the other identifier when match is CPF', () => {
+  it('does not auto-merge similar names that disagree on the other identifier', () => {
     const result = splitDuplicateGroup({
-      matchType: 'cpf',
-      matchValue: '11111111111',
+      matchType: 'phone',
+      matchValue: '5511999999999',
       members: [
-        member({
-          id: 'a',
-          name: 'João Silva',
-          phone: '5511999999999',
-          cpf: '11111111111',
-        }),
-        member({
-          id: 'b',
-          name: 'Joao Silva',
-          phone: '5511888888888',
-          cpf: '11111111111',
-        }),
+        member({ id: 'a', name: 'João Silva', cpf: '11111111111' }),
+        member({ id: 'b', name: 'Joao Silva', cpf: '22222222222' }),
       ],
     });
 

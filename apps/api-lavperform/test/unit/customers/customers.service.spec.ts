@@ -6,12 +6,14 @@ import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { ICustomerRepository } from 'src/customers/domain/customer.repository.interface';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { CreateCustomerDto } from 'src/customers/application/dto/create-customer.dto';
+import { DuplicateCustomerIdentityError } from 'src/customers/application/customer-create-lock';
 import { ClientTypes, LEAD_SEGMENTATION } from 'src/common/utils/rfvClassification';
 
 // Mock dependencies
 const mockCustomerRepository = {
   create: jest.fn(),
   createWithAddress: jest.fn(),
+  createExclusive: jest.fn(),
   update: jest.fn(),
   updateWithAddress: jest.fn(),
   findById: jest.fn(),
@@ -90,30 +92,40 @@ describe('CustomersService', () => {
     } as any;
 
     it('should create a customer with address successfully', async () => {
-      mockCustomerRepository.createWithAddress.mockResolvedValue({ id: '1', ...createDto });
+      mockCustomerRepository.createExclusive.mockResolvedValue({ id: '1', ...createDto });
 
       const result = await service.create(companyId, createDto);
 
-      expect(repository.createWithAddress).toHaveBeenCalled();
+      expect(repository.createExclusive).toHaveBeenCalled();
       expect(result).toHaveProperty('id', '1');
     });
 
     it('should create a customer without address successfully', async () => {
       const { address, ...dtoWithoutAddress } = createDto;
-      mockCustomerRepository.create.mockResolvedValue({ id: '1', ...dtoWithoutAddress });
+      mockCustomerRepository.createExclusive.mockResolvedValue({ id: '1', ...dtoWithoutAddress });
 
       const result = await service.create(companyId, dtoWithoutAddress as any);
 
-      expect(repository.create).toHaveBeenCalled();
+      expect(repository.createExclusive).toHaveBeenCalled();
       expect(result).toHaveProperty('id', '1');
     });
 
     it('should throw BadRequestException on duplicate phone (P2002)', async () => {
-      mockCustomerRepository.createWithAddress.mockRejectedValue({ code: 'P2002' });
+      mockCustomerRepository.createExclusive.mockRejectedValue({ code: 'P2002' });
 
       await expect(service.create(companyId, createDto))
         .rejects
         .toThrow(BadRequestException);
+    });
+
+    it('should throw BadRequestException on duplicate cpf identity', async () => {
+      mockCustomerRepository.createExclusive.mockRejectedValue(
+        new DuplicateCustomerIdentityError('cpf', 'existing-id'),
+      );
+
+      await expect(service.create(companyId, createDto)).rejects.toThrow(
+        'Já existe um cliente cadastrado com este CPF nesta empresa',
+      );
     });
   });
 
