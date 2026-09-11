@@ -77,6 +77,89 @@ describe('Customers (Integration)', () => {
       expect(response.body).toHaveProperty('items');
       expect(response.body).toHaveProperty('meta');
     });
+
+    it('filters customers by birth month regardless of year', async () => {
+      await customerFactory.create(companyId, {
+        name: 'Março antigo',
+        birthDate: new Date('1980-03-10T00:00:00.000Z'),
+      });
+      await customerFactory.create(companyId, {
+        name: 'Março recente',
+        birthDate: new Date('2000-03-20T00:00:00.000Z'),
+      });
+      await customerFactory.create(companyId, {
+        name: 'Abril',
+        birthDate: new Date('1990-04-10T00:00:00.000Z'),
+      });
+      await customerFactory.create(companyId, {
+        name: 'Sem data',
+        birthDate: null,
+      });
+
+      const response = await request(app.getHttpServer())
+        .get(`/companies/${companyId}/customers?birthMonth=3&orderBy=name&orderDirection=asc`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body.items.map((item: { name: string }) => item.name)).toEqual([
+        'Março antigo',
+        'Março recente',
+      ]);
+      expect(response.body.meta.total).toBe(2);
+    });
+
+    it.each([0, 13, 1.5])('rejects invalid birth month %s', async (birthMonth) => {
+      await request(app.getHttpServer())
+        .get(`/companies/${companyId}/customers?birthMonth=${birthMonth}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(400);
+    });
+
+    it('keeps hasBirthDate=false filtering customers without birth date', async () => {
+      await customerFactory.create(companyId, {
+        name: 'Com data',
+        birthDate: new Date('1990-03-10T00:00:00.000Z'),
+      });
+      await customerFactory.create(companyId, {
+        name: 'Sem data',
+        birthDate: null,
+      });
+
+      const response = await request(app.getHttpServer())
+        .get(`/companies/${companyId}/customers?hasBirthDate=false`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body.items.map((item: { name: string }) => item.name)).toEqual([
+        'Sem data',
+      ]);
+      expect(response.body.meta.total).toBe(1);
+    });
+
+    it.each([
+      ['asc', ['Mais antigo', 'Mais novo', 'Sem data']],
+      ['desc', ['Mais novo', 'Mais antigo', 'Sem data']],
+    ] as const)('orders birth dates %s with nulls last', async (direction, expected) => {
+      await customerFactory.create(companyId, {
+        name: 'Mais antigo',
+        birthDate: new Date('1980-01-01T00:00:00.000Z'),
+      });
+      await customerFactory.create(companyId, {
+        name: 'Mais novo',
+        birthDate: new Date('2000-01-01T00:00:00.000Z'),
+      });
+      await customerFactory.create(companyId, {
+        name: 'Sem data',
+        birthDate: null,
+      });
+
+      const response = await request(app.getHttpServer())
+        .get(`/companies/${companyId}/customers?orderBy=birthDate&orderDirection=${direction}`)
+        .set('Authorization', `Bearer ${authToken}`)
+        .expect(200);
+
+      expect(response.body.items.map((item: { name: string }) => item.name)).toEqual(expected);
+    });
   });
 
   describe('POST /companies/:companyId/customers/import', () => {

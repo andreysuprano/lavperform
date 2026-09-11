@@ -1,6 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsArray, IsBoolean, IsIn, IsOptional, IsString } from 'class-validator';
-import { Transform } from 'class-transformer';
+import { IsArray, IsBoolean, IsIn, IsInt, IsOptional, IsString, Max, Min } from 'class-validator';
+import { Transform, Type } from 'class-transformer';
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 
 function toOptionalBoolean({ value }: { value: unknown }): boolean | undefined {
@@ -60,6 +60,19 @@ export class CustomerPaginationDto extends PaginationDto {
   hasBirthDate?: boolean;
 
   @ApiProperty({
+    description: 'Filtrar pelo mês da data de nascimento (1-12)',
+    required: false,
+    minimum: 1,
+    maximum: 12,
+  })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(12)
+  birthMonth?: number;
+
+  @ApiProperty({
     description: 'Filtrar por opt-in de WhatsApp',
     required: false,
     type: Boolean,
@@ -92,10 +105,10 @@ export class CustomerPaginationDto extends PaginationDto {
   @ApiProperty({
     description: 'Campo para ordenação da listagem de clientes',
     required: false,
-    enum: ['createdAt', 'name', 'lastOrderDate', 'averageTicket', 'updatedAt'],
+    enum: ['createdAt', 'name', 'lastOrderDate', 'averageTicket', 'updatedAt', 'birthDate'],
   })
   @IsOptional()
   @IsString()
-  @IsIn(['createdAt', 'name', 'lastOrderDate', 'averageTicket', 'updatedAt'])
+  @IsIn(['createdAt', 'name', 'lastOrderDate', 'averageTicket', 'updatedAt', 'birthDate'])
   declare orderBy?: string;
 }

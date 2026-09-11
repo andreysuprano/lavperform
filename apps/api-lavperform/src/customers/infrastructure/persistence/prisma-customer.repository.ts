@@ -234,6 +234,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         rfvClassification?: string[];
         hasEmail?: boolean;
         hasBirthDate?: boolean;
+        birthMonth?: number;
         whatsappOptin?: boolean;
         whatsappVerified?: boolean;
         hasOrders?: boolean;
@@ -251,6 +252,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             rfvClassification,
             hasEmail,
             hasBirthDate,
+            birthMonth,
             whatsappOptin,
             whatsappVerified,
             hasOrders,
@@ -318,6 +320,17 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             andFilters.push({ birthDate: null });
         }
 
+        if (birthMonth !== undefined) {
+            const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+                SELECT id
+                FROM "Customer"
+                WHERE "companyId" = ${companyId}
+                  AND "birthDate" IS NOT NULL
+                  AND EXTRACT(MONTH FROM "birthDate") = ${birthMonth}
+            `;
+            andFilters.push({ id: { in: rows.map((row) => row.id) } });
+        }
+
         if (typeof whatsappOptin === 'boolean') {
             andFilters.push({ whatsappOptin });
         }
@@ -342,13 +355,18 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             'lastOrderDate',
             'averageTicket',
             'updatedAt',
+            'birthDate',
         ]);
         const safeOrderBy = allowedOrderBy.has(orderBy) ? orderBy : 'createdAt';
+        const orderByClause =
+            safeOrderBy === 'birthDate'
+                ? { birthDate: { sort: orderDirection, nulls: 'last' as const } }
+                : { [safeOrderBy]: orderDirection };
 
         const [items, total] = await Promise.all([
             this.prisma.customer.findMany({
                 where,
-                orderBy: { [safeOrderBy]: orderDirection },
+                orderBy: orderByClause,
                 skip: (page - 1) * limit,
                 take: limit,
                 include: { address: true },
