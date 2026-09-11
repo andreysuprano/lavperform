@@ -71,7 +71,9 @@ describe('Customer create race (Integration)', () => {
       identity.resolveForSale({ companyId: company.id, incoming }),
     ]);
 
-    expect(first.id).toBe(second.id);
+    expect(first).not.toBeNull();
+    expect(second).not.toBeNull();
+    expect(first?.id).toBe(second?.id);
     const count = await prisma.customer.count({ where: { companyId: company.id } });
     expect(count).toBe(1);
   });

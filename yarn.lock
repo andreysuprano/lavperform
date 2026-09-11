@@ -2648,6 +2648,13 @@ __metadata:
   languageName: node
   linkType: hard
 
+"@faker-js/faker@npm:^10.6.0":
+  version: 10.6.0
+  resolution: "@faker-js/faker@npm:10.6.0"
+  checksum: 10c0/ee285d597249a019f3a11b6705d1908616ea9e880207ca4f89e6205dbf7e98abd1129f025f5da19484f5e88f556b0629a4363745ff0bbaf1984ebf54cffde6e3
+  languageName: node
+  linkType: hard
+
 "@firebase/ai@npm:2.14.0":
   version: 2.14.0
   resolution: "@firebase/ai@npm:2.14.0"
@@ -4591,6 +4598,7 @@ __metadata:
     "@bull-board/nestjs": "npm:^6.13.0"
     "@eslint/eslintrc": "npm:^3.2.0"
     "@eslint/js": "npm:^9.18.0"
+    "@faker-js/faker": "npm:^10.6.0"
     "@nestjs/axios": "npm:^4.0.0"
     "@nestjs/bull": "npm:^11.0.2"
     "@nestjs/cli": "npm:^11.0.0"
