@@ -5,7 +5,6 @@ import {
   Flex,
   Input,
   InputGroup,
-  NativeSelect,
   Stack,
   Table,
   Text,
@@ -21,6 +20,7 @@ import {
   LuArrowDownUp,
   LuArrowUpDown,
   LuCake,
+  LuCalendarDays,
   LuMail,
   LuMessageCircle,
   LuShoppingBag,
@@ -48,7 +48,7 @@ import {
   getCustomerCategoryLabel,
   isLeadCategory,
 } from '@/utils/customers/customerCategory'
-import { getMonthLabel, MONTH_OPTIONS } from '@/utils/date/monthOptions'
+import { MONTH_OPTIONS } from '@/utils/date/monthOptions'
 import { formatTelefone } from '@/utils/mask'
 import {
   displayValue,
@@ -144,6 +144,11 @@ const ORDER_BY_OPTIONS = [
   { value: 'averageTicket' as const, label: 'Ticket médio' },
   { value: 'updatedAt' as const, label: 'Atualização' },
 ]
+
+const MONTH_FILTER_OPTIONS = MONTH_OPTIONS.map(({ value, label }) => ({
+  value: String(value),
+  label,
+}))
 
 const ORDER_DIRECTION_OPTIONS = [
   { value: 'desc' as const, label: 'Decrescente' },
@@ -274,23 +279,27 @@ export function CustomerTableSection({
       return {
         ...prev,
         hasBirthDate: nextHasBirthDate,
-        birthMonth: clearBirthMonthForFilter(
-          nextHasBirthDate,
-          prev.birthMonth
-        ),
+        birthMonth: clearBirthMonthForFilter(nextHasBirthDate, prev.birthMonth),
       }
     })
   }, [])
 
-  const handleBirthMonthChange = useCallback(
-    (event: React.ChangeEvent<HTMLSelectElement>) => {
-      const value = event.target.value
-      setFilters((prev) => ({
+  const handleBirthMonthChange = useCallback((next: string[]) => {
+    setFilters((prev) => {
+      const previous =
+        prev.birthMonth !== undefined ? [String(prev.birthMonth)] : []
+      const [selected] = exclusiveSelect(next, previous)
+      return {
         ...prev,
-        birthMonth: value ? Number(value) : undefined,
-      }))
-    },
-    []
+        birthMonth: selected ? Number(selected) : undefined,
+      }
+    })
+  }, [])
+
+  const birthMonthValue = useMemo(
+    () =>
+      filters.birthMonth !== undefined ? [String(filters.birthMonth)] : [],
+    [filters.birthMonth]
   )
 
   const handleClearFilters = useCallback(() => {
@@ -347,27 +356,14 @@ export function CustomerTableSection({
           value={filters.hasBirthDate}
         />
         {isBirthMonthVisible(filters.hasBirthDate) && (
-          <NativeSelect.Root
-            size="sm"
-            w="170px"
-          >
-            <NativeSelect.Field
-              aria-label="Mês"
-              onChange={handleBirthMonthChange}
-              value={filters.birthMonth ?? ''}
-            >
-              <option value="">Todos os meses</option>
-              {MONTH_OPTIONS.map(({ value }) => (
-                <option
-                  key={value}
-                  value={value}
-                >
-                  {getMonthLabel(value)}
-                </option>
-              ))}
-            </NativeSelect.Field>
-            <NativeSelect.Indicator />
-          </NativeSelect.Root>
+          <MultiSelectFilter
+            icon={<LuCalendarDays size={14} />}
+            label="Mês"
+            onChange={handleBirthMonthChange}
+            options={MONTH_FILTER_OPTIONS}
+            placeholder="Todos"
+            value={birthMonthValue}
+          />
         )}
         <MultiSelectFilter
           icon={<LuMessageCircle size={14} />}
