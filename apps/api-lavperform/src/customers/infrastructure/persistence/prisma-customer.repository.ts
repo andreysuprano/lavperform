@@ -376,14 +376,18 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         });
 
         const statsByCustomerId = new Map<string, CustomerOrderStats>(
-            orderStats.map((row) => [
-                row.customerId,
-                {
-                    _min: row._min,
-                    _max: row._max,
-                    _count: row._count,
-                },
-            ]),
+            orderStats.flatMap((row) =>
+                row.customerId
+                    ? [[
+                        row.customerId,
+                        {
+                            _min: row._min,
+                            _max: row._max,
+                            _count: row._count,
+                        },
+                    ]]
+                    : [],
+            ),
         );
 
         return items.map((item) =>
@@ -533,7 +537,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             return bOrders - aOrders;
         }).slice(0, take);
 
-        const customerIds = ranked.map((row) => row.customerId);
+        const customerIds = ranked
+            .map((row) => row.customerId)
+            .filter((id): id is string => id != null);
 
         const customers = await this.prisma.customer.findMany({
             where: {
@@ -560,6 +566,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((row) => {
+                if (!row.customerId) return null;
                 const customer = customerMap.get(row.customerId);
                 if (!customer) return null;
 
@@ -729,7 +736,9 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             })
             .slice(0, take);
 
-        const customerIds = ranked.map((group) => group.customerId);
+        const customerIds = ranked
+            .map((group) => group.customerId)
+            .filter((id): id is string => id != null);
         const customers = await this.prisma.customer.findMany({
             where: {
                 companyId,
@@ -755,6 +764,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
         return ranked
             .map((group) => {
+                if (!group.customerId) return null;
                 const customer = customersById.get(group.customerId);
                 if (!customer) return null;
 
