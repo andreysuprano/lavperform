@@ -7,10 +7,14 @@ import { AuthHelper } from '../utils/auth-helper';
 import { CustomerFactory } from '../fixtures/customer.factory';
 import { PrismaPg } from '@prisma/adapter-pg';
 import { Pool } from 'pg';
+import { SchedulerOrchestrator } from '@nestjs/schedule/dist/scheduler.orchestrator';
+import { CustomersProcessor } from '../../../src/customers/infrastructure/jobs/customers.processor';
+import { WhatsappValidationProcessor } from '../../../src/customers/infrastructure/jobs/whatsapp-validation.processor';
 
 describe('Customers (Integration)', () => {
   let app: INestApplication;
   let testApp: TestApp;
+  let pool: Pool;
   let prisma: PrismaClient;
   let dbCleaner: DatabaseCleaner;
   let authHelper: AuthHelper;
@@ -20,8 +24,20 @@ describe('Customers (Integration)', () => {
 
   beforeAll(async () => {
     testApp = new TestApp();
-    app = await testApp.setup();
-    const pool = new Pool({ connectionString: process.env.DATABASE_URL });
+    app = await testApp.setup((builder) =>
+      builder
+        .overrideProvider(CustomersProcessor)
+        .useValue({})
+        .overrideProvider(WhatsappValidationProcessor)
+        .useValue({})
+        .overrideProvider(SchedulerOrchestrator)
+        .useValue({
+          addCron: jest.fn(),
+          addInterval: jest.fn(),
+          addTimeout: jest.fn(),
+        }),
+    );
+    pool = new Pool({ connectionString: process.env.DATABASE_URL });
     const adapter = new PrismaPg(pool);
     prisma = new PrismaClient({ adapter });
     dbCleaner = new DatabaseCleaner(prisma);
@@ -30,8 +46,9 @@ describe('Customers (Integration)', () => {
   });
 
   afterAll(async () => {
-    await prisma.$disconnect();
     await testApp.teardown();
+    await prisma.$disconnect();
+    await pool.end();
   });
 
   beforeEach(async () => {
