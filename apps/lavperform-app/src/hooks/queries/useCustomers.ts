@@ -24,6 +24,7 @@ export function useCustomers(
     rfvClassification?: string[]
     hasEmail?: boolean
     hasBirthDate?: boolean
+    birthMonth?: number
     whatsappOptin?: boolean
     whatsappVerified?: boolean
     hasOrders?: boolean

@@ -5,6 +5,7 @@ import {
   Flex,
   Input,
   InputGroup,
+  NativeSelect,
   Stack,
   Table,
   Text,
@@ -47,6 +48,7 @@ import {
   getCustomerCategoryLabel,
   isLeadCategory,
 } from '@/utils/customers/customerCategory'
+import { getMonthLabel, MONTH_OPTIONS } from '@/utils/date/monthOptions'
 import { formatTelefone } from '@/utils/mask'
 import {
   displayValue,
@@ -55,10 +57,17 @@ import {
   normalizeText,
 } from '@/utils/strings'
 
+import {
+  clearBirthMonthForFilter,
+  formatCustomerBirthDate,
+  isBirthMonthVisible,
+} from './customerBirthdayFilters'
+
 type BoolFilter = 'true' | 'false'
 type OrderByFilter =
   | 'createdAt'
   | 'name'
+  | 'birthDate'
   | 'lastOrderDate'
   | 'averageTicket'
   | 'updatedAt'
@@ -67,6 +76,7 @@ type OrderDirectionFilter = 'asc' | 'desc'
 type ListFilters = {
   hasEmail: BoolFilter[]
   hasBirthDate: BoolFilter[]
+  birthMonth?: number
   whatsappOptin: BoolFilter[]
   whatsappVerified: BoolFilter[]
   hasOrders: BoolFilter[]
@@ -81,6 +91,7 @@ interface CustomerTableSectionProps {
 const DEFAULT_FILTERS: ListFilters = {
   hasEmail: [],
   hasBirthDate: [],
+  birthMonth: undefined,
   whatsappOptin: [],
   whatsappVerified: [],
   hasOrders: [],
@@ -128,6 +139,7 @@ const ORDERS_OPTIONS = [
 const ORDER_BY_OPTIONS = [
   { value: 'createdAt' as const, label: 'Data de cadastro' },
   { value: 'name' as const, label: 'Nome' },
+  { value: 'birthDate' as const, label: 'Data de nascimento' },
   { value: 'lastOrderDate' as const, label: 'Última venda' },
   { value: 'averageTicket' as const, label: 'Ticket médio' },
   { value: 'updatedAt' as const, label: 'Atualização' },
@@ -193,6 +205,9 @@ export function CustomerTableSection({
       ...(hasFilter && { rfvClassification: rfvClassifications }),
       ...(hasEmail !== undefined && { hasEmail }),
       ...(hasBirthDate !== undefined && { hasBirthDate }),
+      ...(filters.birthMonth !== undefined && {
+        birthMonth: filters.birthMonth,
+      }),
       ...(whatsappOptin !== undefined && { whatsappOptin }),
       ...(whatsappVerified !== undefined && { whatsappVerified }),
       ...(hasOrders !== undefined && { hasOrders }),
@@ -253,6 +268,31 @@ export function CustomerTableSection({
     []
   )
 
+  const handleBirthDateFilterChange = useCallback((next: BoolFilter[]) => {
+    setFilters((prev) => {
+      const nextHasBirthDate = exclusiveSelect(next, prev.hasBirthDate)
+      return {
+        ...prev,
+        hasBirthDate: nextHasBirthDate,
+        birthMonth: clearBirthMonthForFilter(
+          nextHasBirthDate,
+          prev.birthMonth
+        ),
+      }
+    })
+  }, [])
+
+  const handleBirthMonthChange = useCallback(
+    (event: React.ChangeEvent<HTMLSelectElement>) => {
+      const value = event.target.value
+      setFilters((prev) => ({
+        ...prev,
+        birthMonth: value ? Number(value) : undefined,
+      }))
+    },
+    []
+  )
+
   const handleClearFilters = useCallback(() => {
     setFilters(DEFAULT_FILTERS)
     setSearchQuery('')
@@ -276,6 +316,7 @@ export function CustomerTableSection({
     searchQuery.trim().length > 0 ||
     filters.hasEmail.length > 0 ||
     filters.hasBirthDate.length > 0 ||
+    filters.birthMonth !== undefined ||
     filters.whatsappOptin.length > 0 ||
     filters.whatsappVerified.length > 0 ||
     filters.hasOrders.length > 0 ||
@@ -300,11 +341,34 @@ export function CustomerTableSection({
         <MultiSelectFilter
           icon={<LuCake size={14} />}
           label="Aniversário"
-          onChange={(next) => updateExclusiveFilter('hasBirthDate', next)}
+          onChange={handleBirthDateFilterChange}
           options={BIRTHDATE_OPTIONS}
           placeholder="Todos"
           value={filters.hasBirthDate}
         />
+        {isBirthMonthVisible(filters.hasBirthDate) && (
+          <NativeSelect.Root
+            size="sm"
+            w="170px"
+          >
+            <NativeSelect.Field
+              aria-label="Mês"
+              onChange={handleBirthMonthChange}
+              value={filters.birthMonth ?? ''}
+            >
+              <option value="">Todos os meses</option>
+              {MONTH_OPTIONS.map(({ value }) => (
+                <option
+                  key={value}
+                  value={value}
+                >
+                  {getMonthLabel(value)}
+                </option>
+              ))}
+            </NativeSelect.Field>
+            <NativeSelect.Indicator />
+          </NativeSelect.Root>
+        )}
         <MultiSelectFilter
           icon={<LuMessageCircle size={14} />}
           label="Opt-in"
@@ -414,6 +478,7 @@ export function CustomerTableSection({
             <Table.ColumnHeader>Nome</Table.ColumnHeader>
             <Table.ColumnHeader>E-mail</Table.ColumnHeader>
             <Table.ColumnHeader>Telefone</Table.ColumnHeader>
+            <Table.ColumnHeader>Nascimento</Table.ColumnHeader>
             <Table.ColumnHeader>Whatsapp Optin</Table.ColumnHeader>
             <Table.ColumnHeader>Classificação</Table.ColumnHeader>
           </>
@@ -437,6 +502,9 @@ export function CustomerTableSection({
               <Text lineClamp={1}>
                 {formatOrPlaceholder(item.phone, formatTelefone)}
               </Text>
+            </Table.Cell>
+            <Table.Cell minW={140}>
+              {formatCustomerBirthDate(item.birthDate)}
             </Table.Cell>
             <Table.Cell>
               {item.whatsappOptin ? (
