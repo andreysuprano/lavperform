@@ -309,7 +309,7 @@ describe('AutomaticCampaignsProcessor', () => {
     expect(campaignCustomerResolver.resolveCustomers).toHaveBeenCalledWith(
       expect.objectContaining({
         excludeCustomerIds: ['sent1', 'sent2'],
-        take: 15,
+        take: 25,
       }),
     );
     expect(campaignCustomerResolver.countEligibleCustomers).toHaveBeenCalledWith(
