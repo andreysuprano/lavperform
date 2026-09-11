@@ -24,6 +24,7 @@ import { extractErrorMessage } from 'src/common/utils/error.utils';
 import { shouldInvalidateWhatsappOnSendError } from 'src/whatsapp/application/whatsapp-verification.policy';
 import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 import { AutomaticMessageDailyGuardService } from 'src/automatic-campaign/application/automatic-message-daily-guard.service';
+import { AutomaticCampaignSlotRefillService } from 'src/automatic-campaign/application/automatic-campaign-slot-refill.service';
 
 interface MessageProcessorData {
     message: Message;
@@ -42,6 +43,7 @@ export class MessageProcessor {
         private readonly eventEmitter: EventEmitter2,
         private readonly renitencyEvaluator: RenitencyEvaluatorService,
         private readonly dailyGuard: AutomaticMessageDailyGuardService,
+        private readonly slotRefill: AutomaticCampaignSlotRefillService,
         @Optional()
         private readonly metaMessagingService?: MetaMessagingService,
         @Optional()
@@ -82,6 +84,11 @@ export class MessageProcessor {
         if (fresh.automaticCampaignId) {
             const claim = await this.dailyGuard.claimForProcessing(message.id);
             if (!claim.allowed) {
+                await this.slotRefill.requestAfterAbort({
+                    automaticCampaignId: fresh.automaticCampaignId,
+                    abortedMessageId: message.id,
+                    reason: 'daily-duplicate',
+                });
                 return;
             }
         }
@@ -116,6 +123,11 @@ export class MessageProcessor {
                 await this.prisma.message.update({
                     where: { id: message.id },
                     data: { status: MessageStatus.ABORTED, error: check.reason, updatedAt: new Date() },
+                });
+                await this.slotRefill.requestAfterAbort({
+                    automaticCampaignId: message.automaticCampaignId,
+                    abortedMessageId: message.id,
+                    reason: check.reason ?? 'renitency',
                 });
                 return;
             }

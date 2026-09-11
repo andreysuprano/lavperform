@@ -141,7 +141,7 @@ export class AutomaticCampaignsProcessor {
       // Métrica de alcance da audiência: não considera slots nem exclusões do dia.
       await this.persistContactableReach(campaign);
 
-      const requestedTake = remainingSlots * 5;
+      const requestedTake = maxDailySends * 5;
 
       const candidates = await this.campaignCustomerResolver.resolveCustomers({
         companyId: campaign.companyId,
