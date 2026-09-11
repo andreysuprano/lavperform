@@ -11,6 +11,8 @@ function toOptionalBoolean({ value }: { value: unknown }): boolean | undefined {
 }
 
 export class CustomerPaginationDto extends PaginationDto {
+  override limit: number = 10;
+
   @ApiProperty({
     description: 'Filtrar por categoria(s) RFV ou lead (clientes sem pedidos)',
     required: false,

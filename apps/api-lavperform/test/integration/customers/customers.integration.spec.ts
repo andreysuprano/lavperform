@@ -84,7 +84,7 @@ describe('Customers (Integration)', () => {
 
   describe('GET /companies/:companyId/customers', () => {
     it('should return paginated list of customers', async () => {
-      await customerFactory.createMany(companyId, 5);
+      await customerFactory.createMany(companyId, 15);
 
       const response = await request(app.getHttpServer())
         .get(`/companies/${companyId}/customers`)
@@ -93,6 +93,8 @@ describe('Customers (Integration)', () => {
 
       expect(response.body).toHaveProperty('items');
       expect(response.body).toHaveProperty('meta');
+      expect(response.body.meta.limit).toBe(10);
+      expect(response.body.items).toHaveLength(10);
     });
 
     it('filters customers by birth month regardless of year', async () => {
