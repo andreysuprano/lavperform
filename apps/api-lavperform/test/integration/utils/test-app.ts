@@ -9,7 +9,7 @@ export class TestApp {
   async setup(modifier?: (builder: TestingModuleBuilder) => TestingModuleBuilder): Promise<INestApplication> {
     // Override environment for testing
     process.env.ENVIRONMENT = 'test';
-    process.env.NODE_ENV = 'test';
+    Object.assign(process.env, { NODE_ENV: 'test' });
     process.env.ASAAS_BASE_URL = process.env.ASAAS_BASE_URL || 'http://asaas-mock.test';
     process.env.ASAAS_API_KEY = process.env.ASAAS_API_KEY || 'test-api-key';
 
