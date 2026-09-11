@@ -110,6 +110,93 @@ describe('AudienceQueryEngine', () => {
     expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
   });
 
+  describe('birthday_in_month', () => {
+    it.each([1, 12])('validates month value %s', (month) => {
+      expect(() =>
+        engine.validateDefinition({
+          version: 1,
+          include: {
+            operator: 'AND',
+            rules: [{ type: 'birthday_in_month', operator: 'eq', value: month }],
+          },
+        }),
+      ).not.toThrow();
+    });
+
+    it('rejects operators other than eq', () => {
+      expect(() =>
+        engine.validateDefinition({
+          version: 1,
+          include: {
+            operator: 'AND',
+            rules: [{ type: 'birthday_in_month', operator: 'in', value: 2 }],
+          },
+        }),
+      ).toThrow('Operador inválido');
+    });
+
+    it.each([0, 13, 1.5, '5'])('rejects invalid month value %p', (value) => {
+      expect(() =>
+        engine.validateDefinition({
+          version: 1,
+          include: {
+            operator: 'AND',
+            rules: [{ type: 'birthday_in_month', operator: 'eq', value }],
+          },
+        }),
+      ).toThrow('Mês de aniversário');
+    });
+
+    it('resolves February including leap-day birthdays via parameterized month comparison', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: 'leap-day' }]);
+
+      const ids = await engine.resolveCustomerIds(
+        'company-1',
+        {
+          version: 1,
+          include: {
+            operator: 'AND',
+            rules: [{ type: 'birthday_in_month', operator: 'eq', value: 2 }],
+          },
+        },
+      );
+
+      expect(ids).toEqual(['leap-day']);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(1);
+      const [strings, ...values] = prisma.$queryRaw.mock.calls[0];
+      const sql = strings.join('');
+      expect(sql).toContain('c."companyId" = ');
+      expect(sql).toContain('c."birthDate" IS NOT NULL');
+      expect(sql).toContain('EXTRACT(MONTH FROM c."birthDate") = ');
+      expect(sql).not.toContain('EXTRACT(DAY FROM c."birthDate")');
+      expect(values).toEqual(expect.arrayContaining(['company-1', 2]));
+    });
+
+    it('uses birthday_in_month in include and exclude groups', async () => {
+      prisma.$queryRaw
+        .mockResolvedValueOnce([{ id: 'february' }, { id: 'march' }])
+        .mockResolvedValueOnce([{ id: 'march' }]);
+
+      const ids = await engine.resolveCustomerIds(
+        'company-1',
+        {
+          version: 1,
+          include: {
+            operator: 'OR',
+            rules: [{ type: 'birthday_in_month', operator: 'eq', value: 2 }],
+          },
+          exclude: {
+            operator: 'OR',
+            rules: [{ type: 'birthday_in_month', operator: 'eq', value: 3 }],
+          },
+        },
+      );
+
+      expect(ids).toEqual(['february']);
+      expect(prisma.$queryRaw).toHaveBeenCalledTimes(2);
+    });
+  });
+
   it('resolves top_customers_month via raw query with limit', async () => {
     prisma.$queryRaw.mockResolvedValueOnce([{ id: 't1' }, { id: 't2' }]);
 

@@ -26,6 +26,7 @@ export type CriterionType =
   | 'whatsapp_verified'
   | 'has_orders'
   | 'birthday_within_days'
+  | 'birthday_in_month'
   | 'top_customers_month';
 
 export interface AudiencePeriod {
@@ -67,6 +68,7 @@ const VALID_CRITERION_TYPES: CriterionType[] = [
   'whatsapp_verified',
   'has_orders',
   'birthday_within_days',
+  'birthday_in_month',
   'top_customers_month',
 ];
 
@@ -82,6 +84,7 @@ const VALID_OPERATORS_BY_TYPE: Record<CriterionType, ComparisonOperator[]> = {
   whatsapp_verified: ['eq'],
   has_orders: ['eq'],
   birthday_within_days: ['within_days'],
+  birthday_in_month: ['eq'],
   top_customers_month: ['eq'],
 };
 
@@ -150,6 +153,16 @@ function validateCriterion(criterion: Criterion, path: string): void {
   ) {
     throw new Error(`Valor obrigatório para critério em ${path}`);
   }
+
+  if (
+    criterion.type === 'birthday_in_month' &&
+    (typeof criterion.value !== 'number' ||
+      !Number.isInteger(criterion.value) ||
+      criterion.value < 1 ||
+      criterion.value > 12)
+  ) {
+    throw new Error(`Mês de aniversário inválido em ${path}`);
+  }
 }
 
 export const CRITERIA_METADATA = [
@@ -217,6 +230,12 @@ export const CRITERIA_METADATA = [
     type: 'birthday_within_days' as const,
     label: 'Aniversário nos próximos dias',
     operators: ['within_days'],
+    valueType: 'number',
+  },
+  {
+    type: 'birthday_in_month' as const,
+    label: 'Aniversário no mês',
+    operators: ['eq'],
     valueType: 'number',
   },
   {
