@@ -150,7 +150,10 @@ export class WeatherAlertService {
             throw new NotFoundException('Empresa não possui cidade cadastrada no endereço');
         }
 
-        const weatherData = await this.weatherDataService.getWeatherByCityName(company.address.city);
+        const weatherData = await this.weatherDataService.getWeatherByLocation(
+            company.address.city,
+            company.address.state,
+        );
 
         if (!weatherData) {
             throw new NotFoundException(`Dados meteorológicos não encontrados para a cidade: ${company.address.city}`);

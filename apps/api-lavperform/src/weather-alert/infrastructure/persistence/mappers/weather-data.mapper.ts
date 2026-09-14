@@ -4,7 +4,9 @@ export class WeatherDataMapper {
     static toDomain(prismaWeatherData: any): WeatherData {
         return new WeatherData({
             id: prismaWeatherData.id,
+            locationKey: prismaWeatherData.locationKey,
             cityName: prismaWeatherData.cityName,
+            state: prismaWeatherData.state,
             region: prismaWeatherData.region,
             country: prismaWeatherData.country,
             lat: prismaWeatherData.lat,

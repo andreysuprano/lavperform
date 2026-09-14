@@ -12,6 +12,7 @@ import { WeatherAlertPrismaRepository } from './infrastructure/persistence/prism
 import { WeatherDataPrismaRepository } from './infrastructure/persistence/prisma-weather-data.repository';
 import { WeatherAlertHistoryPrismaRepository } from './infrastructure/persistence/prisma-weather-alert-history.repository';
 import { WeatherApiService } from './infrastructure/api/weather-api.service';
+import { BrasilApiCepGeocodeService } from './infrastructure/api/brasil-api-cep-geocode.service';
 import { WeatherUpdateProcessor } from './infrastructure/jobs/weather-update.processor';
 import { WeatherAlertProcessor } from './infrastructure/jobs/weather-alert.processor';
 import { WeatherUpdateTasks } from './crons/weather-update-tasks';
@@ -49,6 +50,7 @@ import { RenitencyModule } from '../renitency/renitency.module';
         WeatherDataService,
         WeatherAlertHistoryService,
         WeatherApiService,
+        BrasilApiCepGeocodeService,
         ...workerProviders(
             WeatherUpdateProcessor,
             WeatherAlertProcessor,

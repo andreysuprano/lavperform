@@ -29,23 +29,23 @@ export class WeatherDataPrismaRepository implements IWeatherDataRepository {
         return weatherData ? WeatherDataMapper.toDomain(weatherData) : null;
     }
 
-    async findByCityName(cityName: string): Promise<WeatherData | null> {
+    async findByLocationKey(locationKey: string): Promise<WeatherData | null> {
         const weatherData = await this.prisma.weatherData.findUnique({
-            where: { cityName },
+            where: { locationKey },
         });
         return weatherData ? WeatherDataMapper.toDomain(weatherData) : null;
     }
 
-    async upsertByCityName(cityName: string, data: Partial<WeatherData>): Promise<WeatherData> {
-        this.logger.debug(`Upsert para cidade: ${cityName} - Temp: ${data.tempC}°C`);
-        
+    async upsertByLocationKey(locationKey: string, data: Partial<WeatherData>): Promise<WeatherData> {
+        this.logger.debug(`Upsert para localização: ${locationKey} - Temp: ${data.tempC}°C`);
+
         const upserted = await this.prisma.weatherData.upsert({
-            where: { cityName },
+            where: { locationKey },
             update: data as any,
-            create: { cityName, ...data } as any,
+            create: { locationKey, ...data } as any,
         });
-        
-        this.logger.debug(`Upsert concluído para ${cityName} - ID: ${upserted.id}`);
+
+        this.logger.debug(`Upsert concluído para ${locationKey} - ID: ${upserted.id}`);
         return WeatherDataMapper.toDomain(upserted);
     }
 

@@ -1,6 +1,8 @@
 export class WeatherData {
     id: string;
+    locationKey: string;
     cityName: string;
+    state?: string | null;
     
     // Location data
     region: string;

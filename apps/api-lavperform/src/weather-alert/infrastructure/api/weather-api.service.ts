@@ -2,7 +2,6 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
-import { normalizeString } from '../../../common/utils/normalize-string';
 
 export interface WeatherApiResponse {
     location: {
@@ -70,14 +69,14 @@ export class WeatherApiService {
         this.baseUrl = this.configService.get<string>('WEATHER_API_URL') ?? '';
     }
 
-    async getCurrentWeather(city: string): Promise<WeatherApiResponse> {
+    async getCurrentWeather(query: string): Promise<WeatherApiResponse> {
         try {
-            const normalizedCity = normalizeString(city);
-            this.logger.log(`Buscando dados do tempo para: ${city} (normalizado: ${normalizedCity})`);
+            const q = query.trim();
+            this.logger.log(`Buscando dados do tempo para query: ${q}`);
 
             const url = `${this.baseUrl}/current.json`;
             const params = {
-                q: normalizedCity,
+                q,
                 key: this.apiKey,
             };
 
@@ -85,10 +84,10 @@ export class WeatherApiService {
                 this.httpService.get<WeatherApiResponse>(url, { params })
             );
 
-            this.logger.log(`Dados do tempo obtidos com sucesso para: ${city}`);
+            this.logger.log(`Dados do tempo obtidos com sucesso para query: ${q}`);
             return response.data;
         } catch (error) {
-            this.logger.error(`Erro ao buscar dados do tempo para ${city}:`, error.response?.data || error.message);
+            this.logger.error(`Erro ao buscar dados do tempo para ${query}:`, error.response?.data || error.message);
             throw error;
         }
     }

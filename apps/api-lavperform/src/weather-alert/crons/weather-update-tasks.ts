@@ -5,8 +5,8 @@ import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { PrismaService } from '../../prisma/prisma.service';
-import { normalizeString } from '../../common/utils/normalize-string';
 import { isWeatherAlertEnabled } from '../weather-alert.config';
+import { collectUniqueWeatherLocations } from '../domain/weather-location';
 
 @Injectable()
 export class WeatherUpdateTasks {
@@ -28,7 +28,6 @@ export class WeatherUpdateTasks {
         this.logger.debug('Iniciando atualização de dados meteorológicos');
 
         try {
-            // Busca todas as cidades únicas dos endereços das empresas
             const companies = await this.prisma.company.findMany({
                 where: {
                     address: {
@@ -40,22 +39,15 @@ export class WeatherUpdateTasks {
                 },
             });
 
-            // Extrai cidades únicas (normalizadas)
-            const cities = new Set<string>();
-            companies.forEach(company => {
-                if (company.address?.city) {
-                    cities.add(normalizeString(company.address.city));
-                }
-            });
+            const uniqueLocations = collectUniqueWeatherLocations(
+                companies.map(company => company.address ?? {}),
+            );
+            this.logger.log(`Encontradas ${uniqueLocations.length} localidades únicas para atualização`);
 
-            const uniqueCities = Array.from(cities);
-            this.logger.log(`Encontradas ${uniqueCities.length} cidades únicas para atualização`);
-
-            // Adiciona cada cidade na fila
-            for (const cityName of uniqueCities) {
+            for (const location of uniqueLocations) {
                 await this.weatherUpdateQueue.add(
                     QUEUE_NAMES.WEATHER_UPDATE,
-                    { cityName },
+                    location,
                     {
                         attempts: 3,
                         backoff: {
@@ -64,10 +56,10 @@ export class WeatherUpdateTasks {
                         },
                     }
                 );
-                this.logger.log(`Cidade ${cityName} adicionada à fila de atualização`);
+                this.logger.log(`Localidade ${location.city}/${location.state ?? '-'} adicionada à fila de atualização`);
             }
 
-            this.logger.log(`Total de ${uniqueCities.length} cidades adicionadas à fila`);
+            this.logger.log(`Total de ${uniqueLocations.length} localidades adicionadas à fila`);
         } catch (error) {
             this.logger.error('Erro ao processar atualização de dados meteorológicos:', error);
         }
