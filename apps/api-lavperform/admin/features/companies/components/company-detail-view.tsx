@@ -44,6 +44,7 @@ import {
   formatZipCode,
 } from "../utils"
 import type { CompanyStatus } from "../types"
+import { COMPANY_SERVICE_MODEL_LABELS } from "../types"
 import { CompanyActionsMenu } from "./company-actions-menu"
 import { CompanyStatusBadge } from "./company-status-badge"
 import { CompanyUsersSection } from "./company-users-section"
@@ -231,6 +232,13 @@ export function CompanyDetailView({ companyId }: { companyId: string }) {
                 <DetailRow label="CNPJ" value={formatCnpj(company.cnpj)} mono />
                 <DetailRow label="Email" value={company.email} />
                 <DetailRow label="Telefone" value={company.phone ?? "—"} />
+                <DetailRow
+                  label="Modelo de atendimento"
+                  value={
+                    COMPANY_SERVICE_MODEL_LABELS[company.serviceModel] ??
+                    "Convencional"
+                  }
+                />
                 <div className="flex flex-col gap-0.5">
                   <dt className="text-xs text-muted-foreground">
                     Parceiro de negócio

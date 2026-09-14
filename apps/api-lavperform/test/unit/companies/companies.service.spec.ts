@@ -208,6 +208,21 @@ describe('CompaniesService', () => {
       );
     });
 
+    it('forwards serviceModel to the repository', async () => {
+      mockRepository.findById.mockResolvedValue({ id: '1' });
+      mockRepository.update.mockResolvedValue({
+        id: '1',
+        serviceModel: 'SELF_SERVICE',
+      });
+
+      await service.update('1', { serviceModel: 'SELF_SERVICE' } as any);
+
+      expect(repository.update).toHaveBeenCalledWith(
+        '1',
+        expect.objectContaining({ serviceModel: 'SELF_SERVICE' }),
+      );
+    });
+
     it('forwards showTodayPurchases to the repository', async () => {
       mockRepository.findById.mockResolvedValue({ id: '1' });
       mockRepository.update.mockResolvedValue({

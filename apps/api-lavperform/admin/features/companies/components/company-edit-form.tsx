@@ -28,6 +28,7 @@ import { Input } from "@/components/ui/input"
 import { useCompany, useUpdateCompany } from "../companies-queries"
 import { updateCompanySchema, type UpdateCompanyInput } from "../schemas"
 import { AddressFields } from "./address-fields"
+import { ServiceModelSelect } from "./service-model-select"
 
 const EMPTY_DEFAULTS: UpdateCompanyInput = {
   name: "",
@@ -36,6 +37,7 @@ const EMPTY_DEFAULTS: UpdateCompanyInput = {
   phone: "",
   showIncentivizedSales: false,
   showTodayPurchases: false,
+  serviceModel: "CONVENTIONAL",
   address: {
     zipCode: "",
     street: "",
@@ -67,6 +69,7 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
       phone: company.phone ?? "",
       showIncentivizedSales: company.showIncentivizedSales === true,
       showTodayPurchases: company.showTodayPurchases === true,
+      serviceModel: company.serviceModel ?? "CONVENTIONAL",
       address: {
         zipCode: company.address?.zipCode ?? "",
         street: company.address?.street ?? "",
@@ -158,6 +161,28 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
                 <FieldError>{errors.phone?.message}</FieldError>
               </Field>
             </div>
+
+            <Field data-invalid={!!errors.serviceModel}>
+              <FieldLabel htmlFor="serviceModel">
+                Modelo de atendimento
+              </FieldLabel>
+              <Controller
+                control={form.control}
+                name="serviceModel"
+                render={({ field }) => (
+                  <ServiceModelSelect
+                    id="serviceModel"
+                    value={field.value ?? "CONVENTIONAL"}
+                    onValueChange={field.onChange}
+                  />
+                )}
+              />
+              <FieldDescription>
+                Convencional mostra só vendas nos rankings. Auto atendimento
+                inclui ciclos.
+              </FieldDescription>
+              <FieldError>{errors.serviceModel?.message}</FieldError>
+            </Field>
           </FieldGroup>
         </CardContent>
       </Card>

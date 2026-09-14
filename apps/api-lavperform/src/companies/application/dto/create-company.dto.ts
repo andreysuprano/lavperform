@@ -1,5 +1,6 @@
-import { IsString, IsEmail, IsOptional } from 'class-validator';
-import { ApiProperty } from '@nestjs/swagger';
+import { IsString, IsEmail, IsOptional, IsEnum } from 'class-validator';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { CompanyServiceModel } from '@prisma/client';
 
 export class CreateCompanyDto {
   @ApiProperty({
@@ -108,4 +109,13 @@ export class CreateCompanyDto {
   @IsOptional()
   @IsString()
   businessPartnerId?: string;
+
+  @ApiPropertyOptional({
+    description: 'Modelo de atendimento da empresa',
+    enum: CompanyServiceModel,
+    default: CompanyServiceModel.CONVENTIONAL,
+  })
+  @IsOptional()
+  @IsEnum(CompanyServiceModel)
+  serviceModel?: CompanyServiceModel;
 } 

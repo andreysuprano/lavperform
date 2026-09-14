@@ -22,6 +22,12 @@ import { useAuth } from '@/context/AuthContext'
 import { useTopBuyers } from '@/hooks/queries'
 import type { Customer, TopBuyerCustomer } from '@/types'
 import { clientTypesOptions } from '@/utils/constants/clientType'
+import {
+  formatCount,
+  getPurchaseRankSubtitle,
+  getRankingsIntro,
+  isSelfServiceModel,
+} from '@/utils/dashboard/rankingDisplay'
 import { formatTelefone } from '@/utils/mask'
 import { formatCurrency } from '@/utils/money'
 import { getInitials } from '@/utils/strings'
@@ -87,10 +93,6 @@ function cycleCountOf(buyer: TopBuyerCustomer) {
   return buyer.cycleCount ?? 0
 }
 
-function formatCount(n: number, singular: string, plural: string) {
-  return `${n} ${n === 1 ? singular : plural}`
-}
-
 function formatCycles(buyer: TopBuyerCustomer) {
   return formatCount(cycleCountOf(buyer), 'ciclo', 'ciclos')
 }
@@ -99,27 +101,40 @@ function formatSales(buyer: TopBuyerCustomer) {
   return formatCount(buyer.orderCount, 'venda', 'vendas')
 }
 
-function getMetricValue(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
-  return sortBy === 'orderCount' ? cycleCountOf(buyer) : buyer.totalSpent
+function getMetricValue(
+  buyer: TopBuyerCustomer,
+  sortBy: RankSortBy,
+  showCycles: boolean,
+) {
+  if (sortBy === 'orderCount') {
+    return showCycles ? cycleCountOf(buyer) : buyer.orderCount
+  }
+  return buyer.totalSpent
 }
 
-function formatMetric(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
+function formatMetric(
+  buyer: TopBuyerCustomer,
+  sortBy: RankSortBy,
+  showCycles: boolean,
+) {
   if (sortBy === 'orderCount') {
-    return formatCycles(buyer)
+    return showCycles ? formatCycles(buyer) : formatSales(buyer)
   }
   return formatCurrency(buyer.totalSpent)
 }
 
-function getRankSubtitle(sortBy: RankSortBy, period: RankPeriod) {
+function getRankSubtitle(
+  sortBy: RankSortBy,
+  period: RankPeriod,
+  showCycles: boolean,
+) {
   if (sortBy === 'totalSpent') {
     return period === 'month'
       ? 'Ordenado pelo valor total gasto neste mês'
       : 'Ordenado pelo valor total gasto'
   }
 
-  return period === 'month'
-    ? 'Ordenado pelo número de ciclos neste mês'
-    : 'Ordenado pelo número de ciclos'
+  return getPurchaseRankSubtitle(period, showCycles)
 }
 
 type MonthlyTopStripProps = {
@@ -132,6 +147,7 @@ type MonthlyTopStripProps = {
   onMonthChange: (selection: MonthSelection) => void
   colorPalette: string
   onOpenDetails: (buyer: TopBuyerCustomer) => void
+  showCycles: boolean
 }
 
 function MonthlyTopStrip({
@@ -144,6 +160,7 @@ function MonthlyTopStrip({
   onMonthChange,
   colorPalette,
   onOpenDetails,
+  showCycles,
 }: MonthlyTopStripProps) {
   const selectedKey = toMonthKey(selectedMonth)
   const showLoading = isLoading || (isFetching && !data)
@@ -320,14 +337,16 @@ function MonthlyTopStrip({
                     size="sm"
                     variant="subtle"
                   >
-                    {formatCycles(buyer)}
+                    {showCycles ? formatCycles(buyer) : formatSales(buyer)}
                   </Badge>
-                  <Text
-                    color="fg.muted"
-                    fontSize="2xs"
-                  >
-                    {formatSales(buyer)}
-                  </Text>
+                  {showCycles ? (
+                    <Text
+                      color="fg.muted"
+                      fontSize="2xs"
+                    >
+                      {formatSales(buyer)}
+                    </Text>
+                  ) : null}
                 </Stack>
               </Box>
             )
@@ -351,6 +370,7 @@ type RankListProps = {
   onExpand: (customerId: string | null) => void
   onOpenDetails: (buyer: TopBuyerCustomer) => void
   colorPalette: string
+  showCycles: boolean
 }
 
 function PeriodToggle({
@@ -408,13 +428,20 @@ function RankList({
   onExpand,
   onOpenDetails,
   colorPalette,
+  showCycles,
 }: RankListProps) {
-  const subtitle = getRankSubtitle(sortBy, period)
+  const subtitle = getRankSubtitle(sortBy, period, showCycles)
   const showLoading = isLoading || (isFetching && !data)
 
   const maxMetric = useMemo(
-    () => Math.max(...(data?.map((item) => getMetricValue(item, sortBy)) ?? [0]), 1),
-    [data, sortBy]
+    () =>
+      Math.max(
+        ...(data?.map((item) => getMetricValue(item, sortBy, showCycles)) ?? [
+          0,
+        ]),
+        1,
+      ),
+    [data, sortBy, showCycles]
   )
 
   return (
@@ -509,7 +536,7 @@ function RankList({
               const isExpanded = expandedId === `${sortBy}:${buyer.customerId}`
               const rankStyle = RANK_STYLES[index]
               const RankIcon = rankStyle?.icon
-              const metric = getMetricValue(buyer, sortBy)
+              const metric = getMetricValue(buyer, sortBy, showCycles)
               const progress = Math.round((metric / maxMetric) * 100)
               const rfvLabel = getRfvLabel(buyer.rfvClassification)
 
@@ -586,7 +613,7 @@ function RankList({
                           fontVariantNumeric="tabular-nums"
                           fontWeight="bold"
                         >
-                          {formatMetric(buyer, sortBy)}
+                          {formatMetric(buyer, sortBy, showCycles)}
                         </Text>
                       </HStack>
 
@@ -616,12 +643,16 @@ function RankList({
                           <HStack gap={0.5}>
                             <LuShoppingBag size={10} />
                             <Text as="span">
-                              {formatSales(buyer)} · {formatCycles(buyer)}
+                              {showCycles
+                                ? `${formatSales(buyer)} · ${formatCycles(buyer)}`
+                                : formatSales(buyer)}
                             </Text>
                           </HStack>
                         ) : (
                           <Text as="span">
-                            {formatSales(buyer)} · {formatCurrency(buyer.totalSpent)}
+                            {showCycles
+                              ? `${formatSales(buyer)} · ${formatCurrency(buyer.totalSpent)}`
+                              : formatCurrency(buyer.totalSpent)}
                           </Text>
                         )}
                         <Text as="span">
@@ -719,6 +750,7 @@ function RankList({
 function DashboardTopCustomersRankBase() {
   const { colorPalette } = useWhiteLabel()
   const { selectedCompany } = useAuth()
+  const showCycles = isSelfServiceModel(selectedCompany?.serviceModel)
 
   const monthOptions = useMemo(
     () => listSelectableMonths(SELECTABLE_MONTHS),
@@ -784,8 +816,7 @@ function DashboardTopCustomersRankBase() {
           color="fg.muted"
           fontSize="sm"
         >
-          Top {RANK_LIMIT} por valor gasto e por número de ciclos. Clique para
-          ver detalhes.
+          {getRankingsIntro(showCycles)}
         </Text>
       </Stack>
 
@@ -800,6 +831,7 @@ function DashboardTopCustomersRankBase() {
           onMonthChange={setSelectedMonth}
           onOpenDetails={openDetails}
           selectedMonth={selectedMonth}
+          showCycles={showCycles}
         />
 
         <SimpleGrid
@@ -817,6 +849,7 @@ function DashboardTopCustomersRankBase() {
             onOpenDetails={openDetails}
             onPeriodChange={setSpentPeriod}
             period={spentPeriod}
+            showCycles={showCycles}
             sortBy="totalSpent"
             title="Quem mais gasta"
           />
@@ -831,6 +864,7 @@ function DashboardTopCustomersRankBase() {
             onOpenDetails={openDetails}
             onPeriodChange={setOrdersPeriod}
             period={ordersPeriod}
+            showCycles={showCycles}
             sortBy="orderCount"
             title="Quem mais compra"
           />

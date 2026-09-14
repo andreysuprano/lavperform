@@ -14,6 +14,7 @@ import {
   useDashboardCustomers,
   useDashboardPerformance,
 } from '@/hooks/queries'
+import { isSelfServiceModel } from '@/utils/dashboard/rankingDisplay'
 
 import { MetricCard } from '../MetricCard/MetricCard'
 
@@ -33,8 +34,11 @@ function DashboardOpsMetricsBase() {
   const isLoading =
     isLoadingCustomers || isLoadingPerformance || isPlaceholderPerformance
 
+  const showCycles = isSelfServiceModel(selectedCompany?.serviceModel)
+
   const cards = useMemo(
-    () => [
+    () => {
+      const items = [
       {
         id: 'daily-sales-amount',
         icon: LuCircleDollarSign,
@@ -49,13 +53,17 @@ function DashboardOpsMetricsBase() {
         value: performance?.summary.dailySalesCount ?? 0,
         valueType: 'number' as const,
       },
-      {
-        id: 'daily-cycle-count',
-        icon: LuRefreshCw,
-        label: 'Ciclos do dia',
-        value: performance?.summary.dailyCycleCount ?? 0,
-        valueType: 'number' as const,
-      },
+      ...(showCycles
+        ? [
+            {
+              id: 'daily-cycle-count',
+              icon: LuRefreshCw,
+              label: 'Ciclos do dia',
+              value: performance?.summary.dailyCycleCount ?? 0,
+              valueType: 'number' as const,
+            },
+          ]
+        : []),
       {
         id: 'active-customers',
         icon: LuUserRoundCheck,
@@ -77,18 +85,24 @@ function DashboardOpsMetricsBase() {
         value: customers?.newCustomers ?? 0,
         valueType: 'number' as const,
       },
-    ],
-    [customers, performance]
+    ]
+      return items
+    },
+    [customers, performance, showCycles]
   )
+
+  const columns = showCycles
+    ? { base: 1, sm: 2, md: 3, xl: 6 }
+    : { base: 1, sm: 2, md: 3, xl: 5 }
 
   if (isLoading) {
     return (
       <SimpleGrid
-        columns={{ base: 1, sm: 2, md: 3, xl: 6 }}
+        columns={columns}
         gap={4}
         w="full"
       >
-        {Array.from({ length: 6 }).map((_, idx) => (
+        {Array.from({ length: cards.length }).map((_, idx) => (
           <Skeleton
             height="96px"
             key={idx}
@@ -100,7 +114,7 @@ function DashboardOpsMetricsBase() {
 
   return (
     <SimpleGrid
-      columns={{ base: 1, sm: 2, md: 3, xl: 6 }}
+      columns={columns}
       gap={4}
       w="full"
     >

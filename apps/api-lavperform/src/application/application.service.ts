@@ -39,6 +39,10 @@ export class ApplicationService {
         slug: uc.company.slug,
         showIncentivizedSales: uc.company.showIncentivizedSales === true,
         showTodayPurchases: uc.company.showTodayPurchases === true,
+        serviceModel:
+          uc.company.serviceModel === 'SELF_SERVICE'
+            ? 'SELF_SERVICE'
+            : 'CONVENTIONAL',
       }))
       .sort((a, b) => a.name.localeCompare(b.name, 'pt-BR'));
 

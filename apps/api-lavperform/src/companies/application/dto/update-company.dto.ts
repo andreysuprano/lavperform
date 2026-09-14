@@ -1,7 +1,8 @@
-import { IsString, IsEmail, IsOptional, IsBoolean, ValidateNested } from 'class-validator';
+import { IsString, IsEmail, IsOptional, IsBoolean, IsEnum, ValidateNested } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { AddressDto } from 'src/common/dto/address.dto';
 import { Type } from 'class-transformer';
+import { CompanyServiceModel } from '@prisma/client';
 
 export class UpdateCompanyDto {
   @ApiProperty({
@@ -70,4 +71,14 @@ export class UpdateCompanyDto {
   @IsOptional()
   @IsBoolean()
   showTodayPurchases?: boolean;
+
+  @ApiProperty({
+    description: 'Modelo de atendimento da empresa',
+    enum: CompanyServiceModel,
+    required: false,
+    default: CompanyServiceModel.CONVENTIONAL,
+  })
+  @IsOptional()
+  @IsEnum(CompanyServiceModel)
+  serviceModel?: CompanyServiceModel;
 } 

@@ -23,6 +23,7 @@ export class CompanyMapper {
             slug: prismaCompany.slug,
             showIncentivizedSales: prismaCompany.showIncentivizedSales,
             showTodayPurchases: prismaCompany.showTodayPurchases,
+            serviceModel: prismaCompany.serviceModel,
             addressId: prismaCompany.addressId,
             businessPartnerId: prismaCompany.businessPartnerId,
             createdAt: prismaCompany.createdAt,

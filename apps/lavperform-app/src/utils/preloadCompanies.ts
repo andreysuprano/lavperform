@@ -14,5 +14,7 @@ export function mapPreloadCompaniesToUserCompanies(
     companyId: c.id,
     showIncentivizedSales: c.showIncentivizedSales === true,
     showTodayPurchases: c.showTodayPurchases === true,
+    serviceModel:
+      c.serviceModel === 'SELF_SERVICE' ? 'SELF_SERVICE' : 'CONVENTIONAL',
   }))
 }

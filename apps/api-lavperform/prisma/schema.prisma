@@ -58,6 +58,7 @@ model Company {
   state                     CompanyStatus              @default(PENDING)
   showIncentivizedSales     Boolean                    @default(false)
   showTodayPurchases        Boolean                    @default(false)
+  serviceModel              CompanyServiceModel        @default(CONVENTIONAL)
   deletedAt                 DateTime?
   userCompanies             UserCompany[]
   accessRules               AccessRule[]
@@ -154,6 +155,11 @@ enum CompanyStatus {
   ACTIVE
   INACTIVE
   PENDING
+}
+
+enum CompanyServiceModel {
+  CONVENTIONAL
+  SELF_SERVICE
 }
 
 model OpeningHours {

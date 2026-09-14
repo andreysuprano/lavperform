@@ -23,6 +23,7 @@ export interface UserCompany {
   companyId: string
   showIncentivizedSales: boolean
   showTodayPurchases: boolean
+  serviceModel: 'CONVENTIONAL' | 'SELF_SERVICE'
 }
 
 export interface User {
