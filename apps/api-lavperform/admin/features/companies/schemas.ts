@@ -68,7 +68,7 @@ export const createCompanySchema = z.object({
   city: requiredString("Cidade"),
   state: ufSchema,
   businessPartnerId: optionalString,
-  serviceModel: z.enum(COMPANY_SERVICE_MODEL_VALUES).default("CONVENTIONAL"),
+  serviceModel: z.enum(COMPANY_SERVICE_MODEL_VALUES),
 })
 
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>
