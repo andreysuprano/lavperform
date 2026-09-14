@@ -83,13 +83,29 @@ function toCustomer(buyer: TopBuyerCustomer): Customer {
   }
 }
 
+function cycleCountOf(buyer: TopBuyerCustomer) {
+  return buyer.cycleCount ?? 0
+}
+
+function formatCount(n: number, singular: string, plural: string) {
+  return `${n} ${n === 1 ? singular : plural}`
+}
+
+function formatCycles(buyer: TopBuyerCustomer) {
+  return formatCount(cycleCountOf(buyer), 'ciclo', 'ciclos')
+}
+
+function formatSales(buyer: TopBuyerCustomer) {
+  return formatCount(buyer.orderCount, 'venda', 'vendas')
+}
+
 function getMetricValue(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
-  return sortBy === 'orderCount' ? buyer.orderCount : buyer.totalSpent
+  return sortBy === 'orderCount' ? cycleCountOf(buyer) : buyer.totalSpent
 }
 
 function formatMetric(buyer: TopBuyerCustomer, sortBy: RankSortBy) {
   if (sortBy === 'orderCount') {
-    return `${buyer.orderCount} ${buyer.orderCount === 1 ? 'venda' : 'vendas'}`
+    return formatCycles(buyer)
   }
   return formatCurrency(buyer.totalSpent)
 }
@@ -102,8 +118,8 @@ function getRankSubtitle(sortBy: RankSortBy, period: RankPeriod) {
   }
 
   return period === 'month'
-    ? 'Ordenado pelo número de vendas neste mês'
-    : 'Ordenado pelo número de vendas'
+    ? 'Ordenado pelo número de ciclos neste mês'
+    : 'Ordenado pelo número de ciclos'
 }
 
 type MonthlyTopStripProps = {
@@ -205,7 +221,7 @@ function MonthlyTopStrip({
             <Skeleton
               borderRadius="md"
               flexShrink={0}
-              h="112px"
+              h="128px"
               key={idx}
               minW={MONTHLY_CARD_MIN_W}
             />
@@ -304,9 +320,14 @@ function MonthlyTopStrip({
                     size="sm"
                     variant="subtle"
                   >
-                    {buyer.orderCount}{' '}
-                    {buyer.orderCount === 1 ? 'venda' : 'vendas'}
+                    {formatCycles(buyer)}
                   </Badge>
+                  <Text
+                    color="fg.muted"
+                    fontSize="2xs"
+                  >
+                    {formatSales(buyer)}
+                  </Text>
                 </Stack>
               </Box>
             )
@@ -595,12 +616,13 @@ function RankList({
                           <HStack gap={0.5}>
                             <LuShoppingBag size={10} />
                             <Text as="span">
-                              {buyer.orderCount}{' '}
-                              {buyer.orderCount === 1 ? 'venda' : 'vendas'}
+                              {formatSales(buyer)} · {formatCycles(buyer)}
                             </Text>
                           </HStack>
                         ) : (
-                          <Text as="span">{formatCurrency(buyer.totalSpent)}</Text>
+                          <Text as="span">
+                            {formatSales(buyer)} · {formatCurrency(buyer.totalSpent)}
+                          </Text>
                         )}
                         <Text as="span">
                           Ticket {formatCurrency(buyer.averageTicket)}
@@ -762,7 +784,7 @@ function DashboardTopCustomersRankBase() {
           color="fg.muted"
           fontSize="sm"
         >
-          Top {RANK_LIMIT} por valor gasto e por número de vendas. Clique para
+          Top {RANK_LIMIT} por valor gasto e por número de ciclos. Clique para
           ver detalhes.
         </Text>
       </Stack>

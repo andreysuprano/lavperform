@@ -59,6 +59,7 @@ export interface TopBuyerCustomer {
   lastOrderDate: string | null
   totalSpent: number
   orderCount: number
+  cycleCount: number
   companyId: string
   whatsappOptin: boolean
   createdAt: string

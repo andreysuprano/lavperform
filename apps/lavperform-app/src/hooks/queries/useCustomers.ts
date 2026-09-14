@@ -59,7 +59,7 @@ export function useCustomersSummary(companyId: string | undefined) {
 }
 
 /**
- * Ranking de clientes que mais compram (por valor ou número de vendas)
+ * Ranking de clientes que mais compram (por valor ou por ciclos; sortBy=orderCount)
  */
 export function useTopBuyers(
   companyId: string | undefined,
