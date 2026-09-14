@@ -70,6 +70,7 @@ export interface ICustomerRepository extends IRepository<Customer> {
             lastOrderDate: Date | null;
             totalSpent: number;
             orderCount: number;
+            cycleCount: number;
             companyId: string;
             whatsappOptin: boolean;
             createdAt: Date;

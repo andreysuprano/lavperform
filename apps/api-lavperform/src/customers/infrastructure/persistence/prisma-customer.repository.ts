@@ -6,7 +6,7 @@ import { CustomerMapper, type CustomerOrderStats } from './mappers/customer.mapp
 import { PaginationDto } from '../../../common/dto/pagination.dto';
 import { OrderMapper } from 'src/orders/infrastructure/persistence/mappers/order.mapper';
 import { Order } from 'src/orders/domain/order.entity';
-import { Message, MessageStatus } from '@prisma/client';
+import { Message, MessageStatus, Prisma } from '@prisma/client';
 import {
     DuplicateCustomerIdentityError,
     lockCustomerCreateIdentities,
@@ -702,6 +702,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             lastOrderDate: Date | null;
             totalSpent: number;
             orderCount: number;
+            cycleCount: number;
             companyId: string;
             whatsappOptin: boolean;
             createdAt: Date;
@@ -719,8 +720,6 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                   }
                 : undefined;
 
-        // groupBy + orderBy por _count no Prisma pode falhar na tipagem/ordenação;
-        // ordenamos em memória para garantir.
         const grouped = await this.prisma.order.groupBy({
             by: ['customerId'],
             where: {
@@ -736,6 +735,37 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             return [];
         }
 
+        const dateFilterParts: Prisma.Sql[] = [];
+        if (startDate) {
+            dateFilterParts.push(Prisma.sql`AND o."createdAt" >= ${startDate}`);
+        }
+        if (endDate) {
+            dateFilterParts.push(Prisma.sql`AND o."createdAt" <= ${endDate}`);
+        }
+        const dateFilter = dateFilterParts.reduce(
+            (acc, part) => Prisma.sql`${acc} ${part}`,
+            Prisma.sql``,
+        );
+
+        const cycleRows = await this.prisma.$queryRaw<
+            Array<{ customerId: string; cycle_count: bigint | number }>
+        >(Prisma.sql`
+            SELECT o."customerId" AS "customerId",
+                   COALESCE(SUM(oi."quantity"), 0) AS cycle_count
+            FROM "Order" o
+            INNER JOIN "OrderItem" oi
+              ON oi."orderId" = o.id
+             AND oi."parentItemId" IS NULL
+            WHERE o."companyId" = ${companyId}
+              AND o."customerId" IS NOT NULL
+              ${dateFilter}
+            GROUP BY o."customerId"
+        `);
+
+        const cycleByCustomer = new Map(
+            cycleRows.map((row) => [row.customerId, Number(row.cycle_count || 0)]),
+        );
+
         const take = Math.min(Math.max(limit, 1), 50);
         const ranked = [...grouped]
             .sort((a, b) => {
@@ -743,13 +773,17 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                 const bSpent = Number(b._sum?.total || 0);
                 const aOrders = Number(a._count?._all || 0);
                 const bOrders = Number(b._count?._all || 0);
+                const aCycles = cycleByCustomer.get(a.customerId ?? '') ?? 0;
+                const bCycles = cycleByCustomer.get(b.customerId ?? '') ?? 0;
 
                 if (sortBy === 'orderCount') {
-                    if (bOrders !== aOrders) return bOrders - aOrders;
-                    return bSpent - aSpent;
+                    if (bCycles !== aCycles) return bCycles - aCycles;
+                    if (bSpent !== aSpent) return bSpent - aSpent;
+                    return bOrders - aOrders;
                 }
 
                 if (bSpent !== aSpent) return bSpent - aSpent;
+                if (bCycles !== aCycles) return bCycles - aCycles;
                 return bOrders - aOrders;
             })
             .slice(0, take);
@@ -788,6 +822,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
 
                 const orderCount = Number(group._count?._all || 0);
                 const totalSpent = Number(group._sum?.total ?? 0);
+                const cycleCount = cycleByCustomer.get(group.customerId) ?? 0;
                 const averageTicket =
                     orderCount > 0 ? totalSpent / orderCount : 0;
 
@@ -801,6 +836,7 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                     lastOrderDate: group._max?.createdAt ?? null,
                     totalSpent,
                     orderCount,
+                    cycleCount,
                     companyId: customer.companyId,
                     whatsappOptin: customer.whatsappOptin,
                     createdAt: customer.createdAt,

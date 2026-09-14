@@ -69,7 +69,8 @@ export class CustomersController {
   @ApiOperation({
     summary: 'Ranking de clientes que mais compram',
     description:
-      'Retorna o top de clientes da empresa ordenados por valor gasto (totalSpent) ou número de vendas (orderCount). ' +
+      'Retorna o top de clientes da empresa ordenados por valor gasto (totalSpent) ou por ciclos (sortBy=orderCount, legado). ' +
+      'cycleCount soma quantity dos OrderItem principais (parentItemId nulo); orderCount continua sendo o número de pedidos. ' +
       'Com startDate+endDate (ambos obrigatórios juntos) filtra pedidos pelo Order.createdAt no intervalo, ' +
       'usando início/fim do dia em America/Sao_Paulo. Sem datas retorna o histórico all-time. ' +
       'A resposta inclui meta.period (custom|history) com as datas efetivamente aplicadas. ' +
@@ -86,7 +87,7 @@ export class CustomersController {
     name: 'sortBy',
     required: false,
     enum: ['totalSpent', 'orderCount'],
-    description: 'Critério de ordenação do ranking',
+    description: 'Critério de ordenação: totalSpent (valor) ou orderCount (ciclos; o parâmetro permanece legado)',
   })
   @ApiQuery({
     name: 'startDate',
@@ -120,6 +121,7 @@ export class CustomersController {
             lastOrderDate: '2026-08-10T12:00:00.000Z',
             totalSpent: 8500,
             orderCount: 15,
+            cycleCount: 22,
             companyId: 'company123',
             whatsappOptin: true,
             createdAt: '2025-01-01T00:00:00.000Z',
