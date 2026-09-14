@@ -26,6 +26,7 @@ export interface UserCompanyData {
     address?: CompanyAddress | null;
     showIncentivizedSales?: boolean;
     showTodayPurchases?: boolean;
+    serviceModel?: 'CONVENTIONAL' | 'SELF_SERVICE';
   };
 }
 

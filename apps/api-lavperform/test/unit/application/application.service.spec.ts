@@ -235,6 +235,67 @@ describe('ApplicationService', () => {
     expect(result.companies[0].showTodayPurchases).toBe(false);
   });
 
+  it('defaults serviceModel to CONVENTIONAL when the field is missing', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].serviceModel).toBe('CONVENTIONAL');
+  });
+
+  it('returns serviceModel SELF_SERVICE when the company uses auto atendimento', async () => {
+    const mockUser = new UserEntity(
+      'user-1',
+      'test@example.com',
+      'Test User',
+      '999999999',
+      'hashed-password',
+      new Date(),
+      new Date(),
+      [
+        {
+          id: 'uc-1',
+          companyId: 'c1',
+          company: {
+            id: 'c1',
+            name: 'Comp',
+            avatarUrl: 'url',
+            slug: 'comp',
+            serviceModel: 'SELF_SERVICE',
+          },
+        },
+      ],
+      undefined
+    );
+
+    mockUserRepository.findByIdWithCompaniesAndAddress.mockResolvedValue(mockUser);
+
+    const result = await service.getUserCompanies('user-1');
+    expect(result.companies[0].serviceModel).toBe('SELF_SERVICE');
+  });
+
   it('returns showTodayPurchases true when the company flag is on', async () => {
     const mockUser = new UserEntity(
       'user-1',

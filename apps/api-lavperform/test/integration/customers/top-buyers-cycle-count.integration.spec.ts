@@ -124,7 +124,59 @@ describe('getTopBuyers cycleCount (Integration)', () => {
     expect(row.cycleCount).toBe(2);
   });
 
+  it('ordena sortBy=orderCount por número de pedidos quando a empresa é CONVENTIONAL', async () => {
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { serviceModel: 'CONVENTIONAL' },
+    });
+
+    const fewerCycles = await customerFactory.create(companyId);
+    const moreCycles = await customerFactory.create(companyId);
+    const now = new Date();
+
+    await prisma.order.create({
+      data: {
+        ...baseOrderFields(fewerCycles.id, 10, now),
+        items: { create: mainItem(1) },
+      },
+    });
+    await prisma.order.create({
+      data: {
+        ...baseOrderFields(fewerCycles.id, 10, now),
+        items: { create: mainItem(1) },
+      },
+    });
+    await prisma.order.create({
+      data: {
+        ...baseOrderFields(fewerCycles.id, 10, now),
+        items: { create: mainItem(1) },
+      },
+    });
+
+    await prisma.order.create({
+      data: {
+        ...baseOrderFields(moreCycles.id, 50, now),
+        items: { create: mainItem(8) },
+      },
+    });
+
+    const rows = await repository.getTopBuyers(companyId, {
+      limit: 10,
+      sortBy: 'orderCount',
+    });
+
+    expect(rows[0].customerId).toBe(fewerCycles.id);
+    expect(rows[0].orderCount).toBe(3);
+    expect(rows[1].customerId).toBe(moreCycles.id);
+    expect(rows[1].orderCount).toBe(1);
+  });
+
   it('ordena sortBy=orderCount por cycleCount, não por número de pedidos', async () => {
+    await prisma.company.update({
+      where: { id: companyId },
+      data: { serviceModel: 'SELF_SERVICE' },
+    });
+
     const fewerCycles = await customerFactory.create(companyId);
     const moreCycles = await customerFactory.create(companyId);
     const now = new Date();

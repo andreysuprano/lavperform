@@ -3,6 +3,8 @@ import type { PaginationMeta } from '@/types'
 export type CompanyState = 'PENDING' | 'ACTIVE' | 'INACTIVE'
 
 /** Empresa retornada pelo GET /application/preload (evita dados no token/JWT) */
+export type CompanyServiceModel = 'CONVENTIONAL' | 'SELF_SERVICE'
+
 export interface PreloadCompany {
   id: string
   name: string
@@ -14,6 +16,7 @@ export interface PreloadCompany {
   slug?: string
   showIncentivizedSales?: boolean
   showTodayPurchases?: boolean
+  serviceModel?: CompanyServiceModel
 }
 
 export interface ApplicationPreloadResponse {
@@ -43,6 +46,7 @@ export interface Company {
   state: CompanyState
   showIncentivizedSales?: boolean
   showTodayPurchases?: boolean
+  serviceModel?: CompanyServiceModel
 }
 
 export interface AllCompaniesResponse {

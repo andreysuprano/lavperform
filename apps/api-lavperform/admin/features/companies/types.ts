@@ -1,10 +1,24 @@
 export type CompanyStatus = "ACTIVE" | "INACTIVE" | "PENDING"
+export type CompanyServiceModel = "CONVENTIONAL" | "SELF_SERVICE"
 
 export const COMPANY_STATUS_VALUES: CompanyStatus[] = [
   "ACTIVE",
   "INACTIVE",
   "PENDING",
 ]
+
+export const COMPANY_SERVICE_MODEL_VALUES = [
+  "CONVENTIONAL",
+  "SELF_SERVICE",
+] as const
+
+export const COMPANY_SERVICE_MODEL_LABELS: Record<
+  CompanyServiceModel,
+  string
+> = {
+  CONVENTIONAL: "Convencional",
+  SELF_SERVICE: "Auto atendimento",
+}
 
 export interface Address {
   id?: string
@@ -31,6 +45,7 @@ export interface Company {
   address?: Address | null
   showIncentivizedSales: boolean
   showTodayPurchases: boolean
+  serviceModel: CompanyServiceModel
   createdAt: string
   updatedAt: string
 }

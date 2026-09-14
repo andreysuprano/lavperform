@@ -13,6 +13,7 @@ export class Company {
     slug?: string | null;
     showIncentivizedSales?: boolean;
     showTodayPurchases?: boolean;
+    serviceModel?: 'CONVENTIONAL' | 'SELF_SERVICE';
     createdAt: Date;
     updatedAt: Date;
     // Relations could be typed more strictly if needed, using generic 'any' for now to speed up migration of complex nested includes

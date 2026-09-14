@@ -33,6 +33,7 @@ import { useCreateCompany } from "../companies-queries"
 import { createCompanySchema, type CreateCompanyInput } from "../schemas"
 import { slugify } from "../utils"
 import { AddressFields } from "./address-fields"
+import { ServiceModelSelect } from "./service-model-select"
 
 export function CompanyCreateForm() {
   const router = useAppRouter()
@@ -54,6 +55,7 @@ export function CompanyCreateForm() {
       city: "",
       state: "",
       businessPartnerId: "",
+      serviceModel: "CONVENTIONAL",
     },
   })
 
@@ -150,6 +152,28 @@ export function CompanyCreateForm() {
                   {...form.register("phone")}
                 />
                 <FieldError>{errors.phone?.message}</FieldError>
+              </Field>
+
+              <Field data-invalid={!!errors.serviceModel}>
+                <FieldLabel htmlFor="serviceModel">
+                  Modelo de atendimento
+                </FieldLabel>
+                <Controller
+                  control={form.control}
+                  name="serviceModel"
+                  render={({ field }) => (
+                    <ServiceModelSelect
+                      id="serviceModel"
+                      value={field.value ?? "CONVENTIONAL"}
+                      onValueChange={field.onChange}
+                    />
+                  )}
+                />
+                <FieldDescription>
+                  Define se a dashboard trata vendas convencionais ou também
+                  ciclos de auto atendimento.
+                </FieldDescription>
+                <FieldError>{errors.serviceModel?.message}</FieldError>
               </Field>
             </div>
           </FieldGroup>

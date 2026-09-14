@@ -19,6 +19,7 @@ describe('UserMapper', () => {
     overAgentCompanyId: null,
     showIncentivizedSales: true,
     showTodayPurchases: true,
+    serviceModel: 'CONVENTIONAL',
     deletedAt: null,
     asaasCustomerId: null,
   };
@@ -87,6 +88,7 @@ describe('UserMapper', () => {
           state: 'ACTIVE',
           showIncentivizedSales: true,
           showTodayPurchases: true,
+          serviceModel: 'CONVENTIONAL',
         },
       });
 
@@ -138,6 +140,21 @@ describe('UserMapper', () => {
       const domainUser = UserMapper.toDomain(prismaUser);
 
       expect(domainUser.userCompanies![0].company.showIncentivizedSales).toBe(false);
+    });
+
+    it('should map serviceModel from the company', () => {
+      const companySelfService = {
+        ...mockPrismaCompany,
+        serviceModel: 'SELF_SERVICE' as const,
+      };
+      const userCompany = { ...mockPrismaUserCompany, company: companySelfService };
+      const prismaUser = { ...mockPrismaUser, userCompanies: [userCompany] };
+
+      const domainUser = UserMapper.toDomain(prismaUser);
+
+      expect(domainUser.userCompanies![0].company.serviceModel).toBe(
+        'SELF_SERVICE',
+      );
     });
 
     it('should map showTodayPurchases from the company', () => {

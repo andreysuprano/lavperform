@@ -6,6 +6,9 @@ describe('CustomerPrismaRepository', () => {
       findFirst: jest.fn(),
       findMany: jest.fn(),
     },
+    company: {
+      findUnique: jest.fn(),
+    },
     order: {
       groupBy: jest.fn().mockResolvedValue([]),
     },
@@ -45,6 +48,9 @@ describe('CustomerPrismaRepository', () => {
     prisma.customer.findFirst.mockResolvedValue(older);
     prisma.customer.findMany.mockResolvedValue([]);
     prisma.$queryRaw.mockResolvedValue([]);
+    prisma.company.findUnique.mockResolvedValue({
+      serviceModel: 'SELF_SERVICE',
+    });
   });
 
   describe('getTopBuyers', () => {
@@ -88,6 +94,46 @@ describe('CustomerPrismaRepository', () => {
       expect(row.orderCount).toBe(1);
       expect(row.cycleCount).toBe(2);
       expect(row.totalSpent).toBe(40);
+    });
+
+    it('ordena sortBy=orderCount por número de pedidos quando a empresa é CONVENTIONAL', async () => {
+      prisma.company.findUnique.mockResolvedValue({
+        serviceModel: 'CONVENTIONAL',
+      });
+      prisma.order.groupBy.mockResolvedValue([
+        {
+          customerId: 'cust-orders',
+          _count: { _all: 3 },
+          _sum: { total: 30 },
+          _max: { createdAt: new Date('2026-09-01') },
+        },
+        {
+          customerId: 'cust-cycles',
+          _count: { _all: 1 },
+          _sum: { total: 50 },
+          _max: { createdAt: new Date('2026-09-01') },
+        },
+      ]);
+      prisma.$queryRaw.mockResolvedValue([
+        { customerId: 'cust-orders', cycle_count: 3 },
+        { customerId: 'cust-cycles', cycle_count: 8 },
+      ]);
+      prisma.customer.findMany.mockResolvedValue([
+        fewerCyclesCustomer,
+        moreCyclesCustomer,
+      ]);
+
+      const rows = await repository.getTopBuyers('company-1', {
+        limit: 10,
+        sortBy: 'orderCount',
+      });
+
+      expect(rows.map((row) => row.customerId)).toEqual([
+        'cust-orders',
+        'cust-cycles',
+      ]);
+      expect(rows[0].orderCount).toBe(3);
+      expect(rows[0].cycleCount).toBe(3);
     });
 
     it('ordena sortBy=orderCount por cycleCount, não por número de pedidos', async () => {

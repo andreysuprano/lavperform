@@ -23,6 +23,7 @@ describe('PrismaUserRepository', () => {
     overAgentCompanyId: null,
     showIncentivizedSales: true,
     showTodayPurchases: true,
+    serviceModel: 'CONVENTIONAL',
     deletedAt: null,
     asaasCustomerId: null,
   };

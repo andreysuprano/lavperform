@@ -747,9 +747,10 @@ export class CustomerPrismaRepository implements ICustomerRepository {
             Prisma.sql``,
         );
 
-        const cycleRows = await this.prisma.$queryRaw<
-            Array<{ customerId: string; cycle_count: bigint | number }>
-        >(Prisma.sql`
+        const [cycleRows, company] = await Promise.all([
+            this.prisma.$queryRaw<
+                Array<{ customerId: string; cycle_count: bigint | number }>
+            >(Prisma.sql`
             SELECT o."customerId" AS "customerId",
                    COALESCE(SUM(oi."quantity"), 0) AS cycle_count
             FROM "Order" o
@@ -760,7 +761,14 @@ export class CustomerPrismaRepository implements ICustomerRepository {
               AND o."customerId" IS NOT NULL
               ${dateFilter}
             GROUP BY o."customerId"
-        `);
+        `),
+            this.prisma.company.findUnique({
+                where: { id: companyId },
+                select: { serviceModel: true },
+            }),
+        ]);
+
+        const sortOrderCountByCycles = company?.serviceModel === 'SELF_SERVICE';
 
         const cycleByCustomer = new Map(
             cycleRows.map((row) => [row.customerId, Number(row.cycle_count || 0)]),
@@ -777,9 +785,14 @@ export class CustomerPrismaRepository implements ICustomerRepository {
                 const bCycles = cycleByCustomer.get(b.customerId ?? '') ?? 0;
 
                 if (sortBy === 'orderCount') {
-                    if (bCycles !== aCycles) return bCycles - aCycles;
+                    if (sortOrderCountByCycles) {
+                        if (bCycles !== aCycles) return bCycles - aCycles;
+                        if (bSpent !== aSpent) return bSpent - aSpent;
+                        return bOrders - aOrders;
+                    }
+                    if (bOrders !== aOrders) return bOrders - aOrders;
                     if (bSpent !== aSpent) return bSpent - aSpent;
-                    return bOrders - aOrders;
+                    return bCycles - aCycles;
                 }
 
                 if (bSpent !== aSpent) return bSpent - aSpent;

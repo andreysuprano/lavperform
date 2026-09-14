@@ -1,6 +1,6 @@
 import { z } from "zod"
 
-import { COMPANY_STATUS_VALUES } from "./types"
+import { COMPANY_SERVICE_MODEL_VALUES, COMPANY_STATUS_VALUES } from "./types"
 
 const requiredString = (label: string) =>
   z
@@ -68,6 +68,7 @@ export const createCompanySchema = z.object({
   city: requiredString("Cidade"),
   state: ufSchema,
   businessPartnerId: optionalString,
+  serviceModel: z.enum(COMPANY_SERVICE_MODEL_VALUES).default("CONVENTIONAL"),
 })
 
 export type CreateCompanyInput = z.infer<typeof createCompanySchema>
@@ -83,6 +84,7 @@ export const updateCompanySchema = z.object({
   address: addressSchema,
   showIncentivizedSales: z.boolean(),
   showTodayPurchases: z.boolean(),
+  serviceModel: z.enum(COMPANY_SERVICE_MODEL_VALUES),
 })
 
 export type UpdateCompanyInput = z.infer<typeof updateCompanySchema>

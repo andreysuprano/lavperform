@@ -1,12 +1,19 @@
-import { render, screen } from '@testing-library/react'
-import { describe, expect, it, vi } from 'vitest'
+import { cleanup, render, screen } from '@testing-library/react'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Provider } from '@/components'
 
 import { DashboardOpsMetrics } from './DashboardOpsMetrics'
 
+const authState = {
+  selectedCompany: {
+    id: 'company-1',
+    serviceModel: 'SELF_SERVICE' as const,
+  },
+}
+
 vi.mock('@/context/AuthContext', () => ({
-  useAuth: () => ({ selectedCompany: { id: 'company-1' } }),
+  useAuth: () => authState,
 }))
 
 vi.mock('@/hooks/queries', () => ({
@@ -55,7 +62,11 @@ function renderMetrics() {
 }
 
 describe('DashboardOpsMetrics', () => {
+  afterEach(() => {
+    cleanup()
+  })
   it('renders six metric cards with daily cycles as third slot', () => {
+    authState.selectedCompany.serviceModel = 'SELF_SERVICE'
     renderMetrics()
 
     expect(
@@ -68,5 +79,13 @@ describe('DashboardOpsMetrics', () => {
       expect.stringContaining('Reconquista'),
       expect.stringContaining('Novos'),
     ])
+  })
+
+  it('hides Ciclos do dia for conventional companies', () => {
+    authState.selectedCompany.serviceModel = 'CONVENTIONAL'
+    renderMetrics()
+
+    expect(screen.queryByText(/Ciclos do dia/)).not.toBeInTheDocument()
+    expect(screen.getAllByTestId('metric-card')).toHaveLength(5)
   })
 })
