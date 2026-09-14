@@ -1086,8 +1086,10 @@ model WeatherAlert {
 }
 
 model WeatherData {
-  id       String @id @default(uuid())
-  cityName String @unique
+  id          String  @id @default(uuid())
+  locationKey String  @unique
+  cityName    String
+  state       String?
 
   // Location data
   region         String
@@ -1147,6 +1149,7 @@ model WeatherData {
   updatedAt DateTime @updatedAt
 
   @@index([cityName])
+  @@index([locationKey])
   @@map("weather_data")
 }
 

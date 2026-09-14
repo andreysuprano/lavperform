@@ -93,6 +93,7 @@ function WeatherStatusBase() {
       </Text>
       <Text fontSize="sm">
         {weatherData.cityName}
+        {weatherData.state ? ` - ${weatherData.state}` : ''}
       </Text>
     </Button>
   )

@@ -46,6 +46,7 @@ export interface WeatherAlertHistory {
 export interface WeatherData {
   id: string
   cityName: string
+  state?: string | null
   region: string
   country: string
   lat: number

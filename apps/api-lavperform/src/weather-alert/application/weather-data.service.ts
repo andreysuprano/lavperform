@@ -1,7 +1,15 @@
 import { Injectable, Logger, Inject } from '@nestjs/common';
 import { IWeatherDataRepository } from '../domain/weather-data.repository.interface';
 import { WeatherApiService, WeatherApiResponse } from '../infrastructure/api/weather-api.service';
+import { BrasilApiCepGeocodeService } from '../infrastructure/api/brasil-api-cep-geocode.service';
 import { normalizeString } from '../../common/utils/normalize-string';
+import {
+    buildCoordinateQuery,
+    buildLocationKey,
+    buildTextWeatherQuery,
+    isValidBrazilianCep,
+    WeatherLocationInput,
+} from '../domain/weather-location';
 
 @Injectable()
 export class WeatherDataService {
@@ -11,28 +19,73 @@ export class WeatherDataService {
         @Inject('IWeatherDataRepository')
         private readonly weatherDataRepository: IWeatherDataRepository,
         private readonly weatherApiService: WeatherApiService,
+        private readonly cepGeocodeService: BrasilApiCepGeocodeService,
     ) {
         this.logger = new Logger(WeatherDataService.name);
     }
 
-    async fetchAndUpdateWeatherData(cityName: string): Promise<void> {
-        this.logger.log(`Atualizando dados do tempo para: ${cityName}`);
+    async fetchAndUpdateWeatherData(location: WeatherLocationInput): Promise<void> {
+        this.logger.log(`Atualizando dados do tempo para: ${location.city}`);
 
         try {
-            const weatherData = await this.weatherApiService.getCurrentWeather(cityName);
-            await this.saveWeatherData(cityName, weatherData);
-            this.logger.log(`Dados do tempo atualizados com sucesso para: ${cityName}`);
+            const weatherData = await this.fetchWeatherWithFallback(location);
+            await this.saveWeatherData(location, weatherData);
+            this.logger.log(`Dados do tempo atualizados com sucesso para: ${location.city}`);
         } catch (error) {
-            this.logger.error(`Erro ao atualizar dados do tempo para ${cityName}:`, error.message);
+            this.logger.error(`Erro ao atualizar dados do tempo para ${location.city}:`, error.message);
             throw error;
         }
     }
 
-    private async saveWeatherData(cityName: string, data: WeatherApiResponse): Promise<void> {
-        const normalizedCityName = normalizeString(cityName);
-        this.logger.debug(`Salvando dados para cidade: ${normalizedCityName} (API retornou: ${data.location.name})`);
-        await this.weatherDataRepository.upsertByCityName(normalizedCityName, {
-            cityName: normalizedCityName,
+    private async fetchWeatherWithFallback(location: WeatherLocationInput): Promise<WeatherApiResponse> {
+        const queries: string[] = [];
+
+        if (isValidBrazilianCep(location.zipCode)) {
+            const coords = await this.cepGeocodeService.resolveCoordinates(location.zipCode as string);
+            if (coords) {
+                queries.push(buildCoordinateQuery(coords.lat, coords.lon));
+            }
+        }
+
+        const textQuery = buildTextWeatherQuery(location);
+        if (!queries.includes(textQuery)) {
+            queries.push(textQuery);
+        }
+
+        const cityOnlyQuery = buildTextWeatherQuery({ city: location.city });
+        if (!queries.includes(cityOnlyQuery)) {
+            queries.push(cityOnlyQuery);
+        }
+
+        let lastError: unknown;
+        for (const query of queries) {
+            try {
+                this.logger.debug(`Consultando WeatherAPI com q=${query}`);
+                return await this.weatherApiService.getCurrentWeather(query);
+            } catch (error) {
+                lastError = error;
+                this.logger.warn(`Falha na query meteorológica "${query}": ${error?.message ?? error}`);
+            }
+        }
+
+        throw lastError;
+    }
+
+    private async saveWeatherData(location: WeatherLocationInput, data: WeatherApiResponse): Promise<void> {
+        const locationKey = buildLocationKey(location.city, location.state);
+        const cityName = normalizeString(location.city);
+        const state = location.state?.trim()
+            ? normalizeString(location.state).toUpperCase()
+            : null;
+
+        this.logger.debug(
+            `Salvando dados para ${locationKey} (API retornou: ${data.location.name})`,
+        );
+
+        await this.weatherDataRepository.upsertByLocationKey(locationKey, {
+            locationKey,
+            cityName,
+            state,
             region: data.location.region,
             country: data.location.country,
             lat: data.location.lat,
@@ -78,14 +131,8 @@ export class WeatherDataService {
         });
     }
 
-    async getWeatherByCityName(cityName: string) {
-        const normalizedCityName = normalizeString(cityName);
-        return this.weatherDataRepository.findByCityName(normalizedCityName);
-    }
-
-    async getAllUniqueCities(): Promise<string[]> {
-        const result = await this.weatherDataRepository.findAll();
-        const weatherData = Array.isArray(result) ? result : result.items;
-        return [...new Set(weatherData.map(data => data.cityName))];
+    async getWeatherByLocation(cityName: string, state?: string | null) {
+        const locationKey = buildLocationKey(cityName, state);
+        return this.weatherDataRepository.findByLocationKey(locationKey);
     }
 }

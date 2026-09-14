@@ -8,7 +8,6 @@ import { WeatherDataService } from '../../application/weather-data.service';
 import { WeatherCondition } from '../../domain/weather-alert.entity';
 import { resolveWeatherAlertMessage } from '../../domain/weather-alert-messages.constants';
 import { CampaignChannel, MessageStatus } from '@prisma/client';
-import { normalizeString } from '../../../common/utils/normalize-string';
 import { RenitencyEvaluatorService } from '../../../renitency/application/renitency-evaluator.service';
 
 @Processor(QUEUE_NAMES.WEATHER_ALERT_PROCESSOR)
@@ -44,12 +43,13 @@ export class WeatherAlertProcessor {
                 return;
             }
 
-            // Busca dados meteorológicos da cidade
-            const cityName = normalizeString(company.address.city);
-            const weatherData = await this.weatherDataService.getWeatherByCityName(cityName);
+            const weatherData = await this.weatherDataService.getWeatherByLocation(
+                company.address.city,
+                company.address.state,
+            );
 
             if (!weatherData) {
-                this.logger.warn(`Dados meteorológicos não encontrados para ${cityName}`);
+                this.logger.warn(`Dados meteorológicos não encontrados para ${company.address.city}`);
                 return;
             }
 
