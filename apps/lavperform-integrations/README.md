@@ -21,13 +21,19 @@ pedido, respeitando idempotência por `externalOrderId`.
 
 ## Requisitos
 
-- Node.js 20+ (testado em Node 24)
+- Node.js 22.12+ para `yarn dev:integrations` (Electron 43; typecheck/build aceitam Node 20)
 - Yarn 4.3 (`packageManager` no `package.json` da raiz do monorepo)
 
 Instalar dependências **na raiz** do monorepo, não nesta pasta:
 
 ```bash
 yarn install
+```
+
+O Electron 43 não corre `postinstall` sozinho; o workspace baixa o binário no `postinstall` local. Se aparecer `Error: Electron uninstall`, na raiz:
+
+```bash
+yarn workspace @lavperform/integrations postinstall
 ```
 
 ## Desenvolvimento
