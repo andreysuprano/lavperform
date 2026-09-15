@@ -1,0 +1,25 @@
+appId: cloud.lavperform.integrations
+productName: LavPerform Integrações
+directories:
+  buildResources: build
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintrc,.prettierrc,tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  - '!{.env,.env.*}'
+extraResources:
+  - from: resources
+    to: resources
+mac:
+  category: public.app-category.business
+  target:
+    - dmg
+win:
+  target:
+    - target: nsis
+      arch:
+        - x64
+nsis:
+  oneClick: false
+  allowToChangeInstallationDirectory: true
