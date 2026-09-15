@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import {
   createEmptyStats,
   DEFAULT_LAUNDRYKIT_URL,
@@ -120,7 +120,6 @@ export function App() {
   const [logs, setLogs] = useState<ImportLogEntry[]>([])
   const [formError, setFormError] = useState<string | null>(null)
   const [finishedNote, setFinishedNote] = useState<string | null>(null)
-  const logIdRef = useRef(0)
 
   useEffect(() => {
     const off = window.api.onImportEvent((event) => {
@@ -166,7 +165,6 @@ export function App() {
     setStats(createEmptyStats())
     setHasProgress(false)
     setStatus('running')
-    logIdRef.current = 0
 
     try {
       await window.api.startImport(buildConfig(form))
