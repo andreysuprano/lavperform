@@ -23,7 +23,6 @@ import { RenitencyEvaluatorService } from 'src/renitency/application/renitency-e
 import { extractErrorMessage } from 'src/common/utils/error.utils';
 import { shouldInvalidateWhatsappOnSendError } from 'src/whatsapp/application/whatsapp-verification.policy';
 import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
-import { AutomaticMessageDailyGuardService } from 'src/automatic-campaign/application/automatic-message-daily-guard.service';
 import { AutomaticCampaignSlotRefillService } from 'src/automatic-campaign/application/automatic-campaign-slot-refill.service';
 
 interface MessageProcessorData {
@@ -42,7 +41,6 @@ export class MessageProcessor {
         private readonly whatsappService: WhatsappService,
         private readonly eventEmitter: EventEmitter2,
         private readonly renitencyEvaluator: RenitencyEvaluatorService,
-        private readonly dailyGuard: AutomaticMessageDailyGuardService,
         private readonly slotRefill: AutomaticCampaignSlotRefillService,
         @Optional()
         private readonly metaMessagingService?: MetaMessagingService,
@@ -76,18 +74,6 @@ export class MessageProcessor {
                         status: MessageStatus.ABORTED,
                         error: CAMPAIGN_PAUSED_ABORT_ERROR,
                     },
-                });
-                return;
-            }
-        }
-
-        if (fresh.automaticCampaignId) {
-            const claim = await this.dailyGuard.claimForProcessing(message.id);
-            if (!claim.allowed) {
-                await this.slotRefill.requestAfterAbort({
-                    automaticCampaignId: fresh.automaticCampaignId,
-                    abortedMessageId: message.id,
-                    reason: 'daily-duplicate',
                 });
                 return;
             }
