@@ -1,0 +1,35 @@
+{
+  "name": "@lavperform/integrations",
+  "version": "0.1.0",
+  "private": true,
+  "description": "App desktop LavPerform para importação de histórico de integrações (Laundry Kit, SisLav) para a API aberta.",
+  "author": "LavPerform",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "electron-vite dev",
+    "preview": "electron-vite preview",
+    "build": "electron-vite build",
+    "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
+    "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
+    "typecheck": "yarn typecheck:node && yarn typecheck:web",
+    "package": "yarn build && electron-builder",
+    "package:win": "yarn build && electron-builder --win --x64",
+    "package:mac": "yarn build && electron-builder --mac"
+  },
+  "dependencies": {
+    "axios": "^1.7.9"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "electron": "^43.0.0",
+    "electron-builder": "^26.0.0",
+    "electron-vite": "^5.0.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "typescript": "^5.7.2",
+    "vite": "^6.0.7"
+  }
+}
