@@ -11,7 +11,6 @@ import { RenitencyEvaluatorService } from '../../../renitency/application/renite
 import { resolveSendTimeWindow } from '../../application/campaign-send-schedule.utils';
 import { CampaignCustomerResolverService } from '../../../audiences/application/campaign-customer-resolver.service';
 import { CustomersService } from '../../../customers/application/customers.service';
-import { AutomaticMessageDailyGuardService } from '../../application/automatic-message-daily-guard.service';
 import { WhatsappService } from '../../../whatsapp/application/whatsapp.service';
 import { isWhatsappVerificationFresh } from '../../../whatsapp/application/whatsapp-verification.policy';
 
@@ -27,7 +26,6 @@ export class AutomaticCampaignsProcessor {
     private readonly renitencyEvaluator: RenitencyEvaluatorService,
     private readonly campaignCustomerResolver: CampaignCustomerResolverService,
     private readonly customersService: CustomersService,
-    private readonly dailyGuard: AutomaticMessageDailyGuardService,
     private readonly whatsappService: WhatsappService,
   ) { }
 
@@ -155,11 +153,6 @@ export class AutomaticCampaignsProcessor {
         take: requestedTake,
       });
 
-      const dailySnapshot = await this.dailyGuard.loadDailySnapshot({
-        companyId: campaign.companyId,
-        now,
-      });
-
       const readyCustomers: typeof candidates = [];
       const staleCustomers: { customer: (typeof candidates)[number]; phone: string }[] = [];
 
@@ -177,15 +170,6 @@ export class AutomaticCampaignsProcessor {
           if (candidate.phone) {
             staleCustomers.push({ customer: candidate, phone: candidate.phone });
           }
-          continue;
-        }
-
-        const dailyReservation = dailySnapshot.tryReserve({
-          id: `candidate:${candidate.id}`,
-          customerId: candidate.id,
-          phone: candidate.phone,
-        });
-        if (!dailyReservation.allowed) {
           continue;
         }
 
@@ -217,14 +201,6 @@ export class AutomaticCampaignsProcessor {
             );
 
             if (isReachable) {
-              const dailyReservation = dailySnapshot.tryReserve({
-                id: `candidate:${customer.id}`,
-                customerId: customer.id,
-                phone,
-              });
-              if (!dailyReservation.allowed) {
-                continue;
-              }
               customers.push(customer);
             }
           } catch (error) {

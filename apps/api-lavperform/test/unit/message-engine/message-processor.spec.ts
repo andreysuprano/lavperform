@@ -20,9 +20,6 @@ describe('MessageProcessor', () => {
     shouldApplyRenitency: jest.fn().mockReturnValue(false),
     canContactCustomer: jest.fn().mockResolvedValue({ allowed: true }),
   };
-  const dailyGuard: any = {
-    claimForProcessing: jest.fn().mockResolvedValue({ allowed: true }),
-  };
   const slotRefill: any = {
     requestAfterAbort: jest.fn().mockResolvedValue(undefined),
   };
@@ -33,7 +30,6 @@ describe('MessageProcessor', () => {
     jest.clearAllMocks();
     renitencyEvaluator.shouldApplyRenitency.mockReturnValue(false);
     renitencyEvaluator.canContactCustomer.mockResolvedValue({ allowed: true });
-    dailyGuard.claimForProcessing.mockResolvedValue({ allowed: true });
     slotRefill.requestAfterAbort.mockResolvedValue(undefined);
     prisma.message.findUnique = jest.fn().mockResolvedValue({
       id: 'msg1',
@@ -49,7 +45,6 @@ describe('MessageProcessor', () => {
       whatsappService,
       eventEmitter,
       renitencyEvaluator,
-      dailyGuard,
       slotRefill,
     );
   });
@@ -338,32 +333,17 @@ describe('MessageProcessor', () => {
     expect(prisma.customer.updateMany).not.toHaveBeenCalled();
   });
 
-  it('does not send when daily guard blocks an automatic campaign message', async () => {
-    dailyGuard.claimForProcessing.mockResolvedValue({
-      allowed: false,
-      blockerId: 'older-message',
-    });
+  it('sends automatic campaign messages without a cross-campaign daily identity lock', async () => {
+    prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'tok' });
+    whatsappService.sendMessageWithImage = jest.fn().mockResolvedValue(undefined);
+    prisma.message.updateMany = jest.fn().mockResolvedValue({ count: 1 });
+    prisma.campaignMetric.updateMany = jest.fn().mockResolvedValue({});
+    prisma.customer.updateMany = jest.fn().mockResolvedValue({});
 
     await processor.process(baseJob);
 
-    expect(dailyGuard.claimForProcessing).toHaveBeenCalledWith('msg1');
-    expect(whatsappService.sendMessageWithImage).not.toHaveBeenCalled();
-    expect(renitencyEvaluator.canContactCustomer).not.toHaveBeenCalled();
-  });
-
-  it('requests refill when daily guard aborts an automatic campaign message', async () => {
-    dailyGuard.claimForProcessing.mockResolvedValue({
-      allowed: false,
-      blockerId: 'older-message',
-    });
-
-    await processor.process(baseJob);
-
-    expect(slotRefill.requestAfterAbort).toHaveBeenCalledWith({
-      automaticCampaignId: 'ac1',
-      abortedMessageId: 'msg1',
-      reason: 'daily-duplicate',
-    });
+    expect(whatsappService.sendMessageWithImage).toHaveBeenCalled();
+    expect(slotRefill.requestAfterAbort).not.toHaveBeenCalled();
   });
 
   it('requests refill when renitency aborts without reschedule', async () => {
@@ -406,7 +386,7 @@ describe('MessageProcessor', () => {
     expect(slotRefill.requestAfterAbort).not.toHaveBeenCalled();
   });
 
-  it('does not call daily guard for messages without automaticCampaignId', async () => {
+  it('sends messages without automaticCampaignId', async () => {
     prisma.message.findUnique = jest.fn().mockResolvedValue({
       id: 'msg1',
       status: MessageStatus.PROCESSING,
@@ -427,7 +407,6 @@ describe('MessageProcessor', () => {
 
     await processor.process(manualJob);
 
-    expect(dailyGuard.claimForProcessing).not.toHaveBeenCalled();
     expect(whatsappService.sendMessageWithImage).toHaveBeenCalled();
   });
 });

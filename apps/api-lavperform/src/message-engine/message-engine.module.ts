@@ -12,7 +12,6 @@ import { MetaIntegrationModule } from 'src/integrations/meta/meta-integration.mo
 import { DisparoProModule } from 'src/integrations/disparo-pro/disparo-pro.module';
 import { workerProviders } from 'src/common/queue/worker-runtime.config';
 import { RenitencyModule } from 'src/renitency/renitency.module';
-import { AutomaticMessageDailyGuardModule } from 'src/automatic-campaign/automatic-message-daily-guard.module';
 import { AutomaticCampaignSlotRefillModule } from 'src/automatic-campaign/automatic-campaign-slot-refill.module';
 @Module({
   imports: [HttpModule,
@@ -21,7 +20,6 @@ import { AutomaticCampaignSlotRefillModule } from 'src/automatic-campaign/automa
     MetaIntegrationModule,
     DisparoProModule,
     RenitencyModule,
-    AutomaticMessageDailyGuardModule,
     AutomaticCampaignSlotRefillModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.MESSAGE_ENGINE,
