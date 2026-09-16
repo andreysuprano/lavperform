@@ -45,9 +45,12 @@ export interface LaundryKitUser {
   NAME?: string
 }
 
+const LIST_ID_PATTERN = /^T\d+_[0-9a-f-]{8,}$/i
+
 export interface LaundryKitOperation {
   OP_ID: string
   PAYMENT_ID?: string
+  OPERATION_LIST_ID?: string
   ACTION_EXTRA?: boolean
   TIMESTAMP?: number
   STORE_ID?: string
@@ -171,44 +174,145 @@ export function isLaundryKitOperationEligible(operation: LaundryKitOperation): b
   return true
 }
 
-export function mapLaundryKitOperationToIngestDto(
-  operation: LaundryKitOperation,
-  clientCatalog?: LaundryKitClientCatalog,
-): IngestOrderDto {
-  const total = operation.PAYMENT?.VALUE?.FINAL ?? 0
-  const discount = operation.PAYMENT?.VALUE?.DISCOUNT ?? 0
-  const customer = clientCatalog
-    ? clientCatalog.resolveCustomer(operation)
-    : {
-        name: operation.USER?.NAME?.trim() || 'Cliente LaundryKit',
-        cpf: operation.USER?.IDENTIFIER ?? operation.USER_IDENTIFIER,
-      }
+export function laundryKitTimestampPrefix(opId: string): string | null {
+  const match = opId.trim().match(/^(T?\d+)/)
+  return match ? match[1] : null
+}
+
+export function resolveLaundryKitGroupKey(operation: LaundryKitOperation): string {
+  const listId = operation.OPERATION_LIST_ID?.trim()
+  if (listId) return listId
+
+  const paymentId = operation.PAYMENT_ID?.trim()
+  if (paymentId && LIST_ID_PATTERN.test(paymentId)) return paymentId
+
+  const acquirer =
+    operation.PAYMENT?.ID?.trim() || operation.PAYMENT_AUTHORIZATION_CODE?.trim()
+  if (acquirer) return acquirer
+
+  return laundryKitTimestampPrefix(operation.OP_ID) ?? operation.OP_ID.trim()
+}
+
+export function groupLaundryKitOperations(
+  operations: LaundryKitOperation[],
+): LaundryKitOperation[][] {
+  const buckets = new Map<string, LaundryKitOperation[]>()
+  const order: string[] = []
+
+  for (const operation of operations) {
+    const key = resolveLaundryKitGroupKey(operation)
+    let bucket = buckets.get(key)
+    if (!bucket) {
+      bucket = []
+      buckets.set(key, bucket)
+      order.push(key)
+    }
+    bucket.push(operation)
+  }
+
+  return order.map((key) => buckets.get(key)!)
+}
+
+function pickGroupTotal(operations: LaundryKitOperation[]): number {
+  const finals = operations
+    .map((operation) => operation.PAYMENT?.VALUE?.FINAL)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  if (finals.length === 0) return 0
+  return Math.min(...finals)
+}
+
+function pickGroupDiscount(operations: LaundryKitOperation[]): number {
+  const discounts = operations
+    .map((operation) => operation.PAYMENT?.VALUE?.DISCOUNT)
+    .filter((value): value is number => typeof value === 'number' && value > 0)
+  if (discounts.length === 0) return 0
+  return Math.max(...discounts)
+}
+
+function mapMachineItem(operation: LaundryKitOperation) {
   const serviceName = resolveServiceName(operation)
   const machineName = operation.SERVICE?.DETAILS?.MACHINE_NAME?.trim()
   const iotId = operation.SERVICE?.DETAILS?.IOT_ID?.trim()
-  const sourceType = operation.SOURCE?.TYPE
-  const createdAt = timestampToIso(operation.TIMESTAMP)
-  const finishedAt = operation.SERVICE?.STEPS?.FINISHED
-  const updatedAt = finishedAt ? timestampToIso(finishedAt) : createdAt
-
-  const observationParts = [
-    machineName ? `Máquina: ${machineName}` : undefined,
-    iotId ? `Equipamento: ${iotId}` : undefined,
-    operation.SOURCE?.ID ? `Origem: ${operation.SOURCE.ID}` : undefined,
-    operation.PAYMENT_AUTHORIZATION_CODE
-      ? `Auth: ${operation.PAYMENT_AUTHORIZATION_CODE}`
-      : undefined,
-  ].filter(Boolean) as string[]
 
   return {
-    externalOrderId: operation.OP_ID,
-    displayId: parseDisplayId(operation.OP_ID),
-    status: operation.ACTION_DONE === false ? 'cancelled' : 'closed',
-    orderType: resolveOrderType(sourceType),
-    orderTiming: operation.SERVICE_SCHEDULE ? 'scheduled' : 'instant',
-    salesChannel: resolveSalesChannel(operation.SOURCE),
+    itemId: toStableInt(iotId ?? operation.SERVICE?.DETAILS?.OP_TYPE),
+    externalCode: iotId ?? operation.SERVICE?.DETAILS?.OP_TYPE,
+    name: serviceName,
+    quantity: 1,
+    unitPrice: 0,
+    totalPrice: 0,
+    kind: 'service' as const,
+    status: 'confirmed' as const,
+    observation: machineName,
+  }
+}
+
+export function mapLaundryKitGroupToIngestDto(
+  operations: LaundryKitOperation[],
+  clientCatalog?: LaundryKitClientCatalog,
+): IngestOrderDto {
+  if (operations.length === 0) {
+    throw new Error('Grupo LaundryKit vazio')
+  }
+
+  const sorted = [...operations].sort(
+    (a, b) => (a.TIMESTAMP ?? 0) - (b.TIMESTAMP ?? 0) || a.OP_ID.localeCompare(b.OP_ID),
+  )
+  const representative = sorted[0]
+  const total = pickGroupTotal(sorted)
+  const discount = pickGroupDiscount(sorted)
+  const customer = clientCatalog
+    ? clientCatalog.resolveCustomer(representative)
+    : {
+        name: representative.USER?.NAME?.trim() || 'Cliente LaundryKit',
+        cpf: representative.USER?.IDENTIFIER ?? representative.USER_IDENTIFIER,
+      }
+  const createdAt = timestampToIso(representative.TIMESTAMP)
+  const finishedAt = sorted
+    .map((operation) => operation.SERVICE?.STEPS?.FINISHED)
+    .filter((value): value is number => typeof value === 'number' && Number.isFinite(value))
+  const updatedAt =
+    finishedAt.length > 0 ? timestampToIso(Math.max(...finishedAt)) : createdAt
+
+  const machineNames = sorted
+    .map((operation) => operation.SERVICE?.DETAILS?.MACHINE_NAME?.trim())
+    .filter(Boolean)
+  const iotIds = sorted
+    .map((operation) => operation.SERVICE?.DETAILS?.IOT_ID?.trim())
+    .filter(Boolean)
+  const auth =
+    representative.PAYMENT_AUTHORIZATION_CODE?.trim() ||
+    representative.PAYMENT?.ID?.trim()
+
+  const observationParts = [
+    machineNames.length > 0 ? `Máquinas: ${machineNames.join(', ')}` : undefined,
+    iotIds.length > 0 ? `Equipamentos: ${iotIds.join(', ')}` : undefined,
+    representative.SOURCE?.ID ? `Origem: ${representative.SOURCE.ID}` : undefined,
+    auth ? `Auth: ${auth}` : undefined,
+  ].filter(Boolean) as string[]
+
+  const voucherOp = sorted.find(
+    (operation) =>
+      (operation.PAYMENT?.VALUE?.DISCOUNT ?? 0) > 0 &&
+      operation.Voucher_Code &&
+      operation.Voucher_Code !== '-',
+  )
+
+  const cancelled = sorted.every((operation) => operation.ACTION_DONE === false)
+
+  return {
+    externalOrderId:
+      sorted.length === 1
+        ? representative.OP_ID
+        : (laundryKitTimestampPrefix(representative.OP_ID) ??
+          resolveLaundryKitGroupKey(representative)),
+    displayId: parseDisplayId(representative.OP_ID),
+    status: cancelled ? 'cancelled' : 'closed',
+    orderType: resolveOrderType(representative.SOURCE?.TYPE),
+    orderTiming: representative.SERVICE_SCHEDULE ? 'scheduled' : 'instant',
+    salesChannel: resolveSalesChannel(representative.SOURCE),
     customerOrigin: 'laundrykit',
-    merchantId: toStableInt(operation.STORE_ID),
+    merchantId: toStableInt(representative.STORE_ID),
     observation:
       observationParts.length > 0 ? observationParts.join(' | ') : undefined,
     deliveryFee: 0,
@@ -222,26 +326,14 @@ export function mapLaundryKitOperationToIngestDto(
       email: customer.email,
       birthDate: customer.birthDate,
     },
-    items: [
-      {
-        itemId: toStableInt(iotId ?? operation.SERVICE?.DETAILS?.OP_TYPE),
-        externalCode: iotId ?? operation.SERVICE?.DETAILS?.OP_TYPE,
-        name: serviceName,
-        quantity: 1,
-        unitPrice: total,
-        totalPrice: total,
-        kind: 'service',
-        status: 'confirmed',
-        observation: machineName,
-      },
-    ],
+    items: sorted.map(mapMachineItem),
     payments: [
       {
         total,
         paymentType: 'offline',
         status: 'paid',
-        paymentMethod: mapPaymentMethod(operation.PAYMENT?.TYPE),
-        observation: operation.PAYMENT?.ACQUIRER_STATUS_MESSAGE,
+        paymentMethod: mapPaymentMethod(representative.PAYMENT?.TYPE),
+        observation: representative.PAYMENT?.ACQUIRER_STATUS_MESSAGE,
         paymentFee: 0,
       },
     ],
@@ -251,14 +343,20 @@ export function mapLaundryKitOperationToIngestDto(
             {
               type: 'voucher',
               value: discount,
-              description:
-                operation.Voucher_Code && operation.Voucher_Code !== '-'
-                  ? `Voucher ${operation.Voucher_Code}`
-                  : 'Desconto LaundryKit',
+              description: voucherOp
+                ? `Voucher ${voucherOp.Voucher_Code}`
+                : 'Desconto LaundryKit',
             },
           ]
         : undefined,
     createdAt,
     updatedAt,
   }
+}
+
+export function mapLaundryKitOperationToIngestDto(
+  operation: LaundryKitOperation,
+  clientCatalog?: LaundryKitClientCatalog,
+): IngestOrderDto {
+  return mapLaundryKitGroupToIngestDto([operation], clientCatalog)
 }

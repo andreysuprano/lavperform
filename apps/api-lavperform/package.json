@@ -50,6 +50,7 @@
     "script:auto-configure-rfv": "ts-node -r tsconfig-paths/register src/scripts/auto-configure-rfv-for-existing-companies.ts",
     "script:seed-laundry-from-json": "ts-node -r tsconfig-paths/register src/scripts/seed-laundry-customers-from-json.ts",
     "script:import-laundrykit-history": "ts-node -r tsconfig-paths/register src/scripts/import-laundrykit-order-history.ts",
+    "script:consolidate-laundrykit-order-groups": "ts-node -r tsconfig-paths/register src/scripts/consolidate-laundrykit-order-groups.ts",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\" --fix",
     "test": "jest",
     "test:unit": "jest --testPathPattern=test/unit",

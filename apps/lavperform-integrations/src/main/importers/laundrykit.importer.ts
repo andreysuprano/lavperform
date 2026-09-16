@@ -11,10 +11,11 @@ import {
   LaundryKitClientCatalog,
 } from '../mappers/laundrykit-client-catalog'
 import {
+  groupLaundryKitOperations,
   isLaundryKitOperationEligible,
   LaundryKitOperation,
   LaundryKitOperationsResponse,
-  mapLaundryKitOperationToIngestDto,
+  mapLaundryKitGroupToIngestDto,
 } from '../mappers/laundrykit-to-ingest'
 import {
   dayEndTimestampMs,
@@ -105,22 +106,23 @@ export async function runLaundrykitImport(
 
     const eligible = operations.filter(isLaundryKitOperationEligible)
     stats.skipped += operations.length - eligible.length
-    stats.ordersEligible += eligible.length
+    const groups = groupLaundryKitOperations(eligible)
+    stats.ordersEligible += groups.length
 
     ctx.log(
       'info',
-      `${operations.length} operação(ões), ${eligible.length} elegível(is)`,
+      `${operations.length} operação(ões), ${eligible.length} elegível(is), ${groups.length} venda(s)`,
     )
     ctx.progress({ ...stats })
 
-    for (let index = 0; index < eligible.length; index++) {
+    for (let index = 0; index < groups.length; index++) {
       if (ctx.isCancelled()) {
         ctx.log('warn', 'Importação cancelada pelo usuário.')
         return stats
       }
 
-      const operation = eligible[index]
-      const payload = mapLaundryKitOperationToIngestDto(operation, catalog)
+      const group = groups[index]
+      const payload = mapLaundryKitGroupToIngestDto(group, catalog)
       const outcome = await ingestOrder(publicApiClient, payload, config.dryRun)
 
       stats.ordersSent += 1
@@ -134,13 +136,13 @@ export async function runLaundrykitImport(
         stats.errors += 1
         ctx.log(
           'error',
-          `Erro ao enviar ${operation.OP_ID}: ${outcome.message ?? 'desconhecido'}`,
+          `Erro ao enviar ${payload.externalOrderId}: ${outcome.message ?? 'desconhecido'}`,
         )
       }
 
       ctx.progress({ ...stats })
 
-      if (config.sendDelayMs > 0 && index < eligible.length - 1) {
+      if (config.sendDelayMs > 0 && index < groups.length - 1) {
         await sleep(config.sendDelayMs)
       }
     }
