@@ -2,10 +2,11 @@ import 'dotenv/config';
 import axios, { AxiosInstance } from 'axios';
 import { IngestOrderDto } from '../public-api/orders/application/dto/ingest-order.dto';
 import {
+  groupLaundryKitOperations,
   isLaundryKitOperationEligible,
   LaundryKitOperation,
   LaundryKitOperationsResponse,
-  mapLaundryKitOperationToIngestDto,
+  mapLaundryKitGroupToIngestDto,
 } from './laundrykit/laundrykit-operation.mapper';
 import { fetchLaundrykitClientCatalog } from './laundrykit/laundrykit-client-catalog';
 import { postLaundrykitRoute } from './laundrykit/laundrykit-api.client';
@@ -349,9 +350,10 @@ async function run(): Promise<void> {
 
     const eligible = operations.filter(isLaundryKitOperationEligible);
     stats.operationsSkipped += operations.length - eligible.length;
-    stats.operationsEligible += eligible.length;
+    const groups = groupLaundryKitOperations(eligible);
+    stats.operationsEligible += groups.length;
 
-    if (eligible.length === 0) {
+    if (groups.length === 0) {
       console.log('   Nenhuma operação elegível (pagamento confirmado)');
       continue;
     }
@@ -361,13 +363,14 @@ async function run(): Promise<void> {
     let daySkipped = 0;
     let dayErrors = 0;
 
-    for (const [index, operation] of eligible.entries()) {
-      const enriched = clientCatalog.resolveCustomer(operation);
+    for (const [index, group] of groups.entries()) {
+      const representative = group[0];
+      const enriched = clientCatalog.resolveCustomer(representative);
       if (enriched.phone) {
         stats.operationsEnriched += 1;
       }
 
-      const payload = mapLaundryKitOperationToIngestDto(operation, clientCatalog);
+      const payload = mapLaundryKitGroupToIngestDto(group, clientCatalog);
       const result = await ingestOrder(foodcrmClient, payload, args.dryRun);
 
       stats.operationsSent += 1;
@@ -385,14 +388,14 @@ async function run(): Promise<void> {
         dayErrors += 1;
       }
 
-      const progress = `[${index + 1}/${eligible.length}]`;
+      const progress = `[${index + 1}/${groups.length}]`;
       if (result === 'queued' || result === 'already_received') {
         console.log(
-          `   ${progress} ${operation.OP_ID} → ${result === 'queued' ? 'enfileirado' : 'já recebido'}`,
+          `   ${progress} ${payload.externalOrderId} (${group.length} máquina(s)) → ${result === 'queued' ? 'enfileirado' : 'já recebido'}`,
         );
       }
 
-      if (args.delayMs > 0 && index < eligible.length - 1) {
+      if (args.delayMs > 0 && index < groups.length - 1) {
         await sleep(args.delayMs);
       }
     }

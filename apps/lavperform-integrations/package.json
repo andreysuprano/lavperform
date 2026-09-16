@@ -12,6 +12,7 @@
     "typecheck:node": "tsc --noEmit -p tsconfig.node.json --composite false",
     "typecheck:web": "tsc --noEmit -p tsconfig.web.json --composite false",
     "typecheck": "yarn typecheck:node && yarn typecheck:web",
+    "test": "node --import tsx --test src/main/mappers/laundrykit-to-ingest.test.ts src/main/clients/maxlav.client.test.ts",
     "postinstall": "node ./scripts/ensure-electron.cjs",
     "package": "yarn build && electron-builder",
     "package:win": "yarn build && electron-builder --win --x64",
@@ -30,6 +31,7 @@
     "electron-vite": "^5.0.0",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
+    "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^6.0.7"
   }
