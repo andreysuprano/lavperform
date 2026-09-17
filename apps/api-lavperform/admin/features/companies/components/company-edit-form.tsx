@@ -178,7 +178,7 @@ export function CompanyEditForm({ companyId }: { companyId: string }) {
                 )}
               />
               <FieldDescription>
-                Convencional mostra só vendas nos rankings. Auto atendimento
+                Convencional mostra só vendas nos rankings. Autoatendimento
                 inclui ciclos.
               </FieldDescription>
               <FieldError>{errors.serviceModel?.message}</FieldError>

@@ -171,7 +171,7 @@ export function CompanyCreateForm() {
                 />
                 <FieldDescription>
                   Define se a dashboard trata vendas convencionais ou também
-                  ciclos de auto atendimento.
+                  ciclos de autoatendimento.
                 </FieldDescription>
                 <FieldError>{errors.serviceModel?.message}</FieldError>
               </Field>

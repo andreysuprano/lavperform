@@ -17,7 +17,7 @@ export const COMPANY_SERVICE_MODEL_LABELS: Record<
   string
 > = {
   CONVENTIONAL: "Convencional",
-  SELF_SERVICE: "Auto atendimento",
+  SELF_SERVICE: "Autoatendimento",
 }
 
 export interface Address {

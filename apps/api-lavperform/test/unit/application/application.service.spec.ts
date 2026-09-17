@@ -265,7 +265,7 @@ describe('ApplicationService', () => {
     expect(result.companies[0].serviceModel).toBe('CONVENTIONAL');
   });
 
-  it('returns serviceModel SELF_SERVICE when the company uses auto atendimento', async () => {
+  it('returns serviceModel SELF_SERVICE when the company uses autoatendimento', async () => {
     const mockUser = new UserEntity(
       'user-1',
       'test@example.com',
