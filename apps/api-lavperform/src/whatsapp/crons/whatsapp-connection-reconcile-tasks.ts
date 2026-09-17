@@ -3,7 +3,6 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { WhatsappInstanceStatus } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { UazapiClient } from '../uazapi/uazapi.client';
-import { UazapiInstanceSummaryDto } from '../uazapi/application/dto/instance-list.dto';
 import {
   WhatsappCompanyConnectionSnapshotService,
 } from '../application/whatsapp-company-connection-snapshot.service';
@@ -20,18 +19,14 @@ export class WhatsappConnectionReconcileTasks {
 
   /** A cada 30 minutos alinha snapshot e status do banco com a UAZAPI. */
   @Cron(CronExpression.EVERY_30_MINUTES)
-  async reconcileConnections(): Promise<void> {
+  async reconcileConnections(): Promise<{
+    synced: number;
+    markedAbsent: number;
+    errors: number;
+  }> {
     this.logger.log('Iniciando reconciliação de conexões WhatsApp');
 
-    let uazapiInstances: UazapiInstanceSummaryDto[];
-    try {
-      uazapiInstances = await this.uazapiClient.getAllInstances();
-    } catch (error: any) {
-      this.logger.error(
-        `Não foi possível buscar instâncias na Uazapi: ${error?.message}`,
-      );
-      return;
-    }
+    const uazapiInstances = await this.uazapiClient.getAllInstances();
 
     const byToken = new Map(uazapiInstances.map((i) => [i.token, i]));
     const dbInstances = await this.prisma.whatsappInstance.findMany({
@@ -131,6 +126,8 @@ export class WhatsappConnectionReconcileTasks {
     this.logger.log(
       `Reconciliação concluída — sincronizadas: ${synced}, absent: ${markedAbsent}, erros: ${errors}`,
     );
+
+    return { synced, markedAbsent, errors };
   }
 
   private mapToDbStatus(raw: string): WhatsappInstanceStatus {

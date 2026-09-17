@@ -87,7 +87,11 @@ describe('WhatsappConnectionReconcileTasks', () => {
     prisma.whatsappCompanyConnection.findMany.mockResolvedValue([]);
     snapshotService.markAbsent.mockResolvedValue({});
 
-    await tasks.reconcileConnections();
+    await expect(tasks.reconcileConnections()).resolves.toEqual({
+      synced: 0,
+      markedAbsent: 1,
+      errors: 0,
+    });
 
     expect(snapshotService.markAbsent).toHaveBeenCalledWith('company1');
     expect(prisma.whatsappInstance.update).toHaveBeenCalledWith({

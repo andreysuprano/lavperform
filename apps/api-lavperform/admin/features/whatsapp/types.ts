@@ -145,6 +145,12 @@ export type RestartApplicationResponse = {
   message: string
 }
 
+export type ReconcileConnectionsResponse = {
+  synced: number
+  markedAbsent: number
+  errors: number
+}
+
 export type InstanceListFilters = {
   search?: string
   status?: UazapiInstanceStatus

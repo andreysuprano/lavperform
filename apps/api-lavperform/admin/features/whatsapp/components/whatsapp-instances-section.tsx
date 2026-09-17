@@ -1,7 +1,7 @@
 "use client"
 
 import { useMemo, useState } from "react"
-import { PlusIcon } from "lucide-react"
+import { PlusIcon, RefreshCwIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import {
@@ -23,10 +23,14 @@ import {
   filterInstances,
   uniqueSystemNames,
 } from "../utils"
-import { useWhatsappInstances } from "../whatsapp-queries"
+import {
+  useReconcileWhatsappConnections,
+  useWhatsappInstances,
+} from "../whatsapp-queries"
 
 export function WhatsappInstancesSection() {
   const instancesQuery = useWhatsappInstances()
+  const reconcileMutation = useReconcileWhatsappConnections()
 
   const [filters, setFilters] = useState<InstanceListFilters>(
     DEFAULT_INSTANCE_LIST_FILTERS
@@ -75,10 +79,24 @@ export function WhatsappInstancesSection() {
             )}
           </p>
         </div>
-        <Button onClick={() => setCreateOpen(true)}>
-          <PlusIcon />
-          Nova instância
-        </Button>
+        <div className="flex flex-wrap items-center gap-2">
+          <Button
+            variant="outline"
+            onClick={() => reconcileMutation.mutate()}
+            disabled={reconcileMutation.isPending}
+          >
+            <RefreshCwIcon
+              className={
+                reconcileMutation.isPending ? "animate-spin" : undefined
+              }
+            />
+            Atualizar snapshot
+          </Button>
+          <Button onClick={() => setCreateOpen(true)}>
+            <PlusIcon />
+            Nova instância
+          </Button>
+        </div>
       </div>
 
       <DisconnectedConnectionsSection />

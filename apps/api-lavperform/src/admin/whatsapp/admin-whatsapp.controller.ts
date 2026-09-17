@@ -3,6 +3,7 @@ import { ApiBearerAuth, ApiBody, ApiOperation, ApiParam, ApiQuery, ApiResponse, 
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
 import { AdminWhatsappService } from './admin-whatsapp.service';
 import { AdminWhatsappConnectionLinkService } from './admin-whatsapp-connection-link.service';
+import { WhatsappConnectionReconcileTasks } from '../../whatsapp/crons/whatsapp-connection-reconcile-tasks';
 import { CreateConnectionLinkDto } from './dto/create-connection-link.dto';
 import { SetGlobalWebhookDto } from './dto/set-global-webhook.dto';
 import { UpdateInstanceAdminFieldsDto } from './dto/update-instance-admin-fields.dto';
@@ -15,6 +16,7 @@ export class AdminWhatsappController {
   constructor(
     private readonly adminWhatsappService: AdminWhatsappService,
     private readonly connectionLinkService: AdminWhatsappConnectionLinkService,
+    private readonly reconcileTasks: WhatsappConnectionReconcileTasks,
   ) {}
 
   // ─── Instâncias ─────────────────────────────────────────────────────────
@@ -39,6 +41,17 @@ export class AdminWhatsappController {
   })
   listDisconnectedConnections() {
     return this.adminWhatsappService.listDisconnectedConnections();
+  }
+
+  @Post('connections/reconcile')
+  @ApiOperation({
+    summary: 'Reconciliar snapshot de conexões com a UAZAPI agora',
+    description:
+      'Executa na hora a mesma reconciliação do cron de 30 minutos: alinha status no banco e marca ausentes as instâncias que não existem mais na UAZAPI.',
+  })
+  @ApiResponse({ status: 201, description: 'Reconciliação concluída' })
+  reconcileConnections() {
+    return this.reconcileTasks.reconcileConnections();
   }
 
   @Get('instances/company/:companyId')
