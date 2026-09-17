@@ -14,6 +14,7 @@ import {
   listConnectionLinks,
   listDisconnectedConnections,
   listWhatsappInstances,
+  reconcileWhatsappConnections,
   restartWhatsappApplication,
   revokeConnectionLink,
   rotateWhatsappAdminToken,
@@ -56,6 +57,24 @@ export function useDisconnectedConnections() {
   return useQuery({
     queryKey: whatsappKeys.disconnected(),
     queryFn: listDisconnectedConnections,
+  })
+}
+
+export function useReconcileWhatsappConnections() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: reconcileWhatsappConnections,
+    onSuccess: (result) => {
+      invalidateInstances(queryClient)
+      toast.success("Snapshot atualizado com a UAZAPI", {
+        description: `${result.synced} sincronizada(s) · ${result.markedAbsent} ausente(s) · ${result.errors} erro(s)`,
+      })
+    },
+    onError: (error) => {
+      toast.error(
+        getErrorMessage(error, "Não foi possível reconciliar as conexões")
+      )
+    },
   })
 }
 

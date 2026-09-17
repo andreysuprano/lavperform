@@ -4,6 +4,7 @@ import type {
   CompanyWhatsappResponse,
   CreateWhatsappInstanceResponse,
   GlobalWebhookConfig,
+  ReconcileConnectionsResponse,
   RestartApplicationResponse,
   RotateTokenResponse,
   WebhookErrorEntry,
@@ -27,6 +28,13 @@ export function listDisconnectedConnections(): Promise<
 > {
   return apiClient<WhatsappConnectionSnapshot[]>(
     "/admin/whatsapp/connections/disconnected"
+  )
+}
+
+export function reconcileWhatsappConnections(): Promise<ReconcileConnectionsResponse> {
+  return apiClient<ReconcileConnectionsResponse>(
+    "/admin/whatsapp/connections/reconcile",
+    { method: "POST" }
   )
 }
 
