@@ -31,6 +31,7 @@ function CampaignPageBannerBase() {
   const isDefaultTheme = theme.id === 'default'
   const { unitSingular } = getBusinessCopy(theme)
   const businessPossessive = isDefaultTheme ? 'Seu' : 'Sua'
+  const standout = isDefaultTheme ? 'bom de mais' : 'boa de mais'
 
   const gridStyle = useMemo(
     () => ({
@@ -134,7 +135,7 @@ function CampaignPageBannerBase() {
               py={0.5}
               whiteSpace="nowrap"
             >
-              bom de mais
+              {standout}
             </Box>{' '}
             pra passar despercebido!
           </Text>
