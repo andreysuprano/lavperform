@@ -264,21 +264,28 @@ export class AutomaticCampaignsProcessor {
 
       // As mensagens criadas agora entram no contador diário da próxima execução,
       // então o retry não duplica envios.
+      // FAILED também volta para IN_PROGRESS: um retry bem-sucedido (edição ou
+      // reprocessamento) não pode deixar o selo vermelho depois que as mensagens
+      // já foram geradas.
+      const shouldMarkInProgress =
+        campaign.status === AutomaticCampaignStatus.PROCESSING ||
+        campaign.status === AutomaticCampaignStatus.FAILED;
+
       await this.prisma.automaticCampaign.update({
         where: { id: campaign.id },
         data: {
           ...(isConclusiveRun ? { lastProcessedAt: nowUTC() } : {}),
           lastProcessingError: null,
           lastProcessingErrorAt: null,
-          ...(campaign.status === AutomaticCampaignStatus.PROCESSING
+          ...(shouldMarkInProgress
             ? { status: AutomaticCampaignStatus.IN_PROGRESS }
             : {}),
         },
       });
 
-      if (campaign.status === AutomaticCampaignStatus.PROCESSING) {
+      if (shouldMarkInProgress) {
         this.logger.log(
-          `Campanha ${campaign.id}: status atualizado de PROCESSING para IN_PROGRESS`,
+          `Campanha ${campaign.id}: status atualizado de ${campaign.status} para IN_PROGRESS`,
         );
       }
 

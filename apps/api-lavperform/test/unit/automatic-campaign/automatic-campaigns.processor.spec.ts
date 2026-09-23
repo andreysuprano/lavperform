@@ -199,6 +199,29 @@ describe('AutomaticCampaignsProcessor', () => {
     });
   });
 
+  it('moves FAILED back to IN_PROGRESS when a later run succeeds', async () => {
+    (getDayOfWeekPtBr as jest.Mock).mockReturnValue('seg');
+
+    prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue(
+      whatsappCampaign({ status: AutomaticCampaignStatus.FAILED }),
+    );
+    campaignCustomerResolver.countEligibleCustomers.mockResolvedValue(1);
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([freshCustomer('cust1')]);
+
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+
+    expect(strategy.generateMessages).toHaveBeenCalledTimes(1);
+    expect(prisma.automaticCampaign.update).toHaveBeenCalledWith({
+      where: { id: 'ac1' },
+      data: expect.objectContaining({
+        lastProcessedAt: FIXED_NOW,
+        lastProcessingError: null,
+        lastProcessingErrorAt: null,
+        status: AutomaticCampaignStatus.IN_PROGRESS,
+      }),
+    });
+  });
+
   it('counts and resolves contactable customers and warms up stale validation', async () => {
     (getDayOfWeekPtBr as jest.Mock).mockReturnValue('seg');
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue(whatsappCampaign());
