@@ -6,23 +6,22 @@ import { GeneratePromptUseCase } from '../../../application/prompt-studio/genera
 import { ProposePromptEditUseCase } from '../../../application/prompt-studio/propose-prompt-edit.use-case';
 import { PromptStudioThreadUseCase } from '../../../application/prompt-studio/prompt-studio-thread.use-case';
 import { TestPromptUseCase } from '../../../application/prompt-studio/test-prompt.use-case';
-import type { PromptDocument, QuestionnaireAnswers } from '../../../application/prompt-studio/prompt-studio.types';
-import type { ProposePromptEditInput } from '../../../application/prompt-studio/propose-prompt-edit.use-case';
+import {
+  GeneratePromptStudioDto,
+  ProposePromptStudioDto,
+  TestPromptStudioDto,
+} from '../../../application/prompt-studio/dtos/prompt-studio.dto';
 
 const DEFAULT_MODEL = 'openai/gpt-5';
 
-type GenerateBody = QuestionnaireAnswers & { modelName?: string };
-
-type TestBody = {
-  document: PromptDocument;
-  question: string;
-  modelName?: string;
-  ragChunks?: Array<{ content: string; score: number; id: string }>;
-};
-
 type ThreadMessageBody = {
   content: string;
-  document: PromptDocument;
+  document: {
+    contextPrompt: string;
+    systemPrompt: string;
+    behaviorGuidelines: string;
+    guardrails: string;
+  };
   modelName?: string;
 };
 
@@ -40,7 +39,7 @@ export class PromptStudioController {
 
   @Post('prompt-studio/generate')
   @ApiOperation({ summary: 'Gerar documento de prompt a partir do questionário' })
-  generate(@Body() body: GenerateBody) {
+  generate(@Body() body: GeneratePromptStudioDto) {
     const { modelName, ...answers } = body;
     return this.generatePrompt.execute({ answers, modelName });
   }
@@ -50,15 +49,17 @@ export class PromptStudioController {
   @ApiParam({ name: 'agentId', description: 'UUID do agente' })
   async generateForAgent(
     @Param('agentId', ParseUUIDPipe) agentId: string,
-    @Body() body: GenerateBody,
+    @Body() body: GeneratePromptStudioDto,
   ) {
-    await this.findAgentById.execute(agentId);
-    return this.generate(body);
+    const agent = await this.findAgentById.execute(agentId);
+    const modelName = body.modelName ?? agent.modelConfig?.modelName ?? DEFAULT_MODEL;
+    const { modelName: _ignored, ...answers } = body;
+    return this.generatePrompt.execute({ answers, modelName });
   }
 
   @Post('prompt-studio/test')
   @ApiOperation({ summary: 'Testar uma pergunta contra o documento (sem WhatsApp)' })
-  test(@Body() body: TestBody) {
+  test(@Body() body: TestPromptStudioDto) {
     return this.testPrompt.execute({
       document: body.document,
       question: body.question,
@@ -72,14 +73,15 @@ export class PromptStudioController {
   @ApiParam({ name: 'agentId', description: 'UUID do agente' })
   async testForAgent(
     @Param('agentId', ParseUUIDPipe) agentId: string,
-    @Body() body: TestBody,
+    @Body() body: TestPromptStudioDto,
   ) {
     const agent = await this.findAgentById.execute(agentId);
     const ragChunks = await this.agentRunner.fetchRagChunks(body.question, agent.companyId);
+    const modelName = body.modelName ?? agent.modelConfig?.modelName ?? DEFAULT_MODEL;
     return this.testPrompt.execute({
       document: body.document,
       question: body.question,
-      modelName: body.modelName,
+      modelName,
       ragChunks: ragChunks.map((chunk) => ({
         id: chunk.id,
         content: chunk.content,
@@ -90,7 +92,7 @@ export class PromptStudioController {
 
   @Post('prompt-studio/propose')
   @ApiOperation({ summary: 'Propor edição do prompt sem persistir' })
-  propose(@Body() body: ProposePromptEditInput) {
+  propose(@Body() body: ProposePromptStudioDto) {
     return this.proposePromptEdit.execute(body);
   }
 
@@ -99,7 +101,7 @@ export class PromptStudioController {
   @ApiParam({ name: 'agentId', description: 'UUID do agente' })
   async proposeForAgent(
     @Param('agentId', ParseUUIDPipe) agentId: string,
-    @Body() body: ProposePromptEditInput,
+    @Body() body: ProposePromptStudioDto,
   ) {
     await this.findAgentById.execute(agentId);
     return this.propose(body);

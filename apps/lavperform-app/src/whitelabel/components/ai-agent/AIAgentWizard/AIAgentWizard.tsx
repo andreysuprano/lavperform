@@ -53,7 +53,6 @@ function AIAgentWizardBase({ onClose }: Props) {
   const [document, setDocument] = useState<PromptDocument | null>(null)
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [proposal, setProposal] = useState<PromptProposal | null>(null)
-  const [draftChanged, setDraftChanged] = useState(false)
   const [isGenerating, setIsGenerating] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [isProposing, setIsProposing] = useState(false)
@@ -92,7 +91,6 @@ function AIAgentWizardBase({ onClose }: Props) {
       setQuestionnaireAnswers(answers)
       setDocument(response.data.document)
       setSuggestedQuestions(response.data.suggestedQuestions)
-      setDraftChanged(false)
     } catch {
       setPromptStepError('Não foi possível gerar o prompt. Tente de novo.')
     } finally {
@@ -134,21 +132,20 @@ function AIAgentWizardBase({ onClose }: Props) {
           answer: payload.answer,
           whatWasWrong: payload.whatWasWrong,
           currentUpdatedAt: null,
-          draftChanged,
+          draftChanged: false,
         })
         setProposal(response.data)
       } finally {
         setIsProposing(false)
       }
     },
-    [document, draftChanged]
+    [document]
   )
 
   const handleAcceptProposal = useCallback(() => {
     if (!document || !proposal) return
     setDocument({ ...document, ...proposal.changes })
     setProposal(null)
-    setDraftChanged(true)
   }, [document, proposal])
 
   const handleDiscardProposal = useCallback(() => {
@@ -157,7 +154,7 @@ function AIAgentWizardBase({ onClose }: Props) {
 
   const handleDocumentChange = useCallback((next: PromptDocument) => {
     setDocument(next)
-    setDraftChanged(true)
+    setProposal(null)
   }, [])
 
   const handleNext = useCallback(async () => {

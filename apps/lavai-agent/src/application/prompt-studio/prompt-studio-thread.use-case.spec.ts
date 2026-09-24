@@ -26,4 +26,15 @@ describe('PromptStudioThreadUseCase', () => {
     await useCase.discard('agent-1');
     expect(repo.rows[1].proposalJson).toBeNull();
   });
+
+  it('não grava mensagem USER quando propose falha', async () => {
+    const repo = memoryRepo();
+    const propose = { execute: jest.fn().mockRejectedValue(new Error('llm down')) };
+    const useCase = new PromptStudioThreadUseCase(repo, propose as never);
+    const document = { contextPrompt: 'L', systemPrompt: 'A', behaviorGuidelines: 'C', guardrails: 'G' };
+    await expect(
+      useCase.send('agent-1', 'Inventou o preço', document, '2026-09-24T00:00:00.000Z', 'openai/gpt-5'),
+    ).rejects.toThrow('llm down');
+    expect(repo.rows).toHaveLength(0);
+  });
 });

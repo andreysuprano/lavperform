@@ -325,6 +325,3 @@ export class LavaiAgentApiService {
     return this.request<void>('post', `/agents/${agentId}/prompt-studio/thread/discard`);
   }
 }
-
-/** @deprecated Use LavaiAgentApiService */
-export { LavaiAgentApiService as OverAgentApiService };

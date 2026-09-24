@@ -26,12 +26,6 @@ export class PromptStudioThreadUseCase {
     modelName: string,
   ): Promise<{ messages: PromptStudioMessageRecord[]; proposal: PromptProposal }> {
     const thread = await this.repo.getOrCreate(agentId);
-    await this.repo.appendMessage({
-      threadId: thread.id,
-      role: 'USER',
-      content,
-      proposalJson: null,
-    });
 
     const proposal = await this.propose.execute({
       document,
@@ -47,6 +41,13 @@ export class PromptStudioThreadUseCase {
     if (isProposalStale(proposal, currentUpdatedAt, false)) {
       throw new ConflictException(STALE_MESSAGE);
     }
+
+    await this.repo.appendMessage({
+      threadId: thread.id,
+      role: 'USER',
+      content,
+      proposalJson: null,
+    });
 
     await this.repo.appendMessage({
       threadId: thread.id,

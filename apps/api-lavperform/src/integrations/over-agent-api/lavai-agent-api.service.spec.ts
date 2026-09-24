@@ -1,9 +1,18 @@
+import { ConfigModule } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
 import { of } from 'rxjs';
-import { LavaiAgentApiService, OverAgentApiService } from './over-agent-api.service';
+import { OverAgentApiModule } from './over-agent-api.module';
+import { LavaiAgentApiService } from './over-agent-api.service';
 
 describe('LavaiAgentApiService', () => {
-  it('mantém OverAgentApiService como alias retrocompatível', () => {
-    expect(OverAgentApiService.prototype).toBe(LavaiAgentApiService.prototype);
+  it('OverAgentApiModule resolve LavaiAgentApiService sem alias circular', async () => {
+    const moduleRef = await Test.createTestingModule({
+      imports: [ConfigModule.forRoot({ isGlobal: true }), OverAgentApiModule],
+    }).compile();
+
+    const service = moduleRef.get(LavaiAgentApiService);
+    expect(service).toBeInstanceOf(LavaiAgentApiService);
+    await moduleRef.close();
   });
 
   it('POST /prompt-studio/generate com o questionário e devolve document e suggestedQuestions', async () => {
