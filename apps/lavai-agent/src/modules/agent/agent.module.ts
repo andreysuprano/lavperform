@@ -17,7 +17,10 @@ import { AgentController } from '../../infrastructure/http/agent/agent.controlle
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
 import { GeneratePromptUseCase } from '../../application/prompt-studio/generate-prompt.use-case';
 import { ProposePromptEditUseCase } from '../../application/prompt-studio/propose-prompt-edit.use-case';
+import { PROMPT_STUDIO_THREAD_REPOSITORY } from '../../application/prompt-studio/prompt-studio-thread.repository.port';
+import { PromptStudioThreadUseCase } from '../../application/prompt-studio/prompt-studio-thread.use-case';
 import { TestPromptUseCase } from '../../application/prompt-studio/test-prompt.use-case';
+import { PrismaPromptStudioThreadRepository } from '../../infrastructure/persistence/repositories/prisma-prompt-studio-thread.repository';
 import { LlmModule } from '../llm/llm.module';
 import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
 
@@ -43,6 +46,9 @@ import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
     GeneratePromptUseCase,
     TestPromptUseCase,
     ProposePromptEditUseCase,
+    PrismaPromptStudioThreadRepository,
+    { provide: PROMPT_STUDIO_THREAD_REPOSITORY, useExisting: PrismaPromptStudioThreadRepository },
+    PromptStudioThreadUseCase,
   ],
   exports: [FindAgentByIdUseCase, PrismaAgentRepository],
 })
