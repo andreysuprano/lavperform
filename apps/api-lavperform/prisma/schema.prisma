@@ -252,6 +252,7 @@ model Partner {
   name                    String
   logoUrl                 String?
   partnerSlug             String?                  @unique
+  active                  Boolean                  @default(true)
   createdAt               DateTime                 @default(now())
   digitalMenuIntegrations DigitalMenuIntegration[]
   baseUrlWebhook          String?

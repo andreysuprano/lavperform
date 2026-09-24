@@ -5,6 +5,7 @@ import { ImportHistoryStrategyFactory } from 'src/integrations/import-history-st
 import { CiccloSalesService } from 'src/integrations/cicclo/application/cicclo-sales.service';
 import { L2AutomateSalesService } from 'src/integrations/l2automate/application/l2automate-sales.service';
 import { MaxlavSalesService } from 'src/integrations/maxlav/application/maxlav-sales.service';
+import { AgidezSalesService } from 'src/integrations/agidez/application/agidez-sales.service';
 import { VmLavSalesService } from 'src/integrations/vmlav/application/vmlav-sales.service';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { DigitalMenuIntegration } from 'src/partners/domain/digital-menu-integration.entity';
@@ -53,6 +54,10 @@ describe('AdminIntegrationsService', () => {
   };
 
   const mockMaxlavSalesService = {
+    importHistoricalSales: jest.fn(),
+  };
+
+  const mockAgidezSalesService = {
     importHistoricalSales: jest.fn(),
   };
 
@@ -129,6 +134,10 @@ describe('AdminIntegrationsService', () => {
         {
           provide: MaxlavSalesService,
           useValue: mockMaxlavSalesService,
+        },
+        {
+          provide: AgidezSalesService,
+          useValue: mockAgidezSalesService,
         },
       ],
     }).compile();

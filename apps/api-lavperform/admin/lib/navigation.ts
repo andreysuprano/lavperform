@@ -6,6 +6,7 @@ import {
   LayoutDashboardIcon,
   MegaphoneIcon,
   MessageCircleIcon,
+  PlugIcon,
   ShieldIcon,
 } from "lucide-react"
 
@@ -20,6 +21,7 @@ const baseNavMainItems: NavItem[] = [
   { title: "Empresas", url: "/companies", icon: Building2Icon },
   { title: "WhatsApp", url: "/whatsapp", icon: MessageCircleIcon },
   { title: "Campanhas", url: "/campaigns", icon: MegaphoneIcon },
+  { title: "Integrações", url: "/integration-partners", icon: PlugIcon },
   {
     title: "Planos de assinatura",
     url: "/billing/plans",
@@ -66,6 +68,7 @@ const pageTitles: Record<string, string> = {
   "/whatsapp": "WhatsApp",
   "/whatsapp/company": "WhatsApp da empresa",
   "/campaigns": "Campanhas",
+  "/integration-partners": "Integrações",
   "/campaigns/new": "Nova campanha agendada",
   "/campaigns/automatic/new": "Nova campanha automática",
   "/billing/plans": "Planos de assinatura",

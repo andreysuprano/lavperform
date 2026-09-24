@@ -6,6 +6,7 @@ export interface IntegrationPartner {
   partnerSlug: string | null
   logoUrl: string | null
   baseUrlWebhook: string | null
+  active: boolean
   createdAt: string
   requiredFields: string[]
   optionalFields: string[]

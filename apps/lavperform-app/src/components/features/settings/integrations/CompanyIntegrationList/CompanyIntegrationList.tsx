@@ -71,6 +71,9 @@ export const CompanyIntegrationList = () => {
                 onSuccess={fetchIntegrations}
                 partnerId={integration.id}
                 token={defaultIntegration?.apiKey}
+                apiSecret={defaultIntegration?.apiSecret}
+                apiPassword={defaultIntegration?.password}
+                requiredFields={integration.requiredFields}
                 urlCardapio={
                   features.hasDelivery
                     ? defaultIntegration?.digitalMenuUrl

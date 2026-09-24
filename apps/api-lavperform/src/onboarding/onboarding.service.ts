@@ -22,6 +22,7 @@ import { OnboardingWithPaymentDto } from './dto/onboarding-with-payment.dto';
 import { Plan } from '../plans/domain/plan.entity';
 import { resolveSubscriptionBillingType } from '../plans/domain/resolve-subscription-billing-type';
 import { PutCardDto } from '../integrations/asaas/dto/put-card.dto';
+import { getPartnerFieldSchema } from '../admin/integrations/partner-field-catalog';
 
 @Injectable()
 export class OnboardingService {
@@ -428,7 +429,14 @@ export class OnboardingService {
   }
 
   async getPartners(companyId: string) {
-    return await this.partnerRepository.findAllWithIntegrations(companyId);
+    const partners =
+      await this.partnerRepository.findAllWithIntegrations(companyId);
+    return partners
+      .filter((partner) => partner.active !== false)
+      .map((partner) => ({
+        ...partner,
+        requiredFields: getPartnerFieldSchema(partner.partnerSlug).requiredFields,
+      }));
   }
 
   async getPlans() {

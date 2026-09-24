@@ -11,6 +11,28 @@ export function listIntegrationPartners(): Promise<IntegrationPartner[]> {
   return apiClient<IntegrationPartner[]>("/admin/integrations/partners")
 }
 
+export function createCatalogPartner(
+  body: Record<string, unknown>
+): Promise<IntegrationPartner> {
+  return apiClient<IntegrationPartner>("/admin/integrations/partners", {
+    method: "POST",
+    body: JSON.stringify(body),
+  })
+}
+
+export function updateCatalogPartner(
+  partnerId: string,
+  body: Record<string, unknown>
+): Promise<IntegrationPartner> {
+  return apiClient<IntegrationPartner>(
+    `/admin/integrations/partners/${partnerId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }
+  )
+}
+
 export function listCompanyIntegrations(
   companyId: string,
   revealSecrets = false
