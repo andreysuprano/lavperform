@@ -22,7 +22,7 @@ import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-in
 import { AgidezSaleMapping } from '../mappings/agidez-sale-mapping';
 import { AgidezImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
 
-const PARTNER_SLUG = 'AGIDEZ';
+const PARTNER_SLUGS = ['HYBEX', 'AGIDEZ'] as const;
 
 @Injectable()
 export class AgidezSalesService {
@@ -106,7 +106,7 @@ export class AgidezSalesService {
         companyId,
         incoming,
         salesChannel: 'AGIDEZ',
-        partner: { partnerSlug: PARTNER_SLUG, name: 'Agidez' },
+        partner: { partnerSlug: 'HYBEX', name: 'Hybex' },
       });
     }
   }
@@ -122,7 +122,7 @@ export class AgidezSalesService {
       companyId,
       incoming,
       salesChannel: 'AGIDEZ',
-      partner: { partnerSlug: PARTNER_SLUG, name: 'Agidez' },
+      partner: { partnerSlug: 'HYBEX', name: 'Hybex' },
     });
 
     const integratorOrderId = AgidezSaleMapping.toOrder(
@@ -230,11 +230,12 @@ export class AgidezSalesService {
   }
 
   private async resolveIntegration(companyId: string) {
-    const partner = await this.prisma.partner.findUnique({
-      where: { partnerSlug: PARTNER_SLUG },
+    const partner = await this.prisma.partner.findFirst({
+      where: { partnerSlug: { in: [...PARTNER_SLUGS] } },
+      orderBy: { partnerSlug: 'desc' },
     });
     if (!partner) {
-      throw new Error(`Partner ${PARTNER_SLUG} não encontrado no sistema`);
+      throw new Error('Partner HYBEX não encontrado no sistema');
     }
 
     const integration =
@@ -269,13 +270,12 @@ export class AgidezSalesService {
       throw new NotFoundException(`Empresa ${companyId} não encontrada`);
     }
 
-    const partner = await this.prisma.partner.findUnique({
-      where: { partnerSlug: PARTNER_SLUG },
+    const partner = await this.prisma.partner.findFirst({
+      where: { partnerSlug: { in: [...PARTNER_SLUGS] } },
+      orderBy: { partnerSlug: 'desc' },
     });
     if (!partner) {
-      throw new NotFoundException(
-        `Partner ${PARTNER_SLUG} não encontrado no sistema`,
-      );
+      throw new NotFoundException('Partner HYBEX não encontrado no sistema');
     }
 
     const integration =

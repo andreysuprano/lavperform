@@ -134,13 +134,13 @@ async function main() {
 
   const agidezPartner = await prisma.partner.upsert({
     where: { id: 'partner-agidez' },
-    update: { partnerSlug: 'AGIDEZ' },
+    update: { partnerSlug: 'HYBEX', name: 'Hybex' },
     create: {
       id: 'partner-agidez',
-      name: 'Agidez',
+      name: 'Hybex',
       logoUrl: null,
       baseUrlWebhook: null,
-      partnerSlug: 'AGIDEZ',
+      partnerSlug: 'HYBEX',
     },
   });
 

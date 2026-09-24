@@ -65,8 +65,9 @@ function CompanyIntegrationForm({
     },
   })
 
-  const asksAccountCode = requiredFields.includes('apiSecret')
-  const asksApiPassword = requiredFields.includes('password')
+  const isHybex = name.trim().toLowerCase() === 'hybex'
+  const asksAccountCode = isHybex || requiredFields.includes('apiSecret')
+  const asksApiPassword = isHybex || requiredFields.includes('password')
 
   const onSubmit = async (data: FormData) => {
     if (!selectedCompany) return
