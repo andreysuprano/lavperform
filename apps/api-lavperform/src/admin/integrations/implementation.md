@@ -83,6 +83,7 @@ O endpoint `GET /admin/integrations/partners` retorna todos os parceiros do banc
 | `CICCLO` | `merchantId`, `apiKey` | `apiSecret`, `digitalMenuUrl` | Sim | `dedicated` (CiccloSalesService) |
 | `L2AUTOMATE` | `apiKey` | `merchantId`, `digitalMenuUrl` | Sim | `dedicated` (L2AutomateSalesService) |
 | `MAXLAV` | `apiKey` | `merchantId`, `digitalMenuUrl` | Sim | `dedicated` (MaxlavSalesService) |
+| `AGIDEZ` | `apiKey` (token da loja), `apiSecret` (código da conta), `merchantId` (código da loja), `password` (`ApiPassword`) | — | Sim | `dedicated` (AgidezSalesService) |
 | `CONSUMER` | — (somente webhook) | — | Não | — |
 
 **Valores de `importHistoryRoute` na resposta:**
@@ -103,6 +104,7 @@ O endpoint `GET /admin/integrations/partners` retorna todos os parceiros do banc
 | Cicclo | `cicclo-sales-import` → `cicclo-sale-process` |
 | L2 Automate | `l2automate-sales-import` → `l2automate-sale-process` |
 | Maxlav | `maxlav-sales-import` → `maxlav-sale-process` |
+| Agidez | `agidez-sales-import` → `agidez-sale-process` |
 
 ---
 
@@ -483,7 +485,7 @@ sequenceDiagram
   alt slug CARDAPIO_WEB ANOTA_AI SAIPOS ACCON
     Svc->>Factory: resolve(partnerSlug)
     Factory->>Queue: strategy.execute → enfileira jobs
-  else slug VMLAV CICCLO L2AUTOMATE MAXLAV
+  else slug VMLAV CICCLO L2AUTOMATE MAXLAV AGIDEZ
     Svc->>Queue: SalesService.importHistoricalSales
   else CONSUMER
     Svc-->>Admin: 400 não suportado
@@ -508,7 +510,7 @@ sequenceDiagram
 
 - `OnboardingService.createDigitalMenuIntegration` (lógica de upsert) — replicada no `AdminIntegrationsService`
 - `ImportHistoryStrategyFactory` + strategies (Cardápio Web, Anota AI, Saipos, Accon)
-- `VmLavSalesService`, `CiccloSalesService`, `L2AutomateSalesService`, `MaxlavSalesService` (import dedicado)
+- `VmLavSalesService`, `CiccloSalesService`, `L2AutomateSalesService`, `MaxlavSalesService`, `AgidezSalesService` (import dedicado)
 
 **Mascaramento de segredos:** por padrão `apiKey`, `apiSecret`, `username` e `password` retornam `••••••••` quando preenchidos; flags `hasApiKey`, `hasApiSecret`, `hasUsername`, `hasPassword` indicam presença. Use `?revealSecrets=true` para texto claro (somente admin autenticado).
 

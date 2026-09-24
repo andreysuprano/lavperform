@@ -12,6 +12,7 @@ import { ImportHistoryStrategyFactory } from '../../integrations/import-history-
 import { CiccloSalesService } from '../../integrations/cicclo/application/cicclo-sales.service';
 import { L2AutomateSalesService } from '../../integrations/l2automate/application/l2automate-sales.service';
 import { MaxlavSalesService } from '../../integrations/maxlav/application/maxlav-sales.service';
+import { AgidezSalesService } from '../../integrations/agidez/application/agidez-sales.service';
 import { VmLavSalesService } from '../../integrations/vmlav/application/vmlav-sales.service';
 import { DigitalMenuIntegration } from '../../partners/domain/digital-menu-integration.entity';
 import { IDigitalMenuIntegrationRepository } from '../../partners/domain/digital-menu-integration.repository.interface';
@@ -50,6 +51,7 @@ export class AdminIntegrationsService {
     private readonly ciccloSalesService: CiccloSalesService,
     private readonly l2AutomateSalesService: L2AutomateSalesService,
     private readonly maxlavSalesService: MaxlavSalesService,
+    private readonly agidezSalesService: AgidezSalesService,
   ) {}
 
   async listPartners() {
@@ -238,6 +240,13 @@ export class AdminIntegrationsService {
       }
       if (partnerSlug === 'MAXLAV') {
         return this.maxlavSalesService.importHistoricalSales(
+          companyId,
+          dto,
+          integration,
+        );
+      }
+      if (partnerSlug === 'AGIDEZ') {
+        return this.agidezSalesService.importHistoricalSales(
           companyId,
           dto,
           integration,

@@ -5,7 +5,7 @@ import { IImportHistoryStrategy } from './import-history-strategy.interface';
  * Factory que resolve a estratégia de importação de histórico de pedidos
  * com base no partnerSlug da integração da empresa.
  *
- * Parceiros de lavanderia (VMLAV, CICCLO, L2AUTOMATE, MAXLAV) usam rotas
+ * Parceiros de lavanderia (VMLAV, CICCLO, L2AUTOMATE, MAXLAV, AGIDEZ) usam rotas
  * dedicadas em AdminIntegrationsService — não passam por esta factory.
  *
  * Para adicionar suporte unificado a um novo parceiro:
