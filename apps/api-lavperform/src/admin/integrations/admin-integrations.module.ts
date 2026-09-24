@@ -4,6 +4,7 @@ import { CiccloModule } from '../../integrations/cicclo/cicclo.module';
 import { ImportHistoryModule } from '../../integrations/import-history.module';
 import { L2AutomateModule } from '../../integrations/l2automate/l2automate.module';
 import { MaxlavModule } from '../../integrations/maxlav/maxlav.module';
+import { AgidezModule } from '../../integrations/agidez/agidez.module';
 import { VmLavModule } from '../../integrations/vmlav/vmlav.module';
 import { PartnersModule } from '../../partners/partners.module';
 import { AdminCompanyIntegrationsController } from './admin-company-integrations.controller';
@@ -19,6 +20,7 @@ import { AdminIntegrationsService } from './admin-integrations.service';
     CiccloModule,
     L2AutomateModule,
     MaxlavModule,
+    AgidezModule,
   ],
   controllers: [AdminIntegrationsController, AdminCompanyIntegrationsController],
   providers: [AdminIntegrationsService],

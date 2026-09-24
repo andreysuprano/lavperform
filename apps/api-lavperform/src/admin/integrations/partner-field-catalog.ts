@@ -34,6 +34,12 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },
+  AGIDEZ: {
+    requiredFields: ['apiKey', 'apiSecret', 'merchantId', 'password'],
+    optionalFields: [],
+    supportsImportHistory: true,
+    importHistoryRoute: 'dedicated',
+  },
   CONSUMER: {
     requiredFields: [],
     optionalFields: [],
@@ -49,6 +55,7 @@ export const DEDICATED_IMPORT_SLUGS = new Set([
   'CICCLO',
   'L2AUTOMATE',
   'MAXLAV',
+  'AGIDEZ',
 ]);
 
 export function getPartnerFieldSchema(partnerSlug?: string): PartnerFieldSchema {

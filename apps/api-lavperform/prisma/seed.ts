@@ -132,6 +132,18 @@ async function main() {
     },
   });
 
+  const agidezPartner = await prisma.partner.upsert({
+    where: { id: 'partner-agidez' },
+    update: { partnerSlug: 'AGIDEZ' },
+    create: {
+      id: 'partner-agidez',
+      name: 'Agidez',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'AGIDEZ',
+    },
+  });
+
   const maxlavPartner = await prisma.partner.upsert({
     where: { id: 'partner-maxlav' },
     update: { partnerSlug: 'MAXLAV' },

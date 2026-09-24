@@ -33,6 +33,7 @@ import { CiccloModule } from './integrations/cicclo/cicclo.module';
 import { L2AutomateModule } from './integrations/l2automate/l2automate.module';
 import { ConsumerModule } from './integrations/consumer/consumer.module';
 import { MaxlavModule } from './integrations/maxlav/maxlav.module';
+import { AgidezModule } from './integrations/agidez/agidez.module';
 import { RfvEngineModule } from './rfv-engine/rfv-engine.module';
 import { ConversionWindowModule } from './conversion-window/conversion-window.module';
 import { SaleAttributionModule } from './sale-attribution/sale-attribution.module';
@@ -91,6 +92,7 @@ import { CompanyApiKeysModule } from './api-keys/company-api-keys.module';
     L2AutomateModule,
     ConsumerModule,
     MaxlavModule,
+    AgidezModule,
     RfvEngineModule,
     ConversionWindowModule,
     SaleAttributionModule,
