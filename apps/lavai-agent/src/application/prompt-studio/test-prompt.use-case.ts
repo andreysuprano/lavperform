@@ -2,6 +2,7 @@ import { BadGatewayException, Inject, Injectable } from '@nestjs/common';
 import { LLM_PROVIDER_PORT } from '../agent-runner/ports/llm-provider.port';
 import type { LlmProviderPort } from '../agent-runner/ports/llm-provider.port';
 import { PromptBuilderService } from '../agent-runner/services/prompt-builder.service';
+import type { KnowledgeChunkWithScore } from '../knowledge/ports/knowledge-chunk.repository.port';
 import type { PromptDocument } from './prompt-studio.types';
 
 const DEFAULT_MODEL = 'openai/gpt-5';
@@ -32,7 +33,7 @@ export class TestPromptUseCase {
         modelConfig: { maxTokens: 1024 },
       } as never,
       [],
-      input.ragChunks ?? [],
+      this.toKnowledgeChunks(input.ragChunks ?? []),
       input.question,
     );
 
@@ -46,5 +47,20 @@ export class TestPromptUseCase {
     }
 
     return { answer: response.content };
+  }
+
+  private toKnowledgeChunks(
+    chunks: Array<{ content: string; score: number; id: string }>,
+  ): KnowledgeChunkWithScore[] {
+    return chunks.map((chunk) => ({
+      id: chunk.id,
+      content: chunk.content,
+      score: chunk.score,
+      knowledgeBaseId: '',
+      companyId: '',
+      metadata: {},
+      embeddingModel: '',
+      createdAt: new Date(0),
+    }));
   }
 }

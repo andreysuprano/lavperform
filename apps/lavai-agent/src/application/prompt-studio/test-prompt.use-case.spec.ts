@@ -22,7 +22,13 @@ describe('TestPromptUseCase', () => {
     expect(build).toHaveBeenCalledWith(
       expect.objectContaining({ persona: expect.objectContaining({ systemPrompt: 'Atender', contextPrompt: 'Lavanderia' }) }),
       [],
-      [{ id: '1', content: 'Horário 8h-18h', score: 0.9 }],
+      [
+        expect.objectContaining({
+          id: '1',
+          content: 'Horário 8h-18h',
+          score: 0.9,
+        }),
+      ],
       'Qual o horário?',
     );
     expect(jest.mocked(llm.complete).mock.calls[0][0].model).toBe('openai/gpt-5');
