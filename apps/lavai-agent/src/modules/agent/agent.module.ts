@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AGENT_REPOSITORY } from '../../application/agent/ports/agent.repository.port';
 import { CreateAgentUseCase } from '../../application/agent/use-cases/create-agent.use-case';
 import { DeleteAgentUseCase } from '../../application/agent/use-cases/delete-agent.use-case';
@@ -16,10 +16,12 @@ import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-age
 import { AgentController } from '../../infrastructure/http/agent/agent.controller';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
 import { GeneratePromptUseCase } from '../../application/prompt-studio/generate-prompt.use-case';
+import { TestPromptUseCase } from '../../application/prompt-studio/test-prompt.use-case';
 import { LlmModule } from '../llm/llm.module';
+import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
 
 @Module({
-  imports: [LlmModule],
+  imports: [LlmModule, forwardRef(() => AgentRunnerModule)],
   controllers: [AgentController],
   providers: [
     PrismaAgentRepository,
@@ -38,6 +40,7 @@ import { LlmModule } from '../llm/llm.module';
     UpdateAgentNotificationConfigUseCase,
     DeleteAgentUseCase,
     GeneratePromptUseCase,
+    TestPromptUseCase,
   ],
   exports: [FindAgentByIdUseCase, PrismaAgentRepository],
 })
