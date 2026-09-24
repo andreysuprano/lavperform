@@ -99,6 +99,7 @@ export function IntegrationsTable({
                     partnerSlug: integration.partner.partnerSlug,
                     logoUrl: integration.partner.logoUrl,
                     baseUrlWebhook: integration.partner.baseUrlWebhook,
+                    active: true,
                     createdAt: "",
                     requiredFields: [],
                     optionalFields: [],
