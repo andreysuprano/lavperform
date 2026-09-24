@@ -34,6 +34,12 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },
+  HYBEX: {
+    requiredFields: ['apiKey', 'apiSecret', 'merchantId', 'password'],
+    optionalFields: [],
+    supportsImportHistory: true,
+    importHistoryRoute: 'dedicated',
+  },
   AGIDEZ: {
     requiredFields: ['apiKey', 'apiSecret', 'merchantId', 'password'],
     optionalFields: [],
@@ -55,6 +61,7 @@ export const DEDICATED_IMPORT_SLUGS = new Set([
   'CICCLO',
   'L2AUTOMATE',
   'MAXLAV',
+  'HYBEX',
   'AGIDEZ',
 ]);
 
@@ -68,7 +75,7 @@ export function getPartnerFieldSchema(partnerSlug?: string): PartnerFieldSchema 
     };
   }
   return (
-    PARTNER_FIELD_CATALOG[partnerSlug] ?? {
+    PARTNER_FIELD_CATALOG[partnerSlug.trim().toUpperCase()] ?? {
       requiredFields: ['apiKey'],
       optionalFields: OPTIONAL_COMMON,
       supportsImportHistory: false,

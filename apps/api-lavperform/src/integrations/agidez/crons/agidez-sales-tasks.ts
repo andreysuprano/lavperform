@@ -29,7 +29,7 @@ export class AgidezSalesTasks {
           digitalMenuIntegration: {
             some: {
               active: true,
-              partner: { partnerSlug: 'AGIDEZ' },
+              partner: { partnerSlug: { in: ['HYBEX', 'AGIDEZ'] } },
             },
           },
         },
@@ -37,7 +37,7 @@ export class AgidezSalesTasks {
           digitalMenuIntegration: {
             where: {
               active: true,
-              partner: { partnerSlug: 'AGIDEZ' },
+              partner: { partnerSlug: { in: ['HYBEX', 'AGIDEZ'] } },
             },
             include: { partner: true },
           },

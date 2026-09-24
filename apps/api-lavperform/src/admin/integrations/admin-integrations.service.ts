@@ -349,7 +349,7 @@ export class AdminIntegrationsService {
           integration,
         );
       }
-      if (partnerSlug === 'AGIDEZ') {
+      if (partnerSlug === 'HYBEX' || partnerSlug === 'AGIDEZ') {
         return this.agidezSalesService.importHistoricalSales(
           companyId,
           dto,

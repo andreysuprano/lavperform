@@ -14,7 +14,8 @@ const SLUG_LABELS: Record<string, string> = {
   CICCLO: "Cicclo",
   L2AUTOMATE: "L2 Automate",
   MAXLAV: "Maxlav",
-  AGIDEZ: "Agidez",
+  HYBEX: "Hybex",
+  AGIDEZ: "Hybex",
   CONSUMER: "Consumer",
 }
 
@@ -27,6 +28,7 @@ const SUPPORTS_IMPORT_HISTORY_SLUGS = new Set([
   "CICCLO",
   "L2AUTOMATE",
   "MAXLAV",
+  "HYBEX",
   "AGIDEZ",
 ])
 
