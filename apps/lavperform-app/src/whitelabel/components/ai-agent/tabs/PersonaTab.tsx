@@ -289,10 +289,15 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
 
   const handleDiscardPending = useCallback(() => {
     setPendingDocument(null)
-    setProposalPendingGenerationId(null)
+    setPendingGenerationId((id) => id + 1)
     setSuggestedQuestions([])
     setStudioError(null)
-  }, [])
+    void discardProposal
+      .mutateAsync({ agentId: agent.id, silent: true })
+      .catch(() => {
+        // Limpa proposta local via proposalEpoch mesmo se o discard falhar
+      })
+  }, [agent.id, discardProposal])
 
   const handleTest = useCallback(
     async (question: string) => {
@@ -343,11 +348,15 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
         throw new Error(STALE_MESSAGE)
       }
 
+      if (
+        proposalPendingGenerationId !== null &&
+        proposalPendingGenerationId !== pendingGenerationId
+      ) {
+        setChatError(STALE_MESSAGE)
+        throw new Error(STALE_MESSAGE)
+      }
+
       if (pendingDocument) {
-        if (proposalPendingGenerationId !== pendingGenerationId) {
-          setChatError(STALE_MESSAGE)
-          throw new Error(STALE_MESSAGE)
-        }
         setChatError(null)
         setPendingDocument({
           ...pendingDocument,

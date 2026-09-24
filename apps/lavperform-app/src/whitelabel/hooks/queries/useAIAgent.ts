@@ -472,7 +472,12 @@ export function useSendPromptStudioMessage() {
 
 export function useDiscardPromptStudioProposal() {
   return useMutation({
-    mutationFn: async ({ agentId }: { agentId: string }) => {
+    mutationFn: async ({
+      agentId,
+    }: {
+      agentId: string
+      silent?: boolean
+    }) => {
       await aiAgentService.discardPromptStudioProposal(agentId)
     },
     onSuccess: (_data, variables) => {
@@ -482,7 +487,8 @@ export function useDiscardPromptStudioProposal() {
         ),
       })
     },
-    onError: () => {
+    onError: (_error, variables) => {
+      if (variables.silent) return
       toaster.create({
         title: 'Erro',
         description: 'Não foi possível descartar a proposta. Tente novamente.',
