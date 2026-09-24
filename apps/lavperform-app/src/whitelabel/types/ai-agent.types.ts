@@ -59,6 +59,7 @@ export type CommunicationStyleType =
 
 export interface AIAgentPersona {
   personaName?: string
+  contextPrompt?: string
   systemPrompt?: string
   voiceTone?: VoiceToneType
   communicationStyle?: CommunicationStyleType

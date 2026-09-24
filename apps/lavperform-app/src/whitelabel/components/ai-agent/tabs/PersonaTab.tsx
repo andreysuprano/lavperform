@@ -98,6 +98,7 @@ const communicationStyleOptions: CardOption<CommunicationStyleType>[] = [
 
 interface PersonaFormData {
   personaName: string
+  contextPrompt: string
   systemPrompt: string
   voiceTone: VoiceToneType
   communicationStyle: CommunicationStyleType
@@ -115,6 +116,7 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
   const form = useForm<PersonaFormData>({
     defaultValues: {
       personaName: agent.persona?.personaName || '',
+      contextPrompt: agent.persona?.contextPrompt || '',
       systemPrompt: agent.persona?.systemPrompt || '',
       voiceTone: agent.persona?.voiceTone || 'FORMAL',
       communicationStyle: agent.persona?.communicationStyle || 'BALANCED',
@@ -127,6 +129,7 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
   useEffect(() => {
     form.reset({
       personaName: agent.persona?.personaName || '',
+      contextPrompt: agent.persona?.contextPrompt || '',
       systemPrompt: agent.persona?.systemPrompt || '',
       voiceTone: agent.persona?.voiceTone || 'FORMAL',
       communicationStyle: agent.persona?.communicationStyle || 'BALANCED',
@@ -141,6 +144,7 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
       agentId: agent.id,
       data: {
         personaName: values.personaName || undefined,
+        contextPrompt: values.contextPrompt || undefined,
         systemPrompt: values.systemPrompt || undefined,
         voiceTone: values.voiceTone,
         communicationStyle: values.communicationStyle,
@@ -218,6 +222,20 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
               )}
             />
           </SimpleGrid>
+
+          <Controller
+            control={form.control}
+            name="contextPrompt"
+            render={({ field }) => (
+              <MarkdownField
+                label="Contexto do negócio"
+                value={field.value}
+                onChange={field.onChange}
+                placeholder="Informações da unidade injetadas no prompt..."
+                height={200}
+              />
+            )}
+          />
 
           <Controller
             control={form.control}

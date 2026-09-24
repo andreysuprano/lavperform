@@ -1,4 +1,12 @@
 import type {
+  GeneratePromptStudioResult,
+  ProposePromptStudioPayload,
+  PromptDocument,
+  PromptProposal,
+  QuestionnaireAnswers,
+  TestPromptStudioResult,
+} from '@/whitelabel/components/ai-agent/PromptStudio/promptStudio.types'
+import type {
   AIAgent,
   AIAgentConversationMessage,
   AIAgentConversationsResponse,
@@ -193,6 +201,29 @@ export const aiAgentService = {
   async listConversationMessages(agentId: string, conversationId: string) {
     return await client.get<AIAgentConversationMessage[]>(
       `/ai-agents/${agentId}/conversations/${conversationId}/messages`
+    )
+  },
+
+  // ─── Prompt studio ───────────────────────────────────────────────────────
+
+  async generatePromptStudio(data: QuestionnaireAnswers) {
+    return await client.post<GeneratePromptStudioResult>(
+      '/ai-agents/prompt-studio/generate',
+      data
+    )
+  },
+
+  async testPromptStudio(data: { document: PromptDocument; question: string }) {
+    return await client.post<TestPromptStudioResult>(
+      '/ai-agents/prompt-studio/test',
+      data
+    )
+  },
+
+  async proposePromptStudio(data: ProposePromptStudioPayload) {
+    return await client.post<PromptProposal>(
+      '/ai-agents/prompt-studio/propose',
+      data
     )
   },
 }

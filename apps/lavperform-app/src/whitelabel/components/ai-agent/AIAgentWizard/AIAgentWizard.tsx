@@ -1,4 +1,4 @@
-import { Button, HStack, Stack, Steps } from '@chakra-ui/react'
+import { Button, HStack, Input, Stack, Steps, Text } from '@chakra-ui/react'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { memo, useCallback, useState } from 'react'
 import { useForm } from 'react-hook-form'
@@ -9,27 +9,30 @@ import * as yup from 'yup'
 import { CustomDrawer } from '@/components'
 import { useWhiteLabel } from '@/config'
 import {
-  DEFAULT_BEHAVIOR_GUIDELINES,
-  DEFAULT_GUARDRAILS,
-} from '@/whitelabel/constants/aiAgentPersonaDefaults'
-import {
   useCreateAIAgent,
   useUpdateAIAgentMediaConfig,
   useUpdateAIAgentPersona,
 } from '@/whitelabel/hooks'
+import { aiAgentService } from '@/whitelabel/services'
 
 import { AIAgentWizardStep1 } from '../AIAgentWizardStep1'
 import type { Step1FormData } from '../AIAgentWizardStep1'
-import { AIAgentWizardStep2 } from '../AIAgentWizardStep2'
-import type { Step2FormData } from '../AIAgentWizardStep2'
 import { AIAgentWizardStep3 } from '../AIAgentWizardStep3'
 import type { Step3FormData } from '../AIAgentWizardStep3'
+import { PromptDocumentEditor } from '../PromptStudio/PromptDocumentEditor'
+import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
+import { QuestionnaireForm } from '../PromptStudio/QuestionnaireForm'
+import type {
+  PromptDocument,
+  PromptProposal,
+  QuestionnaireAnswers,
+} from '../PromptStudio/promptStudio.types'
 
 import type { Props } from './AIAgentWizard.types'
 
 const STEPS = [
   { label: 'Dados básicos', description: 'Nome e descrição' },
-  { label: 'Persona', description: 'Inteligência e estilo' },
+  { label: 'Prompt', description: 'Questionário e teste' },
   { label: 'Mídia', description: 'Áudio, imagem e vídeo' },
 ]
 
@@ -38,24 +41,23 @@ const step1Schema = yup.object({
   description: yup.string().required('Descrição é obrigatória'),
 })
 
-const step2Schema = yup.object({
-  personaName: yup.string(),
-  systemPrompt: yup.string(),
-  voiceTone: yup.string().required('Tom de voz é obrigatório'),
-  communicationStyle: yup
-    .string()
-    .required('Estilo de comunicação é obrigatório'),
-  language: yup.string(),
-  behaviorGuidelines: yup.string(),
-  guardrails: yup.string(),
-})
-
 function AIAgentWizardBase({ onClose }: Props) {
   const { colorPalette } = useWhiteLabel()
   const navigate = useNavigate()
 
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
+  const [personaName, setPersonaName] = useState('')
+  const [questionnaireAnswers, setQuestionnaireAnswers] =
+    useState<QuestionnaireAnswers | null>(null)
+  const [document, setDocument] = useState<PromptDocument | null>(null)
+  const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
+  const [proposal, setProposal] = useState<PromptProposal | null>(null)
+  const [draftChanged, setDraftChanged] = useState(false)
+  const [isGenerating, setIsGenerating] = useState(false)
+  const [isTesting, setIsTesting] = useState(false)
+  const [isProposing, setIsProposing] = useState(false)
+  const [promptStepError, setPromptStepError] = useState<string | null>(null)
 
   const createAgent = useCreateAIAgent()
   const updatePersona = useUpdateAIAgentPersona()
@@ -64,20 +66,6 @@ function AIAgentWizardBase({ onClose }: Props) {
   const step1Form = useForm<Step1FormData>({
     resolver: yupResolver(step1Schema),
     defaultValues: { name: '', description: '' },
-  })
-
-  const step2Form = useForm<Step2FormData>({
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    resolver: yupResolver(step2Schema) as any,
-    defaultValues: {
-      personaName: '',
-      systemPrompt: '',
-      voiceTone: 'FORMAL',
-      communicationStyle: 'BALANCED',
-      language: 'PT_BR',
-      behaviorGuidelines: DEFAULT_BEHAVIOR_GUIDELINES,
-      guardrails: DEFAULT_GUARDRAILS,
-    },
   })
 
   const step3Form = useForm<Step3FormData>({
@@ -95,6 +83,83 @@ function AIAgentWizardBase({ onClose }: Props) {
 
   const agentName = step1Form.watch('name')
 
+  const handleGenerate = useCallback(async (answers: QuestionnaireAnswers) => {
+    setIsGenerating(true)
+    setPromptStepError(null)
+    setProposal(null)
+    try {
+      const response = await aiAgentService.generatePromptStudio(answers)
+      setQuestionnaireAnswers(answers)
+      setDocument(response.data.document)
+      setSuggestedQuestions(response.data.suggestedQuestions)
+      setDraftChanged(false)
+    } catch {
+      setPromptStepError('Não foi possível gerar o prompt. Tente de novo.')
+    } finally {
+      setIsGenerating(false)
+    }
+  }, [])
+
+  const handleTest = useCallback(
+    async (question: string) => {
+      if (!document) {
+        throw new Error('Documento ausente')
+      }
+      setIsTesting(true)
+      try {
+        const response = await aiAgentService.testPromptStudio({
+          document,
+          question,
+        })
+        return response.data.answer
+      } finally {
+        setIsTesting(false)
+      }
+    },
+    [document]
+  )
+
+  const handlePropose = useCallback(
+    async (payload: {
+      question: string
+      answer: string
+      whatWasWrong: string
+    }) => {
+      if (!document) return
+      setIsProposing(true)
+      try {
+        const response = await aiAgentService.proposePromptStudio({
+          document,
+          question: payload.question,
+          answer: payload.answer,
+          whatWasWrong: payload.whatWasWrong,
+          currentUpdatedAt: null,
+          draftChanged,
+        })
+        setProposal(response.data)
+      } finally {
+        setIsProposing(false)
+      }
+    },
+    [document, draftChanged]
+  )
+
+  const handleAcceptProposal = useCallback(() => {
+    if (!document || !proposal) return
+    setDocument({ ...document, ...proposal.changes })
+    setProposal(null)
+    setDraftChanged(true)
+  }, [document, proposal])
+
+  const handleDiscardProposal = useCallback(() => {
+    setProposal(null)
+  }, [])
+
+  const handleDocumentChange = useCallback((next: PromptDocument) => {
+    setDocument(next)
+    setDraftChanged(true)
+  }, [])
+
   const handleNext = useCallback(async () => {
     if (currentStep === 0) {
       const valid = await step1Form.trigger()
@@ -102,28 +167,35 @@ function AIAgentWizardBase({ onClose }: Props) {
       return
     }
     if (currentStep === 1) {
-      const valid = await step2Form.trigger()
-      if (valid) setCurrentStep(2)
+      if (!document) {
+        setPromptStepError(
+          'Gere o prompt pelo questionário antes de continuar.'
+        )
+        return
+      }
+      setPromptStepError(null)
+      setCurrentStep(2)
     }
-  }, [currentStep, step1Form, step2Form])
+  }, [currentStep, step1Form, document])
 
   const handleFinish = useCallback(async () => {
-    if (isSubmitting) return
+    if (isSubmitting || !document || !questionnaireAnswers) return
 
     setIsSubmitting(true)
     try {
       const s1 = step1Form.getValues()
-      const s2 = step2Form.getValues()
       const s3 = step3Form.getValues()
+      const name = personaName.trim() || agentName || undefined
 
       const agent = await createAgent.mutateAsync({
         name: s1.name,
         description: s1.description,
         persona: {
-          personaName: s2.personaName || undefined,
-          systemPrompt: s2.systemPrompt || undefined,
-          voiceTone: s2.voiceTone,
-          communicationStyle: s2.communicationStyle,
+          personaName: name,
+          contextPrompt: document.contextPrompt || undefined,
+          systemPrompt: document.systemPrompt || undefined,
+          voiceTone: questionnaireAnswers.voiceTone,
+          communicationStyle: questionnaireAnswers.communicationStyle,
           language: 'PT_BR',
         },
         modelConfig: {
@@ -140,13 +212,14 @@ function AIAgentWizardBase({ onClose }: Props) {
       await updatePersona.mutateAsync({
         agentId: agent.id,
         data: {
-          personaName: s2.personaName || undefined,
-          systemPrompt: s2.systemPrompt || undefined,
-          voiceTone: s2.voiceTone,
-          communicationStyle: s2.communicationStyle,
+          personaName: name,
+          contextPrompt: document.contextPrompt || undefined,
+          systemPrompt: document.systemPrompt || undefined,
+          voiceTone: questionnaireAnswers.voiceTone,
+          communicationStyle: questionnaireAnswers.communicationStyle,
           language: 'PT_BR',
-          behaviorGuidelines: s2.behaviorGuidelines,
-          guardrails: s2.guardrails,
+          behaviorGuidelines: document.behaviorGuidelines,
+          guardrails: document.guardrails,
         },
       })
 
@@ -171,9 +244,12 @@ function AIAgentWizardBase({ onClose }: Props) {
     }
   }, [
     isSubmitting,
+    document,
+    questionnaireAnswers,
     step1Form,
-    step2Form,
     step3Form,
+    personaName,
+    agentName,
     createAgent,
     updatePersona,
     updateMediaConfig,
@@ -202,7 +278,7 @@ function AIAgentWizardBase({ onClose }: Props) {
         <Button
           onClick={handleFinish}
           loading={isSubmitting}
-          disabled={isSubmitting}
+          disabled={isSubmitting || !document}
         >
           <RiCheckLine />
           Finalizar
@@ -250,10 +326,54 @@ function AIAgentWizardBase({ onClose }: Props) {
           </Steps.Content>
 
           <Steps.Content index={1}>
-            <AIAgentWizardStep2
-              control={step2Form.control}
-              agentName={agentName}
-            />
+            <Stack gap={8}>
+              <Stack gap={2}>
+                <Text fontWeight="semibold" fontSize="sm">
+                  Nome da persona
+                </Text>
+                <Input
+                  value={personaName}
+                  onChange={(e) => setPersonaName(e.target.value)}
+                  placeholder={agentName || 'Ex: Sofia'}
+                />
+                {agentName ? (
+                  <Text fontSize="xs" color="fg.muted">
+                    Sugestão: &quot;{agentName}&quot;
+                  </Text>
+                ) : null}
+              </Stack>
+
+              <QuestionnaireForm
+                onGenerate={handleGenerate}
+                isGenerating={isGenerating}
+              />
+
+              {promptStepError ? (
+                <Text fontSize="sm" color="fg.error">
+                  {promptStepError}
+                </Text>
+              ) : null}
+
+              {document ? (
+                <>
+                  <PromptDocumentEditor
+                    document={document}
+                    onChange={handleDocumentChange}
+                  />
+                  <PromptTestPanel
+                    document={document}
+                    suggestedQuestions={suggestedQuestions}
+                    proposal={proposal}
+                    onTest={handleTest}
+                    onPropose={handlePropose}
+                    onAcceptProposal={handleAcceptProposal}
+                    onDiscardProposal={handleDiscardProposal}
+                    isTesting={isTesting}
+                    isProposing={isProposing}
+                  />
+                </>
+              ) : null}
+            </Stack>
           </Steps.Content>
 
           <Steps.Content index={2}>
