@@ -15,6 +15,7 @@ import { ToggleAgentActiveUseCase } from '../../application/agent/use-cases/togg
 import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-agent.use-case';
 import { AgentController } from '../../infrastructure/http/agent/agent.controller';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
+import { GeneratePromptUseCase } from '../../application/prompt-studio/generate-prompt.use-case';
 
 @Module({
   controllers: [AgentController],
@@ -34,6 +35,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     UpdateAgentJourneyConfigUseCase,
     UpdateAgentNotificationConfigUseCase,
     DeleteAgentUseCase,
+    GeneratePromptUseCase,
   ],
   exports: [FindAgentByIdUseCase, PrismaAgentRepository],
 })
