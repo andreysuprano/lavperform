@@ -12,6 +12,8 @@ import {
   importIntegrationHistory,
   listCompanyIntegrations,
   listIntegrationPartners,
+  createCatalogPartner,
+  updateCatalogPartner,
   toggleIntegrationActive,
   updateCompanyIntegration,
 } from "./integrations-api"
@@ -168,6 +170,42 @@ export function useDeleteCompanyIntegration(companyId: string) {
     onError: (error) => {
       toast.error(
         getErrorMessage(error, "Não foi possível remover a integração")
+      )
+    },
+  })
+}
+
+export function useCreateCatalogPartner() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: createCatalogPartner,
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: integrationKeys.partners() })
+      toast.success("Integração criada")
+    },
+    onError: (error) => {
+      toast.error(getErrorMessage(error, "Não foi possível criar a integração"))
+    },
+  })
+}
+
+export function useUpdateCatalogPartner() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: ({
+      partnerId,
+      body,
+    }: {
+      partnerId: string
+      body: Record<string, unknown>
+    }) => updateCatalogPartner(partnerId, body),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: integrationKeys.partners() })
+      toast.success("Integração atualizada")
+    },
+    onError: (error) => {
+      toast.error(
+        getErrorMessage(error, "Não foi possível atualizar a integração")
       )
     },
   })

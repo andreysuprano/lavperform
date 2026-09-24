@@ -36,6 +36,9 @@ function CompanyIntegrationForm({
   webhook,
   codigoLoja,
   token,
+  apiSecret,
+  apiPassword,
+  requiredFields = [],
   urlCardapio,
   onSuccess,
 }: Props) {
@@ -56,19 +59,43 @@ function CompanyIntegrationForm({
       webhook: webhook ?? '',
       codigoLoja: codigoLoja ?? '',
       token: token ?? '',
+      apiSecret: apiSecret ?? '',
+      apiPassword: apiPassword ?? '',
       urlCardapio: urlCardapio ?? '',
     },
   })
 
+  const asksAccountCode = requiredFields.includes('apiSecret')
+  const asksApiPassword = requiredFields.includes('password')
+
   const onSubmit = async (data: FormData) => {
     if (!selectedCompany) return
+
+    if (asksAccountCode && !data.apiSecret?.trim()) {
+      toaster.create({
+        title: 'Erro!',
+        description: 'Informe o código da conta.',
+        type: 'error',
+      })
+      return
+    }
+
+    if (asksApiPassword && !data.apiPassword?.trim()) {
+      toaster.create({
+        title: 'Erro!',
+        description: 'Informe o ApiPassword.',
+        type: 'error',
+      })
+      return
+    }
 
     const payload = {
       partnerId,
       apiKey: data.token || '',
-      apiSecret: '',
       merchantId: data.codigoLoja || '',
       digitalMenuUrl: data.urlCardapio || '',
+      ...(asksAccountCode ? { apiSecret: data.apiSecret || '' } : {}),
+      ...(asksApiPassword ? { password: data.apiPassword || '' } : {}),
     }
 
     try {
@@ -190,6 +217,25 @@ function CompanyIntegrationForm({
           required
           {...register('token')}
         />
+        {asksAccountCode && (
+          <Input
+            control={control}
+            label="Código da conta"
+            placeholder="Código da conta"
+            required
+            {...register('apiSecret')}
+          />
+        )}
+        {asksApiPassword && (
+          <Input
+            control={control}
+            label="ApiPassword"
+            placeholder="ApiPassword"
+            required
+            type="password"
+            {...register('apiPassword')}
+          />
+        )}
         {features.hasDelivery && (
           <Input
             control={control}

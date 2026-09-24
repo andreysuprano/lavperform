@@ -4,6 +4,7 @@ export class Partner {
     logoUrl?: string;
     baseUrlWebhook?: string;
     partnerSlug?: string;
+    active?: boolean;
     createdAt: Date;
     digitalMenuIntegrations?: any[];
 

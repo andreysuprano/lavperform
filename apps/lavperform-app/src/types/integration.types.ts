@@ -1,6 +1,8 @@
 export interface DigitalMenuIntegration {
   merchantId?: string
   apiKey?: string
+  apiSecret?: string
+  password?: string
   digitalMenuUrl?: string
 }
 
@@ -9,6 +11,7 @@ export interface CompanyIntegration {
   name: string
   logoUrl?: string
   baseUrlWebhook?: string
+  requiredFields?: string[]
   digitalMenuIntegrations: DigitalMenuIntegration[]
 }
 
@@ -17,7 +20,8 @@ export interface CompanyIntegrationArgs {
   payload: {
     partnerId: string
     apiKey: string
-    apiSecret: string
+    apiSecret?: string
+    password?: string
     merchantId: string
     digitalMenuUrl: string
   }

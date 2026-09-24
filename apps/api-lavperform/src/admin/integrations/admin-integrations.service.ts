@@ -65,6 +65,7 @@ export class AdminIntegrationsService {
         partnerSlug: partner.partnerSlug ?? null,
         logoUrl: partner.logoUrl ?? null,
         baseUrlWebhook: partner.baseUrlWebhook ?? null,
+        active: partner.active !== false,
         createdAt: partner.createdAt,
         requiredFields: schema.requiredFields,
         optionalFields: schema.optionalFields,
@@ -72,6 +73,101 @@ export class AdminIntegrationsService {
         importHistoryRoute: schema.importHistoryRoute,
       };
     });
+  }
+
+  async createCatalogPartner(dto: {
+    name: string;
+    partnerSlug: string;
+    logoUrl?: string;
+    baseUrlWebhook?: string;
+    active?: boolean;
+  }) {
+    const partnerSlug = dto.partnerSlug.trim().toUpperCase();
+    const existing = await this.prisma.partner.findUnique({
+      where: { partnerSlug },
+    });
+    if (existing) {
+      throw new ConflictException(
+        'Já existe uma integração com esse identificador',
+      );
+    }
+
+    const created = await this.partnerRepository.create({
+      name: dto.name.trim(),
+      partnerSlug,
+      logoUrl: dto.logoUrl?.trim() || undefined,
+      baseUrlWebhook: dto.baseUrlWebhook?.trim() || undefined,
+      active: dto.active ?? true,
+    });
+
+    return this.toCatalogPartner(created);
+  }
+
+  async updateCatalogPartner(
+    partnerId: string,
+    dto: {
+      name?: string;
+      partnerSlug?: string;
+      logoUrl?: string | null;
+      baseUrlWebhook?: string | null;
+      active?: boolean;
+    },
+  ) {
+    const current = await this.partnerRepository.findById(partnerId);
+    if (!current) {
+      throw new NotFoundException('Integração não encontrada');
+    }
+
+    const partnerSlug = dto.partnerSlug?.trim().toUpperCase();
+    if (partnerSlug && partnerSlug !== current.partnerSlug) {
+      const existing = await this.prisma.partner.findUnique({
+        where: { partnerSlug },
+      });
+      if (existing && existing.id !== partnerId) {
+        throw new ConflictException(
+          'Já existe uma integração com esse identificador',
+        );
+      }
+    }
+
+    const updated = await this.partnerRepository.update(partnerId, {
+      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+      ...(partnerSlug ? { partnerSlug } : {}),
+      ...(dto.logoUrl !== undefined
+        ? { logoUrl: dto.logoUrl?.trim() || undefined }
+        : {}),
+      ...(dto.baseUrlWebhook !== undefined
+        ? { baseUrlWebhook: dto.baseUrlWebhook?.trim() || undefined }
+        : {}),
+      ...(dto.active !== undefined ? { active: dto.active } : {}),
+    });
+
+    return this.toCatalogPartner(updated);
+  }
+
+  private toCatalogPartner(partner: {
+    id: string;
+    name: string;
+    partnerSlug?: string;
+    logoUrl?: string;
+    baseUrlWebhook?: string;
+    active?: boolean;
+    createdAt: Date;
+  }) {
+    const schema = getPartnerFieldSchema(partner.partnerSlug);
+    return {
+      id: partner.id,
+      name: partner.name,
+      partnerSlug: partner.partnerSlug ?? null,
+      logoUrl: partner.logoUrl ?? null,
+      baseUrlWebhook: partner.baseUrlWebhook ?? null,
+      active: partner.active !== false,
+      createdAt: partner.createdAt,
+      requiredFields: schema.requiredFields,
+      optionalFields: schema.optionalFields,
+      supportsImportHistory: schema.supportsImportHistory,
+      importHistoryRoute: schema.importHistoryRoute,
+    };
   }
 
   async listCompanyIntegrations(companyId: string, revealSecrets = false) {

@@ -9,6 +9,7 @@ export class PartnerMapper {
             logoUrl: raw.logoUrl || undefined,
             baseUrlWebhook: raw.baseUrlWebhook || undefined,
             partnerSlug: raw.partnerSlug || undefined,
+            active: raw.active,
             createdAt: raw.createdAt,
         });
     }
