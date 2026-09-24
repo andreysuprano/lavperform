@@ -9,7 +9,7 @@ import {
 } from '@chakra-ui/react'
 import { memo, useState } from 'react'
 
-import type { PromptDocument, PromptProposal } from './promptStudio.types'
+import type { PromptDocument, PromptProposal } from '@/whitelabel/types'
 
 interface PromptTestPanelProps {
   document: PromptDocument | null

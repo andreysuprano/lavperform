@@ -13,10 +13,9 @@ import * as yup from 'yup'
 import { Select, Textarea } from '@/components/forms'
 import type {
   CommunicationStyleType,
+  QuestionnaireAnswers,
   VoiceToneType,
 } from '@/whitelabel/types'
-
-import type { QuestionnaireAnswers } from './promptStudio.types'
 
 const voiceToneItems = [
   { value: 'FORMAL', label: 'Formal' },

@@ -1,12 +1,4 @@
 import type {
-  GeneratePromptStudioResult,
-  ProposePromptStudioPayload,
-  PromptDocument,
-  PromptProposal,
-  QuestionnaireAnswers,
-  TestPromptStudioResult,
-} from '@/whitelabel/components/ai-agent/PromptStudio/promptStudio.types'
-import type {
   AIAgent,
   AIAgentConversationMessage,
   AIAgentConversationsResponse,
@@ -15,6 +7,12 @@ import type {
   CreateAIAgentMcpServerPayload,
   CreateAIAgentPayload,
   CreateKnowledgeFilePayload,
+  GeneratePromptStudioResult,
+  ProposePromptStudioPayload,
+  PromptDocument,
+  PromptProposal,
+  QuestionnaireAnswers,
+  TestPromptStudioResult,
   UpdateAIAgentFilterConfigPayload,
   UpdateAIAgentJourneyConfigPayload,
   UpdateAIAgentMcpServerPayload,

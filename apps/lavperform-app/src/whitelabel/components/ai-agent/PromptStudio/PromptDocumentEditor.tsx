@@ -3,7 +3,7 @@ import { memo } from 'react'
 
 import { MarkdownField } from '../tabs/MarkdownField'
 
-import type { PromptDocument } from './promptStudio.types'
+import type { PromptDocument } from '@/whitelabel/types'
 
 interface PromptDocumentEditorProps {
   document: PromptDocument

@@ -1,4 +1,4 @@
-import type { CommunicationStyleType, VoiceToneType } from '@/whitelabel/types'
+import type { CommunicationStyleType, VoiceToneType } from './ai-agent.types'
 
 export interface QuestionnaireAnswers {
   services: string

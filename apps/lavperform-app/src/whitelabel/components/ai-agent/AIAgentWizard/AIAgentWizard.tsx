@@ -14,6 +14,11 @@ import {
   useUpdateAIAgentPersona,
 } from '@/whitelabel/hooks'
 import { aiAgentService } from '@/whitelabel/services'
+import type {
+  PromptDocument,
+  PromptProposal,
+  QuestionnaireAnswers,
+} from '@/whitelabel/types'
 
 import { AIAgentWizardStep1 } from '../AIAgentWizardStep1'
 import type { Step1FormData } from '../AIAgentWizardStep1'
@@ -22,11 +27,6 @@ import type { Step3FormData } from '../AIAgentWizardStep3'
 import { PromptDocumentEditor } from '../PromptStudio/PromptDocumentEditor'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
 import { QuestionnaireForm } from '../PromptStudio/QuestionnaireForm'
-import type {
-  PromptDocument,
-  PromptProposal,
-  QuestionnaireAnswers,
-} from '../PromptStudio/promptStudio.types'
 
 import type { Props } from './AIAgentWizard.types'
 
