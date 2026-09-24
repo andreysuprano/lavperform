@@ -95,8 +95,8 @@ export class AdminIntegrationsService {
     const created = await this.partnerRepository.create({
       name: dto.name.trim(),
       partnerSlug,
-      logoUrl: dto.logoUrl?.trim() || null,
-      baseUrlWebhook: dto.baseUrlWebhook?.trim() || null,
+      logoUrl: dto.logoUrl?.trim() || undefined,
+      baseUrlWebhook: dto.baseUrlWebhook?.trim() || undefined,
       active: dto.active ?? true,
     });
 
@@ -134,10 +134,10 @@ export class AdminIntegrationsService {
       ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
       ...(partnerSlug ? { partnerSlug } : {}),
       ...(dto.logoUrl !== undefined
-        ? { logoUrl: dto.logoUrl?.trim() || null }
+        ? { logoUrl: dto.logoUrl?.trim() || undefined }
         : {}),
       ...(dto.baseUrlWebhook !== undefined
-        ? { baseUrlWebhook: dto.baseUrlWebhook?.trim() || null }
+        ? { baseUrlWebhook: dto.baseUrlWebhook?.trim() || undefined }
         : {}),
       ...(dto.active !== undefined ? { active: dto.active } : {}),
     });
