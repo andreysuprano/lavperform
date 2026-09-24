@@ -66,6 +66,7 @@ export interface AIAgentPersona {
   language?: 'PT_BR'
   behaviorGuidelines?: string
   guardrails?: string
+  updatedAt?: string
 }
 
 export interface AIAgentModelConfig {

@@ -2,11 +2,12 @@ import { useMutation, useQuery } from '@tanstack/react-query'
 import { AxiosError } from 'axios'
 
 import { useAuth } from '@/context/AuthContext'
-import { queryKeys, invalidateQueries } from '@/lib/react-query'
+import { queryKeys, invalidateQueries, queryClient } from '@/lib/react-query'
 import { toaster } from '@/components/ui/toaster'
 import { aiAgentService } from '@/whitelabel/services'
 import type {
   CreateAIAgentPayload,
+  PromptDocument,
   UpdateAIAgentPayload,
   UpdateAIAgentPersonaPayload,
   UpdateAIAgentMediaConfigPayload,
@@ -401,6 +402,81 @@ export function useUpdateAIAgentWebhook() {
             ? (error.response?.data as { message?: string })?.message ||
               'Não foi possível atualizar o webhook. Tente novamente.'
             : 'Não foi possível atualizar o webhook. Tente novamente.',
+        type: 'error',
+      })
+    },
+  })
+}
+
+export function usePromptStudioThread(agentId: string | undefined) {
+  return useQuery({
+    queryKey: queryKeys.whitelabel.aiAgent.promptStudioThread(agentId || ''),
+    queryFn: async () => {
+      if (!agentId) throw new Error('Agent ID is required')
+      const response = await aiAgentService.getPromptStudioThread(agentId)
+      return response.data
+    },
+    enabled: !!agentId,
+    staleTime: 0,
+    refetchOnMount: 'always',
+  })
+}
+
+export function useSendPromptStudioMessage() {
+  return useMutation({
+    mutationFn: async ({
+      agentId,
+      content,
+      document,
+    }: {
+      agentId: string
+      content: string
+      document: PromptDocument
+    }) => {
+      const response = await aiAgentService.sendPromptStudioMessage(agentId, {
+        content,
+        document,
+      })
+      return response.data
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.whitelabel.aiAgent.promptStudioThread(
+          variables.agentId
+        ),
+      })
+    },
+    onError: (error) => {
+      const message =
+        error instanceof AxiosError
+          ? (error.response?.data as { message?: string })?.message
+          : undefined
+      toaster.create({
+        title: 'Erro',
+        description:
+          message || 'Não foi possível enviar a mensagem. Tente novamente.',
+        type: 'error',
+      })
+    },
+  })
+}
+
+export function useDiscardPromptStudioProposal() {
+  return useMutation({
+    mutationFn: async ({ agentId }: { agentId: string }) => {
+      await aiAgentService.discardPromptStudioProposal(agentId)
+    },
+    onSuccess: (_data, variables) => {
+      void queryClient.invalidateQueries({
+        queryKey: queryKeys.whitelabel.aiAgent.promptStudioThread(
+          variables.agentId
+        ),
+      })
+    },
+    onError: () => {
+      toaster.create({
+        title: 'Erro',
+        description: 'Não foi possível descartar a proposta. Tente novamente.',
         type: 'error',
       })
     },

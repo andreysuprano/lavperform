@@ -45,3 +45,26 @@ export interface ProposePromptStudioPayload {
   draftChanged: boolean
   modelName?: string
 }
+
+export type PromptStudioMessageRole = 'USER' | 'SPECIALIST'
+
+export interface PromptStudioMessage {
+  threadId?: string
+  role: PromptStudioMessageRole
+  content: string
+  proposalJson: string | null
+}
+
+export interface PromptStudioThread {
+  messages: PromptStudioMessage[]
+}
+
+export interface SendPromptStudioMessagePayload {
+  content: string
+  document: PromptDocument
+}
+
+export interface SendPromptStudioMessageResult {
+  messages: PromptStudioMessage[]
+  proposal: PromptProposal
+}

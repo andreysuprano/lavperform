@@ -285,6 +285,8 @@ export const queryKeys = {
           limit,
           search,
         ] as const,
+      promptStudioThread: (agentId: string) =>
+        ['whitelabel', 'ai-agent', 'prompt-studio-thread', agentId] as const,
       conversationMessages: (
         companyId: string,
         agentId: string,
