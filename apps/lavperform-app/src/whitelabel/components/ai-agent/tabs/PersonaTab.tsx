@@ -161,6 +161,11 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
   const [pendingDocument, setPendingDocument] = useState<PromptDocument | null>(
     null
   )
+  /** Bumps when questionnaire replaces the pending draft; used to invalidate proposals. */
+  const [pendingGenerationId, setPendingGenerationId] = useState(0)
+  /** Generation id of pendingDocument when the current proposal was created; null if not against pending. */
+  const [proposalPendingGenerationId, setProposalPendingGenerationId] =
+    useState<number | null>(null)
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [isGenerating, setIsGenerating] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
@@ -223,15 +228,21 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
           agent.id
         )
         setPendingDocument(response.data.document)
+        setPendingGenerationId((id) => id + 1)
+        setProposalPendingGenerationId(null)
+        setChatError(null)
         setSuggestedQuestions(response.data.suggestedQuestions)
         setShowQuestionnaire(false)
+        void discardProposal.mutateAsync({ agentId: agent.id }).catch(() => {
+          // Ignora falha ao limpar proposta antiga do fio
+        })
       } catch {
         setStudioError('Não foi possível gerar o prompt. Tente de novo.')
       } finally {
         setIsGenerating(false)
       }
     },
-    [agent.id]
+    [agent.id, discardProposal]
   )
 
   const handleDocumentChange = useCallback(
@@ -278,6 +289,7 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
 
   const handleDiscardPending = useCallback(() => {
     setPendingDocument(null)
+    setProposalPendingGenerationId(null)
     setSuggestedQuestions([])
     setStudioError(null)
   }, [])
@@ -311,16 +323,38 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
     []
   )
 
+  const handleProposalReceived = useCallback(() => {
+    if (pendingDocument) {
+      setProposalPendingGenerationId(pendingGenerationId)
+    } else {
+      setProposalPendingGenerationId(null)
+    }
+  }, [pendingDocument, pendingGenerationId])
+
   const handleAcceptChatProposal = useCallback(
     async (proposal: PromptProposal) => {
       const currentUpdatedAt = agent.persona?.updatedAt ?? null
+      // Match isProposalStale: missing updatedAt counts as not equal when baseUpdatedAt is set
       if (
         proposal.baseUpdatedAt &&
-        currentUpdatedAt &&
         proposal.baseUpdatedAt !== currentUpdatedAt
       ) {
         setChatError(STALE_MESSAGE)
         throw new Error(STALE_MESSAGE)
+      }
+
+      if (pendingDocument) {
+        if (proposalPendingGenerationId !== pendingGenerationId) {
+          setChatError(STALE_MESSAGE)
+          throw new Error(STALE_MESSAGE)
+        }
+        setChatError(null)
+        setPendingDocument({
+          ...pendingDocument,
+          ...proposal.changes,
+        })
+        await discardProposal.mutateAsync({ agentId: agent.id })
+        return
       }
 
       setChatError(null)
@@ -345,7 +379,6 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
         if (proposal.changes.guardrails !== undefined) {
           form.setValue('guardrails', proposal.changes.guardrails)
         }
-        setPendingDocument(null)
       } catch (error) {
         form.reset(personaToFormValues(agent))
         const status =
@@ -360,7 +393,15 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
         throw error
       }
     },
-    [agent, discardProposal, form, updatePersona]
+    [
+      agent,
+      discardProposal,
+      form,
+      pendingDocument,
+      pendingGenerationId,
+      proposalPendingGenerationId,
+      updatePersona,
+    ]
   )
 
   return (
@@ -541,6 +582,8 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
                 document={activeDocument}
                 seed={chatSeed}
                 onSeedConsumed={() => setChatSeed(null)}
+                onProposalReceived={handleProposalReceived}
+                proposalEpoch={pendingGenerationId}
                 onAcceptProposal={handleAcceptChatProposal}
                 errorMessage={chatError}
               />

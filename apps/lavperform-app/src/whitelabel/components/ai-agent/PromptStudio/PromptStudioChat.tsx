@@ -52,6 +52,9 @@ interface PromptStudioChatProps {
     whatWasWrong: string
   } | null
   onSeedConsumed?: () => void
+  onProposalReceived?: () => void
+  /** When this changes, clear the local proposal (e.g. pending draft replaced). */
+  proposalEpoch?: number
   onAcceptProposal: (proposal: PromptProposal) => Promise<void>
   errorMessage?: string | null
 }
@@ -61,6 +64,8 @@ function PromptStudioChatBase({
   document,
   seed = null,
   onSeedConsumed,
+  onProposalReceived,
+  proposalEpoch = 0,
   onAcceptProposal,
   errorMessage = null,
 }: PromptStudioChatProps) {
@@ -88,6 +93,10 @@ function PromptStudioChatBase({
   const proposal = localProposal ?? proposalFromThread
 
   useEffect(() => {
+    setLocalProposal(null)
+  }, [proposalEpoch])
+
+  useEffect(() => {
     if (!seed) return
 
     let cancelled = false
@@ -102,6 +111,7 @@ function PromptStudioChatBase({
         })
         if (cancelled) return
         setLocalProposal(result.proposal)
+        onProposalReceived?.()
         onSeedConsumed?.()
       } catch (error) {
         if (cancelled) return
@@ -141,6 +151,7 @@ function PromptStudioChatBase({
         document,
       })
       setLocalProposal(result.proposal)
+      onProposalReceived?.()
       setDraft('')
     } catch (error) {
       const status =

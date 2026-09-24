@@ -447,10 +447,19 @@ export function useSendPromptStudioMessage() {
       })
     },
     onError: (error) => {
+      const status =
+        error instanceof AxiosError ? error.response?.status : undefined
       const message =
         error instanceof AxiosError
           ? (error.response?.data as { message?: string })?.message
           : undefined
+      // 409 / stale: PromptStudioChat shows the inline error once
+      if (
+        status === 409 ||
+        message === 'O texto mudou. Peça a alteração de novo.'
+      ) {
+        return
+      }
       toaster.create({
         title: 'Erro',
         description:
