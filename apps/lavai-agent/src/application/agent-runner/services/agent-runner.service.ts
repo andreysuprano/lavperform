@@ -418,7 +418,7 @@ export class AgentRunnerService implements OnModuleInit {
     }
   }
 
-  private async fetchRagChunks(
+  async fetchRagChunks(
     userMessage: string,
     companyId: string,
   ): Promise<KnowledgeChunkWithScore[]> {

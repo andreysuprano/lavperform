@@ -302,4 +302,98 @@ export class AiAgentController {
   ) {
     await this.aiAgentService.deleteKnowledgeFile(companyId, agentId, fileId);
   }
+
+  // ─── Prompt studio ────────────────────────────────────────────────────────
+
+  @Post('ai-agents/prompt-studio/generate')
+  @ApiOperation({ summary: 'Gerar documento de prompt na criação do agente' })
+  generatePrompt(@Body() dto: Record<string, unknown>) {
+    return this.aiAgentService.generatePrompt(dto);
+  }
+
+  @Post('ai-agents/prompt-studio/test')
+  @ApiOperation({ summary: 'Testar pergunta na criação do agente (sem base de conhecimento)' })
+  testPrompt(
+    @Body()
+    dto: {
+      document: unknown;
+      question: string;
+      modelName?: string;
+      ragChunks?: Array<{ content: string; score: number; id: string }>;
+    },
+  ) {
+    return this.aiAgentService.testPrompt({ ...dto, ragChunks: [] });
+  }
+
+  @Post('ai-agents/prompt-studio/propose')
+  @ApiOperation({ summary: 'Propor edição do prompt na criação, sem persistir' })
+  proposePromptEdit(@Body() dto: Record<string, unknown>) {
+    return this.aiAgentService.proposePromptEdit(dto);
+  }
+
+  @Post('ai-agents/:agentId/prompt-studio/generate')
+  @ApiOperation({ summary: 'Gerar documento de prompt de um agente salvo' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  generatePromptForAgent(
+    @Param('agentId') agentId: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
+    return this.aiAgentService.generatePrompt(dto, agentId);
+  }
+
+  @Post('ai-agents/:agentId/prompt-studio/test')
+  @ApiOperation({
+    summary: 'Testar pergunta de um agente salvo com os chunks do atendimento',
+  })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  testPromptForAgent(
+    @Param('agentId') agentId: string,
+    @Body()
+    dto: {
+      document: unknown;
+      question: string;
+      modelName?: string;
+      ragChunks?: Array<{ content: string; score: number; id: string }>;
+    },
+  ) {
+    return this.aiAgentService.testPrompt(dto, agentId);
+  }
+
+  @Post('ai-agents/:agentId/prompt-studio/propose')
+  @ApiOperation({ summary: 'Propor edição do prompt de um agente salvo, sem persistir' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  proposePromptEditForAgent(
+    @Param('agentId') agentId: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
+    return this.aiAgentService.proposePromptEdit(dto, agentId);
+  }
+
+  @Get('ai-agents/:agentId/prompt-studio/thread')
+  @ApiOperation({ summary: 'Obter o chat especialista do agente' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  getPromptStudioThread(@Param('agentId') agentId: string) {
+    return this.aiAgentService.getPromptStudioThread(agentId);
+  }
+
+  @Post('ai-agents/:agentId/prompt-studio/thread/messages')
+  @ApiOperation({ summary: 'Enviar mensagem no chat especialista' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  sendPromptStudioMessage(
+    @Param('agentId') agentId: string,
+    @Body() dto: { content: string; document: unknown },
+  ) {
+    return this.aiAgentService.sendPromptStudioMessage(
+      agentId,
+      dto as unknown as Record<string, unknown>,
+    );
+  }
+
+  @Post('ai-agents/:agentId/prompt-studio/thread/discard')
+  @HttpCode(HttpStatus.NO_CONTENT)
+  @ApiOperation({ summary: 'Descartar proposta pendente do chat especialista' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  async discardPromptStudioProposal(@Param('agentId') agentId: string) {
+    await this.aiAgentService.discardPromptStudioProposal(agentId);
+  }
 }

@@ -503,4 +503,38 @@ export class AiAgentService {
       `deleteKnowledgeFile: remoção de KB ${fileId} pendente de endpoint no LavAI Agent`,
     );
   }
+
+  // ─── Prompt studio ──────────────────────────────────────────────────────────
+
+  generatePrompt(dto: Record<string, unknown>, agentId?: string) {
+    return this.lavaiAgentApi.generatePrompt(dto, agentId);
+  }
+
+  testPrompt(
+    dto: {
+      document: unknown;
+      question: string;
+      modelName?: string;
+      ragChunks?: Array<{ content: string; score: number; id: string }>;
+    },
+    agentId?: string,
+  ) {
+    return this.lavaiAgentApi.testPrompt(dto, agentId);
+  }
+
+  proposePromptEdit(dto: Record<string, unknown>, agentId?: string) {
+    return this.lavaiAgentApi.proposePromptEdit(dto, agentId);
+  }
+
+  getPromptStudioThread(agentId: string) {
+    return this.lavaiAgentApi.getPromptStudioThread(agentId);
+  }
+
+  sendPromptStudioMessage(agentId: string, dto: Record<string, unknown>) {
+    return this.lavaiAgentApi.sendPromptStudioMessage(agentId, dto);
+  }
+
+  discardPromptStudioProposal(agentId: string) {
+    return this.lavaiAgentApi.discardPromptStudioProposal(agentId);
+  }
 }

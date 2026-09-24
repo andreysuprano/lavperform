@@ -14,6 +14,7 @@ import { UpdateAgentPersonaUseCase } from '../../application/agent/use-cases/upd
 import { ToggleAgentActiveUseCase } from '../../application/agent/use-cases/toggle-agent-active.use-case';
 import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-agent.use-case';
 import { AgentController } from '../../infrastructure/http/agent/agent.controller';
+import { PromptStudioController } from '../../infrastructure/http/agent/prompt-studio.controller';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
 import { GeneratePromptUseCase } from '../../application/prompt-studio/generate-prompt.use-case';
 import { ProposePromptEditUseCase } from '../../application/prompt-studio/propose-prompt-edit.use-case';
@@ -26,7 +27,7 @@ import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
 
 @Module({
   imports: [LlmModule, forwardRef(() => AgentRunnerModule)],
-  controllers: [AgentController],
+  controllers: [AgentController, PromptStudioController],
   providers: [
     PrismaAgentRepository,
     { provide: AGENT_REPOSITORY, useExisting: PrismaAgentRepository },
