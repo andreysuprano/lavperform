@@ -130,19 +130,27 @@ export class AdminIntegrationsService {
       }
     }
 
-    const updated = await this.partnerRepository.update(partnerId, {
-      ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
-      ...(partnerSlug ? { partnerSlug } : {}),
-      ...(dto.logoUrl !== undefined
-        ? { logoUrl: dto.logoUrl?.trim() || undefined }
-        : {}),
-      ...(dto.baseUrlWebhook !== undefined
-        ? { baseUrlWebhook: dto.baseUrlWebhook?.trim() || undefined }
-        : {}),
-      ...(dto.active !== undefined ? { active: dto.active } : {}),
+    const updated = await this.prisma.partner.update({
+      where: { id: partnerId },
+      data: {
+        ...(dto.name !== undefined ? { name: dto.name.trim() } : {}),
+        ...(partnerSlug ? { partnerSlug } : {}),
+        ...(dto.logoUrl !== undefined
+          ? { logoUrl: dto.logoUrl?.trim() || null }
+          : {}),
+        ...(dto.baseUrlWebhook !== undefined
+          ? { baseUrlWebhook: dto.baseUrlWebhook?.trim() || null }
+          : {}),
+        ...(dto.active !== undefined ? { active: dto.active } : {}),
+      },
     });
 
-    return this.toCatalogPartner(updated);
+    return this.toCatalogPartner({
+      ...updated,
+      partnerSlug: updated.partnerSlug ?? undefined,
+      logoUrl: updated.logoUrl ?? undefined,
+      baseUrlWebhook: updated.baseUrlWebhook ?? undefined,
+    });
   }
 
   private toCatalogPartner(partner: {

@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { PencilIcon, PlusIcon } from "lucide-react"
 
+import { FirebaseImageUploadField } from "@/components/firebase-image-upload-field"
 import { Button } from "@/components/ui/button"
 import { Checkbox } from "@/components/ui/checkbox"
 import {
@@ -27,6 +28,7 @@ type Draft = {
   name: string
   partnerSlug: string
   baseUrlWebhook: string
+  logoUrl: string
   active: boolean
 }
 
@@ -34,6 +36,7 @@ const emptyDraft: Draft = {
   name: "",
   partnerSlug: "",
   baseUrlWebhook: "",
+  logoUrl: "",
   active: true,
 }
 
@@ -57,6 +60,7 @@ export function CatalogPartnersView() {
       name: partner.name,
       partnerSlug: partner.partnerSlug ?? "",
       baseUrlWebhook: partner.baseUrlWebhook ?? "",
+      logoUrl: partner.logoUrl ?? "",
       active: partner.active,
     })
     setOpen(true)
@@ -67,6 +71,7 @@ export function CatalogPartnersView() {
       name: draft.name.trim(),
       partnerSlug: draft.partnerSlug.trim(),
       baseUrlWebhook: draft.baseUrlWebhook.trim() || undefined,
+      logoUrl: draft.logoUrl.trim(),
       active: draft.active,
     }
     if (editing) {
@@ -148,6 +153,16 @@ export function CatalogPartnersView() {
             </DialogTitle>
           </DialogHeader>
           <div className="flex flex-col gap-4">
+            <div className="flex flex-col gap-2">
+              <Label>Logo</Label>
+              <FirebaseImageUploadField
+                folder="partners"
+                value={draft.logoUrl}
+                onChange={(logoUrl) =>
+                  setDraft((current) => ({ ...current, logoUrl }))
+                }
+              />
+            </div>
             <div className="flex flex-col gap-2">
               <Label htmlFor="catalog-name">Nome</Label>
               <Input
