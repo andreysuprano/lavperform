@@ -16,6 +16,7 @@ import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-age
 import { AgentController } from '../../infrastructure/http/agent/agent.controller';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
 import { GeneratePromptUseCase } from '../../application/prompt-studio/generate-prompt.use-case';
+import { ProposePromptEditUseCase } from '../../application/prompt-studio/propose-prompt-edit.use-case';
 import { TestPromptUseCase } from '../../application/prompt-studio/test-prompt.use-case';
 import { LlmModule } from '../llm/llm.module';
 import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
@@ -41,6 +42,7 @@ import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
     DeleteAgentUseCase,
     GeneratePromptUseCase,
     TestPromptUseCase,
+    ProposePromptEditUseCase,
   ],
   exports: [FindAgentByIdUseCase, PrismaAgentRepository],
 })
