@@ -91,6 +91,11 @@ enum JourneyTrigger {
   MANUAL
 }
 
+enum PromptStudioMessageRole {
+  USER
+  SPECIALIST
+}
+
 enum HelpRequestStatus {
   PENDING
   CLAIMED
@@ -146,6 +151,7 @@ model Agent {
   agentRuns      AgentRun[]
   customerJourneys CustomerJourney[]
   helpRequests   HelpRequest[]
+  promptStudioThread PromptStudioThread?
 
   @@map("agents")
 }
@@ -546,6 +552,31 @@ model AgentRunStep {
   agentRun AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
 
   @@map("agent_run_steps")
+}
+
+model PromptStudioThread {
+  id        String   @id @default(uuid())
+  agentId   String   @unique @map("agent_id")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  agent    Agent                  @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages PromptStudioMessage[]
+
+  @@map("prompt_studio_threads")
+}
+
+model PromptStudioMessage {
+  id           String                   @id @default(uuid())
+  threadId     String                   @map("thread_id")
+  role         PromptStudioMessageRole
+  content      String
+  proposalJson String?                  @map("proposal_json")
+  createdAt    DateTime                 @default(now()) @map("created_at")
+
+  thread PromptStudioThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+
+  @@map("prompt_studio_messages")
 }
 
 model WebhookEvent {

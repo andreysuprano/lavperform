@@ -7,6 +7,15 @@ import type {
   CreateAIAgentMcpServerPayload,
   CreateAIAgentPayload,
   CreateKnowledgeFilePayload,
+  GeneratePromptStudioResult,
+  ProposePromptStudioPayload,
+  PromptDocument,
+  PromptProposal,
+  PromptStudioThread,
+  QuestionnaireAnswers,
+  SendPromptStudioMessagePayload,
+  SendPromptStudioMessageResult,
+  TestPromptStudioResult,
   UpdateAIAgentFilterConfigPayload,
   UpdateAIAgentJourneyConfigPayload,
   UpdateAIAgentMcpServerPayload,
@@ -193,6 +202,57 @@ export const aiAgentService = {
   async listConversationMessages(agentId: string, conversationId: string) {
     return await client.get<AIAgentConversationMessage[]>(
       `/ai-agents/${agentId}/conversations/${conversationId}/messages`
+    )
+  },
+
+  // ─── Prompt studio ───────────────────────────────────────────────────────
+
+  async generatePromptStudio(data: QuestionnaireAnswers, agentId?: string) {
+    const path = agentId
+      ? `/ai-agents/${agentId}/prompt-studio/generate`
+      : '/ai-agents/prompt-studio/generate'
+    return await client.post<GeneratePromptStudioResult>(path, data)
+  },
+
+  async testPromptStudio(
+    data: { document: PromptDocument; question: string },
+    agentId?: string
+  ) {
+    const path = agentId
+      ? `/ai-agents/${agentId}/prompt-studio/test`
+      : '/ai-agents/prompt-studio/test'
+    return await client.post<TestPromptStudioResult>(path, data)
+  },
+
+  async proposePromptStudio(
+    data: ProposePromptStudioPayload,
+    agentId?: string
+  ) {
+    const path = agentId
+      ? `/ai-agents/${agentId}/prompt-studio/propose`
+      : '/ai-agents/prompt-studio/propose'
+    return await client.post<PromptProposal>(path, data)
+  },
+
+  async getPromptStudioThread(agentId: string) {
+    return await client.get<PromptStudioThread>(
+      `/ai-agents/${agentId}/prompt-studio/thread`
+    )
+  },
+
+  async sendPromptStudioMessage(
+    agentId: string,
+    data: SendPromptStudioMessagePayload
+  ) {
+    return await client.post<SendPromptStudioMessageResult>(
+      `/ai-agents/${agentId}/prompt-studio/thread/messages`,
+      data
+    )
+  },
+
+  async discardPromptStudioProposal(agentId: string) {
+    return await client.post(
+      `/ai-agents/${agentId}/prompt-studio/thread/discard`
     )
   },
 }

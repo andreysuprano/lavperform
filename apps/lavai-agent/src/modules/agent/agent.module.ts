@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AGENT_REPOSITORY } from '../../application/agent/ports/agent.repository.port';
 import { CreateAgentUseCase } from '../../application/agent/use-cases/create-agent.use-case';
 import { DeleteAgentUseCase } from '../../application/agent/use-cases/delete-agent.use-case';
@@ -14,10 +14,20 @@ import { UpdateAgentPersonaUseCase } from '../../application/agent/use-cases/upd
 import { ToggleAgentActiveUseCase } from '../../application/agent/use-cases/toggle-agent-active.use-case';
 import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-agent.use-case';
 import { AgentController } from '../../infrastructure/http/agent/agent.controller';
+import { PromptStudioController } from '../../infrastructure/http/agent/prompt-studio.controller';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
+import { GeneratePromptUseCase } from '../../application/prompt-studio/generate-prompt.use-case';
+import { ProposePromptEditUseCase } from '../../application/prompt-studio/propose-prompt-edit.use-case';
+import { PROMPT_STUDIO_THREAD_REPOSITORY } from '../../application/prompt-studio/prompt-studio-thread.repository.port';
+import { PromptStudioThreadUseCase } from '../../application/prompt-studio/prompt-studio-thread.use-case';
+import { TestPromptUseCase } from '../../application/prompt-studio/test-prompt.use-case';
+import { PrismaPromptStudioThreadRepository } from '../../infrastructure/persistence/repositories/prisma-prompt-studio-thread.repository';
+import { LlmModule } from '../llm/llm.module';
+import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
 
 @Module({
-  controllers: [AgentController],
+  imports: [LlmModule, forwardRef(() => AgentRunnerModule)],
+  controllers: [AgentController, PromptStudioController],
   providers: [
     PrismaAgentRepository,
     { provide: AGENT_REPOSITORY, useExisting: PrismaAgentRepository },
@@ -34,6 +44,12 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     UpdateAgentJourneyConfigUseCase,
     UpdateAgentNotificationConfigUseCase,
     DeleteAgentUseCase,
+    GeneratePromptUseCase,
+    TestPromptUseCase,
+    ProposePromptEditUseCase,
+    PrismaPromptStudioThreadRepository,
+    { provide: PROMPT_STUDIO_THREAD_REPOSITORY, useExisting: PrismaPromptStudioThreadRepository },
+    PromptStudioThreadUseCase,
   ],
   exports: [FindAgentByIdUseCase, PrismaAgentRepository],
 })

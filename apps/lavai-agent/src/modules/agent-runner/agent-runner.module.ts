@@ -27,7 +27,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     MessagingModule,
     McpModule,
     AgentTraceModule,
-    AgentModule,
+    forwardRef(() => AgentModule),
     forwardRef(() => CustomerJourneyModule),
   ],
   providers: [
@@ -47,6 +47,6 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     McpToolLoaderService,
     AgentRunnerService,
   ],
-  exports: [AgentRunnerService],
+  exports: [AgentRunnerService, PromptBuilderService],
 })
 export class AgentRunnerModule {}

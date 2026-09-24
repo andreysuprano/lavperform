@@ -265,8 +265,63 @@ export class LavaiAgentApiService {
       dto,
     );
   }
-}
 
-/** @deprecated Use LavaiAgentApiService */
-@Injectable()
-export class OverAgentApiService extends LavaiAgentApiService {}
+  async generatePrompt(dto: Record<string, unknown>, agentId?: string) {
+    const path = agentId
+      ? `/agents/${agentId}/prompt-studio/generate`
+      : '/prompt-studio/generate';
+    return this.request<{ document: Record<string, unknown>; suggestedQuestions: string[] }>(
+      'post',
+      path,
+      dto,
+    );
+  }
+
+  async testPrompt(
+    dto: {
+      document: unknown;
+      question: string;
+      modelName?: string;
+      ragChunks?: Array<{ content: string; score: number; id: string }>;
+    },
+    agentId?: string,
+  ) {
+    if (agentId) {
+      return this.request<{ answer: string }>(
+        'post',
+        `/agents/${agentId}/prompt-studio/test`,
+        dto,
+      );
+    }
+    return this.request<{ answer: string }>('post', '/prompt-studio/test', {
+      ...dto,
+      ragChunks: dto.ragChunks ?? [],
+    });
+  }
+
+  async proposePromptEdit(dto: Record<string, unknown>, agentId?: string) {
+    const path = agentId
+      ? `/agents/${agentId}/prompt-studio/propose`
+      : '/prompt-studio/propose';
+    return this.request<Record<string, unknown>>('post', path, dto);
+  }
+
+  async getPromptStudioThread(agentId: string) {
+    return this.request<Record<string, unknown>>(
+      'get',
+      `/agents/${agentId}/prompt-studio/thread`,
+    );
+  }
+
+  async sendPromptStudioMessage(agentId: string, dto: Record<string, unknown>) {
+    return this.request<Record<string, unknown>>(
+      'post',
+      `/agents/${agentId}/prompt-studio/thread/messages`,
+      dto,
+    );
+  }
+
+  async discardPromptStudioProposal(agentId: string) {
+    return this.request<void>('post', `/agents/${agentId}/prompt-studio/thread/discard`);
+  }
+}
