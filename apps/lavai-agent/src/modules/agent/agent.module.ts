@@ -16,8 +16,10 @@ import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-age
 import { AgentController } from '../../infrastructure/http/agent/agent.controller';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
 import { GeneratePromptUseCase } from '../../application/prompt-studio/generate-prompt.use-case';
+import { LlmModule } from '../llm/llm.module';
 
 @Module({
+  imports: [LlmModule],
   controllers: [AgentController],
   providers: [
     PrismaAgentRepository,
