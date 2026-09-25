@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { AiAgentService } from '../application/ai-agent.service';
+import { PromptSheetService } from '../application/prompt-sheet.service';
 import { CreateAgentDto } from '../application/dto/create-agent.dto';
 import { UpdateAgentBaseDto } from '../application/dto/update-agent-base.dto';
 import { UpdatePersonaDto } from '../application/dto/update-persona.dto';
@@ -32,7 +33,10 @@ import {
 @ApiTags('Agentes de IA')
 @Controller()
 export class AiAgentController {
-  constructor(private readonly aiAgentService: AiAgentService) {}
+  constructor(
+    private readonly aiAgentService: AiAgentService,
+    private readonly promptSheetService: PromptSheetService,
+  ) {}
 
   // ─── Agents ───────────────────────────────────────────────────────────────
 
@@ -301,6 +305,58 @@ export class AiAgentController {
     @Param('fileId') fileId: string,
   ) {
     await this.aiAgentService.deleteKnowledgeFile(companyId, agentId, fileId);
+  }
+
+  // ─── Prompt sheet ─────────────────────────────────────────────────────────
+
+  @Get('companies/:companyId/ai-agents/prompt-sheet')
+  @ApiOperation({ summary: 'Obter ficha de prompt (rascunho da empresa)' })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  getPromptSheet(@Param('companyId') companyId: string) {
+    return this.promptSheetService.get(companyId, 'draft');
+  }
+
+  @Put('companies/:companyId/ai-agents/prompt-sheet')
+  @ApiOperation({ summary: 'Gravar resposta na ficha de prompt (rascunho da empresa)' })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  putPromptSheetAnswer(
+    @Param('companyId') companyId: string,
+    @Body() body: { key: string; value: string },
+  ) {
+    return this.promptSheetService.putAnswer(
+      companyId,
+      'draft',
+      body.key,
+      body.value,
+    );
+  }
+
+  @Get('companies/:companyId/ai-agents/:agentId/prompt-sheet')
+  @ApiOperation({ summary: 'Obter ficha de prompt do agente' })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  getPromptSheetForAgent(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.promptSheetService.get(companyId, agentId);
+  }
+
+  @Put('companies/:companyId/ai-agents/:agentId/prompt-sheet')
+  @ApiOperation({ summary: 'Gravar resposta na ficha de prompt do agente' })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  putPromptSheetAnswerForAgent(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { key: string; value: string },
+  ) {
+    return this.promptSheetService.putAnswer(
+      companyId,
+      agentId,
+      body.key,
+      body.value,
+    );
   }
 
   // ─── Prompt studio ────────────────────────────────────────────────────────
