@@ -1,6 +1,15 @@
-import { Button, HStack, Input, Stack, Steps, Text } from '@chakra-ui/react'
+import {
+  Button,
+  createListCollection,
+  HStack,
+  Input,
+  Select,
+  Stack,
+  Steps,
+  Text,
+} from '@chakra-ui/react'
 import { yupResolver } from '@hookform/resolvers/yup'
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback, useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { RiArrowLeftLine, RiArrowRightLine, RiCheckLine } from 'react-icons/ri'
 import { useNavigate } from 'react-router-dom'
@@ -32,6 +41,21 @@ import type { AdjustmentSeed } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
 
 import type { Props } from './AIAgentWizard.types'
+
+const voiceToneItems = [
+  { value: 'FORMAL', label: 'Formal' },
+  { value: 'FRIENDLY', label: 'Amigável' },
+  { value: 'NEUTRAL', label: 'Neutro' },
+  { value: 'EMPATHETIC', label: 'Empático' },
+  { value: 'TECHNICAL', label: 'Técnico' },
+]
+
+const communicationStyleItems = [
+  { value: 'CONCISE', label: 'Conciso' },
+  { value: 'DETAILED', label: 'Detalhado' },
+  { value: 'BALANCED', label: 'Equilibrado' },
+  { value: 'INSTRUCTIVE', label: 'Instrutivo' },
+]
 import {
   advanceFinishResume,
   initialFinishResume,
@@ -95,6 +119,14 @@ function AIAgentWizardBase({ onClose }: Props) {
   const [voiceTone, setVoiceTone] = useState<VoiceToneType>('FORMAL')
   const [communicationStyle, setCommunicationStyle] =
     useState<CommunicationStyleType>('BALANCED')
+  const voiceToneCollection = useMemo(
+    () => createListCollection({ items: voiceToneItems }),
+    []
+  )
+  const communicationStyleCollection = useMemo(
+    () => createListCollection({ items: communicationStyleItems }),
+    []
+  )
   const [document, setDocument] = useState<PromptDocument | null>(null)
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [isTesting, setIsTesting] = useState(false)
@@ -413,41 +445,72 @@ function AIAgentWizardBase({ onClose }: Props) {
                 ) : null}
               </Stack>
 
-              <HStack gap={4} flexWrap="wrap">
-                <Stack gap={1} flex="1" minW="160px">
+              <HStack gap={4} align="flex-start" flexWrap="wrap">
+                <Stack gap={1} flex="1" minW="200px">
                   <Text fontWeight="semibold" fontSize="sm">
                     Tom de voz
                   </Text>
-                  <select
-                    value={voiceTone}
-                    onChange={(e) =>
-                      setVoiceTone(e.target.value as VoiceToneType)
+                  <Select.Root
+                    collection={voiceToneCollection}
+                    value={[voiceTone]}
+                    onValueChange={({ value }) =>
+                      setVoiceTone((value[0] ?? 'FORMAL') as VoiceToneType)
                     }
                   >
-                    <option value="FORMAL">Formal</option>
-                    <option value="FRIENDLY">Amigável</option>
-                    <option value="NEUTRAL">Neutro</option>
-                    <option value="EMPATHETIC">Empático</option>
-                    <option value="TECHNICAL">Técnico</option>
-                  </select>
+                    <Select.HiddenSelect />
+                    <Select.Control>
+                      <Select.Trigger>
+                        <Select.ValueText placeholder="Selecione o tom de voz" />
+                      </Select.Trigger>
+                      <Select.IndicatorGroup>
+                        <Select.Indicator />
+                      </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Select.Positioner>
+                      <Select.Content>
+                        {voiceToneItems.map((item) => (
+                          <Select.Item item={item} key={item.value}>
+                            {item.label}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Select.Root>
                 </Stack>
-                <Stack gap={1} flex="1" minW="160px">
+                <Stack gap={1} flex="1" minW="200px">
                   <Text fontWeight="semibold" fontSize="sm">
                     Estilo de comunicação
                   </Text>
-                  <select
-                    value={communicationStyle}
-                    onChange={(e) =>
+                  <Select.Root
+                    collection={communicationStyleCollection}
+                    value={[communicationStyle]}
+                    onValueChange={({ value }) =>
                       setCommunicationStyle(
-                        e.target.value as CommunicationStyleType
+                        (value[0] ?? 'BALANCED') as CommunicationStyleType
                       )
                     }
                   >
-                    <option value="CONCISE">Conciso</option>
-                    <option value="DETAILED">Detalhado</option>
-                    <option value="BALANCED">Equilibrado</option>
-                    <option value="INSTRUCTIVE">Instrutivo</option>
-                  </select>
+                    <Select.HiddenSelect />
+                    <Select.Control>
+                      <Select.Trigger>
+                        <Select.ValueText placeholder="Selecione o estilo" />
+                      </Select.Trigger>
+                      <Select.IndicatorGroup>
+                        <Select.Indicator />
+                      </Select.IndicatorGroup>
+                    </Select.Control>
+                    <Select.Positioner>
+                      <Select.Content>
+                        {communicationStyleItems.map((item) => (
+                          <Select.Item item={item} key={item.value}>
+                            {item.label}
+                            <Select.ItemIndicator />
+                          </Select.Item>
+                        ))}
+                      </Select.Content>
+                    </Select.Positioner>
+                  </Select.Root>
                 </Stack>
               </HStack>
 
