@@ -244,6 +244,28 @@ describe('PromptSheetService', () => {
     expect(prisma.promptSheet.upsert).not.toHaveBeenCalled();
   });
 
+  it('assertSheetUnchanged recusa se a ficha mudou mesmo sem answerKey', async () => {
+    prisma.promptSheet.findUnique.mockResolvedValue({
+      updatedAt: new Date('2026-09-25T14:00:00.000Z'),
+    });
+
+    await expect(
+      service.assertSheetUnchanged(companyId, 'draft', updatedAt.toISOString()),
+    ).rejects.toThrow('O texto mudou. Peça a alteração de novo.');
+    expect(prisma.promptSheet.upsert).not.toHaveBeenCalled();
+  });
+
+  it('assertSheetUnchanged aceita quando updatedAt bate', async () => {
+    prisma.promptSheet.findUnique.mockResolvedValue({
+      updatedAt,
+    });
+
+    await expect(
+      service.assertSheetUnchanged(companyId, 'draft', updatedAt.toISOString()),
+    ).resolves.toBeUndefined();
+    expect(prisma.promptSheet.upsert).not.toHaveBeenCalled();
+  });
+
   it('descarte não chama applyAcceptedAnswer', () => {
     const applySpy = jest.spyOn(service, 'applyAcceptedAnswer');
     // Descarte é só no cliente (limpa proposta local + thread discard).

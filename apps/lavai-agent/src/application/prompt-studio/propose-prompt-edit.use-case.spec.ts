@@ -119,4 +119,22 @@ describe('ProposePromptEditUseCase', () => {
       }),
     ).rejects.toBeInstanceOf(ConflictException);
   });
+
+  it('recusa proposta quando answerValue não aparece no documento mesclado', async () => {
+    const llm: LlmProviderPort = {
+      complete: jest.fn().mockResolvedValue({
+        content: JSON.stringify({
+          summary: 'Ajusta preço',
+          changes: { guardrails: 'Não invente. Preço: R$ 20.' },
+          answerKey: 'pricing',
+          answerValue: 'Preço especial R$ 15',
+        }),
+        toolCalls: [],
+        finishReason: 'stop',
+      }),
+    };
+    await expect(new ProposePromptEditUseCase(llm).execute(input)).rejects.toBeInstanceOf(
+      BadGatewayException,
+    );
+  });
 });

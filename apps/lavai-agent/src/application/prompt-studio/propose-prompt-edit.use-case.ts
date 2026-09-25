@@ -75,6 +75,13 @@ export class ProposePromptEditUseCase {
       throw new BadGatewayException();
     }
 
+    if (
+      parsed.answerValue &&
+      !documentKeepsFacts(merged, [{ text: parsed.answerValue }])
+    ) {
+      throw new BadGatewayException();
+    }
+
     const proposal: PromptProposal = {
       summary: parsed.summary,
       changes: parsed.changes,

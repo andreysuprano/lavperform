@@ -119,6 +119,22 @@ export class PromptSheetService {
     return this.writeAnswer(companyId, draftKey, key, value);
   }
 
+  async assertSheetUnchanged(
+    companyId: string,
+    draftKey: string,
+    expectedSheetUpdatedAt: string,
+  ): Promise<void> {
+    const existing = await this.prisma.promptSheet.findUnique({
+      where: { companyId_draftKey: { companyId, draftKey } },
+      select: { updatedAt: true },
+    });
+
+    const currentUpdatedAt = existing?.updatedAt?.toISOString() ?? null;
+    if (currentUpdatedAt !== expectedSheetUpdatedAt) {
+      throw new ConflictException(STALE_MESSAGE);
+    }
+  }
+
   async applyAcceptedAnswer(
     companyId: string,
     draftKey: string,
@@ -126,16 +142,7 @@ export class PromptSheetService {
     value: string,
     expectedSheetUpdatedAt: string,
   ): Promise<{ serviceModel: CompanyServiceModel; answers: Record<string, string>; updatedAt: Date }> {
-    const existing = await this.prisma.promptSheet.findUnique({
-      where: { companyId_draftKey: { companyId, draftKey } },
-      select: { answers: true, updatedAt: true, serviceModel: true },
-    });
-
-    const currentUpdatedAt = existing?.updatedAt?.toISOString() ?? null;
-    if (currentUpdatedAt !== expectedSheetUpdatedAt) {
-      throw new ConflictException(STALE_MESSAGE);
-    }
-
+    await this.assertSheetUnchanged(companyId, draftKey, expectedSheetUpdatedAt);
     return this.writeAnswer(companyId, draftKey, key, value);
   }
 

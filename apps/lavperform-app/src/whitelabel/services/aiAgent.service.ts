@@ -228,6 +228,17 @@ export const aiAgentService = {
       answers: Record<string, string>
       updatedAt: string
     }>(path, data)
+  }
+
+  async assertPromptSheetFresh(
+    companyId: string,
+    sheetUpdatedAt: string,
+    agentId?: string
+  ) {
+    const path = agentId
+      ? `/companies/${companyId}/ai-agents/${agentId}/prompt-sheet/assert-fresh`
+      : `/companies/${companyId}/ai-agents/prompt-sheet/assert-fresh`
+    return await client.post(path, { sheetUpdatedAt })
   },
 
   async adoptPromptSheet(companyId: string, agentId: string) {

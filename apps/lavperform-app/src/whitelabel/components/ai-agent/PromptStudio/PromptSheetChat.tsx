@@ -67,6 +67,7 @@ function PromptSheetChatBase({
   const [correcting, setCorrecting] = useState(false)
   const [draftValue, setDraftValue] = useState('')
   const [adjustDraft, setAdjustDraft] = useState('')
+  const [adjustmentMessages, setAdjustmentMessages] = useState<string[]>([])
   const [proposal, setProposal] = useState<PromptProposal | null>(null)
   const [isProposing, setIsProposing] = useState(false)
   const [isAccepting, setIsAccepting] = useState(false)
@@ -110,13 +111,21 @@ function PromptSheetChatBase({
   const isConfirmMode = Boolean(shownValue) && !correcting
 
   const runPropose = useCallback(
-    async (payload: AdjustmentSeed) => {
+    async (payload: AdjustmentSeed, options?: { showInChat?: boolean }) => {
       if (!sheet || !model || !document) return
 
       const sheetUpdatedAt = sheet.updatedAt
       if (!sheetUpdatedAt) {
         setActionError('Ficha sem data de atualização. Recarregue e tente de novo.')
         return
+      }
+
+      const chatText =
+        payload.answer.trim() ||
+        payload.whatWasWrong.trim() ||
+        ''
+      if (options?.showInChat && chatText) {
+        setAdjustmentMessages((prev) => [...prev, chatText])
       }
 
       setIsProposing(true)
@@ -163,10 +172,10 @@ function PromptSheetChatBase({
 
   useEffect(() => {
     if (!adjustmentSeed || !document || !sheet) return
-    const key = `${adjustmentSeed.question}|${adjustmentSeed.whatWasWrong}`
+    const key = `${adjustmentSeed.question}|${adjustmentSeed.whatWasWrong}|${adjustmentSeed.answer}`
     if (seedHandledRef.current === key) return
     seedHandledRef.current = key
-    void runPropose(adjustmentSeed).finally(() => {
+    void runPropose(adjustmentSeed, { showInChat: true }).finally(() => {
       onAdjustmentSeedConsumed?.()
     })
   }, [adjustmentSeed, document, sheet, runPropose, onAdjustmentSeedConsumed])
@@ -232,6 +241,7 @@ function PromptSheetChatBase({
     const content = adjustDraft.trim()
     if (!content) return
     setAdjustDraft('')
+    setAdjustmentMessages((prev) => [...prev, content])
     await runPropose({
       question: '',
       answer: '',
@@ -244,23 +254,12 @@ function PromptSheetChatBase({
     setIsAccepting(true)
     setActionError(null)
     try {
+      // Server must refuse when the sheet changed, even without answerKey — before persona PATCH.
       if (proposal.sheetUpdatedAt) {
-        const current = await aiAgentService.getPromptSheet(companyId, agentId)
-        const currentUpdatedAt = current.data.updatedAt
-        if (currentUpdatedAt !== proposal.sheetUpdatedAt) {
-          throw new Error(STALE_MESSAGE)
-        }
-        setSheet((prev) =>
-          prev
-            ? {
-                ...prev,
-                answers: current.data.answers,
-                updatedAt: current.data.updatedAt,
-                serviceModel:
-                  (current.data.serviceModel as PromptStudioServiceModel) ??
-                  prev.serviceModel,
-              }
-            : prev
+        await aiAgentService.assertPromptSheetFresh(
+          companyId,
+          proposal.sheetUpdatedAt,
+          agentId
         )
       }
 
@@ -286,6 +285,7 @@ function PromptSheetChatBase({
       }
       await onAcceptProposal(proposal)
       setProposal(null)
+      setAdjustmentMessages([])
     } catch (error) {
       const status =
         error instanceof AxiosError ? error.response?.status : undefined
@@ -312,6 +312,7 @@ function PromptSheetChatBase({
         await aiAgentService.discardPromptStudioProposal(agentId)
       }
       setProposal(null)
+      setAdjustmentMessages([])
     } catch {
       setActionError('Não foi possível descartar a proposta. Tente de novo.')
     } finally {
@@ -397,6 +398,24 @@ function PromptSheetChatBase({
             >
               Pedir ajuste
             </Button>
+
+            {adjustmentMessages.length > 0 ? (
+              <Stack gap={2} align="stretch">
+                {adjustmentMessages.map((text, index) => (
+                  <Box
+                    key={`${index}-${text.slice(0, 24)}`}
+                    borderWidth="1px"
+                    borderRadius="md"
+                    p={3}
+                    bg="bg.subtle"
+                  >
+                    <Text fontSize="sm" whiteSpace="pre-wrap">
+                      {text}
+                    </Text>
+                  </Box>
+                ))}
+              </Stack>
+            ) : null}
 
             {proposal && onAcceptProposal ? (
               <Box borderWidth="1px" borderRadius="md" p={4}>

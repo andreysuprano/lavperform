@@ -316,6 +316,22 @@ export class AiAgentController {
     return this.promptSheetService.get(companyId, 'draft');
   }
 
+  @Post('companies/:companyId/ai-agents/prompt-sheet/assert-fresh')
+  @ApiOperation({
+    summary: 'Recusar aceite se a ficha mudou depois da proposta (sem gravar resposta)',
+  })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  assertPromptSheetFresh(
+    @Param('companyId') companyId: string,
+    @Body() body: { sheetUpdatedAt: string },
+  ) {
+    return this.promptSheetService.assertSheetUnchanged(
+      companyId,
+      'draft',
+      body.sheetUpdatedAt,
+    );
+  }
+
   @Put('companies/:companyId/ai-agents/prompt-sheet')
   @ApiOperation({ summary: 'Gravar resposta na ficha de prompt (rascunho da empresa)' })
   @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
@@ -349,6 +365,24 @@ export class AiAgentController {
     @Param('agentId') agentId: string,
   ) {
     return this.promptSheetService.get(companyId, agentId);
+  }
+
+  @Post('companies/:companyId/ai-agents/:agentId/prompt-sheet/assert-fresh')
+  @ApiOperation({
+    summary: 'Recusar aceite se a ficha mudou depois da proposta (sem gravar resposta)',
+  })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  assertPromptSheetFreshForAgent(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { sheetUpdatedAt: string },
+  ) {
+    return this.promptSheetService.assertSheetUnchanged(
+      companyId,
+      agentId,
+      body.sheetUpdatedAt,
+    );
   }
 
   @Put('companies/:companyId/ai-agents/:agentId/prompt-sheet')
