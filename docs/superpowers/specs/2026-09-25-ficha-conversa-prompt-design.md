@@ -1,7 +1,7 @@
 # Ficha conversacional do prompt do agente
 
 **Data:** 2026-09-25
-**Status:** Aguardando revisão
+**Status:** Aprovado em 2026-09-25
 **Contexto:** A unidade achou o questionário curto. O prompt mestre de autoatendimento pede a ficha inteira da lavanderia. O Andrey pediu uma conversa no centro da tela, no estilo de uma GEM: o bot pergunta uma coisa por vez e, no fim, uma chamada formata o prompt. A pessoa não edita o texto na mão.
 
 Este spec substitui, do spec de 2026-09-24, o questionário curto, a edição manual e o chat especialista separado. Continuam valendo os quatro campos do atendimento, o teste no painel sem WhatsApp, e gravar só no aceite.
