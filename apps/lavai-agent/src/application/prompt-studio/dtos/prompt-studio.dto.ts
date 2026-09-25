@@ -12,7 +12,8 @@ import {
   ValidateNested,
 } from 'class-validator';
 
-const SERVICE_MODELS = ['CONVENTIONAL', 'SELF_SERVICE'] as const;
+const VOICE_TONES = ['FORMAL', 'FRIENDLY', 'NEUTRAL', 'EMPATHETIC', 'TECHNICAL'] as const;
+const COMMUNICATION_STYLES = ['CONCISE', 'DETAILED', 'BALANCED', 'INSTRUCTIVE'] as const;
 
 export class PromptDocumentDto {
   @ApiProperty()
@@ -33,13 +34,43 @@ export class PromptDocumentDto {
 }
 
 export class GeneratePromptStudioDto {
-  @ApiProperty({ enum: SERVICE_MODELS })
-  @IsIn(SERVICE_MODELS)
-  model!: (typeof SERVICE_MODELS)[number];
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  services!: string;
 
-  @ApiProperty({ type: 'object', additionalProperties: { type: 'string' } })
-  @IsObject()
-  answers!: Record<string, string>;
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  focus!: string;
+
+  @ApiProperty()
+  @IsString()
+  @IsNotEmpty()
+  mustNotPromise!: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  hoursAndDeadline?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  pricing?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  handoff?: string;
+
+  @ApiProperty({ enum: VOICE_TONES })
+  @IsIn(VOICE_TONES)
+  voiceTone!: (typeof VOICE_TONES)[number];
+
+  @ApiProperty({ enum: COMMUNICATION_STYLES })
+  @IsIn(COMMUNICATION_STYLES)
+  communicationStyle!: (typeof COMMUNICATION_STYLES)[number];
 
   @ApiPropertyOptional()
   @IsString()
@@ -86,12 +117,6 @@ export class TestPromptStudioDto {
   ragChunks?: RagChunkDto[];
 }
 
-export class ProposeFactDto {
-  @ApiProperty()
-  @IsString()
-  text!: string;
-}
-
 export class ProposePromptStudioDto {
   @ApiProperty({ type: PromptDocumentDto })
   @IsObject()
@@ -125,33 +150,6 @@ export class ProposePromptStudioDto {
   @ApiProperty()
   @IsBoolean()
   draftChanged!: boolean;
-
-  @ApiPropertyOptional({ type: [ProposeFactDto] })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => ProposeFactDto)
-  @IsOptional()
-  facts?: ProposeFactDto[];
-
-  @ApiPropertyOptional({ enum: SERVICE_MODELS })
-  @IsIn(SERVICE_MODELS)
-  @IsOptional()
-  model?: (typeof SERVICE_MODELS)[number];
-
-  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'string' } })
-  @IsObject()
-  @IsOptional()
-  answers?: Record<string, string>;
-
-  @ApiPropertyOptional()
-  @IsString()
-  @IsOptional()
-  sheetUpdatedAt?: string;
-
-  @ApiPropertyOptional({ nullable: true })
-  @IsString()
-  @IsOptional()
-  currentSheetUpdatedAt?: string | null;
 
   @ApiPropertyOptional()
   @IsString()

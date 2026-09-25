@@ -120,13 +120,5 @@ export function parseProposal(raw: string): PromptProposal | null {
     proposal.baseUpdatedAt = record.baseUpdatedAt.trim();
   }
 
-  if (typeof record.answerKey === 'string' && record.answerKey.trim() !== '') {
-    proposal.answerKey = record.answerKey.trim();
-  }
-
-  if (typeof record.answerValue === 'string' && record.answerValue.trim() !== '') {
-    proposal.answerValue = record.answerValue.trim();
-  }
-
   return proposal;
 }

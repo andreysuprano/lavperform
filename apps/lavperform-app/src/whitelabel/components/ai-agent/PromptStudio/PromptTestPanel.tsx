@@ -16,14 +16,13 @@ interface PromptTestPanelProps {
   suggestedQuestions: string[]
   proposal: PromptProposal | null
   onTest: (question: string) => Promise<string>
-  /** Quando omitido, a ação "Não ficou boa" / "Pedir correção" fica oculta. */
-  onPropose?: (payload: {
+  onPropose: (payload: {
     question: string
     answer: string
     whatWasWrong: string
   }) => Promise<void>
-  onAcceptProposal?: () => void
-  onDiscardProposal?: () => void
+  onAcceptProposal: () => void
+  onDiscardProposal: () => void
   isTesting?: boolean
   isProposing?: boolean
 }
@@ -47,7 +46,6 @@ function PromptTestPanelBase({
   const [error, setError] = useState<string | null>(null)
 
   const canTest = Boolean(document)
-  const canPropose = Boolean(onPropose)
 
   const runTest = async (question: string) => {
     const trimmed = question.trim()
@@ -69,7 +67,7 @@ function PromptTestPanelBase({
 
   const handlePropose = async () => {
     const wrong = whatWasWrong.trim()
-    if (!onPropose || !wrong || !lastQuestion || !answer) return
+    if (!wrong || !lastQuestion || !answer) return
 
     setError(null)
     try {
@@ -156,55 +154,53 @@ function PromptTestPanelBase({
             <Text fontSize="sm" whiteSpace="pre-wrap">
               {answer}
             </Text>
-            {canPropose ? (
-              !showWrongForm ? (
-                <Button
-                  size="sm"
-                  variant="outline"
-                  alignSelf="flex-start"
-                  onClick={() => setShowWrongForm(true)}
-                >
-                  Não ficou boa
-                </Button>
-              ) : (
-                <Stack gap={2}>
-                  <Text fontSize="sm" fontWeight="medium">
-                    O que estava errado?
-                  </Text>
-                  <Textarea
-                    value={whatWasWrong}
-                    onChange={(e) => setWhatWasWrong(e.target.value)}
-                    placeholder="Descreva o problema na resposta..."
-                    rows={3}
-                  />
-                  <HStack>
-                    <Button
-                      size="sm"
-                      loading={isProposing}
-                      disabled={!whatWasWrong.trim()}
-                      onClick={() => void handlePropose()}
-                    >
-                      Pedir correção
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="ghost"
-                      onClick={() => {
-                        setShowWrongForm(false)
-                        setWhatWasWrong('')
-                      }}
-                    >
-                      Cancelar
-                    </Button>
-                  </HStack>
-                </Stack>
-              )
-            ) : null}
+            {!showWrongForm ? (
+              <Button
+                size="sm"
+                variant="outline"
+                alignSelf="flex-start"
+                onClick={() => setShowWrongForm(true)}
+              >
+                Não ficou boa
+              </Button>
+            ) : (
+              <Stack gap={2}>
+                <Text fontSize="sm" fontWeight="medium">
+                  O que estava errado?
+                </Text>
+                <Textarea
+                  value={whatWasWrong}
+                  onChange={(e) => setWhatWasWrong(e.target.value)}
+                  placeholder="Descreva o problema na resposta..."
+                  rows={3}
+                />
+                <HStack>
+                  <Button
+                    size="sm"
+                    loading={isProposing}
+                    disabled={!whatWasWrong.trim()}
+                    onClick={() => void handlePropose()}
+                  >
+                    Pedir correção
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setShowWrongForm(false)
+                      setWhatWasWrong('')
+                    }}
+                  >
+                    Cancelar
+                  </Button>
+                </HStack>
+              </Stack>
+            )}
           </Stack>
         </Box>
       ) : null}
 
-      {proposal && onAcceptProposal && onDiscardProposal ? (
+      {proposal ? (
         <Box borderWidth="1px" borderRadius="md" p={4}>
           <Stack gap={3}>
             <Text fontWeight="semibold" fontSize="sm">

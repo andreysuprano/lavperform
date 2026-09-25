@@ -93,24 +93,9 @@ model Company {
   audiences                 Audience[]
   customerMergeReviews      CustomerMergeReview[]
   customSendLists           CustomSendList[]
-  promptSheets              PromptSheet[]
 
   @@index([businessPartnerId])
   @@index([deletedAt])
-}
-
-model PromptSheet {
-  id           String              @id @default(uuid())
-  companyId    String
-  company      Company             @relation(fields: [companyId], references: [id], onDelete: Cascade)
-  draftKey     String              @default("draft")
-  serviceModel CompanyServiceModel
-  answers      Json
-  createdAt    DateTime            @default(now())
-  updatedAt    DateTime            @updatedAt
-
-  @@unique([companyId, draftKey])
-  @@index([companyId])
 }
 
 enum AgentPersonality {

@@ -1,87 +1,52 @@
 import { BadGatewayException, BadRequestException } from '@nestjs/common';
 import { GeneratePromptUseCase } from './generate-prompt.use-case';
 import type { LlmProviderPort } from '../agent-runner/ports/llm-provider.port';
-import { scriptFor } from './sheet-script';
+import type { QuestionnaireAnswers } from './prompt-studio.types';
 
-function provider(content: string | null): LlmProviderPort & { complete: jest.Mock } {
-  return {
-    complete: jest.fn().mockResolvedValue({ content, toolCalls: [], finishReason: 'stop' }),
-  };
-}
+const answers: QuestionnaireAnswers = {
+  services: 'Lavagem',
+  focus: 'Atender no WhatsApp',
+  mustNotPromise: 'Não prometer prazo',
+  hoursAndDeadline: '8h às 18h',
+  pricing: 'Não passar preço',
+  handoff: 'Quando pedir humano',
+  voiceTone: 'FRIENDLY',
+  communicationStyle: 'BALANCED',
+};
 
-function completeAnswers(
-  model: 'CONVENTIONAL' | 'SELF_SERVICE',
-  overrides: Record<string, string> = {},
-): Record<string, string> {
-  return Object.fromEntries(
-    scriptFor(model).map((field) => [
-      field.key,
-      overrides[field.key] ?? (field.key === 'priceWash' ? 'R$ 20' : 'sim'),
-    ]),
-  );
-}
-
-const happyDocument = {
-  contextPrompt: 'Lavagem: R$ 20. sim',
-  systemPrompt: 'Foco no atendimento.',
-  behaviorGuidelines: 'Tom cordial.',
-  guardrails: 'Limites claros.',
+const generated = {
+  contextPrompt: 'Lavanderia',
+  systemPrompt: 'Atender no WhatsApp',
+  behaviorGuidelines: 'Confirme o prazo',
+  guardrails: 'Não invente preço',
   suggestedQuestions: ['Horário?', 'Preço?', 'Prazo?', 'Buscam?'],
 };
 
+function provider(content: string | null): LlmProviderPort {
+  return { complete: jest.fn().mockResolvedValue({ content, toolCalls: [], finishReason: 'stop' }) };
+}
+
 describe('GeneratePromptUseCase', () => {
-  it('não chama o modelo se a ficha está incompleta', async () => {
-    const llm = provider(JSON.stringify(happyDocument));
+  it('não chama o modelo sem obrigatória', async () => {
+    const llm = provider(JSON.stringify(generated));
     const useCase = new GeneratePromptUseCase(llm);
-    await expect(
-      useCase.execute({
-        model: 'CONVENTIONAL',
-        answers: { name: 'Lavanderia' },
-      }),
-    ).rejects.toBeInstanceOf(BadRequestException);
+    await expect(useCase.execute({ answers: { ...answers, services: ' ' } })).rejects.toBeInstanceOf(BadRequestException);
     expect(llm.complete).not.toHaveBeenCalled();
   });
 
-  it('ignora o texto quando o preço da ficha some', async () => {
-    const llm = provider(
-      JSON.stringify({
-        contextPrompt: 'Lavagem: R$ 25.',
-        systemPrompt: 'Foco.',
-        behaviorGuidelines: 'Tom.',
-        guardrails: 'Limites.',
-        suggestedQuestions: ['a', 'b', 'c', 'd'],
-      }),
-    );
-    const useCase = new GeneratePromptUseCase(llm);
-    const answers = Object.fromEntries(
-      scriptFor('CONVENTIONAL').map((field) => [
-        field.key,
-        field.key === 'priceWash' ? 'R$ 20' : 'sim',
-      ]),
-    );
-    await expect(useCase.execute({ model: 'CONVENTIONAL', answers })).rejects.toBeInstanceOf(
-      BadGatewayException,
-    );
+  it('usa openai/gpt-5 e devolve o documento', async () => {
+    const llm = provider(JSON.stringify(generated));
+    const result = await new GeneratePromptUseCase(llm).execute({ answers });
+    expect(result.document.systemPrompt).toBe('Atender no WhatsApp');
+    expect(result.suggestedQuestions).toHaveLength(4);
+    expect(jest.mocked(llm.complete).mock.calls[0][0].model).toBe('openai/gpt-5');
   });
 
-  it('monta o documento a partir da ficha completa', async () => {
-    const llm = provider(JSON.stringify(happyDocument));
-    const useCase = new GeneratePromptUseCase(llm);
-    const answers = completeAnswers('CONVENTIONAL');
-
-    const result = await useCase.execute({ model: 'CONVENTIONAL', answers });
-
-    expect(result.document.contextPrompt).toContain('R$ 20');
-    expect(result.suggestedQuestions).toHaveLength(4);
-    expect(llm.complete).toHaveBeenCalledTimes(1);
-
-    const call = llm.complete.mock.calls[0][0];
-    expect(call.model).toBe('openai/gpt-5');
-    expect(call.temperature).toBe(0.2);
-    expect(call.messages[0].role).toBe('system');
-    expect(call.messages[0].content).toMatch(/SELF_SERVICE|CONVENTIONAL/);
-    expect(call.messages[0].content).toMatch(/copiar|copie/i);
-    expect(call.messages[1].role).toBe('user');
-    expect(JSON.parse(call.messages[1].content)).toMatchObject({ model: 'CONVENTIONAL' });
+  it('respeita modelName e recusa JSON inválido', async () => {
+    const llm = provider(JSON.stringify(generated));
+    await new GeneratePromptUseCase(llm).execute({ answers, modelName: 'openai/gpt-4o' });
+    expect(jest.mocked(llm.complete).mock.calls[0][0].model).toBe('openai/gpt-4o');
+    const broken = provider('não é json');
+    await expect(new GeneratePromptUseCase(broken).execute({ answers })).rejects.toBeInstanceOf(BadGatewayException);
   });
 });

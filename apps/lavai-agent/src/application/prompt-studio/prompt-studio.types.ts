@@ -28,7 +28,4 @@ export interface PromptProposal {
   summary: string;
   changes: Partial<PromptDocument>;
   baseUpdatedAt?: string;
-  sheetUpdatedAt?: string;
-  answerKey?: string;
-  answerValue?: string;
 }
