@@ -19,6 +19,7 @@ import { aiAgentService } from '@/whitelabel/services'
 import type {
   CommunicationStyleType,
   PromptDocument,
+  PromptProposal,
   VoiceToneType,
 } from '@/whitelabel/types'
 
@@ -27,6 +28,7 @@ import type { Step1FormData } from '../AIAgentWizardStep1'
 import { AIAgentWizardStep3 } from '../AIAgentWizardStep3'
 import type { Step3FormData } from '../AIAgentWizardStep3'
 import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
+import type { AdjustmentSeed } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
 
 import type { Props } from './AIAgentWizard.types'
@@ -100,6 +102,10 @@ function AIAgentWizardBase({ onClose }: Props) {
   const [finishError, setFinishError] = useState<string | null>(null)
   const [finishResume, setFinishResume] =
     useState<FinishResumeState>(initialFinishResume)
+  const [adjustmentSeed, setAdjustmentSeed] = useState<AdjustmentSeed | null>(
+    null
+  )
+  const [isProposingFromTest, setIsProposingFromTest] = useState(false)
 
   const updatePersona = useUpdateAIAgentPersona()
   const updateMediaConfig = useUpdateAIAgentMediaConfig()
@@ -129,6 +135,19 @@ function AIAgentWizardBase({ onClose }: Props) {
     setDocument(next)
     setPromptStepError(null)
   }, [])
+
+  const handleProposeFromTest = useCallback(async (payload: AdjustmentSeed) => {
+    setIsProposingFromTest(true)
+    setPromptStepError(null)
+    setAdjustmentSeed(payload)
+  }, [])
+
+  const handleAcceptAdjustment = useCallback(
+    async (proposal: PromptProposal) => {
+      setDocument((prev) => (prev ? { ...prev, ...proposal.changes } : prev))
+    },
+    []
+  )
 
   const handleTest = useCallback(
     async (question: string) => {
@@ -435,8 +454,16 @@ function AIAgentWizardBase({ onClose }: Props) {
               {companyId ? (
                 <PromptSheetChat
                   companyId={companyId}
+                  document={document}
+                  draftChanged={false}
                   onDocument={handleDocument}
                   onSuggestedQuestions={setSuggestedQuestions}
+                  onAcceptProposal={handleAcceptAdjustment}
+                  adjustmentSeed={adjustmentSeed}
+                  onAdjustmentSeedConsumed={() => {
+                    setAdjustmentSeed(null)
+                    setIsProposingFromTest(false)
+                  }}
                 />
               ) : (
                 <Text fontSize="sm" color="fg.error">
@@ -458,7 +485,9 @@ function AIAgentWizardBase({ onClose }: Props) {
                     suggestedQuestions={suggestedQuestions}
                     proposal={null}
                     onTest={handleTest}
+                    onPropose={handleProposeFromTest}
                     isTesting={isTesting}
+                    isProposing={isProposingFromTest}
                   />
                 </>
               ) : null}

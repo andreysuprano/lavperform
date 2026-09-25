@@ -217,7 +217,7 @@ export const aiAgentService = {
 
   async putPromptSheetAnswer(
     companyId: string,
-    data: { key: string; value: string },
+    data: { key: string; value: string; sheetUpdatedAt?: string },
     agentId?: string
   ) {
     const path = agentId

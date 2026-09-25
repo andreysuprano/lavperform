@@ -184,4 +184,72 @@ describe('PromptSheetService', () => {
       }),
     );
   });
+
+  it('applyAcceptedAnswer muda só a chave informada', async () => {
+    prisma.promptSheet.findUnique.mockResolvedValue({
+      answers: { name: 'Lav Antiga', phone: '11999999999' },
+      serviceModel: 'SELF_SERVICE',
+      updatedAt,
+    });
+    prisma.promptSheet.upsert.mockResolvedValue({
+      companyId,
+      draftKey: 'draft',
+      serviceModel: 'SELF_SERVICE',
+      answers: { name: 'Lav Nova', phone: '11999999999' },
+      updatedAt: new Date('2026-09-25T13:00:00.000Z'),
+    });
+
+    const result = await service.applyAcceptedAnswer(
+      companyId,
+      'draft',
+      'name',
+      'Lav Nova',
+      updatedAt.toISOString(),
+    );
+
+    expect(prisma.promptSheet.upsert).toHaveBeenCalledWith({
+      where: { companyId_draftKey: { companyId, draftKey: 'draft' } },
+      create: {
+        companyId,
+        draftKey: 'draft',
+        serviceModel: 'SELF_SERVICE',
+        answers: { name: 'Lav Nova', phone: '11999999999' },
+      },
+      update: {
+        answers: { name: 'Lav Nova', phone: '11999999999' },
+      },
+    });
+    expect(result.answers).toEqual({ name: 'Lav Nova', phone: '11999999999' });
+    expect(prisma.company.update).not.toHaveBeenCalled();
+    expect(prisma.address.update).not.toHaveBeenCalled();
+    expect(prisma.openingHours.update).not.toHaveBeenCalled();
+  });
+
+  it('applyAcceptedAnswer recusa se a ficha mudou depois da proposta', async () => {
+    prisma.promptSheet.findUnique.mockResolvedValue({
+      answers: { name: 'Lav' },
+      serviceModel: 'SELF_SERVICE',
+      updatedAt: new Date('2026-09-25T14:00:00.000Z'),
+    });
+
+    await expect(
+      service.applyAcceptedAnswer(
+        companyId,
+        'draft',
+        'name',
+        'Lav Nova',
+        updatedAt.toISOString(),
+      ),
+    ).rejects.toThrow('O texto mudou. Peça a alteração de novo.');
+    expect(prisma.promptSheet.upsert).not.toHaveBeenCalled();
+  });
+
+  it('descarte não chama applyAcceptedAnswer', () => {
+    const applySpy = jest.spyOn(service, 'applyAcceptedAnswer');
+    // Descarte é só no cliente (limpa proposta local + thread discard).
+    // Este serviço não tem método de descarte que grave a ficha.
+    expect((service as { discard?: unknown }).discard).toBeUndefined();
+    expect(applySpy).not.toHaveBeenCalled();
+    applySpy.mockRestore();
+  });
 });

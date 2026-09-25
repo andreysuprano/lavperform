@@ -321,8 +321,17 @@ export class AiAgentController {
   @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
   putPromptSheetAnswer(
     @Param('companyId') companyId: string,
-    @Body() body: { key: string; value: string },
+    @Body() body: { key: string; value: string; sheetUpdatedAt?: string },
   ) {
+    if (body.sheetUpdatedAt) {
+      return this.promptSheetService.applyAcceptedAnswer(
+        companyId,
+        'draft',
+        body.key,
+        body.value,
+        body.sheetUpdatedAt,
+      );
+    }
     return this.promptSheetService.putAnswer(
       companyId,
       'draft',
@@ -349,8 +358,17 @@ export class AiAgentController {
   putPromptSheetAnswerForAgent(
     @Param('companyId') companyId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { key: string; value: string },
+    @Body() body: { key: string; value: string; sheetUpdatedAt?: string },
   ) {
+    if (body.sheetUpdatedAt) {
+      return this.promptSheetService.applyAcceptedAnswer(
+        companyId,
+        agentId,
+        body.key,
+        body.value,
+        body.sheetUpdatedAt,
+      );
+    }
     return this.promptSheetService.putAnswer(
       companyId,
       agentId,

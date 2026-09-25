@@ -33,10 +33,12 @@ import type {
   AIAgent,
   CommunicationStyleType,
   PromptDocument,
+  PromptProposal,
   VoiceToneType,
 } from '@/whitelabel/types'
 
 import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
+import type { AdjustmentSeed } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
 
 import { SelectableIconCard } from './SelectableIconCard'
@@ -188,6 +190,10 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
   const [isTesting, setIsTesting] = useState(false)
   const [isAcceptingPending, setIsAcceptingPending] = useState(false)
   const [studioError, setStudioError] = useState<string | null>(null)
+  const [adjustmentSeed, setAdjustmentSeed] = useState<AdjustmentSeed | null>(
+    null
+  )
+  const [isProposingFromTest, setIsProposingFromTest] = useState(false)
 
   const form = useForm<PersonaFormData>({
     defaultValues: personaToFormValues(agent),
@@ -265,6 +271,39 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
     setSuggestedQuestions([])
     setStudioError(null)
   }, [])
+
+  const handleProposeFromTest = useCallback(
+    async (payload: AdjustmentSeed) => {
+      setIsProposingFromTest(true)
+      setStudioError(null)
+      setAdjustmentSeed(payload)
+    },
+    []
+  )
+
+  const handleAcceptAdjustment = useCallback(
+    async (proposal: PromptProposal) => {
+      const next = {
+        ...activeDocument,
+        ...proposal.changes,
+      }
+      await updatePersona.mutateAsync({
+        agentId: agent.id,
+        data: {
+          contextPrompt: next.contextPrompt || undefined,
+          systemPrompt: next.systemPrompt || undefined,
+          behaviorGuidelines: next.behaviorGuidelines || undefined,
+          guardrails: next.guardrails || undefined,
+        },
+      })
+      form.setValue('contextPrompt', next.contextPrompt)
+      form.setValue('systemPrompt', next.systemPrompt)
+      form.setValue('behaviorGuidelines', next.behaviorGuidelines)
+      form.setValue('guardrails', next.guardrails)
+      setPendingDocument(null)
+    },
+    [activeDocument, agent.id, form, updatePersona]
+  )
 
   const handleTest = useCallback(
     async (question: string) => {
@@ -360,8 +399,16 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
                 <PromptSheetChat
                   companyId={companyId}
                   agentId={agent.id}
+                  document={activeDocument}
+                  personaUpdatedAt={agent.persona?.updatedAt ?? null}
                   onDocument={handleDocument}
                   onSuggestedQuestions={setSuggestedQuestions}
+                  onAcceptProposal={handleAcceptAdjustment}
+                  adjustmentSeed={adjustmentSeed}
+                  onAdjustmentSeedConsumed={() => {
+                    setAdjustmentSeed(null)
+                    setIsProposingFromTest(false)
+                  }}
                 />
               ) : (
                 <Text fontSize="sm" color="fg.error">
@@ -439,7 +486,9 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
             suggestedQuestions={suggestedQuestions}
             proposal={null}
             onTest={handleTest}
+            onPropose={handleProposeFromTest}
             isTesting={isTesting}
+            isProposing={isProposingFromTest}
           />
         </Card.Body>
       </Card.Root>

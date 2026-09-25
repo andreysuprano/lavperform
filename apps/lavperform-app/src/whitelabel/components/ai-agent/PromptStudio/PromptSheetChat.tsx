@@ -7,34 +7,56 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useMemo, useState } from 'react'
+import { AxiosError } from 'axios'
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { aiAgentService } from '@/whitelabel/services'
 import type {
   PromptDocument,
+  PromptProposal,
   PromptSheetResponse,
   PromptStudioServiceModel,
 } from '@/whitelabel/types'
 
+import { factsFromSheet } from './sheet-facts'
 import { answeredCount, nextQuestion, scriptFor } from './sheet-script'
 import { progress } from './sheet-progress'
 import { snapshotShownValue } from './snapshot-shown-value'
 
 const NAO_TEM = 'Não tem'
 const NAO_SE_APLICA = 'Não se aplica'
+const STALE_MESSAGE = 'O texto mudou. Peça a alteração de novo.'
+
+export type AdjustmentSeed = {
+  question: string
+  answer: string
+  whatWasWrong: string
+}
 
 interface PromptSheetChatProps {
   companyId: string
   agentId?: string
+  document?: PromptDocument | null
+  personaUpdatedAt?: string | null
+  draftChanged?: boolean
   onDocument: (document: PromptDocument) => void
   onSuggestedQuestions?: (questions: string[]) => void
+  onAcceptProposal?: (proposal: PromptProposal) => Promise<void>
+  adjustmentSeed?: AdjustmentSeed | null
+  onAdjustmentSeedConsumed?: () => void
 }
 
 function PromptSheetChatBase({
   companyId,
   agentId,
+  document = null,
+  personaUpdatedAt = null,
+  draftChanged = false,
   onDocument,
   onSuggestedQuestions,
+  onAcceptProposal,
+  adjustmentSeed = null,
+  onAdjustmentSeedConsumed,
 }: PromptSheetChatProps) {
   const [sheet, setSheet] = useState<PromptSheetResponse | null>(null)
   const [loadError, setLoadError] = useState<string | null>(null)
@@ -44,6 +66,12 @@ function PromptSheetChatBase({
   const [isGenerating, setIsGenerating] = useState(false)
   const [correcting, setCorrecting] = useState(false)
   const [draftValue, setDraftValue] = useState('')
+  const [adjustDraft, setAdjustDraft] = useState('')
+  const [proposal, setProposal] = useState<PromptProposal | null>(null)
+  const [isProposing, setIsProposing] = useState(false)
+  const [isAccepting, setIsAccepting] = useState(false)
+  const [isDiscarding, setIsDiscarding] = useState(false)
+  const seedHandledRef = useRef<string | null>(null)
 
   const loadSheet = useCallback(async () => {
     setIsLoading(true)
@@ -81,6 +109,68 @@ function PromptSheetChatBase({
       : null
   const isConfirmMode = Boolean(shownValue) && !correcting
 
+  const runPropose = useCallback(
+    async (payload: AdjustmentSeed) => {
+      if (!sheet || !model || !document) return
+
+      const sheetUpdatedAt = sheet.updatedAt
+      if (!sheetUpdatedAt) {
+        setActionError('Ficha sem data de atualização. Recarregue e tente de novo.')
+        return
+      }
+
+      setIsProposing(true)
+      setActionError(null)
+      try {
+        const facts = factsFromSheet(model, sheet.answers).map((fact) => ({
+          text: fact.text,
+        }))
+        const response = await aiAgentService.proposePromptStudio(
+          {
+            document,
+            question: payload.question,
+            answer: payload.answer,
+            whatWasWrong: payload.whatWasWrong,
+            baseUpdatedAt: personaUpdatedAt ?? undefined,
+            currentUpdatedAt: personaUpdatedAt,
+            draftChanged,
+            facts,
+            sheetUpdatedAt,
+            currentSheetUpdatedAt: sheetUpdatedAt,
+          },
+          agentId
+        )
+        setProposal(response.data)
+      } catch (error) {
+        const status =
+          error instanceof AxiosError ? error.response?.status : undefined
+        const message =
+          error instanceof AxiosError
+            ? (error.response?.data as { message?: string })?.message
+            : undefined
+        setActionError(
+          status === 409 || message === STALE_MESSAGE
+            ? STALE_MESSAGE
+            : 'Não foi possível propor o ajuste. Tente de novo.'
+        )
+        setProposal(null)
+      } finally {
+        setIsProposing(false)
+      }
+    },
+    [agentId, document, draftChanged, model, personaUpdatedAt, sheet]
+  )
+
+  useEffect(() => {
+    if (!adjustmentSeed || !document || !sheet) return
+    const key = `${adjustmentSeed.question}|${adjustmentSeed.whatWasWrong}`
+    if (seedHandledRef.current === key) return
+    seedHandledRef.current = key
+    void runPropose(adjustmentSeed).finally(() => {
+      onAdjustmentSeedConsumed?.()
+    })
+  }, [adjustmentSeed, document, sheet, runPropose, onAdjustmentSeedConsumed])
+
   const submitAnswer = useCallback(
     async (value: string) => {
       if (!currentField) return
@@ -89,6 +179,7 @@ function PromptSheetChatBase({
 
       setIsSaving(true)
       setActionError(null)
+      setProposal(null)
       try {
         const response = await aiAgentService.putPromptSheetAnswer(
           companyId,
@@ -122,6 +213,7 @@ function PromptSheetChatBase({
     if (!sheet || !model) return
     setIsGenerating(true)
     setActionError(null)
+    setProposal(null)
     try {
       const response = await aiAgentService.generatePromptStudio(
         { model, answers: sheet.answers },
@@ -135,6 +227,97 @@ function PromptSheetChatBase({
       setIsGenerating(false)
     }
   }, [agentId, model, onDocument, onSuggestedQuestions, sheet])
+
+  const handleAdjustSend = useCallback(async () => {
+    const content = adjustDraft.trim()
+    if (!content) return
+    setAdjustDraft('')
+    await runPropose({
+      question: '',
+      answer: '',
+      whatWasWrong: content,
+    })
+  }, [adjustDraft, runPropose])
+
+  const handleAccept = useCallback(async () => {
+    if (!proposal || !onAcceptProposal) return
+    setIsAccepting(true)
+    setActionError(null)
+    try {
+      if (proposal.sheetUpdatedAt) {
+        const current = await aiAgentService.getPromptSheet(companyId, agentId)
+        const currentUpdatedAt = current.data.updatedAt
+        if (currentUpdatedAt !== proposal.sheetUpdatedAt) {
+          throw new Error(STALE_MESSAGE)
+        }
+        setSheet((prev) =>
+          prev
+            ? {
+                ...prev,
+                answers: current.data.answers,
+                updatedAt: current.data.updatedAt,
+                serviceModel:
+                  (current.data.serviceModel as PromptStudioServiceModel) ??
+                  prev.serviceModel,
+              }
+            : prev
+        )
+      }
+
+      if (proposal.answerKey && proposal.answerValue && proposal.sheetUpdatedAt) {
+        const response = await aiAgentService.putPromptSheetAnswer(
+          companyId,
+          {
+            key: proposal.answerKey,
+            value: proposal.answerValue,
+            sheetUpdatedAt: proposal.sheetUpdatedAt,
+          },
+          agentId
+        )
+        setSheet((prev) =>
+          prev
+            ? {
+                ...prev,
+                answers: response.data.answers,
+                updatedAt: response.data.updatedAt,
+              }
+            : prev
+        )
+      }
+      await onAcceptProposal(proposal)
+      setProposal(null)
+    } catch (error) {
+      const status =
+        error instanceof AxiosError ? error.response?.status : undefined
+      const message =
+        error instanceof AxiosError
+          ? (error.response?.data as { message?: string })?.message
+          : undefined
+      const errMessage = error instanceof Error ? error.message : undefined
+      setActionError(
+        status === 409 || message === STALE_MESSAGE || errMessage === STALE_MESSAGE
+          ? STALE_MESSAGE
+          : 'Não foi possível aceitar a proposta. Tente de novo.'
+      )
+    } finally {
+      setIsAccepting(false)
+    }
+  }, [agentId, companyId, onAcceptProposal, proposal])
+
+  const handleDiscard = useCallback(async () => {
+    setIsDiscarding(true)
+    setActionError(null)
+    try {
+      if (agentId) {
+        await aiAgentService.discardPromptStudioProposal(agentId)
+      }
+      setProposal(null)
+    } catch {
+      setActionError('Não foi possível descartar a proposta. Tente de novo.')
+    } finally {
+      setIsDiscarding(false)
+    }
+  }, [agentId])
 
   if (isLoading) {
     return (
@@ -176,7 +359,9 @@ function PromptSheetChatBase({
           </Progress.Root>
         </Stack>
         <Text fontSize="sm" color="fg.muted">
-          Ficha completa. Gere o prompt quando quiser.
+          {document
+            ? 'Ficha completa. Peça um ajuste ou gere o prompt de novo.'
+            : 'Ficha completa. Gere o prompt quando quiser.'}
         </Text>
         {actionError ? (
           <Text fontSize="sm" color="fg.error">
@@ -188,8 +373,72 @@ function PromptSheetChatBase({
           loading={isGenerating}
           disabled={isGenerating}
         >
-          Gerar prompt
+          {document ? 'Gerar de novo' : 'Gerar prompt'}
         </Button>
+
+        {document ? (
+          <Stack gap={3} align="stretch">
+            <Text fontSize="sm" fontWeight="medium">
+              Ajuste na mesma conversa
+            </Text>
+            <Textarea
+              value={adjustDraft}
+              onChange={(e) => setAdjustDraft(e.target.value)}
+              placeholder="O que precisa mudar no prompt?"
+              rows={3}
+              disabled={isProposing || isAccepting}
+            />
+            <Button
+              size="sm"
+              alignSelf="flex-start"
+              loading={isProposing}
+              disabled={isProposing || !adjustDraft.trim()}
+              onClick={() => void handleAdjustSend()}
+            >
+              Pedir ajuste
+            </Button>
+
+            {proposal && onAcceptProposal ? (
+              <Box borderWidth="1px" borderRadius="md" p={4}>
+                <Stack gap={3}>
+                  <Text fontWeight="semibold" fontSize="sm">
+                    Proposta de correção
+                  </Text>
+                  <Text fontSize="sm">{proposal.summary}</Text>
+                  {Object.entries(proposal.changes).map(([key, value]) =>
+                    value ? (
+                      <Stack key={key} gap={1}>
+                        <Text fontSize="xs" color="fg.muted" fontWeight="medium">
+                          {key}
+                        </Text>
+                        <Text fontSize="sm" whiteSpace="pre-wrap">
+                          {value}
+                        </Text>
+                      </Stack>
+                    ) : null
+                  )}
+                  <HStack>
+                    <Button
+                      size="sm"
+                      loading={isAccepting}
+                      onClick={() => void handleAccept()}
+                    >
+                      Aceitar
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      loading={isDiscarding}
+                      onClick={() => void handleDiscard()}
+                    >
+                      Descartar
+                    </Button>
+                  </HStack>
+                </Stack>
+              </Box>
+            ) : null}
+          </Stack>
+        ) : null}
       </Stack>
     )
   }

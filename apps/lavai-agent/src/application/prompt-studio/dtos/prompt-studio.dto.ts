@@ -86,6 +86,12 @@ export class TestPromptStudioDto {
   ragChunks?: RagChunkDto[];
 }
 
+export class ProposeFactDto {
+  @ApiProperty()
+  @IsString()
+  text!: string;
+}
+
 export class ProposePromptStudioDto {
   @ApiProperty({ type: PromptDocumentDto })
   @IsObject()
@@ -119,6 +125,21 @@ export class ProposePromptStudioDto {
   @ApiProperty()
   @IsBoolean()
   draftChanged!: boolean;
+
+  @ApiProperty({ type: [ProposeFactDto] })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => ProposeFactDto)
+  facts!: ProposeFactDto[];
+
+  @ApiProperty()
+  @IsString()
+  sheetUpdatedAt!: string;
+
+  @ApiProperty({ nullable: true })
+  @IsString()
+  @IsOptional()
+  currentSheetUpdatedAt!: string | null;
 
   @ApiPropertyOptional()
   @IsString()

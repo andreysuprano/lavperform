@@ -60,6 +60,9 @@ export interface PromptProposal {
   summary: string
   changes: Partial<PromptDocument>
   baseUpdatedAt?: string
+  sheetUpdatedAt?: string
+  answerKey?: string
+  answerValue?: string
 }
 
 export interface GeneratePromptStudioResult {
@@ -79,6 +82,9 @@ export interface ProposePromptStudioPayload {
   baseUpdatedAt?: string
   currentUpdatedAt: string | null
   draftChanged: boolean
+  facts: Array<{ text: string }>
+  sheetUpdatedAt: string
+  currentSheetUpdatedAt: string | null
   modelName?: string
 }
 

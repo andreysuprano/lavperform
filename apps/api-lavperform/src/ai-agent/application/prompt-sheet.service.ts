@@ -1,6 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { CompanyServiceModel, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
+
+const STALE_MESSAGE = 'O texto mudou. Peça a alteração de novo.';
 
 export type PromptSheetSnapshot = {
   name: string | null;
@@ -109,6 +111,35 @@ export class PromptSheetService {
   }
 
   async putAnswer(
+    companyId: string,
+    draftKey: string,
+    key: string,
+    value: string,
+  ): Promise<{ serviceModel: CompanyServiceModel; answers: Record<string, string>; updatedAt: Date }> {
+    return this.writeAnswer(companyId, draftKey, key, value);
+  }
+
+  async applyAcceptedAnswer(
+    companyId: string,
+    draftKey: string,
+    key: string,
+    value: string,
+    expectedSheetUpdatedAt: string,
+  ): Promise<{ serviceModel: CompanyServiceModel; answers: Record<string, string>; updatedAt: Date }> {
+    const existing = await this.prisma.promptSheet.findUnique({
+      where: { companyId_draftKey: { companyId, draftKey } },
+      select: { answers: true, updatedAt: true, serviceModel: true },
+    });
+
+    const currentUpdatedAt = existing?.updatedAt?.toISOString() ?? null;
+    if (currentUpdatedAt !== expectedSheetUpdatedAt) {
+      throw new ConflictException(STALE_MESSAGE);
+    }
+
+    return this.writeAnswer(companyId, draftKey, key, value);
+  }
+
+  private async writeAnswer(
     companyId: string,
     draftKey: string,
     key: string,
