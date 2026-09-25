@@ -1,14 +1,36 @@
-import type { CommunicationStyleType, VoiceToneType } from './ai-agent.types'
+export type PromptStudioServiceModel = 'CONVENTIONAL' | 'SELF_SERVICE'
 
-export interface QuestionnaireAnswers {
-  services: string
-  focus: string
-  mustNotPromise: string
-  hoursAndDeadline?: string
-  pricing?: string
-  handoff?: string
-  voiceTone: VoiceToneType
-  communicationStyle: CommunicationStyleType
+export interface GeneratePromptStudioPayload {
+  model: PromptStudioServiceModel
+  answers: Record<string, string>
+  modelName?: string
+}
+
+export type PromptSheetSnapshot = {
+  name: string | null
+  phone: string | null
+  address: {
+    street: string | null
+    number: string | null
+    complement: string | null
+    neighborhood: string | null
+    city: string | null
+    state: string | null
+    zipCode: string | null
+  }
+  openingHours: Array<{
+    dayOfWeek: string
+    openTime: string
+    closeTime: string
+    isOpen: boolean
+  }>
+}
+
+export type PromptSheetResponse = {
+  serviceModel: PromptStudioServiceModel
+  snapshot: PromptSheetSnapshot
+  answers: Record<string, string>
+  updatedAt: string | null
 }
 
 export interface PromptDocument {
@@ -24,6 +46,9 @@ export interface PromptProposal {
   summary: string
   changes: Partial<PromptDocument>
   baseUpdatedAt?: string
+  sheetUpdatedAt?: string
+  answerKey?: string
+  answerValue?: string
 }
 
 export interface GeneratePromptStudioResult {
@@ -43,28 +68,6 @@ export interface ProposePromptStudioPayload {
   baseUpdatedAt?: string
   currentUpdatedAt: string | null
   draftChanged: boolean
+  sheetUpdatedAt: string
   modelName?: string
-}
-
-export type PromptStudioMessageRole = 'USER' | 'SPECIALIST'
-
-export interface PromptStudioMessage {
-  threadId?: string
-  role: PromptStudioMessageRole
-  content: string
-  proposalJson: string | null
-}
-
-export interface PromptStudioThread {
-  messages: PromptStudioMessage[]
-}
-
-export interface SendPromptStudioMessagePayload {
-  content: string
-  document: PromptDocument
-}
-
-export interface SendPromptStudioMessageResult {
-  messages: PromptStudioMessage[]
-  proposal: PromptProposal
 }

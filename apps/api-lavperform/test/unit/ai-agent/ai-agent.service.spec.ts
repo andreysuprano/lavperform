@@ -27,7 +27,13 @@ describe('AiAgentService - setupAgentWebhook', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    service = new AiAgentService(prisma, lavaiAgentApi, uazapiClient, configService);
+    service = new AiAgentService(
+      prisma,
+      lavaiAgentApi,
+      uazapiClient,
+      configService,
+      { get: jest.fn() } as any,
+    );
 
     prisma.company.findUnique = jest
       .fn()

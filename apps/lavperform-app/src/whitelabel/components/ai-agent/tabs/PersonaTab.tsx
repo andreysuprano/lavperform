@@ -6,7 +6,6 @@ import {
   Stack,
   Text,
 } from '@chakra-ui/react'
-import { AxiosError } from 'axios'
 import type { ComponentType } from 'react'
 import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
@@ -23,32 +22,26 @@ import {
 } from 'react-icons/lu'
 
 import { Input } from '@/components/forms'
+import { useAuth } from '@/context/AuthContext'
 import {
   DEFAULT_BEHAVIOR_GUIDELINES,
   DEFAULT_GUARDRAILS,
 } from '@/whitelabel/constants/aiAgentPersonaDefaults'
-import {
-  useDiscardPromptStudioProposal,
-  useUpdateAIAgentPersona,
-} from '@/whitelabel/hooks'
+import { useUpdateAIAgentPersona } from '@/whitelabel/hooks'
 import { aiAgentService } from '@/whitelabel/services'
 import type {
   AIAgent,
   CommunicationStyleType,
   PromptDocument,
   PromptProposal,
-  QuestionnaireAnswers,
   VoiceToneType,
 } from '@/whitelabel/types'
 
-import { PromptDocumentEditor } from '../PromptStudio/PromptDocumentEditor'
-import { PromptStudioChat } from '../PromptStudio/PromptStudioChat'
+import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
+import type { AdjustmentSeed } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
-import { QuestionnaireForm } from '../PromptStudio/QuestionnaireForm'
 
 import { SelectableIconCard } from './SelectableIconCard'
-
-const STALE_MESSAGE = 'O texto mudou. Peça a alteração de novo.'
 
 interface CardOption<T> {
   value: T
@@ -117,6 +110,13 @@ const communicationStyleOptions: CardOption<CommunicationStyleType>[] = [
   },
 ]
 
+const DOCUMENT_LABELS: Record<keyof PromptDocument, string> = {
+  contextPrompt: 'Contexto do negócio',
+  systemPrompt: 'Inteligência do agente (System Prompt)',
+  behaviorGuidelines: 'Regras de comportamento',
+  guardrails: 'Guardrails',
+}
+
 interface PersonaFormData {
   personaName: string
   contextPrompt: string
@@ -153,31 +153,47 @@ function formToDocument(values: PersonaFormData): PromptDocument {
   }
 }
 
-function PersonaTabBase({ agent }: PersonaTabProps) {
-  const updatePersona = useUpdateAIAgentPersona()
-  const discardProposal = useDiscardPromptStudioProposal()
+function ReadOnlyPromptDocument({ document }: { document: PromptDocument }) {
+  return (
+    <Stack gap={5}>
+      {(Object.keys(DOCUMENT_LABELS) as Array<keyof PromptDocument>).map(
+        (field) => (
+          <Stack key={field} gap={1}>
+            <Text fontWeight="semibold" fontSize="sm">
+              {DOCUMENT_LABELS[field]}
+            </Text>
+            <Text
+              fontSize="sm"
+              whiteSpace="pre-wrap"
+              borderWidth="1px"
+              borderRadius="md"
+              p={3}
+              bg="bg.subtle"
+            >
+              {document[field] || '—'}
+            </Text>
+          </Stack>
+        )
+      )}
+    </Stack>
+  )
+}
 
-  const [showQuestionnaire, setShowQuestionnaire] = useState(false)
+function PersonaTabBase({ agent }: PersonaTabProps) {
+  const { selectedCompany } = useAuth()
+  const updatePersona = useUpdateAIAgentPersona()
+
   const [pendingDocument, setPendingDocument] = useState<PromptDocument | null>(
     null
   )
-  /** Bumps when questionnaire replaces the pending draft; used to invalidate proposals. */
-  const [pendingGenerationId, setPendingGenerationId] = useState(0)
-  /** Generation id of pendingDocument when the current proposal was created; null if not against pending. */
-  const [proposalPendingGenerationId, setProposalPendingGenerationId] =
-    useState<number | null>(null)
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
-  const [isGenerating, setIsGenerating] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
   const [isAcceptingPending, setIsAcceptingPending] = useState(false)
   const [studioError, setStudioError] = useState<string | null>(null)
-  const [showChat, setShowChat] = useState(false)
-  const [chatSeed, setChatSeed] = useState<{
-    question: string
-    answer: string
-    whatWasWrong: string
-  } | null>(null)
-  const [chatError, setChatError] = useState<string | null>(null)
+  const [adjustmentSeed, setAdjustmentSeed] = useState<AdjustmentSeed | null>(
+    null
+  )
+  const [isProposingFromTest, setIsProposingFromTest] = useState(false)
 
   const form = useForm<PersonaFormData>({
     defaultValues: personaToFormValues(agent),
@@ -200,6 +216,7 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
   )
 
   const activeDocument = pendingDocument ?? savedDocument
+  const companyId = selectedCompany?.id
 
   const handleSave = form.handleSubmit(async (values) => {
     setStudioError(null)
@@ -218,48 +235,10 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
     })
   })
 
-  const handleGenerate = useCallback(
-    async (answers: QuestionnaireAnswers) => {
-      setIsGenerating(true)
-      setStudioError(null)
-      try {
-        const response = await aiAgentService.generatePromptStudio(
-          answers,
-          agent.id
-        )
-        setPendingDocument(response.data.document)
-        setPendingGenerationId((id) => id + 1)
-        setProposalPendingGenerationId(null)
-        setChatError(null)
-        setSuggestedQuestions(response.data.suggestedQuestions)
-        setShowQuestionnaire(false)
-        void discardProposal.mutateAsync({ agentId: agent.id }).catch(() => {
-          // Ignora falha ao limpar proposta antiga do fio
-        })
-      } catch {
-        setStudioError('Não foi possível gerar o prompt. Tente de novo.')
-      } finally {
-        setIsGenerating(false)
-      }
-    },
-    [agent.id, discardProposal]
-  )
-
-  const handleDocumentChange = useCallback(
-    (next: PromptDocument) => {
-      if (pendingDocument) {
-        setPendingDocument(next)
-        return
-      }
-      form.setValue('contextPrompt', next.contextPrompt, { shouldDirty: true })
-      form.setValue('systemPrompt', next.systemPrompt, { shouldDirty: true })
-      form.setValue('behaviorGuidelines', next.behaviorGuidelines, {
-        shouldDirty: true,
-      })
-      form.setValue('guardrails', next.guardrails, { shouldDirty: true })
-    },
-    [form, pendingDocument]
-  )
+  const handleDocument = useCallback((next: PromptDocument) => {
+    setPendingDocument(next)
+    setStudioError(null)
+  }, [])
 
   const handleAcceptPending = useCallback(async () => {
     if (!pendingDocument) return
@@ -289,15 +268,42 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
 
   const handleDiscardPending = useCallback(() => {
     setPendingDocument(null)
-    setPendingGenerationId((id) => id + 1)
     setSuggestedQuestions([])
     setStudioError(null)
-    void discardProposal
-      .mutateAsync({ agentId: agent.id, silent: true })
-      .catch(() => {
-        // Limpa proposta local via proposalEpoch mesmo se o discard falhar
+  }, [])
+
+  const handleProposeFromTest = useCallback(
+    async (payload: AdjustmentSeed) => {
+      setIsProposingFromTest(true)
+      setStudioError(null)
+      setAdjustmentSeed(payload)
+    },
+    []
+  )
+
+  const handleAcceptAdjustment = useCallback(
+    async (proposal: PromptProposal) => {
+      const next = {
+        ...activeDocument,
+        ...proposal.changes,
+      }
+      await updatePersona.mutateAsync({
+        agentId: agent.id,
+        data: {
+          contextPrompt: next.contextPrompt || undefined,
+          systemPrompt: next.systemPrompt || undefined,
+          behaviorGuidelines: next.behaviorGuidelines || undefined,
+          guardrails: next.guardrails || undefined,
+        },
       })
-  }, [agent.id, discardProposal])
+      form.setValue('contextPrompt', next.contextPrompt)
+      form.setValue('systemPrompt', next.systemPrompt)
+      form.setValue('behaviorGuidelines', next.behaviorGuidelines)
+      form.setValue('guardrails', next.guardrails)
+      setPendingDocument(null)
+    },
+    [activeDocument, agent.id, form, updatePersona]
+  )
 
   const handleTest = useCallback(
     async (question: string) => {
@@ -313,104 +319,6 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
       }
     },
     [activeDocument, agent.id]
-  )
-
-  const handlePropose = useCallback(
-    async (payload: {
-      question: string
-      answer: string
-      whatWasWrong: string
-    }) => {
-      setChatError(null)
-      setShowChat(true)
-      setChatSeed(payload)
-    },
-    []
-  )
-
-  const handleProposalReceived = useCallback(() => {
-    if (pendingDocument) {
-      setProposalPendingGenerationId(pendingGenerationId)
-    } else {
-      setProposalPendingGenerationId(null)
-    }
-  }, [pendingDocument, pendingGenerationId])
-
-  const handleAcceptChatProposal = useCallback(
-    async (proposal: PromptProposal) => {
-      const currentUpdatedAt = agent.persona?.updatedAt ?? null
-      // Match isProposalStale: missing updatedAt counts as not equal when baseUpdatedAt is set
-      if (
-        proposal.baseUpdatedAt &&
-        proposal.baseUpdatedAt !== currentUpdatedAt
-      ) {
-        setChatError(STALE_MESSAGE)
-        throw new Error(STALE_MESSAGE)
-      }
-
-      if (
-        proposalPendingGenerationId !== null &&
-        proposalPendingGenerationId !== pendingGenerationId
-      ) {
-        setChatError(STALE_MESSAGE)
-        throw new Error(STALE_MESSAGE)
-      }
-
-      if (pendingDocument) {
-        setChatError(null)
-        setPendingDocument({
-          ...pendingDocument,
-          ...proposal.changes,
-        })
-        await discardProposal.mutateAsync({ agentId: agent.id })
-        return
-      }
-
-      setChatError(null)
-      try {
-        await updatePersona.mutateAsync({
-          agentId: agent.id,
-          data: { ...proposal.changes },
-        })
-        await discardProposal.mutateAsync({ agentId: agent.id })
-        if (proposal.changes.contextPrompt !== undefined) {
-          form.setValue('contextPrompt', proposal.changes.contextPrompt)
-        }
-        if (proposal.changes.systemPrompt !== undefined) {
-          form.setValue('systemPrompt', proposal.changes.systemPrompt)
-        }
-        if (proposal.changes.behaviorGuidelines !== undefined) {
-          form.setValue(
-            'behaviorGuidelines',
-            proposal.changes.behaviorGuidelines
-          )
-        }
-        if (proposal.changes.guardrails !== undefined) {
-          form.setValue('guardrails', proposal.changes.guardrails)
-        }
-      } catch (error) {
-        form.reset(personaToFormValues(agent))
-        const status =
-          error instanceof AxiosError ? error.response?.status : undefined
-        const message =
-          error instanceof AxiosError
-            ? (error.response?.data as { message?: string })?.message
-            : undefined
-        if (status === 409 || message === STALE_MESSAGE) {
-          setChatError(STALE_MESSAGE)
-        }
-        throw error
-      }
-    },
-    [
-      agent,
-      discardProposal,
-      form,
-      pendingDocument,
-      pendingGenerationId,
-      proposalPendingGenerationId,
-      updatePersona,
-    ]
   )
 
   return (
@@ -483,27 +391,30 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
             </SimpleGrid>
 
             <Stack gap={3}>
-              <HStack justify="space-between" align="center">
-                <Text fontWeight="semibold" fontSize="sm">
-                  Prompt do agente
-                </Text>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => setShowQuestionnaire((prev) => !prev)}
-                >
-                  {showQuestionnaire
-                    ? 'Fechar questionário'
-                    : 'Refazer questionário'}
-                </Button>
-              </HStack>
+              <Text fontWeight="semibold" fontSize="sm">
+                Ficha e prompt
+              </Text>
 
-              {showQuestionnaire ? (
-                <QuestionnaireForm
-                  onGenerate={handleGenerate}
-                  isGenerating={isGenerating}
+              {companyId ? (
+                <PromptSheetChat
+                  companyId={companyId}
+                  agentId={agent.id}
+                  document={activeDocument}
+                  personaUpdatedAt={agent.persona?.updatedAt ?? null}
+                  onDocument={handleDocument}
+                  onSuggestedQuestions={setSuggestedQuestions}
+                  onAcceptProposal={handleAcceptAdjustment}
+                  adjustmentSeed={adjustmentSeed}
+                  onAdjustmentSeedConsumed={() => {
+                    setAdjustmentSeed(null)
+                    setIsProposingFromTest(false)
+                  }}
                 />
-              ) : null}
+              ) : (
+                <Text fontSize="sm" color="fg.error">
+                  Selecione uma empresa para preencher a ficha.
+                </Text>
+              )}
 
               {studioError ? (
                 <Text fontSize="sm" color="fg.error">
@@ -545,10 +456,7 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
                 </Stack>
               ) : null}
 
-              <PromptDocumentEditor
-                document={activeDocument}
-                onChange={handleDocumentChange}
-              />
+              <ReadOnlyPromptDocument document={activeDocument} />
             </Stack>
           </Stack>
         </Card.Body>
@@ -566,38 +474,22 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
 
       <Card.Root variant="outline">
         <Card.Header>
-          <Card.Title>Testar e ajustar</Card.Title>
+          <Card.Title>Testar prompt</Card.Title>
           <Card.Description>
-            Teste o prompt pendente ou o salvo. Se a resposta não ficar boa,
-            abra o chat especialista.
+            Teste o prompt pendente ou o salvo. Ajuste via ficha e gere de novo
+            se precisar.
           </Card.Description>
         </Card.Header>
         <Card.Body>
-          <Stack gap={8}>
-            <PromptTestPanel
-              document={activeDocument}
-              suggestedQuestions={suggestedQuestions}
-              proposal={null}
-              onTest={handleTest}
-              onPropose={handlePropose}
-              onAcceptProposal={() => undefined}
-              onDiscardProposal={() => undefined}
-              isTesting={isTesting}
-            />
-
-            {showChat ? (
-              <PromptStudioChat
-                agentId={agent.id}
-                document={activeDocument}
-                seed={chatSeed}
-                onSeedConsumed={() => setChatSeed(null)}
-                onProposalReceived={handleProposalReceived}
-                proposalEpoch={pendingGenerationId}
-                onAcceptProposal={handleAcceptChatProposal}
-                errorMessage={chatError}
-              />
-            ) : null}
-          </Stack>
+          <PromptTestPanel
+            document={activeDocument}
+            suggestedQuestions={suggestedQuestions}
+            proposal={null}
+            onTest={handleTest}
+            onPropose={handleProposeFromTest}
+            isTesting={isTesting}
+            isProposing={isProposingFromTest}
+          />
         </Card.Body>
       </Card.Root>
     </Stack>
