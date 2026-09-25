@@ -14,6 +14,9 @@ import {
 const DEFAULT_BASE_URL =
   'https://viewinterface-agidez-integracoes.hybex.com.br';
 
+/** Pausa entre chamadas. A Hybex bloqueia rajadas de dezenas de requests por segundo. */
+const INTER_REQUEST_DELAY_MS = 1000;
+
 @Injectable()
 export class AgidezService {
   private readonly logger = new Logger(AgidezService.name);
@@ -38,23 +41,33 @@ export class AgidezService {
     const start = `${date} 00:00:00`;
     const end = `${nextDateOnly(date)} 00:00:00`;
 
-    const [tickets, services, products] = await Promise.all([
-      this.select<AgidezTicket>(credentials, 'pAPI_WA_Tickets', start, end),
-      this.select<AgidezServico>(
-        credentials,
-        'pAPI_WA_TicketsPecasIndividuaisServicos',
-        start,
-        end,
-      ),
-      this.select<AgidezProduto>(
-        credentials,
-        'pAPI_WA_TicketsProdutos',
-        start,
-        end,
-      ),
-    ]);
+    const tickets = await this.select<AgidezTicket>(
+      credentials,
+      'pAPI_WA_Tickets',
+      start,
+      end,
+    );
+    await this.sleep(INTER_REQUEST_DELAY_MS);
+    const services = await this.select<AgidezServico>(
+      credentials,
+      'pAPI_WA_TicketsPecasIndividuaisServicos',
+      start,
+      end,
+    );
+    await this.sleep(INTER_REQUEST_DELAY_MS);
+    const products = await this.select<AgidezProduto>(
+      credentials,
+      'pAPI_WA_TicketsProdutos',
+      start,
+      end,
+    );
+    await this.sleep(INTER_REQUEST_DELAY_MS);
 
     return { tickets, services, products };
+  }
+
+  private sleep(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   private async select<T>(

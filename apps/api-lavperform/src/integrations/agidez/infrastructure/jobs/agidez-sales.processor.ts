@@ -16,7 +16,7 @@ export class AgidezSalesProcessor {
 
   constructor(private readonly agidezSalesService: AgidezSalesService) {}
 
-  @Process({ name: QUEUE_NAMES.AGIDEZ_SALES_IMPORT, concurrency: 2 })
+  @Process({ name: QUEUE_NAMES.AGIDEZ_SALES_IMPORT, concurrency: 1 })
   async processImport(job: Job<AgidezSalesJobData>) {
     const { companyId, date, syncCustomers } = job.data;
 
