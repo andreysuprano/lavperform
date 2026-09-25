@@ -210,7 +210,7 @@ export const ASKED_FIELDS: SheetField[] = [
   ),
   asked(
     'pieceBlanket',
-    'Coberta',
+    'Cobertor',
     'A unidade aceita cobertas? Como informar ao cliente?'
   ),
   asked(
@@ -371,6 +371,19 @@ export function scriptFor(model: ServiceModel): SheetField[] {
     ...CADASTRO_FIELDS,
     ...ASKED_FIELDS.filter((field) => fieldVisible(field, model)),
   ]
+}
+
+/** Stable union of keys across both service models (declaration order). */
+export function allSheetKeys(): string[] {
+  const keys: string[] = []
+  const seen = new Set<string>()
+  for (const field of [...CADASTRO_FIELDS, ...ASKED_FIELDS]) {
+    if (!seen.has(field.key)) {
+      seen.add(field.key)
+      keys.push(field.key)
+    }
+  }
+  return keys
 }
 
 function hasAnswer(answers: Record<string, string>, key: string): boolean {

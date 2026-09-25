@@ -5,6 +5,8 @@ import { documentKeepsFacts } from './fact-fidelity';
 import { parseProposal } from './parse-model-json';
 import { isProposalStale } from './proposal-staleness';
 import type { PromptDocument, PromptProposal } from './prompt-studio.types';
+import { factsFromSheet } from './sheet-answers';
+import type { ServiceModel } from './sheet-script';
 
 const DEFAULT_MODEL = 'openai/gpt-5';
 const STALE_MESSAGE = 'O texto mudou. Peça a alteração de novo.';
@@ -25,7 +27,10 @@ export interface ProposePromptEditInput {
   baseUpdatedAt?: string;
   currentUpdatedAt: string | null;
   draftChanged: boolean;
+  /** Ignored when model+answers are present; prefer server-built sheet facts. */
   facts?: Array<{ text: string }>;
+  model?: ServiceModel;
+  answers?: Record<string, string>;
   sheetUpdatedAt?: string;
   currentSheetUpdatedAt?: string | null;
   modelName?: string;
@@ -39,7 +44,12 @@ export class ProposePromptEditUseCase {
   ) {}
 
   async execute(input: ProposePromptEditInput): Promise<PromptProposal> {
-    const facts = input.facts ?? [];
+    const facts =
+      input.model && input.answers
+        ? factsFromSheet(input.model, input.answers).map((fact) => ({
+            text: fact.text,
+          }))
+        : [];
 
     const response = await this.llm.complete({
       model: input.modelName ?? DEFAULT_MODEL,

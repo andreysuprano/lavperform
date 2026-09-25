@@ -18,7 +18,6 @@ import type {
   PromptStudioServiceModel,
 } from '@/whitelabel/types'
 
-import { factsFromSheet } from './sheet-facts'
 import { answeredCount, nextQuestion, scriptFor } from './sheet-script'
 import { progress } from './sheet-progress'
 import { snapshotShownValue } from './snapshot-shown-value'
@@ -131,10 +130,8 @@ function PromptSheetChatBase({
       setIsProposing(true)
       setActionError(null)
       try {
-        const facts = factsFromSheet(model, sheet.answers).map((fact) => ({
-          text: fact.text,
-        }))
         const response = await aiAgentService.proposePromptStudio(
+          companyId,
           {
             document,
             question: payload.question,
@@ -143,9 +140,7 @@ function PromptSheetChatBase({
             baseUpdatedAt: personaUpdatedAt ?? undefined,
             currentUpdatedAt: personaUpdatedAt,
             draftChanged,
-            facts,
             sheetUpdatedAt,
-            currentSheetUpdatedAt: sheetUpdatedAt,
           },
           agentId
         )
@@ -167,11 +162,15 @@ function PromptSheetChatBase({
         setIsProposing(false)
       }
     },
-    [agentId, document, draftChanged, model, personaUpdatedAt, sheet]
+    [agentId, companyId, document, draftChanged, model, personaUpdatedAt, sheet]
   )
 
   useEffect(() => {
-    if (!adjustmentSeed || !document || !sheet) return
+    if (!adjustmentSeed) {
+      seedHandledRef.current = null
+      return
+    }
+    if (!document || !sheet) return
     const key = `${adjustmentSeed.question}|${adjustmentSeed.whatWasWrong}|${adjustmentSeed.answer}`
     if (seedHandledRef.current === key) return
     seedHandledRef.current = key
@@ -263,6 +262,9 @@ function PromptSheetChatBase({
         )
       }
 
+      // Persist persona first; then the sheet answer. Surface sheet errors (do not pretend success).
+      await onAcceptProposal(proposal)
+
       if (proposal.answerKey && proposal.answerValue && proposal.sheetUpdatedAt) {
         const response = await aiAgentService.putPromptSheetAnswer(
           companyId,
@@ -283,7 +285,6 @@ function PromptSheetChatBase({
             : prev
         )
       }
-      await onAcceptProposal(proposal)
       setProposal(null)
       setAdjustmentMessages([])
     } catch (error) {

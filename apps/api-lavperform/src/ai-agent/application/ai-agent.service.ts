@@ -19,6 +19,7 @@ import { UpdateNotificationConfigDto } from './dto/update-notification-config.dt
 import { CreateMcpServerDto } from './dto/create-mcp-server.dto';
 import { UpdateMcpServerDto } from './dto/update-mcp-server.dto';
 import { CreateKnowledgeFileDto, UpdateKnowledgeFileDto } from './dto/knowledge-file.dto';
+import { PromptSheetService } from './prompt-sheet.service';
 
 type OverAgentAgent = {
   id: string;
@@ -37,6 +38,7 @@ export class AiAgentService {
     private readonly lavaiAgentApi: LavaiAgentApiService,
     private readonly uazapiClient: UazapiClient,
     private readonly configService: ConfigService,
+    private readonly promptSheetService: PromptSheetService,
   ) {
     // URL pública alcançável pela UAZAPI (não use host interno tipo lavai-agent:3000).
     this.aiAgentWebhookBaseUrl =
@@ -522,16 +524,27 @@ export class AiAgentService {
     return this.lavaiAgentApi.testPrompt(dto, agentId);
   }
 
-  proposePromptEdit(dto: Record<string, unknown>, agentId?: string) {
-    return this.lavaiAgentApi.proposePromptEdit(dto, agentId);
-  }
+  async proposePromptEdit(
+    companyId: string,
+    dto: Record<string, unknown>,
+    agentId?: string,
+  ) {
+    const draftKey = agentId ?? 'draft';
+    const sheet = await this.promptSheetService.get(companyId, draftKey);
+    const currentSheetUpdatedAt = sheet.updatedAt
+      ? new Date(sheet.updatedAt).toISOString()
+      : null;
 
-  getPromptStudioThread(agentId: string) {
-    return this.lavaiAgentApi.getPromptStudioThread(agentId);
-  }
+    const payload: Record<string, unknown> = {
+      ...dto,
+      // Server-built sheet facts; ignore client facts.
+      facts: undefined,
+      model: sheet.serviceModel,
+      answers: sheet.answers,
+      currentSheetUpdatedAt,
+    };
 
-  sendPromptStudioMessage(agentId: string, dto: Record<string, unknown>) {
-    return this.lavaiAgentApi.sendPromptStudioMessage(agentId, dto);
+    return this.lavaiAgentApi.proposePromptEdit(payload, agentId);
   }
 
   discardPromptStudioProposal(agentId: string) {

@@ -84,7 +84,7 @@ export const ASKED_FIELDS: SheetField[] = [
     'Como funciona a lavagem de peças grandes (edredom, cobertas) nas máquinas?',
   ),
   asked('pieceComforter', 'Edredom (peças)', 'A unidade aceita edredom? Como informar ao cliente?'),
-  asked('pieceBlanket', 'Coberta', 'A unidade aceita cobertas? Como informar ao cliente?'),
+  asked('pieceBlanket', 'Cobertor', 'A unidade aceita cobertas? Como informar ao cliente?'),
   asked('pieceRug', 'Tapete', 'A unidade aceita tapetes? Como informar ao cliente?'),
   asked('pieceSneakers', 'Tênis', 'A unidade aceita tênis? Como informar ao cliente?'),
   asked('piecePet', 'Pet', 'A unidade aceita itens de pet? Como informar ao cliente?'),
@@ -172,6 +172,19 @@ function fieldVisible(field: SheetField, model: ServiceModel): boolean {
 
 export function scriptFor(model: ServiceModel): SheetField[] {
   return [...CADASTRO_FIELDS, ...ASKED_FIELDS.filter((field) => fieldVisible(field, model))];
+}
+
+/** Stable union of keys across both service models (declaration order). */
+export function allSheetKeys(): string[] {
+  const keys: string[] = [];
+  const seen = new Set<string>();
+  for (const field of [...CADASTRO_FIELDS, ...ASKED_FIELDS]) {
+    if (!seen.has(field.key)) {
+      seen.add(field.key);
+      keys.push(field.key);
+    }
+  }
+  return keys;
 }
 
 function hasAnswer(answers: Record<string, string>, key: string): boolean {

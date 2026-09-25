@@ -29,6 +29,7 @@ import {
   CreateKnowledgeFileDto,
   UpdateKnowledgeFileDto,
 } from '../application/dto/knowledge-file.dto';
+import { PutPromptSheetAnswerDto } from '../application/dto/put-prompt-sheet-answer.dto';
 
 @ApiTags('Agentes de IA')
 @Controller()
@@ -337,7 +338,7 @@ export class AiAgentController {
   @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
   putPromptSheetAnswer(
     @Param('companyId') companyId: string,
-    @Body() body: { key: string; value: string; sheetUpdatedAt?: string },
+    @Body() body: PutPromptSheetAnswerDto,
   ) {
     if (body.sheetUpdatedAt) {
       return this.promptSheetService.applyAcceptedAnswer(
@@ -392,7 +393,7 @@ export class AiAgentController {
   putPromptSheetAnswerForAgent(
     @Param('companyId') companyId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { key: string; value: string; sheetUpdatedAt?: string },
+    @Body() body: PutPromptSheetAnswerDto,
   ) {
     if (body.sheetUpdatedAt) {
       return this.promptSheetService.applyAcceptedAnswer(
@@ -446,10 +447,14 @@ export class AiAgentController {
     return this.aiAgentService.testPrompt({ ...dto, ragChunks: [] });
   }
 
-  @Post('ai-agents/prompt-studio/propose')
+  @Post('companies/:companyId/ai-agents/prompt-studio/propose')
   @ApiOperation({ summary: 'Propor edição do prompt na criação, sem persistir' })
-  proposePromptEdit(@Body() dto: Record<string, unknown>) {
-    return this.aiAgentService.proposePromptEdit(dto);
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  proposePromptEdit(
+    @Param('companyId') companyId: string,
+    @Body() dto: Record<string, unknown>,
+  ) {
+    return this.aiAgentService.proposePromptEdit(companyId, dto);
   }
 
   @Post('ai-agents/:agentId/prompt-studio/generate')
@@ -480,34 +485,16 @@ export class AiAgentController {
     return this.aiAgentService.testPrompt(dto, agentId);
   }
 
-  @Post('ai-agents/:agentId/prompt-studio/propose')
+  @Post('companies/:companyId/ai-agents/:agentId/prompt-studio/propose')
   @ApiOperation({ summary: 'Propor edição do prompt de um agente salvo, sem persistir' })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
   @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
   proposePromptEditForAgent(
+    @Param('companyId') companyId: string,
     @Param('agentId') agentId: string,
     @Body() dto: Record<string, unknown>,
   ) {
-    return this.aiAgentService.proposePromptEdit(dto, agentId);
-  }
-
-  @Get('ai-agents/:agentId/prompt-studio/thread')
-  @ApiOperation({ summary: 'Obter o chat especialista do agente' })
-  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
-  getPromptStudioThread(@Param('agentId') agentId: string) {
-    return this.aiAgentService.getPromptStudioThread(agentId);
-  }
-
-  @Post('ai-agents/:agentId/prompt-studio/thread/messages')
-  @ApiOperation({ summary: 'Enviar mensagem no chat especialista' })
-  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
-  sendPromptStudioMessage(
-    @Param('agentId') agentId: string,
-    @Body() dto: { content: string; document: unknown },
-  ) {
-    return this.aiAgentService.sendPromptStudioMessage(
-      agentId,
-      dto as unknown as Record<string, unknown>,
-    );
+    return this.aiAgentService.proposePromptEdit(companyId, dto, agentId);
   }
 
   @Post('ai-agents/:agentId/prompt-studio/thread/discard')

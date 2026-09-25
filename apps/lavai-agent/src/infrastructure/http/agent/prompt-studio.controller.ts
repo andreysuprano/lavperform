@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
+import { Body, Controller, HttpCode, HttpStatus, Param, ParseUUIDPipe, Post } from '@nestjs/common';
 import { ApiOperation, ApiParam, ApiTags } from '@nestjs/swagger';
 import { FindAgentByIdUseCase } from '../../../application/agent/use-cases/find-agent-by-id.use-case';
 import { AgentRunnerService } from '../../../application/agent-runner/services/agent-runner.service';
@@ -13,17 +13,6 @@ import {
 } from '../../../application/prompt-studio/dtos/prompt-studio.dto';
 
 const DEFAULT_MODEL = 'openai/gpt-5';
-
-type ThreadMessageBody = {
-  content: string;
-  document: {
-    contextPrompt: string;
-    systemPrompt: string;
-    behaviorGuidelines: string;
-    guardrails: string;
-  };
-  modelName?: string;
-};
 
 @ApiTags('prompt-studio')
 @Controller()
@@ -99,7 +88,11 @@ export class PromptStudioController {
   @Post('prompt-studio/propose')
   @ApiOperation({ summary: 'Propor edição do prompt sem persistir' })
   propose(@Body() body: ProposePromptStudioDto) {
-    return this.proposePromptEdit.execute(body);
+    return this.proposePromptEdit.execute({
+      ...body,
+      // Never trust client facts; only server-supplied model+answers build facts.
+      facts: undefined,
+    });
   }
 
   @Post('agents/:agentId/prompt-studio/propose')
@@ -109,36 +102,15 @@ export class PromptStudioController {
     @Param('agentId', ParseUUIDPipe) agentId: string,
     @Body() body: ProposePromptStudioDto,
   ) {
-    await this.findAgentById.execute(agentId);
-    return this.propose(body);
-  }
-
-  @Get('agents/:agentId/prompt-studio/thread')
-  @ApiOperation({ summary: 'Obter o chat especialista do agente' })
-  @ApiParam({ name: 'agentId', description: 'UUID do agente' })
-  getThread(@Param('agentId', ParseUUIDPipe) agentId: string) {
-    return this.thread.get(agentId);
-  }
-
-  @Post('agents/:agentId/prompt-studio/thread/messages')
-  @ApiOperation({ summary: 'Enviar mensagem no chat especialista' })
-  @ApiParam({ name: 'agentId', description: 'UUID do agente' })
-  async sendMessage(
-    @Param('agentId', ParseUUIDPipe) agentId: string,
-    @Body() body: ThreadMessageBody,
-  ) {
     const agent = await this.findAgentById.execute(agentId);
     const currentUpdatedAt = agent.persona?.updatedAt
       ? agent.persona.updatedAt.toISOString()
-      : '';
-    const modelName = body.modelName ?? agent.modelConfig?.modelName ?? DEFAULT_MODEL;
-    return this.thread.send(
-      agentId,
-      body.content,
-      body.document,
+      : null;
+    return this.proposePromptEdit.execute({
+      ...body,
+      facts: undefined,
       currentUpdatedAt,
-      modelName,
-    );
+    });
   }
 
   @Post('agents/:agentId/prompt-studio/thread/discard')

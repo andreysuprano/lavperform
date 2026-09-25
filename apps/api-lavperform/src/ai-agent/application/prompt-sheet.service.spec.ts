@@ -1,8 +1,10 @@
+import { ConflictException } from '@nestjs/common';
 import { PromptSheetService } from './prompt-sheet.service';
 
 describe('PromptSheetService', () => {
   const companyId = 'company-1';
   const updatedAt = new Date('2026-09-25T12:00:00.000Z');
+  const sheetId = 'sheet-1';
 
   const companyRow = {
     id: companyId,
@@ -38,11 +40,30 @@ describe('PromptSheetService', () => {
     promptSheet: {
       findUnique: jest.Mock;
       upsert: jest.Mock;
+      create: jest.Mock;
+      update: jest.Mock;
     };
+    $transaction: jest.Mock;
+    $queryRaw: jest.Mock;
   };
   let service: PromptSheetService;
+  let tx: {
+    company: { findUnique: jest.Mock };
+    promptSheet: { create: jest.Mock; update: jest.Mock };
+    $queryRaw: jest.Mock;
+  };
 
   beforeEach(() => {
+    tx = {
+      company: {
+        findUnique: jest.fn().mockResolvedValue({ serviceModel: 'SELF_SERVICE' }),
+      },
+      promptSheet: {
+        create: jest.fn(),
+        update: jest.fn(),
+      },
+      $queryRaw: jest.fn().mockResolvedValue([]),
+    };
     prisma = {
       company: {
         findUnique: jest.fn().mockResolvedValue(companyRow),
@@ -53,14 +74,18 @@ describe('PromptSheetService', () => {
       promptSheet: {
         findUnique: jest.fn(),
         upsert: jest.fn(),
+        create: jest.fn(),
+        update: jest.fn(),
       },
+      $queryRaw: jest.fn(),
+      $transaction: jest.fn(async (fn: (client: typeof tx) => unknown) => fn(tx)),
     };
     service = new PromptSheetService(prisma as any);
   });
 
   it('cria a linha da empresa quando não existe e grava answers[key]', async () => {
-    prisma.promptSheet.findUnique.mockResolvedValue(null);
-    prisma.promptSheet.upsert.mockResolvedValue({
+    tx.$queryRaw.mockResolvedValue([]);
+    tx.promptSheet.create.mockResolvedValue({
       companyId,
       draftKey: 'draft',
       serviceModel: 'SELF_SERVICE',
@@ -70,30 +95,28 @@ describe('PromptSheetService', () => {
 
     const result = await service.putAnswer(companyId, 'draft', 'name', 'Lav Confirmada');
 
-    expect(prisma.promptSheet.upsert).toHaveBeenCalledWith({
-      where: { companyId_draftKey: { companyId, draftKey: 'draft' } },
-      create: {
+    expect(prisma.$transaction).toHaveBeenCalled();
+    expect(tx.$queryRaw).toHaveBeenCalled();
+    expect(tx.promptSheet.create).toHaveBeenCalledWith({
+      data: {
         companyId,
         draftKey: 'draft',
         serviceModel: 'SELF_SERVICE',
         answers: { name: 'Lav Confirmada' },
       },
-      update: {
-        answers: { name: 'Lav Confirmada' },
-      },
     });
     expect(result.answers).toEqual({ name: 'Lav Confirmada' });
+    expect(result.serviceModel).toBe('SELF_SERVICE');
     expect(prisma.company.update).not.toHaveBeenCalled();
     expect(prisma.address.update).not.toHaveBeenCalled();
     expect(prisma.openingHours.update).not.toHaveBeenCalled();
   });
 
   it('não chama company.update, address.update nem openingHours.update ao gravar', async () => {
-    prisma.promptSheet.findUnique.mockResolvedValue({
-      answers: { name: 'Antigo' },
-      serviceModel: 'SELF_SERVICE',
-    });
-    prisma.promptSheet.upsert.mockResolvedValue({
+    tx.$queryRaw.mockResolvedValue([
+      { id: sheetId, answers: { name: 'Antigo' }, updatedAt },
+    ]);
+    tx.promptSheet.update.mockResolvedValue({
       companyId,
       draftKey: 'draft',
       serviceModel: 'SELF_SERVICE',
@@ -108,10 +131,10 @@ describe('PromptSheetService', () => {
     expect(prisma.openingHours.update).not.toHaveBeenCalled();
   });
 
-  it('lê de volta o mesmo JSON com snapshot do cadastro', async () => {
+  it('lê de volta o mesmo JSON com snapshot do cadastro e serviceModel da empresa', async () => {
     const answers = { name: 'Lav Confirmada', phone: '11999999999' };
     prisma.promptSheet.findUnique.mockResolvedValue({
-      serviceModel: 'SELF_SERVICE',
+      serviceModel: 'CONVENTIONAL',
       answers,
       updatedAt,
     });
@@ -147,8 +170,8 @@ describe('PromptSheetService', () => {
   });
 
   it('usa draftKey draft sem agente e o id do agente lavai quando informado', async () => {
-    prisma.promptSheet.findUnique.mockResolvedValue(null);
-    prisma.promptSheet.upsert
+    tx.$queryRaw.mockResolvedValue([]);
+    tx.promptSheet.create
       .mockResolvedValueOnce({
         companyId,
         draftKey: 'draft',
@@ -167,31 +190,29 @@ describe('PromptSheetService', () => {
     await service.putAnswer(companyId, 'draft', 'name', 'A');
     await service.putAnswer(companyId, 'lavai-agent-99', 'name', 'B');
 
-    expect(prisma.promptSheet.upsert).toHaveBeenNthCalledWith(
+    expect(tx.promptSheet.create).toHaveBeenNthCalledWith(
       1,
       expect.objectContaining({
-        where: { companyId_draftKey: { companyId, draftKey: 'draft' } },
-        create: expect.objectContaining({ draftKey: 'draft' }),
+        data: expect.objectContaining({ draftKey: 'draft' }),
       }),
     );
-    expect(prisma.promptSheet.upsert).toHaveBeenNthCalledWith(
+    expect(tx.promptSheet.create).toHaveBeenNthCalledWith(
       2,
       expect.objectContaining({
-        where: {
-          companyId_draftKey: { companyId, draftKey: 'lavai-agent-99' },
-        },
-        create: expect.objectContaining({ draftKey: 'lavai-agent-99' }),
+        data: expect.objectContaining({ draftKey: 'lavai-agent-99' }),
       }),
     );
   });
 
   it('applyAcceptedAnswer muda só a chave informada', async () => {
-    prisma.promptSheet.findUnique.mockResolvedValue({
-      answers: { name: 'Lav Antiga', phone: '11999999999' },
-      serviceModel: 'SELF_SERVICE',
-      updatedAt,
-    });
-    prisma.promptSheet.upsert.mockResolvedValue({
+    tx.$queryRaw.mockResolvedValue([
+      {
+        id: sheetId,
+        answers: { name: 'Lav Antiga', phone: '11999999999' },
+        updatedAt,
+      },
+    ]);
+    tx.promptSheet.update.mockResolvedValue({
       companyId,
       draftKey: 'draft',
       serviceModel: 'SELF_SERVICE',
@@ -207,16 +228,11 @@ describe('PromptSheetService', () => {
       updatedAt.toISOString(),
     );
 
-    expect(prisma.promptSheet.upsert).toHaveBeenCalledWith({
-      where: { companyId_draftKey: { companyId, draftKey: 'draft' } },
-      create: {
-        companyId,
-        draftKey: 'draft',
+    expect(tx.promptSheet.update).toHaveBeenCalledWith({
+      where: { id: sheetId },
+      data: {
+        answers: { name: 'Lav Nova', phone: '11999999999' },
         serviceModel: 'SELF_SERVICE',
-        answers: { name: 'Lav Nova', phone: '11999999999' },
-      },
-      update: {
-        answers: { name: 'Lav Nova', phone: '11999999999' },
       },
     });
     expect(result.answers).toEqual({ name: 'Lav Nova', phone: '11999999999' });
@@ -226,11 +242,13 @@ describe('PromptSheetService', () => {
   });
 
   it('applyAcceptedAnswer recusa se a ficha mudou depois da proposta', async () => {
-    prisma.promptSheet.findUnique.mockResolvedValue({
-      answers: { name: 'Lav' },
-      serviceModel: 'SELF_SERVICE',
-      updatedAt: new Date('2026-09-25T14:00:00.000Z'),
-    });
+    tx.$queryRaw.mockResolvedValue([
+      {
+        id: sheetId,
+        answers: { name: 'Lav' },
+        updatedAt: new Date('2026-09-25T14:00:00.000Z'),
+      },
+    ]);
 
     await expect(
       service.applyAcceptedAnswer(
@@ -240,8 +258,9 @@ describe('PromptSheetService', () => {
         'Lav Nova',
         updatedAt.toISOString(),
       ),
-    ).rejects.toThrow('O texto mudou. Peça a alteração de novo.');
-    expect(prisma.promptSheet.upsert).not.toHaveBeenCalled();
+    ).rejects.toBeInstanceOf(ConflictException);
+    expect(tx.promptSheet.update).not.toHaveBeenCalled();
+    expect(tx.promptSheet.create).not.toHaveBeenCalled();
   });
 
   it('assertSheetUnchanged recusa se a ficha mudou mesmo sem answerKey', async () => {
@@ -268,10 +287,31 @@ describe('PromptSheetService', () => {
 
   it('descarte não chama applyAcceptedAnswer', () => {
     const applySpy = jest.spyOn(service, 'applyAcceptedAnswer');
-    // Descarte é só no cliente (limpa proposta local + thread discard).
-    // Este serviço não tem método de descarte que grave a ficha.
     expect((service as { discard?: unknown }).discard).toBeUndefined();
     expect(applySpy).not.toHaveBeenCalled();
     applySpy.mockRestore();
+  });
+
+  it('putAnswer devolve serviceModel da empresa, não o congelado na ficha', async () => {
+    tx.company.findUnique.mockResolvedValue({ serviceModel: 'CONVENTIONAL' });
+    tx.$queryRaw.mockResolvedValue([
+      { id: sheetId, answers: {}, updatedAt },
+    ]);
+    tx.promptSheet.update.mockResolvedValue({
+      companyId,
+      draftKey: 'draft',
+      serviceModel: 'SELF_SERVICE',
+      answers: { name: 'X' },
+      updatedAt,
+    });
+
+    const result = await service.putAnswer(companyId, 'draft', 'name', 'X');
+
+    expect(result.serviceModel).toBe('CONVENTIONAL');
+    expect(tx.promptSheet.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ serviceModel: 'CONVENTIONAL' }),
+      }),
+    );
   });
 });

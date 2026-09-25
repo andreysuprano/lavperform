@@ -306,21 +306,6 @@ export class LavaiAgentApiService {
     return this.request<Record<string, unknown>>('post', path, dto);
   }
 
-  async getPromptStudioThread(agentId: string) {
-    return this.request<Record<string, unknown>>(
-      'get',
-      `/agents/${agentId}/prompt-studio/thread`,
-    );
-  }
-
-  async sendPromptStudioMessage(agentId: string, dto: Record<string, unknown>) {
-    return this.request<Record<string, unknown>>(
-      'post',
-      `/agents/${agentId}/prompt-studio/thread/messages`,
-      dto,
-    );
-  }
-
   async discardPromptStudioProposal(agentId: string) {
     return this.request<void>('post', `/agents/${agentId}/prompt-studio/thread/discard`);
   }

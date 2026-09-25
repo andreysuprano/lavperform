@@ -13,9 +13,6 @@ import type {
   PromptDocument,
   PromptProposal,
   PromptSheetResponse,
-  PromptStudioThread,
-  SendPromptStudioMessagePayload,
-  SendPromptStudioMessageResult,
   TestPromptStudioResult,
   UpdateAIAgentFilterConfigPayload,
   UpdateAIAgentJourneyConfigPayload,
@@ -228,7 +225,7 @@ export const aiAgentService = {
       answers: Record<string, string>
       updatedAt: string
     }>(path, data)
-  }
+  },
 
   async assertPromptSheetFresh(
     companyId: string,
@@ -270,29 +267,14 @@ export const aiAgentService = {
   },
 
   async proposePromptStudio(
+    companyId: string,
     data: ProposePromptStudioPayload,
     agentId?: string
   ) {
     const path = agentId
-      ? `/ai-agents/${agentId}/prompt-studio/propose`
-      : '/ai-agents/prompt-studio/propose'
+      ? `/companies/${companyId}/ai-agents/${agentId}/prompt-studio/propose`
+      : `/companies/${companyId}/ai-agents/prompt-studio/propose`
     return await client.post<PromptProposal>(path, data)
-  },
-
-  async getPromptStudioThread(agentId: string) {
-    return await client.get<PromptStudioThread>(
-      `/ai-agents/${agentId}/prompt-studio/thread`
-    )
-  },
-
-  async sendPromptStudioMessage(
-    agentId: string,
-    data: SendPromptStudioMessagePayload
-  ) {
-    return await client.post<SendPromptStudioMessageResult>(
-      `/ai-agents/${agentId}/prompt-studio/thread/messages`,
-      data
-    )
   },
 
   async discardPromptStudioProposal(agentId: string) {

@@ -126,20 +126,32 @@ export class ProposePromptStudioDto {
   @IsBoolean()
   draftChanged!: boolean;
 
-  @ApiProperty({ type: [ProposeFactDto] })
+  @ApiPropertyOptional({ type: [ProposeFactDto] })
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => ProposeFactDto)
-  facts!: ProposeFactDto[];
+  @IsOptional()
+  facts?: ProposeFactDto[];
 
-  @ApiProperty()
-  @IsString()
-  sheetUpdatedAt!: string;
+  @ApiPropertyOptional({ enum: SERVICE_MODELS })
+  @IsIn(SERVICE_MODELS)
+  @IsOptional()
+  model?: (typeof SERVICE_MODELS)[number];
 
-  @ApiProperty({ nullable: true })
+  @ApiPropertyOptional({ type: 'object', additionalProperties: { type: 'string' } })
+  @IsObject()
+  @IsOptional()
+  answers?: Record<string, string>;
+
+  @ApiPropertyOptional()
   @IsString()
   @IsOptional()
-  currentSheetUpdatedAt!: string | null;
+  sheetUpdatedAt?: string;
+
+  @ApiPropertyOptional({ nullable: true })
+  @IsString()
+  @IsOptional()
+  currentSheetUpdatedAt?: string | null;
 
   @ApiPropertyOptional()
   @IsString()

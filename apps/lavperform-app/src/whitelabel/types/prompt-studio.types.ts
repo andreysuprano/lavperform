@@ -1,23 +1,9 @@
-import type { CommunicationStyleType, VoiceToneType } from './ai-agent.types'
-
 export type PromptStudioServiceModel = 'CONVENTIONAL' | 'SELF_SERVICE'
 
 export interface GeneratePromptStudioPayload {
   model: PromptStudioServiceModel
   answers: Record<string, string>
   modelName?: string
-}
-
-/** Kept for QuestionnaireForm still on disk; generate uses GeneratePromptStudioPayload. */
-export interface QuestionnaireAnswers {
-  services: string
-  focus: string
-  mustNotPromise: string
-  hoursAndDeadline?: string
-  pricing?: string
-  handoff?: string
-  voiceTone: VoiceToneType
-  communicationStyle: CommunicationStyleType
 }
 
 export type PromptSheetSnapshot = {
@@ -82,31 +68,6 @@ export interface ProposePromptStudioPayload {
   baseUpdatedAt?: string
   currentUpdatedAt: string | null
   draftChanged: boolean
-  facts: Array<{ text: string }>
   sheetUpdatedAt: string
-  currentSheetUpdatedAt: string | null
   modelName?: string
-}
-
-export type PromptStudioMessageRole = 'USER' | 'SPECIALIST'
-
-export interface PromptStudioMessage {
-  threadId?: string
-  role: PromptStudioMessageRole
-  content: string
-  proposalJson: string | null
-}
-
-export interface PromptStudioThread {
-  messages: PromptStudioMessage[]
-}
-
-export interface SendPromptStudioMessagePayload {
-  content: string
-  document: PromptDocument
-}
-
-export interface SendPromptStudioMessageResult {
-  messages: PromptStudioMessage[]
-  proposal: PromptProposal
 }

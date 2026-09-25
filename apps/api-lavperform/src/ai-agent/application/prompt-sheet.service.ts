@@ -31,6 +31,12 @@ export type PromptSheetResponse = {
   updatedAt: Date | null;
 };
 
+type LockedSheetRow = {
+  id: string;
+  answers: unknown;
+  updatedAt: Date;
+};
+
 @Injectable()
 export class PromptSheetService {
   constructor(private readonly prisma: PrismaService) {}
@@ -83,7 +89,7 @@ export class PromptSheetService {
     };
 
     return {
-      serviceModel: sheet?.serviceModel ?? company.serviceModel,
+      serviceModel: company.serviceModel,
       snapshot: {
         name: company.name,
         phone: company.phone,
@@ -142,8 +148,7 @@ export class PromptSheetService {
     value: string,
     expectedSheetUpdatedAt: string,
   ): Promise<{ serviceModel: CompanyServiceModel; answers: Record<string, string>; updatedAt: Date }> {
-    await this.assertSheetUnchanged(companyId, draftKey, expectedSheetUpdatedAt);
-    return this.writeAnswer(companyId, draftKey, key, value);
+    return this.writeAnswer(companyId, draftKey, key, value, expectedSheetUpdatedAt);
   }
 
   private async writeAnswer(
@@ -151,44 +156,63 @@ export class PromptSheetService {
     draftKey: string,
     key: string,
     value: string,
+    expectedSheetUpdatedAt?: string,
   ): Promise<{ serviceModel: CompanyServiceModel; answers: Record<string, string>; updatedAt: Date }> {
-    const company = await this.prisma.company.findUnique({
-      where: { id: companyId },
-      select: { serviceModel: true },
-    });
+    return this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({
+        where: { id: companyId },
+        select: { serviceModel: true },
+      });
 
-    if (!company) {
-      throw new NotFoundException('Empresa não encontrada');
-    }
+      if (!company) {
+        throw new NotFoundException('Empresa não encontrada');
+      }
 
-    const existing = await this.prisma.promptSheet.findUnique({
-      where: { companyId_draftKey: { companyId, draftKey } },
-      select: { answers: true },
-    });
+      const locked = await tx.$queryRaw<LockedSheetRow[]>`
+        SELECT id, answers, "updatedAt"
+        FROM "PromptSheet"
+        WHERE "companyId" = ${companyId} AND "draftKey" = ${draftKey}
+        FOR UPDATE
+      `;
 
-    const answers: Record<string, string> = {
-      ...((existing?.answers as Record<string, string> | null) ?? {}),
-      [key]: value,
-    };
+      if (expectedSheetUpdatedAt !== undefined) {
+        const currentUpdatedAt = locked[0]?.updatedAt?.toISOString() ?? null;
+        if (currentUpdatedAt !== expectedSheetUpdatedAt) {
+          throw new ConflictException(STALE_MESSAGE);
+        }
+      }
 
-    const sheet = await this.prisma.promptSheet.upsert({
-      where: { companyId_draftKey: { companyId, draftKey } },
-      create: {
-        companyId,
-        draftKey,
+      const prevAnswers =
+        (locked[0]?.answers as Record<string, string> | null) ?? {};
+      const answers: Record<string, string> = {
+        ...prevAnswers,
+        [key]: value,
+      };
+
+      const sheet =
+        locked.length === 0
+          ? await tx.promptSheet.create({
+              data: {
+                companyId,
+                draftKey,
+                serviceModel: company.serviceModel,
+                answers: answers as Prisma.InputJsonValue,
+              },
+            })
+          : await tx.promptSheet.update({
+              where: { id: locked[0].id },
+              data: {
+                answers: answers as Prisma.InputJsonValue,
+                serviceModel: company.serviceModel,
+              },
+            });
+
+      return {
         serviceModel: company.serviceModel,
-        answers: answers as Prisma.InputJsonValue,
-      },
-      update: {
-        answers: answers as Prisma.InputJsonValue,
-      },
+        answers: sheet.answers as Record<string, string>,
+        updatedAt: sheet.updatedAt,
+      };
     });
-
-    return {
-      serviceModel: sheet.serviceModel,
-      answers: sheet.answers as Record<string, string>,
-      updatedAt: sheet.updatedAt,
-    };
   }
 
   async adopt(
@@ -209,7 +233,7 @@ export class PromptSheetService {
     });
 
     const answers = (draft?.answers as Record<string, string> | null) ?? {};
-    const serviceModel = draft?.serviceModel ?? company.serviceModel;
+    const serviceModel = company.serviceModel;
 
     const sheet = await this.prisma.promptSheet.upsert({
       where: { companyId_draftKey: { companyId, draftKey: agentId } },
@@ -226,7 +250,7 @@ export class PromptSheetService {
     });
 
     return {
-      serviceModel: sheet.serviceModel,
+      serviceModel: company.serviceModel,
       answers: sheet.answers as Record<string, string>,
       updatedAt: sheet.updatedAt,
     };
