@@ -38,10 +38,13 @@ export class PromptStudioController {
   ) {}
 
   @Post('prompt-studio/generate')
-  @ApiOperation({ summary: 'Gerar documento de prompt a partir do questionário' })
+  @ApiOperation({ summary: 'Gerar documento de prompt a partir da ficha' })
   generate(@Body() body: GeneratePromptStudioDto) {
-    const { modelName, ...answers } = body;
-    return this.generatePrompt.execute({ answers, modelName });
+    return this.generatePrompt.execute({
+      model: body.model,
+      answers: body.answers,
+      modelName: body.modelName,
+    });
   }
 
   @Post('agents/:agentId/prompt-studio/generate')
@@ -53,8 +56,11 @@ export class PromptStudioController {
   ) {
     const agent = await this.findAgentById.execute(agentId);
     const modelName = body.modelName ?? agent.modelConfig?.modelName ?? DEFAULT_MODEL;
-    const { modelName: _ignored, ...answers } = body;
-    return this.generatePrompt.execute({ answers, modelName });
+    return this.generatePrompt.execute({
+      model: body.model,
+      answers: body.answers,
+      modelName,
+    });
   }
 
   @Post('prompt-studio/test')
