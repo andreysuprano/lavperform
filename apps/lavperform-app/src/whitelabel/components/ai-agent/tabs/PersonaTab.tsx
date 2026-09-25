@@ -439,9 +439,6 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
             suggestedQuestions={suggestedQuestions}
             proposal={null}
             onTest={handleTest}
-            onPropose={async () => undefined}
-            onAcceptProposal={() => undefined}
-            onDiscardProposal={() => undefined}
             isTesting={isTesting}
           />
         </Card.Body>

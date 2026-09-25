@@ -7,10 +7,11 @@ import { useNavigate } from 'react-router-dom'
 import * as yup from 'yup'
 
 import { CustomDrawer } from '@/components'
+import { toaster } from '@/components/ui/toaster'
 import { useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
+import { invalidateQueries } from '@/lib/react-query'
 import {
-  useCreateAIAgent,
   useUpdateAIAgentMediaConfig,
   useUpdateAIAgentPersona,
 } from '@/whitelabel/hooks'
@@ -89,8 +90,8 @@ function AIAgentWizardBase({ onClose }: Props) {
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
   const [isTesting, setIsTesting] = useState(false)
   const [promptStepError, setPromptStepError] = useState<string | null>(null)
+  const [finishError, setFinishError] = useState<string | null>(null)
 
-  const createAgent = useCreateAIAgent()
   const updatePersona = useUpdateAIAgentPersona()
   const updateMediaConfig = useUpdateAIAgentMediaConfig()
 
@@ -159,12 +160,13 @@ function AIAgentWizardBase({ onClose }: Props) {
     if (isSubmitting || !document || !companyId) return
 
     setIsSubmitting(true)
+    setFinishError(null)
     try {
       const s1 = step1Form.getValues()
       const s3 = step3Form.getValues()
       const name = personaName.trim() || agentName || undefined
 
-      const agent = await createAgent.mutateAsync({
+      const created = await aiAgentService.createAgent(companyId, {
         name: s1.name,
         description: s1.description,
         persona: {
@@ -185,8 +187,22 @@ function AIAgentWizardBase({ onClose }: Props) {
           windowSize: 10,
         },
       })
+      const agent = created.data
+      invalidateQueries.aiAgentsList(companyId)
 
-      await aiAgentService.adoptPromptSheet(companyId, agent.id)
+      try {
+        await aiAgentService.adoptPromptSheet(companyId, agent.id)
+      } catch {
+        const message =
+          'Agente criado, mas não foi possível copiar a ficha para ele. Suas respostas continuam salvas — tente Finalizar de novo ou abra o agente e complete a ficha.'
+        setFinishError(message)
+        toaster.create({
+          title: 'Erro ao copiar a ficha',
+          description: message,
+          type: 'error',
+        })
+        return
+      }
 
       await updatePersona.mutateAsync({
         agentId: agent.id,
@@ -216,8 +232,22 @@ function AIAgentWizardBase({ onClose }: Props) {
         },
       })
 
+      toaster.create({
+        title: 'Sucesso',
+        description: 'Agente de IA criado com sucesso!',
+        type: 'success',
+      })
       onClose()
       navigate(`/whitelabel/ai-agent/${agent.id}`)
+    } catch {
+      const message =
+        'Não foi possível finalizar a criação do agente. Suas respostas da ficha foram mantidas — tente de novo.'
+      setFinishError(message)
+      toaster.create({
+        title: 'Erro ao finalizar',
+        description: message,
+        type: 'error',
+      })
     } finally {
       setIsSubmitting(false)
     }
@@ -231,7 +261,6 @@ function AIAgentWizardBase({ onClose }: Props) {
     agentName,
     voiceTone,
     communicationStyle,
-    createAgent,
     updatePersona,
     updateMediaConfig,
     onClose,
@@ -284,6 +313,11 @@ function AIAgentWizardBase({ onClose }: Props) {
       footer={footer}
     >
       <Stack gap={6}>
+        {finishError ? (
+          <Text fontSize="sm" color="fg.error">
+            {finishError}
+          </Text>
+        ) : null}
         <Steps.Root
           colorPalette={colorPalette}
           count={STEPS.length}
@@ -388,9 +422,6 @@ function AIAgentWizardBase({ onClose }: Props) {
                     suggestedQuestions={suggestedQuestions}
                     proposal={null}
                     onTest={handleTest}
-                    onPropose={async () => undefined}
-                    onAcceptProposal={() => undefined}
-                    onDiscardProposal={() => undefined}
                     isTesting={isTesting}
                   />
                 </>
