@@ -24,6 +24,7 @@ export type CriterionType =
   | 'phone_ddd'
   | 'purchased_product'
   | 'total_orders'
+  | 'total_cycles'
   | 'average_ticket'
   | 'whatsapp_verified'
   | 'has_orders'

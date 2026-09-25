@@ -24,6 +24,7 @@ export const CRITERION_LABELS: Record<CriterionType, string> = {
   phone_ddd: 'DDD',
   purchased_product: 'Produto/Serviço que comprou',
   total_orders: 'Quantidade de compras',
+  total_cycles: 'Quantidade de ciclos',
   average_ticket: 'Quanto costuma gastar',
   whatsapp_verified: 'Tem WhatsApp confirmado',
   has_orders: 'Já fez venda',
@@ -41,6 +42,8 @@ export const CRITERION_HELPERS: Partial<Record<CriterionType, string>> = {
   phone_ddd: 'Inclui clientes por um ou mais DDDs do telefone (código de área).',
   purchased_product: 'Filtra quem já comprou determinado produto.',
   total_orders: 'Filtra pela quantidade total de vendas feitas. Use as datas para limitar o período.',
+  total_cycles:
+    'Filtra pela quantidade de ciclos. Cada item principal da venda conta. Use as datas para limitar o período.',
   average_ticket: 'Filtra pelo valor médio que o cliente costuma gastar.',
   whatsapp_verified: 'Filtra quem tem ou não o WhatsApp confirmado.',
   has_orders: 'Filtra quem já comprou alguma vez ou ainda não.',
@@ -160,6 +163,7 @@ function formatCriterionSummaryBase(
       return `${label}: ${parts.join(' e ')}`
     }
     case 'total_orders':
+    case 'total_cycles':
       return `${label}: ${operatorLabel.toLowerCase()} ${Number(criterion.value ?? 0)}`
     case 'average_ticket':
       return `${label}: ${operatorLabel.toLowerCase()} ${formatMoney(Number(criterion.value ?? 0))}`

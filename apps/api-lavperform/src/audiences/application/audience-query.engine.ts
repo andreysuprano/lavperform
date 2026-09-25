@@ -130,6 +130,10 @@ export class AudienceQueryEngine {
       return this.resolveTotalOrdersIds(criterion, companyId);
     }
 
+    if (criterion.type === 'total_cycles') {
+      return this.resolveTotalCyclesIds(criterion, companyId);
+    }
+
     if (criterion.type === 'average_ticket') {
       return this.resolveAverageTicketIds(criterion, companyId);
     }
@@ -541,6 +545,50 @@ export class AudienceQueryEngine {
     `;
 
     return rows.map((row) => row.id);
+  }
+
+  private async resolveTotalCyclesIds(
+    criterion: Criterion,
+    companyId: string,
+  ): Promise<string[]> {
+    const count = Number(criterion.value);
+    const periodSql = this.buildOrderJoinPeriodSql(criterion);
+    const havingClause = this.buildCycleHavingClause(criterion.operator, count);
+
+    const rows = await this.prisma.$queryRaw<Array<{ id: string }>>`
+      SELECT c.id
+      FROM "Customer" c
+      LEFT JOIN "Order" o ON o."customerId" = c.id ${periodSql}
+      LEFT JOIN "OrderItem" oi
+        ON oi."orderId" = o.id
+       AND oi."parentItemId" IS NULL
+      WHERE c."companyId" = ${companyId}
+      GROUP BY c.id
+      HAVING ${havingClause}
+    `;
+
+    return rows.map((row) => row.id);
+  }
+
+  private buildCycleHavingClause(
+    operator: Criterion['operator'],
+    count: number,
+  ): Prisma.Sql {
+    const total = Prisma.sql`COALESCE(SUM(COALESCE(oi."quantity", 0)), 0)`;
+    switch (operator) {
+      case 'eq':
+        return Prisma.sql`${total} = ${count}`;
+      case 'gt':
+        return Prisma.sql`${total} > ${count}`;
+      case 'gte':
+        return Prisma.sql`${total} >= ${count}`;
+      case 'lt':
+        return Prisma.sql`${total} < ${count}`;
+      case 'lte':
+        return Prisma.sql`${total} <= ${count}`;
+      default:
+        return Prisma.sql`${total} >= ${count}`;
+    }
   }
 
   private buildHavingClause(

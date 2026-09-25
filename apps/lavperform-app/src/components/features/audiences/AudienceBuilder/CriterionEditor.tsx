@@ -99,6 +99,7 @@ export function CriterionEditor({
       case 'purchased_product':
         return ['ever', 'within_days', 'not_within_days'] as ComparisonOperator[]
       case 'total_orders':
+      case 'total_cycles':
         return ['eq', 'gt', 'gte', 'lt', 'lte'] as ComparisonOperator[]
       case 'average_ticket':
         return ['gt', 'gte', 'lt', 'lte'] as ComparisonOperator[]
@@ -345,7 +346,7 @@ export function CriterionEditor({
         </>
       )}
 
-      {['total_orders', 'average_ticket'].includes(criterion.type) && (
+      {['total_orders', 'total_cycles', 'average_ticket'].includes(criterion.type) && (
         <Field.Root>
           <Field.Label>
             {criterion.type === 'average_ticket' ? 'Valor (R$)' : 'Quantidade'}
