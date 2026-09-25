@@ -30,6 +30,13 @@ import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
 
 import type { Props } from './AIAgentWizard.types'
+import {
+  advanceFinishResume,
+  initialFinishResume,
+  nextFinishPhase,
+  shouldCreateAgent,
+  type FinishResumeState,
+} from './wizard-finish-resume'
 
 const STEPS = [
   { label: 'Dados básicos', description: 'Nome e descrição' },
@@ -91,6 +98,8 @@ function AIAgentWizardBase({ onClose }: Props) {
   const [isTesting, setIsTesting] = useState(false)
   const [promptStepError, setPromptStepError] = useState<string | null>(null)
   const [finishError, setFinishError] = useState<string | null>(null)
+  const [finishResume, setFinishResume] =
+    useState<FinishResumeState>(initialFinishResume)
 
   const updatePersona = useUpdateAIAgentPersona()
   const updateMediaConfig = useUpdateAIAgentMediaConfig()
@@ -161,76 +170,102 @@ function AIAgentWizardBase({ onClose }: Props) {
 
     setIsSubmitting(true)
     setFinishError(null)
+    let resume = finishResume
     try {
       const s1 = step1Form.getValues()
       const s3 = step3Form.getValues()
       const name = personaName.trim() || agentName || undefined
 
-      const created = await aiAgentService.createAgent(companyId, {
-        name: s1.name,
-        description: s1.description,
-        persona: {
-          personaName: name,
-          contextPrompt: document.contextPrompt || undefined,
-          systemPrompt: document.systemPrompt || undefined,
-          voiceTone,
-          communicationStyle,
-          language: 'PT_BR',
-        },
-        modelConfig: {
-          modelName: 'openai/gpt-5',
-          temperature: 0.7,
-          maxTokens: 8048,
-        },
-        memoryConfig: {
-          memoryType: 'BUFFER',
-          windowSize: 10,
-        },
-      })
-      const agent = created.data
-      invalidateQueries.aiAgentsList(companyId)
+      let agentId = resume.agentId
 
-      try {
-        await aiAgentService.adoptPromptSheet(companyId, agent.id)
-      } catch {
-        const message =
-          'Agente criado, mas não foi possível copiar a ficha para ele. Suas respostas continuam salvas — tente Finalizar de novo ou abra o agente e complete a ficha.'
-        setFinishError(message)
-        toaster.create({
-          title: 'Erro ao copiar a ficha',
-          description: message,
-          type: 'error',
+      if (shouldCreateAgent(resume)) {
+        const created = await aiAgentService.createAgent(companyId, {
+          name: s1.name,
+          description: s1.description,
+          persona: {
+            personaName: name,
+            contextPrompt: document.contextPrompt || undefined,
+            systemPrompt: document.systemPrompt || undefined,
+            voiceTone,
+            communicationStyle,
+            language: 'PT_BR',
+          },
+          modelConfig: {
+            modelName: 'openai/gpt-5',
+            temperature: 0.7,
+            maxTokens: 8048,
+          },
+          memoryConfig: {
+            memoryType: 'BUFFER',
+            windowSize: 10,
+          },
         })
-        return
+        agentId = created.data.id
+        resume = advanceFinishResume(resume, {
+          type: 'created',
+          agentId,
+        })
+        setFinishResume(resume)
+        invalidateQueries.aiAgentsList(companyId)
       }
 
-      await updatePersona.mutateAsync({
-        agentId: agent.id,
-        data: {
-          personaName: name,
-          contextPrompt: document.contextPrompt || undefined,
-          systemPrompt: document.systemPrompt || undefined,
-          voiceTone,
-          communicationStyle,
-          language: 'PT_BR',
-          behaviorGuidelines: document.behaviorGuidelines,
-          guardrails: document.guardrails,
-        },
-      })
+      if (!agentId) {
+        throw new Error('Agent id missing after create')
+      }
 
-      await updateMediaConfig.mutateAsync({
-        agentId: agent.id,
-        data: {
-          audioEnabled: s3.audioEnabled,
-          audioDefaultMessage: s3.audioDefaultMessage || undefined,
-          imageEnabled: s3.imageEnabled,
-          imageExtractionPrompt: s3.imageExtractionPrompt || undefined,
-          imageDefaultMessage: s3.imageDefaultMessage || undefined,
-          videoEnabled: s3.videoEnabled,
-          videoExtractionPrompt: s3.videoExtractionPrompt || undefined,
-          videoDefaultMessage: s3.videoDefaultMessage || undefined,
-        },
-      })
+      if (nextFinishPhase(resume) === 'adopt') {
+        try {
+          await aiAgentService.adoptPromptSheet(companyId, agentId)
+          resume = advanceFinishResume(resume, { type: 'adopted' })
+          setFinishResume(resume)
+        } catch {
+          const message =
+            'Agente criado, mas não foi possível copiar a ficha para ele. Suas respostas continuam salvas — tente Finalizar de novo ou abra o agente e complete a ficha.'
+          setFinishError(message)
+          toaster.create({
+            title: 'Erro ao copiar a ficha',
+            description: message,
+            type: 'error',
+          })
+          return
+        }
+      }
+
+      if (nextFinishPhase(resume) === 'persona') {
+        await updatePersona.mutateAsync({
+          agentId,
+          data: {
+            personaName: name,
+            contextPrompt: document.contextPrompt || undefined,
+            systemPrompt: document.systemPrompt || undefined,
+            voiceTone,
+            communicationStyle,
+            language: 'PT_BR',
+            behaviorGuidelines: document.behaviorGuidelines,
+            guardrails: document.guardrails,
+          },
+        })
+        resume = advanceFinishResume(resume, { type: 'personaSaved' })
+        setFinishResume(resume)
+      }
+
+      if (nextFinishPhase(resume) === 'media') {
+        await updateMediaConfig.mutateAsync({
+          agentId,
+          data: {
+            audioEnabled: s3.audioEnabled,
+            audioDefaultMessage: s3.audioDefaultMessage || undefined,
+            imageEnabled: s3.imageEnabled,
+            imageExtractionPrompt: s3.imageExtractionPrompt || undefined,
+            imageDefaultMessage: s3.imageDefaultMessage || undefined,
+            videoEnabled: s3.videoEnabled,
+            videoExtractionPrompt: s3.videoExtractionPrompt || undefined,
+            videoDefaultMessage: s3.videoDefaultMessage || undefined,
+          },
+        })
+        resume = advanceFinishResume(resume, { type: 'mediaSaved' })
+        setFinishResume(resume)
+      }
 
       toaster.create({
         title: 'Sucesso',
@@ -238,7 +273,7 @@ function AIAgentWizardBase({ onClose }: Props) {
         type: 'success',
       })
       onClose()
-      navigate(`/whitelabel/ai-agent/${agent.id}`)
+      navigate(`/whitelabel/ai-agent/${agentId}`)
     } catch {
       const message =
         'Não foi possível finalizar a criação do agente. Suas respostas da ficha foram mantidas — tente de novo.'
@@ -255,6 +290,7 @@ function AIAgentWizardBase({ onClose }: Props) {
     isSubmitting,
     document,
     companyId,
+    finishResume,
     step1Form,
     step3Form,
     personaName,
