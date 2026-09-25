@@ -8,6 +8,7 @@ import * as yup from 'yup'
 
 import { CustomDrawer } from '@/components'
 import { useWhiteLabel } from '@/config'
+import { useAuth } from '@/context/AuthContext'
 import {
   useCreateAIAgent,
   useUpdateAIAgentMediaConfig,
@@ -15,24 +16,23 @@ import {
 } from '@/whitelabel/hooks'
 import { aiAgentService } from '@/whitelabel/services'
 import type {
+  CommunicationStyleType,
   PromptDocument,
-  PromptProposal,
-  QuestionnaireAnswers,
+  VoiceToneType,
 } from '@/whitelabel/types'
 
 import { AIAgentWizardStep1 } from '../AIAgentWizardStep1'
 import type { Step1FormData } from '../AIAgentWizardStep1'
 import { AIAgentWizardStep3 } from '../AIAgentWizardStep3'
 import type { Step3FormData } from '../AIAgentWizardStep3'
-import { PromptDocumentEditor } from '../PromptStudio/PromptDocumentEditor'
+import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
-import { QuestionnaireForm } from '../PromptStudio/QuestionnaireForm'
 
 import type { Props } from './AIAgentWizard.types'
 
 const STEPS = [
   { label: 'Dados básicos', description: 'Nome e descrição' },
-  { label: 'Prompt', description: 'Questionário e teste' },
+  { label: 'Prompt', description: 'Ficha e teste' },
   { label: 'Mídia', description: 'Áudio, imagem e vídeo' },
 ]
 
@@ -41,21 +41,53 @@ const step1Schema = yup.object({
   description: yup.string().required('Descrição é obrigatória'),
 })
 
+const DOCUMENT_LABELS: Record<keyof PromptDocument, string> = {
+  contextPrompt: 'Contexto do negócio',
+  systemPrompt: 'Inteligência do agente (System Prompt)',
+  behaviorGuidelines: 'Regras de comportamento',
+  guardrails: 'Guardrails',
+}
+
+function ReadOnlyPromptDocument({ document }: { document: PromptDocument }) {
+  return (
+    <Stack gap={5}>
+      {(Object.keys(DOCUMENT_LABELS) as Array<keyof PromptDocument>).map(
+        (field) => (
+          <Stack key={field} gap={1}>
+            <Text fontWeight="semibold" fontSize="sm">
+              {DOCUMENT_LABELS[field]}
+            </Text>
+            <Text
+              fontSize="sm"
+              whiteSpace="pre-wrap"
+              borderWidth="1px"
+              borderRadius="md"
+              p={3}
+              bg="bg.subtle"
+            >
+              {document[field] || '—'}
+            </Text>
+          </Stack>
+        )
+      )}
+    </Stack>
+  )
+}
+
 function AIAgentWizardBase({ onClose }: Props) {
   const { colorPalette } = useWhiteLabel()
+  const { selectedCompany } = useAuth()
   const navigate = useNavigate()
 
   const [currentStep, setCurrentStep] = useState(0)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [personaName, setPersonaName] = useState('')
-  const [questionnaireAnswers, setQuestionnaireAnswers] =
-    useState<QuestionnaireAnswers | null>(null)
+  const [voiceTone, setVoiceTone] = useState<VoiceToneType>('FORMAL')
+  const [communicationStyle, setCommunicationStyle] =
+    useState<CommunicationStyleType>('BALANCED')
   const [document, setDocument] = useState<PromptDocument | null>(null)
   const [suggestedQuestions, setSuggestedQuestions] = useState<string[]>([])
-  const [proposal, setProposal] = useState<PromptProposal | null>(null)
-  const [isGenerating, setIsGenerating] = useState(false)
   const [isTesting, setIsTesting] = useState(false)
-  const [isProposing, setIsProposing] = useState(false)
   const [promptStepError, setPromptStepError] = useState<string | null>(null)
 
   const createAgent = useCreateAIAgent()
@@ -81,21 +113,11 @@ function AIAgentWizardBase({ onClose }: Props) {
   })
 
   const agentName = step1Form.watch('name')
+  const companyId = selectedCompany?.id
 
-  const handleGenerate = useCallback(async (answers: QuestionnaireAnswers) => {
-    setIsGenerating(true)
+  const handleDocument = useCallback((next: PromptDocument) => {
+    setDocument(next)
     setPromptStepError(null)
-    setProposal(null)
-    try {
-      const response = await aiAgentService.generatePromptStudio(answers)
-      setQuestionnaireAnswers(answers)
-      setDocument(response.data.document)
-      setSuggestedQuestions(response.data.suggestedQuestions)
-    } catch {
-      setPromptStepError('Não foi possível gerar o prompt. Tente de novo.')
-    } finally {
-      setIsGenerating(false)
-    }
   }, [])
 
   const handleTest = useCallback(
@@ -117,46 +139,6 @@ function AIAgentWizardBase({ onClose }: Props) {
     [document]
   )
 
-  const handlePropose = useCallback(
-    async (payload: {
-      question: string
-      answer: string
-      whatWasWrong: string
-    }) => {
-      if (!document) return
-      setIsProposing(true)
-      try {
-        const response = await aiAgentService.proposePromptStudio({
-          document,
-          question: payload.question,
-          answer: payload.answer,
-          whatWasWrong: payload.whatWasWrong,
-          currentUpdatedAt: null,
-          draftChanged: false,
-        })
-        setProposal(response.data)
-      } finally {
-        setIsProposing(false)
-      }
-    },
-    [document]
-  )
-
-  const handleAcceptProposal = useCallback(() => {
-    if (!document || !proposal) return
-    setDocument({ ...document, ...proposal.changes })
-    setProposal(null)
-  }, [document, proposal])
-
-  const handleDiscardProposal = useCallback(() => {
-    setProposal(null)
-  }, [])
-
-  const handleDocumentChange = useCallback((next: PromptDocument) => {
-    setDocument(next)
-    setProposal(null)
-  }, [])
-
   const handleNext = useCallback(async () => {
     if (currentStep === 0) {
       const valid = await step1Form.trigger()
@@ -165,9 +147,7 @@ function AIAgentWizardBase({ onClose }: Props) {
     }
     if (currentStep === 1) {
       if (!document) {
-        setPromptStepError(
-          'Gere o prompt pelo questionário antes de continuar.'
-        )
+        setPromptStepError('Gere o prompt pela ficha antes de continuar.')
         return
       }
       setPromptStepError(null)
@@ -176,7 +156,7 @@ function AIAgentWizardBase({ onClose }: Props) {
   }, [currentStep, step1Form, document])
 
   const handleFinish = useCallback(async () => {
-    if (isSubmitting || !document || !questionnaireAnswers) return
+    if (isSubmitting || !document || !companyId) return
 
     setIsSubmitting(true)
     try {
@@ -191,8 +171,8 @@ function AIAgentWizardBase({ onClose }: Props) {
           personaName: name,
           contextPrompt: document.contextPrompt || undefined,
           systemPrompt: document.systemPrompt || undefined,
-          voiceTone: questionnaireAnswers.voiceTone,
-          communicationStyle: questionnaireAnswers.communicationStyle,
+          voiceTone,
+          communicationStyle,
           language: 'PT_BR',
         },
         modelConfig: {
@@ -206,14 +186,16 @@ function AIAgentWizardBase({ onClose }: Props) {
         },
       })
 
+      await aiAgentService.adoptPromptSheet(companyId, agent.id)
+
       await updatePersona.mutateAsync({
         agentId: agent.id,
         data: {
           personaName: name,
           contextPrompt: document.contextPrompt || undefined,
           systemPrompt: document.systemPrompt || undefined,
-          voiceTone: questionnaireAnswers.voiceTone,
-          communicationStyle: questionnaireAnswers.communicationStyle,
+          voiceTone,
+          communicationStyle,
           language: 'PT_BR',
           behaviorGuidelines: document.behaviorGuidelines,
           guardrails: document.guardrails,
@@ -242,11 +224,13 @@ function AIAgentWizardBase({ onClose }: Props) {
   }, [
     isSubmitting,
     document,
-    questionnaireAnswers,
+    companyId,
     step1Form,
     step3Form,
     personaName,
     agentName,
+    voiceTone,
+    communicationStyle,
     createAgent,
     updatePersona,
     updateMediaConfig,
@@ -340,10 +324,55 @@ function AIAgentWizardBase({ onClose }: Props) {
                 ) : null}
               </Stack>
 
-              <QuestionnaireForm
-                onGenerate={handleGenerate}
-                isGenerating={isGenerating}
-              />
+              <HStack gap={4} flexWrap="wrap">
+                <Stack gap={1} flex="1" minW="160px">
+                  <Text fontWeight="semibold" fontSize="sm">
+                    Tom de voz
+                  </Text>
+                  <select
+                    value={voiceTone}
+                    onChange={(e) =>
+                      setVoiceTone(e.target.value as VoiceToneType)
+                    }
+                  >
+                    <option value="FORMAL">Formal</option>
+                    <option value="FRIENDLY">Amigável</option>
+                    <option value="NEUTRAL">Neutro</option>
+                    <option value="EMPATHETIC">Empático</option>
+                    <option value="TECHNICAL">Técnico</option>
+                  </select>
+                </Stack>
+                <Stack gap={1} flex="1" minW="160px">
+                  <Text fontWeight="semibold" fontSize="sm">
+                    Estilo de comunicação
+                  </Text>
+                  <select
+                    value={communicationStyle}
+                    onChange={(e) =>
+                      setCommunicationStyle(
+                        e.target.value as CommunicationStyleType
+                      )
+                    }
+                  >
+                    <option value="CONCISE">Conciso</option>
+                    <option value="DETAILED">Detalhado</option>
+                    <option value="BALANCED">Equilibrado</option>
+                    <option value="INSTRUCTIVE">Instrutivo</option>
+                  </select>
+                </Stack>
+              </HStack>
+
+              {companyId ? (
+                <PromptSheetChat
+                  companyId={companyId}
+                  onDocument={handleDocument}
+                  onSuggestedQuestions={setSuggestedQuestions}
+                />
+              ) : (
+                <Text fontSize="sm" color="fg.error">
+                  Selecione uma empresa para preencher a ficha.
+                </Text>
+              )}
 
               {promptStepError ? (
                 <Text fontSize="sm" color="fg.error">
@@ -353,20 +382,16 @@ function AIAgentWizardBase({ onClose }: Props) {
 
               {document ? (
                 <>
-                  <PromptDocumentEditor
-                    document={document}
-                    onChange={handleDocumentChange}
-                  />
+                  <ReadOnlyPromptDocument document={document} />
                   <PromptTestPanel
                     document={document}
                     suggestedQuestions={suggestedQuestions}
-                    proposal={proposal}
+                    proposal={null}
                     onTest={handleTest}
-                    onPropose={handlePropose}
-                    onAcceptProposal={handleAcceptProposal}
-                    onDiscardProposal={handleDiscardProposal}
+                    onPropose={async () => undefined}
+                    onAcceptProposal={() => undefined}
+                    onDiscardProposal={() => undefined}
                     isTesting={isTesting}
-                    isProposing={isProposing}
                   />
                 </>
               ) : null}

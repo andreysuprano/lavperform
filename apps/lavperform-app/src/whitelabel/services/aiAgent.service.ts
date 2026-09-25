@@ -7,12 +7,13 @@ import type {
   CreateAIAgentMcpServerPayload,
   CreateAIAgentPayload,
   CreateKnowledgeFilePayload,
+  GeneratePromptStudioPayload,
   GeneratePromptStudioResult,
   ProposePromptStudioPayload,
   PromptDocument,
   PromptProposal,
+  PromptSheetResponse,
   PromptStudioThread,
-  QuestionnaireAnswers,
   SendPromptStudioMessagePayload,
   SendPromptStudioMessageResult,
   TestPromptStudioResult,
@@ -205,9 +206,42 @@ export const aiAgentService = {
     )
   },
 
+  // ─── Prompt sheet ────────────────────────────────────────────────────────
+
+  async getPromptSheet(companyId: string, agentId?: string) {
+    const path = agentId
+      ? `/companies/${companyId}/ai-agents/${agentId}/prompt-sheet`
+      : `/companies/${companyId}/ai-agents/prompt-sheet`
+    return await client.get<PromptSheetResponse>(path)
+  },
+
+  async putPromptSheetAnswer(
+    companyId: string,
+    data: { key: string; value: string },
+    agentId?: string
+  ) {
+    const path = agentId
+      ? `/companies/${companyId}/ai-agents/${agentId}/prompt-sheet`
+      : `/companies/${companyId}/ai-agents/prompt-sheet`
+    return await client.put<{
+      serviceModel: string
+      answers: Record<string, string>
+      updatedAt: string
+    }>(path, data)
+  },
+
+  async adoptPromptSheet(companyId: string, agentId: string) {
+    return await client.post(
+      `/companies/${companyId}/ai-agents/${agentId}/prompt-sheet/adopt`
+    )
+  },
+
   // ─── Prompt studio ───────────────────────────────────────────────────────
 
-  async generatePromptStudio(data: QuestionnaireAnswers, agentId?: string) {
+  async generatePromptStudio(
+    data: GeneratePromptStudioPayload,
+    agentId?: string
+  ) {
     const path = agentId
       ? `/ai-agents/${agentId}/prompt-studio/generate`
       : '/ai-agents/prompt-studio/generate'

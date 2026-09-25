@@ -1,5 +1,14 @@
 import type { CommunicationStyleType, VoiceToneType } from './ai-agent.types'
 
+export type PromptStudioServiceModel = 'CONVENTIONAL' | 'SELF_SERVICE'
+
+export interface GeneratePromptStudioPayload {
+  model: PromptStudioServiceModel
+  answers: Record<string, string>
+  modelName?: string
+}
+
+/** Kept for QuestionnaireForm still on disk; generate uses GeneratePromptStudioPayload. */
 export interface QuestionnaireAnswers {
   services: string
   focus: string
@@ -9,6 +18,33 @@ export interface QuestionnaireAnswers {
   handoff?: string
   voiceTone: VoiceToneType
   communicationStyle: CommunicationStyleType
+}
+
+export type PromptSheetSnapshot = {
+  name: string | null
+  phone: string | null
+  address: {
+    street: string | null
+    number: string | null
+    complement: string | null
+    neighborhood: string | null
+    city: string | null
+    state: string | null
+    zipCode: string | null
+  }
+  openingHours: Array<{
+    dayOfWeek: string
+    openTime: string
+    closeTime: string
+    isOpen: boolean
+  }>
+}
+
+export type PromptSheetResponse = {
+  serviceModel: PromptStudioServiceModel
+  snapshot: PromptSheetSnapshot
+  answers: Record<string, string>
+  updatedAt: string | null
 }
 
 export interface PromptDocument {

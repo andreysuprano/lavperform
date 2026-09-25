@@ -152,4 +152,45 @@ export class PromptSheetService {
       updatedAt: sheet.updatedAt,
     };
   }
+
+  async adopt(
+    companyId: string,
+    agentId: string,
+  ): Promise<{ serviceModel: CompanyServiceModel; answers: Record<string, string>; updatedAt: Date }> {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { serviceModel: true },
+    });
+
+    if (!company) {
+      throw new NotFoundException('Empresa não encontrada');
+    }
+
+    const draft = await this.prisma.promptSheet.findUnique({
+      where: { companyId_draftKey: { companyId, draftKey: 'draft' } },
+    });
+
+    const answers = (draft?.answers as Record<string, string> | null) ?? {};
+    const serviceModel = draft?.serviceModel ?? company.serviceModel;
+
+    const sheet = await this.prisma.promptSheet.upsert({
+      where: { companyId_draftKey: { companyId, draftKey: agentId } },
+      create: {
+        companyId,
+        draftKey: agentId,
+        serviceModel,
+        answers: answers as Prisma.InputJsonValue,
+      },
+      update: {
+        serviceModel,
+        answers: answers as Prisma.InputJsonValue,
+      },
+    });
+
+    return {
+      serviceModel: sheet.serviceModel,
+      answers: sheet.answers as Record<string, string>,
+      updatedAt: sheet.updatedAt,
+    };
+  }
 }

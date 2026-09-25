@@ -359,6 +359,19 @@ export class AiAgentController {
     );
   }
 
+  @Post('companies/:companyId/ai-agents/:agentId/prompt-sheet/adopt')
+  @ApiOperation({
+    summary: 'Copiar ficha rascunho da empresa para o agente lavai',
+  })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  adoptPromptSheet(
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.promptSheetService.adopt(companyId, agentId);
+  }
+
   // ─── Prompt studio ────────────────────────────────────────────────────────
 
   @Post('ai-agents/prompt-studio/generate')
