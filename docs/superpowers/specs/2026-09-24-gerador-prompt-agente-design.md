@@ -1,7 +1,7 @@
 # Gerador de prompt do agente de IA
 
 **Data:** 2026-09-24
-**Status:** Aguardando revisão
+**Status:** Substituído em parte por `2026-09-25-ficha-conversa-prompt-design.md` (questionário curto, edição manual e chat separado)
 **Contexto:** Unidades da Lav Perform não conseguem configurar o prompt do agente. O wizard pede para colar um system prompt em branco, as regras padrão são genéricas e o `contextPrompt` existe na API e no montador de prompt, mas a tela não pergunta. A IA responde errado e os clientes estão desconectando o atendimento.
 
 ## Objetivo
