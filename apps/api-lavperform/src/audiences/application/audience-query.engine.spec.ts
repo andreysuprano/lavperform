@@ -768,4 +768,91 @@ describe('AudienceQueryEngine', () => {
       select: { id: true },
     });
   });
+
+  describe('total_cycles', () => {
+    function flattenSql(strings: readonly string[], values: unknown[]): string {
+      let text = '';
+      strings.forEach((chunk, index) => {
+        text += chunk;
+        const value = values[index];
+        if (value && typeof value === 'object' && 'strings' in value) {
+          const nested = value as { strings: string[]; values: unknown[] };
+          text += flattenSql(nested.strings, nested.values);
+        }
+      });
+      return text;
+    }
+
+    function collectSqlValues(strings: readonly string[], values: unknown[]): unknown[] {
+      const found: unknown[] = [];
+      strings.forEach((_, index) => {
+        const value = values[index];
+        if (value && typeof value === 'object' && 'strings' in value) {
+          const nested = value as { strings: string[]; values: unknown[] };
+          found.push(...collectSqlValues(nested.strings, nested.values));
+          return;
+        }
+        if (value !== undefined) {
+          found.push(value);
+        }
+      });
+      return found;
+    }
+
+    it('accepts comparison operators and rejects operators this filter does not use', () => {
+      expect(() =>
+        engine.validateDefinition({
+          version: 1,
+          include: {
+            operator: 'AND',
+            rules: [{ type: 'total_cycles', operator: 'gt', value: 10 }],
+          },
+        }),
+      ).not.toThrow();
+
+      expect(() =>
+        engine.validateDefinition({
+          version: 1,
+          include: {
+            operator: 'AND',
+            rules: [{ type: 'total_cycles', operator: 'in', value: 10 }],
+          },
+        }),
+      ).toThrow('Operador inválido');
+    });
+
+    it('sums main item quantities inside the sales period without a customer cap', async () => {
+      prisma.$queryRaw.mockResolvedValueOnce([{ id: 'c1' }]);
+
+      const ids = await engine.resolveCustomerIds('company-1', {
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [
+            {
+              type: 'total_cycles',
+              operator: 'gt',
+              value: 10,
+              period: { from: '2026-09-01', to: '2026-09-30' },
+            },
+          ],
+        },
+      } as unknown as AudienceDefinition);
+
+      expect(ids).toEqual(['c1']);
+      const [strings, ...values] = prisma.$queryRaw.mock.calls[0];
+      const sql = flattenSql(strings, values);
+      expect(sql).toContain('SUM(COALESCE(oi."quantity", 0))');
+      expect(sql).toContain('oi."parentItemId" IS NULL');
+      expect(sql).toContain('>');
+      expect(sql).not.toContain('LIMIT');
+      expect(collectSqlValues(strings, values)).toEqual(
+        expect.arrayContaining([
+          new Date(Date.UTC(2026, 8, 1)),
+          new Date(Date.UTC(2026, 9, 1)),
+          10,
+        ]),
+      );
+    });
+  });
 });

@@ -22,6 +22,7 @@ export type CriterionType =
   | 'phone_ddd'
   | 'purchased_product'
   | 'total_orders'
+  | 'total_cycles'
   | 'average_ticket'
   | 'whatsapp_verified'
   | 'has_orders'
@@ -64,6 +65,7 @@ const VALID_CRITERION_TYPES: CriterionType[] = [
   'phone_ddd',
   'purchased_product',
   'total_orders',
+  'total_cycles',
   'average_ticket',
   'whatsapp_verified',
   'has_orders',
@@ -80,6 +82,7 @@ const VALID_OPERATORS_BY_TYPE: Record<CriterionType, ComparisonOperator[]> = {
   phone_ddd: ['in', 'not_in'],
   purchased_product: ['ever', 'within_days', 'not_within_days'],
   total_orders: ['eq', 'gt', 'gte', 'lt', 'lte'],
+  total_cycles: ['eq', 'gt', 'gte', 'lt', 'lte'],
   average_ticket: ['gt', 'gte', 'lt', 'lte'],
   whatsapp_verified: ['eq'],
   has_orders: ['eq'],
@@ -205,6 +208,12 @@ export const CRITERIA_METADATA = [
   {
     type: 'total_orders' as const,
     label: 'Total de pedidos',
+    operators: ['eq', 'gt', 'gte', 'lt', 'lte'],
+    valueType: 'number',
+  },
+  {
+    type: 'total_cycles' as const,
+    label: 'Quantidade de ciclos',
     operators: ['eq', 'gt', 'gte', 'lt', 'lte'],
     valueType: 'number',
   },
