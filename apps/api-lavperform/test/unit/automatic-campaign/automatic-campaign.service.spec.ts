@@ -91,6 +91,7 @@ describe('AutomaticCampaignService', () => {
     mockBatch.resolveContactableIds.mockResolvedValue([]);
     mockBatch.commitBatch.mockResolvedValue(undefined);
     mockBatch.clearContinuous.mockResolvedValue(undefined);
+    mockRepository.findById.mockResolvedValue({ id: 'ac1' });
   });
 
   describe('create', () => {
@@ -194,12 +195,14 @@ describe('AutomaticCampaignService', () => {
 
   describe('update', () => {
     it('updates using repository with gift and creative logic', async () => {
-      mockRepository.findById.mockResolvedValue({
-        id: 'ac1',
-        companyId: 'comp1',
-        segmentation: 'campeao',
-      });
-      mockRepository.update.mockResolvedValue({ id: 'ac1', name: 'Updated' });
+      mockRepository.findById
+        .mockResolvedValueOnce({
+          id: 'ac1',
+          companyId: 'comp1',
+          segmentation: 'campeao',
+        })
+        .mockResolvedValue({ id: 'ac1', name: 'Updated' });
+      mockRepository.update.mockResolvedValue({ id: 'ac1', name: 'Updated', status: 'PROCESSING' });
 
       const result = await service.update('ac1', {
         name: 'Updated',

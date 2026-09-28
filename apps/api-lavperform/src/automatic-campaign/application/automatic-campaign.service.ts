@@ -159,7 +159,8 @@ export class AutomaticCampaignService {
       throw error;
     }
 
-    return { ...createdCampaign, metaTemplates };
+    const persisted = await this.findOne(createdCampaign.id);
+    return { ...persisted, metaTemplates };
   }
 
   private async syncBatchFromCampaign(campaign: BatchCampaignRef & {
@@ -558,7 +559,7 @@ export class AutomaticCampaignService {
     // logadas e isoladas   uma não impede a outra.
     void this.cancelPendingMessagesAndReprocess(id);
 
-    return updated;
+    return this.findOne(id);
   }
 
   private async cancelPendingMessagesAndReprocess(campaignId: string): Promise<void> {

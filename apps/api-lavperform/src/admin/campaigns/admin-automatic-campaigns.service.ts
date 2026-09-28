@@ -1,10 +1,14 @@
 import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { AutomaticCampaignStatus, MessageStatus, Prisma } from '@prisma/client';
+import { AutomaticCampaignSendMode, AutomaticCampaignStatus, MessageStatus, Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { AutomaticCampaignService } from '../../automatic-campaign/application/automatic-campaign.service';
+import {
+  AutomaticCampaignBatchService,
+  BatchCampaignRef,
+} from '../../automatic-campaign/application/automatic-campaign-batch.service';
 import { AutomaticCampaignAdminFilterDto } from './dto/automatic-campaign-admin-filter.dto';
 import { UpdateAutomaticCampaignAdminDto } from './dto/update-automatic-campaign-admin.dto';
 import { MessagesAdminFilterDto } from './dto/messages-admin-filter.dto';
@@ -22,6 +26,7 @@ export class AdminAutomaticCampaignsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly automaticCampaignService: AutomaticCampaignService,
+    private readonly batch: AutomaticCampaignBatchService,
     @InjectQueue(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
     private readonly automaticCampaignsQueue: Queue,
   ) {}
@@ -152,8 +157,14 @@ export class AdminAutomaticCampaignsService {
     } = createDto;
 
     const targeting = normalizeCampaignTargeting(createDto);
+    const createInclude = {
+      company: { select: { id: true, name: true } },
+      campaignMetric: true,
+      creatives: true,
+      gifts: true,
+    } satisfies Prisma.AutomaticCampaignInclude;
 
-    return this.prisma.automaticCampaign.create({
+    const created = await this.prisma.automaticCampaign.create({
       data: {
         ...data,
         ...targeting,
@@ -174,19 +185,79 @@ export class AdminAutomaticCampaignsService {
         }),
         campaignMetric: { create: {} },
       },
-      include: {
-        company: { select: { id: true, name: true } },
-        campaignMetric: true,
-        creatives: true,
-        gifts: true,
-      },
+      include: createInclude,
     });
+
+    const sendMode = createDto.sendMode ?? AutomaticCampaignSendMode.COVER_BATCH;
+    const batchRef: BatchCampaignRef = {
+      id: created.id,
+      companyId,
+      targetingMode: targeting.targetingMode,
+      segmentation: targeting.segmentation ?? null,
+      audienceId: targeting.audienceId ?? null,
+      customSendListId: targeting.customSendListId ?? null,
+      channel: created.channel,
+      status: created.status,
+    };
+
+    try {
+      if (sendMode === AutomaticCampaignSendMode.CONTINUOUS) {
+        await this.batch.clearContinuous(created.id, created.status);
+      } else {
+        const customerIds = await this.batch.resolveContactableIds(batchRef);
+        await this.batch.commitBatch(batchRef, customerIds);
+      }
+    } catch (error) {
+      try {
+        await this.prisma.gift.deleteMany({
+          where: { automaticCampaignId: created.id },
+        });
+        await this.prisma.campaignMetric.deleteMany({
+          where: { automaticCampaignId: created.id },
+        });
+        await this.prisma.automaticCampaign.delete({ where: { id: created.id } });
+      } catch {
+        // Mantém o erro original da leva se a limpeza falhar.
+      }
+      throw error;
+    }
+
+    const persisted = await this.prisma.automaticCampaign.findUnique({
+      where: { id: created.id },
+      include: createInclude,
+    });
+    if (!persisted) {
+      throw new NotFoundException('Campanha automática não encontrada');
+    }
+    return persisted;
   }
 
   async update(id: string, updateDto: UpdateAutomaticCampaignAdminDto) {
     const existing = await this.findOne(id);
 
     const { gifts, creatives, couponId, companyId, ...scalarData } = updateDto;
+
+    const nextSendMode =
+      updateDto.sendMode ??
+      (existing.sendMode === AutomaticCampaignSendMode.CONTINUOUS
+        ? AutomaticCampaignSendMode.CONTINUOUS
+        : AutomaticCampaignSendMode.COVER_BATCH);
+
+    const nextRef: BatchCampaignRef = {
+      id,
+      companyId: companyId ?? existing.companyId,
+      targetingMode: existing.targetingMode,
+      segmentation: updateDto.segmentation ?? existing.segmentation ?? null,
+      audienceId: existing.audienceId ?? null,
+      customSendListId: existing.customSendListId ?? null,
+      channel: updateDto.channel ?? existing.channel,
+      status: existing.status,
+    };
+
+    let resolvedIds: string[] = [];
+    if (nextSendMode === AutomaticCampaignSendMode.COVER_BATCH) {
+      resolvedIds = await this.batch.resolveContactableIds(nextRef);
+    }
 
     const updateData: Prisma.AutomaticCampaignUpdateInput = { ...scalarData };
 
@@ -217,21 +288,29 @@ export class AdminAutomaticCampaignsService {
       }
     }
 
-    const updated = await this.prisma.automaticCampaign.update({
+    const updateInclude = {
+      company: { select: { id: true, name: true } },
+      campaignMetric: true,
+      creatives: {
+        include: {
+          metaTemplate: { select: { id: true, name: true, status: true, rejectedReason: true } },
+        },
+      },
+      gifts: true,
+      coupon: { select: { id: true, code: true, description: true, active: true } },
+    } satisfies Prisma.AutomaticCampaignInclude;
+
+    await this.prisma.automaticCampaign.update({
       where: { id },
       data: updateData,
-      include: {
-        company: { select: { id: true, name: true } },
-        campaignMetric: true,
-        creatives: {
-          include: {
-            metaTemplate: { select: { id: true, name: true, status: true, rejectedReason: true } },
-          },
-        },
-        gifts: true,
-        coupon: { select: { id: true, code: true, description: true, active: true } },
-      },
+      include: updateInclude,
     });
+
+    if (nextSendMode === AutomaticCampaignSendMode.CONTINUOUS) {
+      await this.batch.clearContinuous(id, existing.status);
+    } else {
+      await this.batch.commitBatch(nextRef, resolvedIds);
+    }
 
     // Re-enqueue para regenerar mensagens do dia após edição
     const todayStr = new Date().toISOString().slice(0, 10);
@@ -250,7 +329,14 @@ export class AdminAutomaticCampaignsService {
       );
     }
 
-    return updated;
+    const persisted = await this.prisma.automaticCampaign.findUnique({
+      where: { id },
+      include: updateInclude,
+    });
+    if (!persisted) {
+      throw new NotFoundException('Campanha automática não encontrada');
+    }
+    return persisted;
   }
 
   async remove(id: string) {
