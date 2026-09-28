@@ -795,4 +795,40 @@ describe('AutomaticCampaignsProcessor', () => {
     const generated = strategy.generateMessages.mock.calls[0][0].customers;
     expect(generated.map((customer: { id: string }) => customer.id)).toEqual(['ready']);
   });
+
+  it('marks a full cover-batch conclusive when the batch is at least the continuous sample size', async () => {
+    const maxDailySends = 5;
+    prisma.automaticCampaign.findUnique.mockResolvedValue(
+      whatsappCampaign({
+        sendMode: 'COVER_BATCH',
+        batchSnapshottedAt: new Date('2024-01-01T00:00:00.000Z'),
+        maxDailySends,
+      }),
+    );
+
+    const fresh = Array.from({ length: maxDailySends * 5 }, (_, index) =>
+      freshCustomer(`f${index + 1}`),
+    );
+    const stale = staleCustomer('s1');
+    const batchCustomers = [stale, ...fresh];
+
+    prisma.automaticCampaignBatchRecipient.findMany.mockResolvedValue(
+      batchCustomers.map((customer) => ({ customerId: customer.id })),
+    );
+    prisma.customer.findMany = jest.fn().mockResolvedValue(batchCustomers);
+    renitencyEvaluator.canContactCustomer.mockImplementation(
+      async ({ customerId }: { customerId: string }) => ({
+        allowed: customerId === stale.id,
+      }),
+    );
+    whatsappService.validateAndPersistCustomerWhatsapp.mockResolvedValue(false);
+
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
+    expect(whatsappService.validateAndPersistCustomerWhatsapp).toHaveBeenCalledTimes(1);
+    const generated = strategy.generateMessages.mock.calls[0][0].customers;
+    expect(generated.length).toBeLessThan(maxDailySends);
+    expect(lastCampaignUpdate().data.lastProcessedAt).toEqual(FIXED_NOW);
+  });
 });

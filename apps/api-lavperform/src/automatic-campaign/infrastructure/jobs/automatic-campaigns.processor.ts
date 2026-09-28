@@ -275,9 +275,10 @@ export class AutomaticCampaignsProcessor {
       }
 
       const staleNotAttempted = staleCustomers.length - validationChecks;
-      // Amostra cheia: existem contactáveis além dela, então ter esgotado os stale
-      // desta amostra não significa que não há mais nada para revalidar.
-      const sampleTruncated = candidates.length >= requestedTake;
+      // No contínuo, take corta a amostra: encher esse teto significa que ainda
+      // pode haver contactáveis além dela. Na leva a lista já está completa.
+      const sampleTruncated =
+        sendMode !== 'COVER_BATCH' && candidates.length >= requestedTake;
 
       const revalidationPending =
         staleNotAttempted > 0 ||
