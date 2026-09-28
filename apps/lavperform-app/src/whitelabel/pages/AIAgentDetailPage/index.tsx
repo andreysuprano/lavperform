@@ -185,6 +185,13 @@ function AIAgentDetailPageBase() {
           <RiArrowLeftLine />
           Agentes de IA
         </Button>
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/conversa`)}
+        >
+          Editar na conversa
+        </Button>
         {agent.description && (
           <Text fontSize="sm" color="fg.muted" lineClamp={1}>
             {agent.description}

@@ -1,22 +1,21 @@
 import { Button, ButtonGroup, SimpleGrid, Stack } from '@chakra-ui/react'
-import { memo, useCallback, useState } from 'react'
+import { memo, useCallback } from 'react'
 import { RiAddLine } from 'react-icons/ri'
+import { useNavigate } from 'react-router-dom'
 
 import { Empty, LoadingState } from '@/components'
 import { useAuth } from '@/context/AuthContext'
 import { useAIAgents, useDeleteAIAgent } from '@/whitelabel/hooks'
 import type { AIAgent } from '@/whitelabel/types'
 
-import { AIAgentWizard } from '../AIAgentWizard'
 import { AIAgentListCard } from './AIAgentListCard'
 import type { Props } from './AIAgentList.types'
 
 function AIAgentListBase({ onAgentSelect: _onAgentSelect }: Props) {
   const { selectedCompany } = useAuth()
+  const navigate = useNavigate()
   const { data, isLoading, error } = useAIAgents(selectedCompany?.id)
   const deleteMutation = useDeleteAIAgent()
-
-  const [isWizardOpen, setIsWizardOpen] = useState(false)
 
   const agents = data || []
 
@@ -28,13 +27,9 @@ function AIAgentListBase({ onAgentSelect: _onAgentSelect }: Props) {
     [selectedCompany, deleteMutation]
   )
 
-  const handleOpenWizard = useCallback(() => {
-    setIsWizardOpen(true)
-  }, [])
-
-  const handleCloseWizard = useCallback(() => {
-    setIsWizardOpen(false)
-  }, [])
+  const handleOpenConversation = useCallback(() => {
+    navigate('/whitelabel/ai-agent/novo')
+  }, [navigate])
 
   if (isLoading) {
     return <LoadingState title="Carregando agentes de IA..." />
@@ -58,7 +53,7 @@ function AIAgentListBase({ onAgentSelect: _onAgentSelect }: Props) {
             <Stack gap={4} align="center">
               <p>Crie seu primeiro agente de IA para começar a atender seus clientes automaticamente.</p>
               <ButtonGroup>
-                <Button onClick={handleOpenWizard}>
+                <Button onClick={handleOpenConversation}>
                   <RiAddLine />
                   Criar agente de IA
                 </Button>
@@ -66,14 +61,13 @@ function AIAgentListBase({ onAgentSelect: _onAgentSelect }: Props) {
             </Stack>
           }
         />
-        {isWizardOpen && <AIAgentWizard onClose={handleCloseWizard} />}
       </>
     )
   }
 
   return (
     <Stack gap={4}>
-      <Button onClick={handleOpenWizard} alignSelf="flex-start">
+      <Button onClick={handleOpenConversation} alignSelf="flex-start">
         <RiAddLine />
         Criar agente de IA
       </Button>
@@ -88,8 +82,6 @@ function AIAgentListBase({ onAgentSelect: _onAgentSelect }: Props) {
           />
         ))}
       </SimpleGrid>
-
-      {isWizardOpen && <AIAgentWizard onClose={handleCloseWizard} />}
     </Stack>
   )
 }
