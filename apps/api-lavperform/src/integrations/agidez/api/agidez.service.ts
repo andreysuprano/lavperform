@@ -6,6 +6,7 @@ import {
   AgidezCliente,
   AgidezCredentials,
   AgidezDaySales,
+  AgidezPeca,
   AgidezProduto,
   AgidezServico,
   AgidezTicket,
@@ -62,8 +63,15 @@ export class AgidezService {
       end,
     );
     await this.sleep(INTER_REQUEST_DELAY_MS);
+    const pieces = await this.select<AgidezPeca>(
+      credentials,
+      'pAPI_WA_TicketsPecasIndividuais',
+      start,
+      end,
+    );
+    await this.sleep(INTER_REQUEST_DELAY_MS);
 
-    return { tickets, services, products };
+    return { tickets, services, products, pieces };
   }
 
   private sleep(ms: number): Promise<void> {

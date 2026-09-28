@@ -2,6 +2,7 @@ import { CreateOrderDto } from '../../../orders/application/dto/create-order.dto
 import { CreateOrderItemDto } from '../../../orders/application/dto/create-order-item.dto';
 import {
   AgidezCliente,
+  AgidezPeca,
   AgidezProduto,
   AgidezServico,
   AgidezTicket,
@@ -50,6 +51,20 @@ export function agidezIntegratorOrderId(
   return hash === 0 ? 1 : hash;
 }
 
+const GENERIC_SERVICE_NAME = '*LAVANDERIA';
+
+export function agidezItemName(
+  serviceName?: string | null,
+  pieceName?: string | null,
+): string {
+  const service = (serviceName ?? '').trim();
+  const piece = (pieceName ?? '').trim();
+  if ((!service || service.toUpperCase() === GENERIC_SERVICE_NAME) && piece) {
+    return piece;
+  }
+  return service || piece || 'Serviço';
+}
+
 export function dedupeServices(services: AgidezServico[]): AgidezServico[] {
   const unique = new Map<string, AgidezServico>();
   for (const service of services) {
@@ -81,6 +96,7 @@ export class AgidezSaleMapping {
     products: AgidezProduto[],
     customerId: string | null,
     companyId: string,
+    pieces: AgidezPeca[] = [],
   ): CreateOrderDto {
     const ticketServices = dedupeServices(
       services.filter((service) => service.CodigoTicket === ticket.CodigoTicket),
@@ -89,7 +105,7 @@ export class AgidezSaleMapping {
       (product) => product.CodigoTicket === ticket.CodigoTicket,
     );
     const total = agidezTicketNetTotal(ticket);
-    const items = buildItems(ticket, ticketServices, ticketProducts, total);
+    const items = buildItems(ticket, ticketServices, ticketProducts, pieces, total);
     const discount =
       ticket.DescontoTotalServicos + ticket.DescontoTotalProdutos;
     const delivered =
@@ -145,14 +161,26 @@ function buildItems(
   ticket: AgidezTicket,
   services: AgidezServico[],
   products: AgidezProduto[],
+  pieces: AgidezPeca[],
   total: number,
 ): CreateOrderItemDto[] {
+  const pieceNameByCode = new Map<number, string>();
+  for (const piece of pieces) {
+    const name = (piece.NomePeca ?? '').trim();
+    if (name && !pieceNameByCode.has(piece.Codigo)) {
+      pieceNameByCode.set(piece.Codigo, name);
+    }
+  }
+
   const items: CreateOrderItemDto[] = services.map((service, index) => {
     const price = roundMoney(service.ValorUnitarioComAcrescimoDescontoTicket);
     return {
       itemId: index,
       externalCode: String(service.TicketPecaIndividual),
-      name: (service.NomeServico ?? '').trim() || 'Serviço',
+      name: agidezItemName(
+        service.NomeServico,
+        pieceNameByCode.get(service.TicketPecaIndividual),
+      ),
       quantity: 1,
       unitPrice: price,
       totalPrice: price,

@@ -4,6 +4,7 @@ import { Logger } from '@nestjs/common';
 import { QUEUE_NAMES } from '../../../../common/queue/queue.constants';
 import { AgidezSalesService } from '../../application/agidez-sales.service';
 import {
+  AgidezPeca,
   AgidezProduto,
   AgidezServico,
   AgidezTicket,
@@ -14,6 +15,7 @@ interface AgidezSaleProcessJobData {
   ticket: AgidezTicket;
   services: AgidezServico[];
   products: AgidezProduto[];
+  pieces?: AgidezPeca[];
 }
 
 @Processor(QUEUE_NAMES.AGIDEZ_SALE_PROCESS)
@@ -24,7 +26,7 @@ export class AgidezSaleProcessor {
 
   @Process({ name: QUEUE_NAMES.AGIDEZ_SALE_PROCESS, concurrency: 20 })
   async processSale(job: Job<AgidezSaleProcessJobData>) {
-    const { companyId, ticket, services, products } = job.data;
+    const { companyId, ticket, services, products, pieces } = job.data;
 
     try {
       await this.agidezSalesService.processSale(
@@ -32,6 +34,7 @@ export class AgidezSaleProcessor {
         ticket,
         services ?? [],
         products ?? [],
+        pieces ?? [],
       );
     } catch (error) {
       this.logger.error(

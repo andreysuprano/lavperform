@@ -4,6 +4,7 @@ import { Queue } from 'bull';
 import { AgidezService } from '../api/agidez.service';
 import {
   AgidezCredentials,
+  AgidezPeca,
   AgidezProduto,
   AgidezServico,
   AgidezTicket,
@@ -21,6 +22,7 @@ import {
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { AgidezSaleMapping } from '../mappings/agidez-sale-mapping';
 import { AgidezImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
+import { CreateOrderItemDto } from '../../../orders/application/dto/create-order-item.dto';
 
 const PARTNER_SLUGS = ['HYBEX', 'AGIDEZ'] as const;
 
@@ -46,10 +48,8 @@ export class AgidezSalesService {
     if (!integration) return;
 
     const credentials = this.toCredentials(integration);
-    const { tickets, services, products } = await this.agidezService.getDailySales(
-      credentials,
-      date,
-    );
+    const { tickets, services, products, pieces } =
+      await this.agidezService.getDailySales(credentials, date);
     const ticketIds = new Set(tickets.map((ticket) => ticket.CodigoTicket));
 
     this.logger.log(
@@ -57,9 +57,9 @@ export class AgidezSalesService {
     );
 
     for (const ticket of tickets) {
-      await this.agidezSaleProcessQueue.add(
-        QUEUE_NAMES.AGIDEZ_SALE_PROCESS,
-        {
+      await this.enqueueReplacing(this.agidezSaleProcessQueue, {
+        name: QUEUE_NAMES.AGIDEZ_SALE_PROCESS,
+        data: {
           companyId,
           ticket,
           services: services.filter(
@@ -68,13 +68,16 @@ export class AgidezSalesService {
           products: products.filter(
             (product) => product.CodigoTicket === ticket.CodigoTicket,
           ),
+          pieces: pieces.filter(
+            (piece) => piece.CodigoTicket === ticket.CodigoTicket,
+          ),
         },
-        {
+        opts: {
           attempts: 3,
           backoff: { type: 'exponential', delay: 2000 },
           jobId: `agidez-sale:${companyId}:${ticket.CodigoLoja}:${ticket.CodigoTicket}`,
         },
-      );
+      });
     }
 
     const ignored = services.filter(
@@ -116,6 +119,7 @@ export class AgidezSalesService {
     ticket: AgidezTicket,
     services: AgidezServico[],
     products: AgidezProduto[],
+    pieces: AgidezPeca[] = [],
   ): Promise<void> {
     const incoming = AgidezSaleMapping.toCustomerIncoming(ticket);
     const customer = await this.customerIdentityService.resolveForSale({
@@ -125,13 +129,15 @@ export class AgidezSalesService {
       partner: { partnerSlug: 'HYBEX', name: 'Hybex' },
     });
 
-    const integratorOrderId = AgidezSaleMapping.toOrder(
+    const orderData = AgidezSaleMapping.toOrder(
       ticket,
       services,
       products,
       customer?.id ?? null,
       companyId,
-    ).integratorOrderId!;
+      pieces,
+    );
+    const integratorOrderId = orderData.integratorOrderId!;
 
     const existingOrder = await this.orderService.findByIntegratorOrderId(
       companyId,
@@ -139,19 +145,12 @@ export class AgidezSalesService {
     );
 
     if (existingOrder) {
+      await this.refreshExistingItems(existingOrder.id, orderData.items ?? []);
       this.logger.log(
-        `Ticket Agidez ${ticket.CodigoTicket} já existe, ignorando`,
+        `Itens do ticket Agidez ${ticket.CodigoTicket} atualizados`,
       );
       return;
     }
-
-    const orderData = AgidezSaleMapping.toOrder(
-      ticket,
-      services,
-      products,
-      customer?.id ?? null,
-      companyId,
-    );
     const {
       integratorOrderId: _integratorOrderId,
       items,
@@ -208,15 +207,15 @@ export class AgidezSalesService {
 
     let jobsCreated = 1;
     for (const date of dates) {
-      await this.agidezSalesQueue.add(
-        QUEUE_NAMES.AGIDEZ_SALES_IMPORT,
-        { companyId, date },
-        {
+      await this.enqueueReplacing(this.agidezSalesQueue, {
+        name: QUEUE_NAMES.AGIDEZ_SALES_IMPORT,
+        data: { companyId, date },
+        opts: {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
           jobId: `agidez-import:${companyId}:${date}`,
         },
-      );
+      });
       jobsCreated++;
     }
 
@@ -227,6 +226,73 @@ export class AgidezSalesService {
       endDate: toDateOnlyString(endDate),
       jobsCreated,
     };
+  }
+
+  private async enqueueReplacing(
+    queue: Queue,
+    job: {
+      name: string;
+      data: unknown;
+      opts: {
+        jobId: string;
+        attempts: number;
+        backoff: { type: 'exponential'; delay: number };
+      };
+    },
+  ) {
+    const existing = await queue.getJob(job.opts.jobId);
+    if (existing) {
+      const state = await existing.getState();
+      if (state === 'active') {
+        this.logger.warn(`Job ${job.opts.jobId} ainda está em execução`);
+        return;
+      }
+      await existing.remove();
+    }
+    await queue.add(job.name, job.data, job.opts);
+  }
+
+  private async refreshExistingItems(
+    orderId: string,
+    items: CreateOrderItemDto[],
+  ) {
+    const existing = await this.prisma.orderItem.findMany({
+      where: { orderId },
+      orderBy: { itemId: 'asc' },
+    });
+
+    const sameShape =
+      existing.length === items.length &&
+      existing.every(
+        (item, index) => item.externalCode === (items[index].externalCode ?? null),
+      );
+
+    if (!sameShape) {
+      await this.prisma.orderItem.deleteMany({ where: { orderId } });
+      if (items.length === 0) return;
+      await this.prisma.orderItem.createMany({
+        data: items.map((item) => ({
+          orderId,
+          itemId: item.itemId,
+          externalCode: item.externalCode,
+          name: item.name,
+          quantity: item.quantity,
+          unitPrice: item.unitPrice,
+          totalPrice: item.totalPrice,
+          kind: item.kind,
+          status: item.status,
+        })),
+      });
+      return;
+    }
+
+    for (let index = 0; index < existing.length; index += 1) {
+      if (existing[index].name === items[index].name) continue;
+      await this.prisma.orderItem.update({
+        where: { id: existing[index].id },
+        data: { name: items[index].name },
+      });
+    }
   }
 
   private async resolveIntegration(companyId: string) {

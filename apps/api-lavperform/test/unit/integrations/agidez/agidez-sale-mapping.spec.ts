@@ -2,6 +2,7 @@ import { AgidezTicket, AgidezServico } from 'src/integrations/agidez/api/agidez.
 import {
   AgidezSaleMapping,
   agidezIntegratorOrderId,
+  agidezItemName,
   agidezPhone,
   agidezTicketNetTotal,
   dedupeServices,
@@ -28,6 +29,14 @@ function ticket(overrides: Partial<AgidezTicket> = {}): AgidezTicket {
 }
 
 describe('agidez-sale-mapping', () => {
+  it('usa o nome da peça quando o serviço é genérico', () => {
+    expect(agidezItemName('*LAVANDERIA', 'PDV BANHO')).toBe('PDV BANHO');
+    expect(agidezItemName('QUILO DE ROUPA', '*KG PEÇA LAVAR E SECAR')).toBe(
+      'QUILO DE ROUPA',
+    );
+    expect(agidezItemName('*LAVANDERIA', '')).toBe('*LAVANDERIA');
+  });
+
   it('monta o telefone com DDD preenchido com espaços', () => {
     expect(agidezPhone('54   ', '34531883')).toBe('5434531883');
     expect(agidezPhone('   ', '')).toBeUndefined();
@@ -79,6 +88,38 @@ describe('agidez-sale-mapping', () => {
     expect(withServices.total).toBe(7);
     expect(withServices.items).toHaveLength(1);
     expect(withServices.items?.[0].name).toBe('*LAVANDERIA');
+
+    const withPiece = AgidezSaleMapping.toOrder(
+      ticket(),
+      [
+        {
+          CodigoLoja: 100,
+          CodigoTicket: 148119,
+          TicketPecaIndividual: 10,
+          Sequencia: 1,
+          ValorUnitario: 3,
+          DescontoUnitario: 0,
+          DataDisponibilizacao: null,
+          ValorUnitarioComAcrescimoDescontoTicket: 3,
+          NomeServico: '*LAVANDERIA',
+        },
+      ],
+      [],
+      'customer-1',
+      'company-1',
+      [
+        {
+          CodigoLoja: 100,
+          CodigoTicket: 148119,
+          Codigo: 10,
+          NomePeca: 'PDV BANHO',
+          Sequencia: 1,
+          ValorUnitario: 3,
+          ValorUnitarioComAcrescimoDescontoTicket: 3,
+        },
+      ],
+    );
+    expect(withPiece.items?.[0].name).toBe('PDV BANHO');
     expect(withServices.integratorOrderId).toBe(agidezIntegratorOrderId(100, 148119));
     expect(withServices.discounts).toEqual([
       { type: 'discount', value: 1, description: 'Desconto Agidez' },
