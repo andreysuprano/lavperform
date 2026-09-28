@@ -22,7 +22,8 @@ import {
 import { RenitencyEvaluatorService } from 'src/renitency/application/renitency-evaluator.service';
 import { extractErrorMessage } from 'src/common/utils/error.utils';
 import { shouldInvalidateWhatsappOnSendError } from 'src/whatsapp/application/whatsapp-verification.policy';
-import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
+import { BATCH_LEFT_ABORT_ERROR, CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
+import { AutomaticCampaignBatchService } from 'src/automatic-campaign/application/automatic-campaign-batch.service';
 import { AutomaticCampaignSlotRefillService } from 'src/automatic-campaign/application/automatic-campaign-slot-refill.service';
 
 interface MessageProcessorData {
@@ -42,6 +43,7 @@ export class MessageProcessor {
         private readonly eventEmitter: EventEmitter2,
         private readonly renitencyEvaluator: RenitencyEvaluatorService,
         private readonly slotRefill: AutomaticCampaignSlotRefillService,
+        private readonly batch: AutomaticCampaignBatchService,
         @Optional()
         private readonly metaMessagingService?: MetaMessagingService,
         @Optional()
@@ -65,7 +67,7 @@ export class MessageProcessor {
         if (fresh.automaticCampaignId) {
             const campaignRow = await this.prisma.automaticCampaign.findUnique({
                 where: { id: fresh.automaticCampaignId },
-                select: { id: true, active: true },
+                select: { id: true, active: true, sendMode: true },
             });
             if (!campaignRow?.active) {
                 await this.prisma.message.update({
@@ -74,6 +76,28 @@ export class MessageProcessor {
                         status: MessageStatus.ABORTED,
                         error: CAMPAIGN_PAUSED_ABORT_ERROR,
                     },
+                });
+                return;
+            }
+
+            if (
+                campaignRow?.sendMode === 'COVER_BATCH' &&
+                !(await this.batch.customerStillInBatch(
+                    fresh.automaticCampaignId,
+                    message.customerId,
+                ))
+            ) {
+                await this.prisma.message.update({
+                    where: { id: message.id },
+                    data: {
+                        status: MessageStatus.ABORTED,
+                        error: BATCH_LEFT_ABORT_ERROR,
+                    },
+                });
+                await this.slotRefill.requestAfterAbort({
+                    automaticCampaignId: fresh.automaticCampaignId,
+                    abortedMessageId: message.id,
+                    reason: BATCH_LEFT_ABORT_ERROR,
                 });
                 return;
             }
@@ -190,6 +214,10 @@ export class MessageProcessor {
             where: { id: customer.id },
             data: { lastContactDate: new Date() },
         });
+
+        if (message.automaticCampaignId) {
+            await this.batch.completeIfCovered(message.automaticCampaignId);
+        }
 
         return true;
     }
