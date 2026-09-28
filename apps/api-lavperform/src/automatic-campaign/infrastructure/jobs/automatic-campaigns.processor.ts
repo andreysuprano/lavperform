@@ -13,6 +13,7 @@ import { CampaignCustomerResolverService } from '../../../audiences/application/
 import { CustomersService } from '../../../customers/application/customers.service';
 import { WhatsappService } from '../../../whatsapp/application/whatsapp.service';
 import { isWhatsappVerificationFresh } from '../../../whatsapp/application/whatsapp-verification.policy';
+import { AutomaticCampaignBatchService } from '../../application/automatic-campaign-batch.service';
 
 const MAX_WHATSAPP_VALIDATIONS_PER_RUN = 30;
 
@@ -27,6 +28,7 @@ export class AutomaticCampaignsProcessor {
     private readonly campaignCustomerResolver: CampaignCustomerResolverService,
     private readonly customersService: CustomersService,
     private readonly whatsappService: WhatsappService,
+    private readonly batch: AutomaticCampaignBatchService,
   ) { }
 
   @Process({ name: QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE, concurrency: 20 })
@@ -54,6 +56,21 @@ export class AutomaticCampaignsProcessor {
         );
         // Não marca lastProcessedAt: ao reativar no mesmo dia, pode processar.
         return;
+      }
+
+      const sendMode = campaign.sendMode ?? 'COVER_BATCH';
+      if (sendMode === 'COVER_BATCH') {
+        if (!campaign.batchSnapshottedAt) {
+          this.logger.log(
+            `Campanha ${campaign.id}: leva ainda não congelada — nenhum envio`,
+          );
+          return;
+        }
+        const covered = await this.batch.completeIfCovered(campaign.id);
+        if (covered) {
+          this.logger.log(`Campanha ${campaign.id}: leva coberta — concluída`);
+          return;
+        }
       }
 
       const maxDailySends = (campaign as any).maxDailySends ?? 50;
@@ -108,7 +125,9 @@ export class AutomaticCampaignsProcessor {
         this.logger.log(
           `Campanha ${automaticCampaignId}: limite diário atingido (${alreadyScheduledToday}/${maxDailySends} agendadas) — nenhuma nova mensagem será criada`,
         );
-        await this.persistContactableReach(campaign);
+        if (sendMode !== 'COVER_BATCH') {
+          await this.persistContactableReach(campaign);
+        }
         await this.markLastProcessedAt(automaticCampaignId);
         return;
       }
@@ -119,39 +138,80 @@ export class AutomaticCampaignsProcessor {
 
       const isWhatsappChannel = this.shouldRevalidateWhatsappBeforeSend(campaign.channel);
 
-      // Clientes que já receberam mensagem desta campanha hoje ficam fora da
-      // amostra: um retry no mesmo dia deve alcançar quem ainda não foi contatado.
-      const messagedToday = await this.prisma.message.findMany({
-        where: {
-          automaticCampaignId: automaticCampaignId,
-          status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING, MessageStatus.SENT] },
-          createdAt: {
-            gte: startOfToday,
-            lte: endOfToday,
-          },
-        },
-        select: { customerId: true },
-        distinct: ['customerId'],
-      });
-
-      const excludeCustomerIds = messagedToday.map((message) => message.customerId);
-
-      // Métrica de alcance da audiência: não considera slots nem exclusões do dia.
-      await this.persistContactableReach(campaign);
-
       const requestedTake = maxDailySends * 5;
 
-      const candidates = await this.campaignCustomerResolver.resolveCustomers({
-        companyId: campaign.companyId,
-        targetingMode: campaign.targetingMode,
-        segmentation: campaign.segmentation,
-        audienceId: campaign.audienceId,
-        customSendListId: campaign.customSendListId,
-        channel: campaign.channel,
-        eligibility: 'contactable',
-        excludeCustomerIds,
-        take: requestedTake,
-      });
+      let candidates;
+      if (sendMode === 'COVER_BATCH') {
+        const recipients = await this.prisma.automaticCampaignBatchRecipient.findMany({
+          where: { automaticCampaignId: campaign.id },
+          select: { customerId: true },
+        });
+        const recipientIds = recipients.map((row) => row.customerId);
+        const sentRows = await this.prisma.message.findMany({
+          where: {
+            automaticCampaignId: campaign.id,
+            status: MessageStatus.SENT,
+            customerId: { in: recipientIds },
+          },
+          select: { customerId: true },
+          distinct: ['customerId'],
+        });
+        const inFlightRows = await this.prisma.message.findMany({
+          where: {
+            automaticCampaignId: campaign.id,
+            status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING] },
+            customerId: { in: recipientIds },
+          },
+          select: { customerId: true },
+          distinct: ['customerId'],
+        });
+        const blocked = new Set([
+          ...sentRows.map((row) => row.customerId),
+          ...inFlightRows.map((row) => row.customerId),
+        ]);
+        const eligibleIds = recipientIds.filter((id) => !blocked.has(id));
+        const loaded = eligibleIds.length
+          ? await this.prisma.customer.findMany({
+              where: { id: { in: eligibleIds }, companyId: campaign.companyId },
+            })
+          : [];
+        const byId = new Map(loaded.map((customer) => [customer.id, customer]));
+        candidates = eligibleIds
+          .map((id) => byId.get(id))
+          .filter((customer): customer is NonNullable<typeof customer> => !!customer);
+      } else {
+        // Clientes que já receberam mensagem desta campanha hoje ficam fora da
+        // amostra: um retry no mesmo dia deve alcançar quem ainda não foi contatado.
+        const messagedToday = await this.prisma.message.findMany({
+          where: {
+            automaticCampaignId: automaticCampaignId,
+            status: { in: [MessageStatus.PENDING, MessageStatus.PROCESSING, MessageStatus.SENT] },
+            createdAt: {
+              gte: startOfToday,
+              lte: endOfToday,
+            },
+          },
+          select: { customerId: true },
+          distinct: ['customerId'],
+        });
+
+        const excludeCustomerIds = messagedToday.map((message) => message.customerId);
+
+        // Métrica de alcance da audiência: não considera slots nem exclusões do dia.
+        await this.persistContactableReach(campaign);
+
+        candidates = await this.campaignCustomerResolver.resolveCustomers({
+          companyId: campaign.companyId,
+          targetingMode: campaign.targetingMode,
+          segmentation: campaign.segmentation,
+          audienceId: campaign.audienceId,
+          customSendListId: campaign.customSendListId,
+          channel: campaign.channel,
+          eligibility: 'contactable',
+          excludeCustomerIds,
+          take: requestedTake,
+        });
+      }
 
       const readyCustomers: typeof candidates = [];
       const staleCustomers: { customer: (typeof candidates)[number]; phone: string }[] = [];

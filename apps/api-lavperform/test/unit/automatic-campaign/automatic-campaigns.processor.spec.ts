@@ -53,6 +53,9 @@ describe('AutomaticCampaignsProcessor', () => {
       findFirst: jest.fn().mockResolvedValue(null),
       findMany: jest.fn().mockResolvedValue([]),
     },
+    automaticCampaignBatchRecipient: {
+      findMany: jest.fn().mockResolvedValue([]),
+    },
     campaignMetric: {
       updateMany: jest.fn(),
     },
@@ -73,6 +76,9 @@ describe('AutomaticCampaignsProcessor', () => {
   const whatsappService: any = {
     validateAndPersistCustomerWhatsapp: jest.fn(),
   };
+  const batch: any = {
+    completeIfCovered: jest.fn().mockResolvedValue(false),
+  };
 
   let processor: AutomaticCampaignsProcessor;
   const originalTtl = process.env.WHATSAPP_VERIFICATION_TTL_DAYS;
@@ -88,6 +94,7 @@ describe('AutomaticCampaignsProcessor', () => {
     maxDailySends: 50,
     channel: CampaignChannel.WHATSAPP_WEB,
     status: AutomaticCampaignStatus.IN_PROGRESS,
+    sendMode: 'CONTINUOUS' as const,
     creatives: [],
     coupon: null,
     ...overrides,
@@ -120,6 +127,8 @@ describe('AutomaticCampaignsProcessor', () => {
       totalEnqueued: 0,
     });
     whatsappService.validateAndPersistCustomerWhatsapp.mockResolvedValue(true);
+    batch.completeIfCovered.mockResolvedValue(false);
+    prisma.automaticCampaignBatchRecipient.findMany.mockResolvedValue([]);
     processor = new AutomaticCampaignsProcessor(
       prisma,
       factory,
@@ -127,6 +136,7 @@ describe('AutomaticCampaignsProcessor', () => {
       campaignCustomerResolver,
       customersService,
       whatsappService,
+      batch,
     );
   });
 
@@ -148,6 +158,7 @@ describe('AutomaticCampaignsProcessor', () => {
       daysOfWeek: ['seg'],
       channel: CampaignChannel.WHATSAPP_WEB,
       status: AutomaticCampaignStatus.IN_PROGRESS,
+      sendMode: 'CONTINUOUS' as const,
     });
 
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
@@ -707,6 +718,7 @@ describe('AutomaticCampaignsProcessor', () => {
       maxDailySends: 50,
       channel: CampaignChannel.WHATSAPP_WEB,
       status: AutomaticCampaignStatus.IN_PROGRESS,
+      sendMode: 'CONTINUOUS' as const,
       creatives: [],
       coupon: null,
     });
@@ -731,5 +743,56 @@ describe('AutomaticCampaignsProcessor', () => {
       { id: 'cust-blocked', name: 'Blocked', phone: '1', whatsappVerifiedAt: FRESH_VERIFIED_AT },
       { id: 'cust-allowed', name: 'Allowed', phone: '2', whatsappVerifiedAt: FRESH_VERIFIED_AT },
     ]);
+  });
+
+  it('does not send or complete a cover-batch campaign before the snapshot exists', async () => {
+    prisma.automaticCampaign.findUnique.mockResolvedValue(
+      whatsappCampaign({ sendMode: 'COVER_BATCH', batchSnapshottedAt: null }),
+    );
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
+    expect(strategy.generateMessages).not.toHaveBeenCalled();
+    expect(prisma.automaticCampaign.update).not.toHaveBeenCalled();
+  });
+
+  it('completes a cover-batch campaign when the batch service says it is covered', async () => {
+    batch.completeIfCovered.mockResolvedValue(true);
+    prisma.automaticCampaign.findUnique.mockResolvedValue(
+      whatsappCampaign({
+        sendMode: 'COVER_BATCH',
+        batchSnapshottedAt: new Date('2024-01-01T00:00:00.000Z'),
+      }),
+    );
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+    expect(strategy.generateMessages).not.toHaveBeenCalled();
+  });
+
+  it('generates only for batch customers who are not sent and not in flight', async () => {
+    prisma.automaticCampaign.findUnique.mockResolvedValue(
+      whatsappCampaign({
+        sendMode: 'COVER_BATCH',
+        batchSnapshottedAt: new Date('2024-01-01T00:00:00.000Z'),
+      }),
+    );
+    prisma.automaticCampaignBatchRecipient.findMany.mockResolvedValue([
+      { customerId: 'ready' },
+      { customerId: 'already' },
+      { customerId: 'inflight' },
+    ]);
+    prisma.message.findMany.mockImplementation(async ({ where }: any) => {
+      if (where.status === MessageStatus.SENT) return [{ customerId: 'already' }];
+      if (where.status?.in) return [{ customerId: 'inflight' }];
+      return [];
+    });
+    prisma.customer.findMany = jest.fn().mockResolvedValue([freshCustomer('ready')]);
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
+    expect(prisma.customer.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: { in: ['ready'] } }),
+      }),
+    );
+    const generated = strategy.generateMessages.mock.calls[0][0].customers;
+    expect(generated.map((customer: { id: string }) => customer.id)).toEqual(['ready']);
   });
 });
