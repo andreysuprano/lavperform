@@ -145,10 +145,17 @@ export class AutomaticCampaignService {
         sendMode: createAutomaticCampaignDto.sendMode ?? AutomaticCampaignSendMode.COVER_BATCH,
       });
     } catch (error) {
-      await this.prisma.campaignMetric.deleteMany({
-        where: { automaticCampaignId: createdCampaign.id },
-      });
-      await this.prisma.automaticCampaign.delete({ where: { id: createdCampaign.id } });
+      try {
+        await this.prisma.gift.deleteMany({
+          where: { automaticCampaignId: createdCampaign.id },
+        });
+        await this.prisma.campaignMetric.deleteMany({
+          where: { automaticCampaignId: createdCampaign.id },
+        });
+        await this.prisma.automaticCampaign.delete({ where: { id: createdCampaign.id } });
+      } catch {
+        // Mantém o erro original da leva se a limpeza falhar.
+      }
       throw error;
     }
 
