@@ -67,6 +67,13 @@ import {
   SendScheduleField,
 } from "./automatic-campaign-form-fields"
 
+const SEND_MODE_LABELS = {
+  COVER_BATCH:
+    "Encerrar ao cobrir a leva. Envia uma vez para quem está no público ao salvar. Quando todos tiverem recebido, a campanha conclui.",
+  CONTINUOUS:
+    "Contínua. Segue até a data final e pode reenviar depois da renitência.",
+} as const
+
 export function AutomaticCampaignEditForm({
   campaignId,
 }: {
@@ -84,6 +91,7 @@ export function AutomaticCampaignEditForm({
       name: "",
       type: "REACTIVATION",
       segmentation: "",
+      sendMode: "COVER_BATCH",
       startDate: "",
       endDate: "",
       messageText: "",
@@ -111,6 +119,7 @@ export function AutomaticCampaignEditForm({
       name: campaign.name,
       type: campaign.type,
       segmentation: campaign.segmentation,
+      sendMode: campaign.sendMode ?? "COVER_BATCH",
       startDate: toDatetimeLocalValue(campaign.startDate),
       endDate: campaign.endDate
         ? toDatetimeLocalValue(campaign.endDate)
@@ -333,6 +342,40 @@ export function AutomaticCampaignEditForm({
               <FieldLabel htmlFor="segmentation">Segmentação</FieldLabel>
               <Input id="segmentation" {...form.register("segmentation")} />
               <FieldError>{errors.segmentation?.message}</FieldError>
+            </Field>
+
+            <Field data-invalid={!!errors.sendMode}>
+              <FieldLabel htmlFor="sendMode">Modo de envio</FieldLabel>
+              <Controller
+                control={form.control}
+                name="sendMode"
+                render={({ field }) => (
+                  <Select
+                    value={field.value ?? "COVER_BATCH"}
+                    onValueChange={(value) =>
+                      field.onChange(typeof value === "string" ? value : field.value)
+                    }
+                  >
+                    <SelectTrigger id="sendMode" className="w-full">
+                      <SelectValueLabel labels={SEND_MODE_LABELS} />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectItem value="COVER_BATCH">
+                          {SEND_MODE_LABELS.COVER_BATCH}
+                        </SelectItem>
+                        <SelectItem value="CONTINUOUS">
+                          {SEND_MODE_LABELS.CONTINUOUS}
+                        </SelectItem>
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
+              <FieldDescription>
+                Salvar atualiza a lista com quem está no público agora. Quem já recebeu não recebe de novo.
+              </FieldDescription>
+              <FieldError>{errors.sendMode?.message}</FieldError>
             </Field>
           </FieldGroup>
         </CardContent>
