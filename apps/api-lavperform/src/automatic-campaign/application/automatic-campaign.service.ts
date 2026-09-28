@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException, Inject, Logger, BadRequestException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { AutomaticCampaignType, CampaignChannel, MessageStatus, MetaTemplateStatus } from '@prisma/client';
+import { AutomaticCampaignSendMode, AutomaticCampaignType, CampaignChannel, MessageStatus, MetaTemplateStatus } from '@prisma/client';
+import {
+  AutomaticCampaignBatchService,
+  BatchCampaignRef,
+} from './automatic-campaign-batch.service';
 import { CreateAutomaticCampaignDto } from './dto/create-automatic-campaign.dto';
 import { UpdateAutomaticCampaignDto } from './dto/update-automatic-campaign.dto';
 import { PaginationDto } from '../../common/dto/pagination.dto';
@@ -51,6 +55,7 @@ export class AutomaticCampaignService {
     private readonly prisma: PrismaService,
     private readonly metaTemplatesService: MetaTemplatesService,
     private readonly customSendListsService: CustomSendListsService,
+    private readonly batch: AutomaticCampaignBatchService,
     @InjectQueue(QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE)
     private readonly automaticCampaignsQueue: Queue,
   ) { }
@@ -99,6 +104,7 @@ export class AutomaticCampaignService {
         ...campaignData,
         ...targeting,
         channel,
+        sendMode: createAutomaticCampaignDto.sendMode ?? AutomaticCampaignSendMode.COVER_BATCH,
         maxDailySends: createAutomaticCampaignDto.maxDailySends ?? 50,
         ...internalOptions,
         companyId,
@@ -126,7 +132,38 @@ export class AutomaticCampaignService {
       metaTemplates = await this.createMetaTemplatesForCampaign(companyId, createdCampaign);
     }
 
+    try {
+      await this.syncBatchFromCampaign({
+        id: createdCampaign.id,
+        companyId,
+        targetingMode: targeting.targetingMode,
+        segmentation: targeting.segmentation ?? null,
+        audienceId: targeting.audienceId ?? null,
+        customSendListId: targeting.customSendListId ?? null,
+        channel,
+        status: createdCampaign.status,
+        sendMode: createAutomaticCampaignDto.sendMode ?? AutomaticCampaignSendMode.COVER_BATCH,
+      });
+    } catch (error) {
+      await this.prisma.campaignMetric.deleteMany({
+        where: { automaticCampaignId: createdCampaign.id },
+      });
+      await this.prisma.automaticCampaign.delete({ where: { id: createdCampaign.id } });
+      throw error;
+    }
+
     return { ...createdCampaign, metaTemplates };
+  }
+
+  private async syncBatchFromCampaign(campaign: BatchCampaignRef & {
+    sendMode: AutomaticCampaignSendMode;
+  }): Promise<void> {
+    if (campaign.sendMode === AutomaticCampaignSendMode.CONTINUOUS) {
+      await this.batch.clearContinuous(campaign.id, campaign.status);
+      return;
+    }
+    const customerIds = await this.batch.resolveContactableIds(campaign);
+    await this.batch.commitBatch(campaign, customerIds);
   }
 
   private async validateMetaTemplateCampaign(
@@ -383,37 +420,54 @@ export class AutomaticCampaignService {
       updateData.metaTemplateVariableMappings = metaTemplateVariableMappings ?? null;
     }
 
+    const nextSendMode =
+      updateAutomaticCampaignDto.sendMode ??
+      (existing.sendMode === AutomaticCampaignSendMode.CONTINUOUS
+        ? AutomaticCampaignSendMode.CONTINUOUS
+        : AutomaticCampaignSendMode.COVER_BATCH);
+
+    const nextTargeting = normalizeCampaignTargeting({
+      targetingMode: updateAutomaticCampaignDto.targetingMode ?? existing.targetingMode,
+      segmentation: updateAutomaticCampaignDto.segmentation ?? existing.segmentation,
+      audienceId:
+        updateAutomaticCampaignDto.audienceId === null
+          ? undefined
+          : (updateAutomaticCampaignDto.audienceId ?? existing.audienceId),
+      customSendListId:
+        updateAutomaticCampaignDto.customSendListId === null
+          ? undefined
+          : (updateAutomaticCampaignDto.customSendListId ?? existing.customSendListId),
+    });
+
+    const nextRef: BatchCampaignRef = {
+      id,
+      companyId: existing.companyId,
+      targetingMode: nextTargeting.targetingMode,
+      segmentation: nextTargeting.segmentation ?? null,
+      audienceId: nextTargeting.audienceId ?? null,
+      customSendListId: nextTargeting.customSendListId ?? null,
+      channel: nextChannel,
+      status: existing.status,
+    };
+
     if (
       updateAutomaticCampaignDto.targetingMode !== undefined ||
       updateAutomaticCampaignDto.segmentation !== undefined ||
       updateAutomaticCampaignDto.audienceId !== undefined ||
       updateAutomaticCampaignDto.customSendListId !== undefined
     ) {
-      const targeting = normalizeCampaignTargeting({
-        targetingMode: updateAutomaticCampaignDto.targetingMode ?? existing.targetingMode,
-        segmentation: updateAutomaticCampaignDto.segmentation ?? existing.segmentation,
-        audienceId:
-          updateAutomaticCampaignDto.audienceId === null
-            ? undefined
-            : (updateAutomaticCampaignDto.audienceId ?? existing.audienceId),
-        customSendListId:
-          updateAutomaticCampaignDto.customSendListId === null
-            ? undefined
-            : (updateAutomaticCampaignDto.customSendListId ?? existing.customSendListId),
-      });
-
-      if (targeting.targetingMode === AudienceTargetingMode.AUDIENCE) {
-        await this.assertAudienceBelongsToCompany(existing.companyId, targeting.audienceId!);
+      if (nextTargeting.targetingMode === AudienceTargetingMode.AUDIENCE) {
+        await this.assertAudienceBelongsToCompany(existing.companyId, nextTargeting.audienceId!);
       }
 
-      if (targeting.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
+      if (nextTargeting.targetingMode === AudienceTargetingMode.CUSTOMER_LIST) {
         await this.customSendListsService.assertCustomSendListBelongsToCompany(
           existing.companyId,
-          targeting.customSendListId!,
+          nextTargeting.customSendListId!,
         );
       }
 
-      Object.assign(updateData, targeting);
+      Object.assign(updateData, nextTargeting);
     }
 
     const usesSelectedTemplate =
@@ -447,7 +501,18 @@ export class AutomaticCampaignService {
         );
     }
 
+    let resolvedIds: string[] = [];
+    if (nextSendMode === AutomaticCampaignSendMode.COVER_BATCH) {
+      resolvedIds = await this.batch.resolveContactableIds(nextRef);
+    }
+
     const updated = await this.automaticCampaignRepository.update(id, dataToUpdate);
+
+    if (nextSendMode === AutomaticCampaignSendMode.CONTINUOUS) {
+      await this.batch.clearContinuous(id, existing.status);
+    } else {
+      await this.batch.commitBatch(nextRef, resolvedIds);
+    }
 
     // Reconcilia templates Meta com os novos criativos: edita os templates
     // existentes (POST /{TEMPLATE_ID}) na mesma posição, cria templates para
