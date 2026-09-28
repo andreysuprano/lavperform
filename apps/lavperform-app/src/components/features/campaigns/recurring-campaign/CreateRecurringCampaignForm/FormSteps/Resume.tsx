@@ -176,6 +176,12 @@ export function Resume(props: FormStepsProps) {
           Nenhum canal selecionado
         </Text>
       )}
+      <Text fontWeight="bold">Modo de envio:</Text>
+      <Text mb={4}>
+        {props.formData.sendMode === 'CONTINUOUS'
+          ? 'Contínua'
+          : 'Encerra ao cobrir a leva'}
+      </Text>
       <Text fontWeight="bold">Limite máximo de envios por dia:</Text>
       <Text mb={4}>
         {props.formData.maxDailySends ?? DEFAULT_MAX_DAILY_SENDS}

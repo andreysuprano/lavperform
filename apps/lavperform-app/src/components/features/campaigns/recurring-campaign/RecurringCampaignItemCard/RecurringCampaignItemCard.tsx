@@ -649,6 +649,14 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
             </Text>
           </HStack>
         )}
+        <Text
+          color="fg.muted"
+          fontSize="xs"
+        >
+          {data.sendMode === 'CONTINUOUS'
+            ? 'Contínua'
+            : 'Encerra ao cobrir a leva'}
+        </Text>
       </Card.Footer>
     </Card.Root>
 

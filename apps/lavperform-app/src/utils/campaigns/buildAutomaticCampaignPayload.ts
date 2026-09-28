@@ -158,6 +158,7 @@ export function buildAutomaticCampaignPayload({
       metaMessageTemplateId: form.metaMessageTemplateId ?? null,
       metaTemplateVariableMappings: form.metaTemplateVariableMappings ?? [],
       ...sendSchedule,
+      sendMode: form.sendMode ?? 'COVER_BATCH',
     }
   }
 
@@ -184,5 +185,6 @@ export function buildAutomaticCampaignPayload({
     creatives: apiCreatives,
     couponId: form.couponId ?? null,
     ...sendSchedule,
+    sendMode: form.sendMode ?? 'COVER_BATCH',
   }
 }

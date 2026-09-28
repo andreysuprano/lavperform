@@ -15,6 +15,7 @@ import {
 import { memo, useMemo, type ReactNode } from 'react'
 import {
   LuCalendarDays,
+  LuCircleCheck,
   LuCircleDollarSign,
   LuClock,
   LuGift,
@@ -390,6 +391,16 @@ function CampaignDetailsTabComponent({
                         })}
                       </Text>
                     </HStack>
+                  }
+                />
+                <Separator />
+                <StatRow
+                  icon={<LuCircleCheck size={16} />}
+                  label="Modo de envio"
+                  value={
+                    campaign.sendMode === 'CONTINUOUS'
+                      ? 'Contínua'
+                      : 'Encerra ao cobrir a leva'
                   }
                 />
                 <Separator />
