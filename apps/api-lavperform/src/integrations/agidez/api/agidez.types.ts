@@ -46,6 +46,16 @@ export interface AgidezServico {
   NomeServico: string | null;
 }
 
+export interface AgidezPeca {
+  CodigoLoja: number;
+  CodigoTicket: number;
+  Codigo: number;
+  NomePeca: string | null;
+  Sequencia: number;
+  ValorUnitario: number;
+  ValorUnitarioComAcrescimoDescontoTicket: number;
+}
+
 export interface AgidezProduto {
   CodigoLoja?: number;
   CodigoTicket?: number;
@@ -60,5 +70,6 @@ export interface AgidezProduto {
 export interface AgidezDaySales {
   tickets: AgidezTicket[];
   services: AgidezServico[];
+  pieces: AgidezPeca[];
   products: AgidezProduto[];
 }
