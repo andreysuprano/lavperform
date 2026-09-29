@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { WebhookEventStatus } from '@prisma/client';
+import { WebhookEventStatus } from '../../../generated/prisma';
 import {
   WebhookEventRecord,
   WebhookEventRepositoryPort,

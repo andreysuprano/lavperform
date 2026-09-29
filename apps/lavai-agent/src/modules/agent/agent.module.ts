@@ -51,6 +51,15 @@ import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
     { provide: PROMPT_STUDIO_THREAD_REPOSITORY, useExisting: PrismaPromptStudioThreadRepository },
     PromptStudioThreadUseCase,
   ],
-  exports: [FindAgentByIdUseCase, PrismaAgentRepository],
+  exports: [
+    FindAgentByIdUseCase,
+    UpdateAgentUseCase,
+    UpdateAgentPersonaUseCase,
+    UpdateAgentModelConfigUseCase,
+    UpdateAgentMemoryConfigUseCase,
+    ToggleAgentActiveUseCase,
+    DeleteAgentUseCase,
+    PrismaAgentRepository,
+  ],
 })
 export class AgentModule {}

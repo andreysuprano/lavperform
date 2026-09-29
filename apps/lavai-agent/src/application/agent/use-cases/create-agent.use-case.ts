@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import {
   AGENT_REPOSITORY,
+  AgentKind,
   AgentWithConfigsData,
   CreateAgentInput,
 } from '../ports/agent.repository.port';
@@ -14,6 +15,6 @@ export class CreateAgentUseCase {
   ) {}
 
   async execute(input: CreateAgentInput): Promise<AgentWithConfigsData> {
-    return this.repository.create(input);
+    return this.repository.create({ ...input, kind: AgentKind.PUBLIC });
   }
 }

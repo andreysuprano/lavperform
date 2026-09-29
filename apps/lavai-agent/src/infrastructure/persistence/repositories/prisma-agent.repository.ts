@@ -4,6 +4,7 @@ import {
   AgentData,
   AgentFilterConfigData,
   AgentJourneyConfigData,
+  AgentKind,
   AgentLanguage,
   AgentMediaConfigData,
   AgentMemoryConfigData,
@@ -50,6 +51,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
         name: input.name,
         description: input.description,
         instanceName: input.instanceName ?? null,
+        kind: input.kind ?? 'PUBLIC',
         persona: {
           create: {
             personaName: input.persona?.personaName ?? input.name,
@@ -109,7 +111,16 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
       where: { companyId },
       orderBy: { createdAt: 'desc' },
     });
-    return rows.map(this.mapBase);
+    return rows.map((row) => this.mapBase(row));
+  }
+
+  async findAllByKind(kind: AgentKind): Promise<AgentWithConfigsData[]> {
+    const rows = await this.prisma.agent.findMany({
+      where: { kind },
+      include: includeConfigs,
+      orderBy: { createdAt: 'desc' },
+    });
+    return rows.map((row) => this.mapWithConfigs(row));
   }
 
   async findFirstActiveByCompany(companyId: string): Promise<AgentWithConfigsData | null> {
@@ -126,7 +137,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
     companyId: string,
   ): Promise<AgentWithConfigsData | null> {
     const row = await this.prisma.agent.findFirst({
-      where: { instanceName, companyId, active: true },
+      where: { instanceName, companyId, active: true, kind: 'PUBLIC' },
       include: includeConfigs,
     });
     return row ? this.mapWithConfigs(row) : null;
@@ -251,7 +262,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
 
   private mapBase(row: {
     id: string; companyId: string; name: string; description: string | null;
-    active: boolean; instanceName?: string | null; createdAt: Date; updatedAt: Date;
+    active: boolean; kind?: AgentKind | string; instanceName?: string | null; createdAt: Date; updatedAt: Date;
   }): AgentData {
     return {
       id: row.id,
@@ -259,6 +270,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
       name: row.name,
       description: row.description,
       active: row.active,
+      kind: (row.kind as AgentKind | undefined) ?? AgentKind.PUBLIC,
       instanceName: row.instanceName ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
@@ -428,7 +440,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
 
   private mapWithConfigs(row: {
     id: string; companyId: string; name: string; description: string | null;
-    active: boolean; instanceName?: string | null; createdAt: Date; updatedAt: Date;
+    active: boolean; kind?: AgentKind | string; instanceName?: string | null; createdAt: Date; updatedAt: Date;
     persona: Parameters<PrismaAgentRepository['mapPersona']>[0] | null;
     modelConfig: Parameters<PrismaAgentRepository['mapModelConfig']>[0] | null;
     memoryConfig: Parameters<PrismaAgentRepository['mapMemoryConfig']>[0] | null;

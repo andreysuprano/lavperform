@@ -10,6 +10,7 @@ import { McpModule } from './modules/mcp/mcp.module';
 import { AgentTraceModule } from './modules/agent-trace/agent-trace.module';
 import { CustomerJourneyModule } from './modules/customer-journey/customer-journey.module';
 import { ConversationModule } from './modules/conversation/conversation.module';
+import { PlatformAgentModule } from './modules/platform-agent/platform-agent.module';
 
 @Module({
   imports: [
@@ -24,6 +25,7 @@ import { ConversationModule } from './modules/conversation/conversation.module';
     AgentTraceModule,
     CustomerJourneyModule,
     ConversationModule,
+    PlatformAgentModule,
   ],
 })
 export class AppModule {}

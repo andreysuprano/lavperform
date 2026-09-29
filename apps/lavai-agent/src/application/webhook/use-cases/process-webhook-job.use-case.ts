@@ -10,7 +10,7 @@ import { WEBHOOK_PROVIDER_PORT } from '../ports/webhook-provider.port';
 import type { WebhookProviderPort } from '../ports/webhook-provider.port';
 import { WEBHOOK_EVENT_REPOSITORY } from '../ports/webhook-event.repository.port';
 import type { WebhookEventRepositoryPort } from '../ports/webhook-event.repository.port';
-import { AGENT_REPOSITORY } from '../../agent/ports/agent.repository.port';
+import { AGENT_REPOSITORY, AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentRepositoryPort } from '../../agent/ports/agent.repository.port';
 import { MessageType } from '../types/incoming-message.types';
 import type { TextIncomingMessage } from '../types/incoming-message.types';
@@ -50,8 +50,8 @@ export class ProcessWebhookJobUseCase {
       if (!agent) {
         throw new NotFoundException(`Agente ${agentId} não encontrado ou inativo.`);
       }
-      if (!agent.active) {
-        this.logger.warn(`Agente ${agentId} está inativo — evento ${webhookEventId} ignorado.`);
+      if (!agent.active || agent.kind !== AgentKind.PUBLIC) {
+        this.logger.warn(`Agente ${agentId} está inativo ou não é público — evento ${webhookEventId} ignorado.`);
         await this.repository.markAsCompleted(webhookEventId);
         return;
       }
@@ -117,8 +117,8 @@ export class ProcessWebhookJobUseCase {
       if (!agent) {
         throw new NotFoundException(`Agente ${agentId} não encontrado.`);
       }
-      if (!agent.active) {
-        this.logger.warn(`Agente ${agentId} está inativo — lote ignorado.`);
+      if (!agent.active || agent.kind !== AgentKind.PUBLIC) {
+        this.logger.warn(`Agente ${agentId} está inativo ou não é público — lote ignorado.`);
         await Promise.all(webhookEventIds.map((id) => this.repository.markAsCompleted(id)));
         return;
       }

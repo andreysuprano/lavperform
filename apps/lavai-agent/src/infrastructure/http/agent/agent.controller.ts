@@ -17,6 +17,8 @@ import {
   ApiParam,
   ApiTags,
 } from '@nestjs/swagger';
+import { AgentKind } from '../../../application/agent/ports/agent.repository.port';
+import { assertAgentKind } from '../../../application/agent/assert-agent-kind';
 import { CreateAgentDto } from '../../../application/agent/dtos/create-agent.dto';
 import { UpdateAgentDto } from '../../../application/agent/dtos/update-agent.dto';
 import { UpdateAgentFilterConfigDto } from '../../../application/agent/dtos/update-agent-filter-config.dto';
@@ -98,16 +100,17 @@ export class AgentController {
   @ApiOperation({ summary: 'Buscar agente com todas as configurações' })
   @ApiNotFoundResponse()
   findOne(@Param('id', ParseUUIDPipe) id: string): Promise<AgentWithConfigsData> {
-    return this.findAgentById.execute(id);
+    return this.requirePublic(id);
   }
 
   @Patch('agents/:id')
   @ApiOperation({ summary: 'Atualizar dados básicos do agente (nome, descrição, ativo)' })
   @ApiNotFoundResponse()
-  update(
+  async update(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentDto,
   ): Promise<AgentData> {
+    await this.requirePublic(id);
     return this.updateAgent.execute(id, dto);
   }
 
@@ -117,7 +120,8 @@ export class AgentController {
     description: 'Inverte o estado atual de `active`. Se estava `true` passa para `false` e vice-versa.',
   })
   @ApiNotFoundResponse()
-  toggle(@Param('id', ParseUUIDPipe) id: string): Promise<AgentData> {
+  async toggle(@Param('id', ParseUUIDPipe) id: string): Promise<AgentData> {
+    await this.requirePublic(id);
     return this.toggleAgentActive.execute(id);
   }
 
@@ -127,6 +131,7 @@ export class AgentController {
   @ApiNoContentResponse()
   @ApiNotFoundResponse()
   async remove(@Param('id', ParseUUIDPipe) id: string): Promise<void> {
+    await this.requirePublic(id);
     await this.deleteAgent.execute(id);
   }
 
@@ -138,10 +143,11 @@ export class AgentController {
     description: 'Atualiza systemPrompt, tom de voz, estilo de comunicação e guardrails.',
   })
   @ApiNotFoundResponse()
-  updatePersona(
+  async updatePersona(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentPersonaDto,
   ): Promise<AgentPersonaData> {
+    await this.requirePublic(id);
     return this.updateAgentPersona.execute(id, dto);
   }
 
@@ -151,10 +157,11 @@ export class AgentController {
     description: 'Atualiza provider, model name, temperature, max_tokens, top_p, etc.',
   })
   @ApiNotFoundResponse()
-  updateModelConfig(
+  async updateModelConfig(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentModelConfigDto,
   ): Promise<AgentModelConfigData> {
+    await this.requirePublic(id);
     return this.updateAgentModelConfig.execute(id, dto);
   }
 
@@ -164,10 +171,11 @@ export class AgentController {
     description: 'Atualiza tipo de memória (BUFFER/SUMMARY/VECTOR), tamanho da janela e memória de longo prazo.',
   })
   @ApiNotFoundResponse()
-  updateMemoryConfig(
+  async updateMemoryConfig(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentMemoryConfigDto,
   ): Promise<AgentMemoryConfigData> {
+    await this.requirePublic(id);
     return this.updateAgentMemoryConfig.execute(id, dto);
   }
 
@@ -177,10 +185,11 @@ export class AgentController {
     description: 'Configura como o agente processa áudio (Whisper), imagem (Vision) e vídeo (Vision). Permite habilitar/desabilitar cada tipo e definir os prompts de extração.',
   })
   @ApiNotFoundResponse()
-  updateMediaConfig(
+  async updateMediaConfig(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentMediaConfigDto,
   ): Promise<AgentMediaConfigData> {
+    await this.requirePublic(id);
     return this.updateAgentMediaConfig.execute(id, dto);
   }
 
@@ -193,10 +202,11 @@ export class AgentController {
       'O gatilho é validado no texto da mensagem, na transcrição do áudio ou na legenda da imagem/vídeo.',
   })
   @ApiNotFoundResponse()
-  updateFilterConfig(
+  async updateFilterConfig(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentFilterConfigDto,
   ): Promise<AgentFilterConfigData> {
+    await this.requirePublic(id);
     return this.updateAgentFilterConfig.execute(id, dto);
   }
 
@@ -207,10 +217,11 @@ export class AgentController {
       'Define follow-ups proativos, keywords de escalação humana e webhook de compra.',
   })
   @ApiNotFoundResponse()
-  updateJourneyConfig(
+  async updateJourneyConfig(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentJourneyConfigDto,
   ): Promise<AgentJourneyConfigData> {
+    await this.requirePublic(id);
     return this.updateAgentJourneyConfig.execute(id, dto);
   }
 
@@ -221,10 +232,17 @@ export class AgentController {
       'Define o telefone que recebe alerta WhatsApp quando o cliente solicita atendimento humano.',
   })
   @ApiNotFoundResponse()
-  updateNotificationConfig(
+  async updateNotificationConfig(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdateAgentNotificationConfigDto,
   ): Promise<AgentNotificationConfigData> {
+    await this.requirePublic(id);
     return this.updateAgentNotificationConfig.execute(id, dto);
+  }
+
+  private async requirePublic(id: string): Promise<AgentWithConfigsData> {
+    const agent = await this.findAgentById.execute(id);
+    assertAgentKind(agent, AgentKind.PUBLIC);
+    return agent;
   }
 }

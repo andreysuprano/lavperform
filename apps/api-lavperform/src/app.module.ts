@@ -28,6 +28,7 @@ import { LandingPageModule } from './landing-page/landing-page.module';
 import { CoursesModule } from './courses/courses.module';
 import { WeatherAlertModule } from './weather-alert/weather-alert.module';
 import { AiAgentModule } from './ai-agent/ai-agent.module';
+import { PlatformAgentModule } from './platform-agent/platform-agent.module';
 import { VmLavModule } from './integrations/vmlav/vmlav.module';
 import { CiccloModule } from './integrations/cicclo/cicclo.module';
 import { L2AutomateModule } from './integrations/l2automate/l2automate.module';
@@ -87,6 +88,7 @@ import { CompanyApiKeysModule } from './api-keys/company-api-keys.module';
     OpenAIModule,
     CoursesModule,
     AiAgentModule,
+    PlatformAgentModule,
     VmLavModule,
     CiccloModule,
     L2AutomateModule,
