@@ -16,6 +16,7 @@ interface AgidezSaleProcessJobData {
   services: AgidezServico[];
   products: AgidezProduto[];
   pieces?: AgidezPeca[];
+  storeDdd?: string;
 }
 
 @Processor(QUEUE_NAMES.AGIDEZ_SALE_PROCESS)
@@ -26,7 +27,7 @@ export class AgidezSaleProcessor {
 
   @Process({ name: QUEUE_NAMES.AGIDEZ_SALE_PROCESS, concurrency: 20 })
   async processSale(job: Job<AgidezSaleProcessJobData>) {
-    const { companyId, ticket, services, products, pieces } = job.data;
+    const { companyId, ticket, services, products, pieces, storeDdd } = job.data;
 
     try {
       await this.agidezSalesService.processSale(
@@ -35,6 +36,7 @@ export class AgidezSaleProcessor {
         services ?? [],
         products ?? [],
         pieces ?? [],
+        storeDdd,
       );
     } catch (error) {
       this.logger.error(

@@ -20,9 +20,11 @@ import {
   resolveImportDateRange,
 } from '../../import-date-range.util';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
-import { AgidezSaleMapping } from '../mappings/agidez-sale-mapping';
+import { AgidezSaleMapping, agidezLegacyRawPhone, agidezPhone } from '../mappings/agidez-sale-mapping';
+import { resolveStoreDdd } from '../mappings/store-ddd';
 import { AgidezImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
 import { CreateOrderItemDto } from '../../../orders/application/dto/create-order-item.dto';
+import { safeFormatPhoneNumber } from '../../../common/utils/formatters';
 
 const PARTNER_SLUGS = ['HYBEX', 'AGIDEZ'] as const;
 
@@ -48,6 +50,7 @@ export class AgidezSalesService {
     if (!integration) return;
 
     const credentials = this.toCredentials(integration);
+    const storeDdd = await this.storeDddFor(companyId);
     const { tickets, services, products, pieces } =
       await this.agidezService.getDailySales(credentials, date);
     const ticketIds = new Set(tickets.map((ticket) => ticket.CodigoTicket));
@@ -71,6 +74,7 @@ export class AgidezSalesService {
           pieces: pieces.filter(
             (piece) => piece.CodigoTicket === ticket.CodigoTicket,
           ),
+          storeDdd,
         },
         opts: {
           attempts: 3,
@@ -98,12 +102,23 @@ export class AgidezSalesService {
       this.toCredentials(integration),
     );
 
+    const storeDdd = await this.storeDddFor(companyId);
+
     this.logger.log(
       `${customers.length} clientes Agidez para empresa ${companyId}`,
     );
 
     for (const customer of customers) {
-      const incoming = AgidezSaleMapping.toCustomerIncomingFromCatalog(customer);
+      await this.adoptLegacyPhone(
+        companyId,
+        customer.DDDCelular,
+        customer.Celular,
+        storeDdd,
+      );
+      const incoming = AgidezSaleMapping.toCustomerIncomingFromCatalog(
+        customer,
+        storeDdd,
+      );
       if (!incoming.phone) continue;
       await this.customerIdentityService.resolveForSale({
         companyId,
@@ -120,8 +135,16 @@ export class AgidezSalesService {
     services: AgidezServico[],
     products: AgidezProduto[],
     pieces: AgidezPeca[] = [],
+    storeDdd?: string,
   ): Promise<void> {
-    const incoming = AgidezSaleMapping.toCustomerIncoming(ticket);
+    const areaCode = storeDdd ?? (await this.storeDddFor(companyId));
+    await this.adoptLegacyPhone(
+      companyId,
+      ticket.DDDCelular,
+      ticket.Celular,
+      areaCode,
+    );
+    const incoming = AgidezSaleMapping.toCustomerIncoming(ticket, areaCode);
     const customer = await this.customerIdentityService.resolveForSale({
       companyId,
       incoming,
@@ -192,15 +215,15 @@ export class AgidezSalesService {
     );
     this.toCredentials(integration);
 
-    await this.agidezSalesQueue.add(
-      QUEUE_NAMES.AGIDEZ_SALES_IMPORT,
-      { companyId, syncCustomers: true },
-      {
+    await this.enqueueReplacing(this.agidezSalesQueue, {
+      name: QUEUE_NAMES.AGIDEZ_SALES_IMPORT,
+      data: { companyId, syncCustomers: true },
+      opts: {
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
         jobId: `agidez-customers:${companyId}`,
       },
-    );
+    });
 
     const { startDate, endDate } = resolveImportDateRange(importDto);
     const dates = buildUtcDateOnlyRange(startDate, endDate);
@@ -226,6 +249,36 @@ export class AgidezSalesService {
       endDate: toDateOnlyString(endDate),
       jobsCreated,
     };
+  }
+
+  private async storeDddFor(companyId: string): Promise<string | undefined> {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { address: { select: { city: true, state: true } } },
+    });
+    return resolveStoreDdd(company?.address?.city, company?.address?.state);
+  }
+
+  private async adoptLegacyPhone(
+    companyId: string,
+    ddd: string | null | undefined,
+    celular: string | null | undefined,
+    storeDdd?: string,
+  ) {
+    const corrected = safeFormatPhoneNumber(agidezPhone(ddd, celular, storeDdd));
+    const legacy = safeFormatPhoneNumber(agidezLegacyRawPhone(ddd, celular));
+    if (!corrected || !legacy || corrected === legacy) return;
+
+    const taken = await this.prisma.customer.findFirst({
+      where: { companyId, phone: corrected },
+      select: { id: true },
+    });
+    if (taken) return;
+
+    await this.prisma.customer.updateMany({
+      where: { companyId, phone: legacy },
+      data: { phone: corrected },
+    });
   }
 
   private async enqueueReplacing(

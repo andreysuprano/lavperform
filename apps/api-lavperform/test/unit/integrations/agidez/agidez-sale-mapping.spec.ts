@@ -1,12 +1,15 @@
+import { safeFormatPhoneNumber } from 'src/common/utils/formatters';
 import { AgidezTicket, AgidezServico } from 'src/integrations/agidez/api/agidez.types';
 import {
   AgidezSaleMapping,
   agidezIntegratorOrderId,
   agidezItemName,
+  agidezLegacyRawPhone,
   agidezPhone,
   agidezTicketNetTotal,
   dedupeServices,
 } from 'src/integrations/agidez/mappings/agidez-sale-mapping';
+import { resolveStoreDdd } from 'src/integrations/agidez/mappings/store-ddd';
 
 function ticket(overrides: Partial<AgidezTicket> = {}): AgidezTicket {
   return {
@@ -29,6 +32,26 @@ function ticket(overrides: Partial<AgidezTicket> = {}): AgidezTicket {
 }
 
 describe('agidez-sale-mapping', () => {
+  it('completa celular de 9 dígitos com o DDD da loja', () => {
+    expect(agidezPhone('   ', '999195984', '54')).toBe('54999195984');
+    expect(safeFormatPhoneNumber(agidezPhone('   ', '999195984', '54'))).toBe(
+      '5554999195984',
+    );
+    expect(safeFormatPhoneNumber(agidezLegacyRawPhone('   ', '999195984'))).toBe(
+      '559999195984',
+    );
+    expect(agidezPhone('51   ', '999195984', '54')).toBe('51999195984');
+    expect(agidezPhone('   ', '34512449', '54')).toBe('34512449');
+    expect(agidezLegacyRawPhone('54   ', '999195984')).toBeUndefined();
+  });
+
+  it('resolve o DDD pela cidade da empresa', () => {
+    expect(resolveStoreDdd('Farroupilha', 'RS')).toBe('54');
+    expect(resolveStoreDdd('Bento Gonçalves', 'rs')).toBe('54');
+    expect(resolveStoreDdd('Porto Alegre', 'RS')).toBeUndefined();
+    expect(resolveStoreDdd('', 'RS')).toBeUndefined();
+  });
+
   it('usa o nome da peça quando o serviço é genérico', () => {
     expect(agidezItemName('*LAVANDERIA', 'PDV BANHO')).toBe('PDV BANHO');
     expect(agidezItemName('QUILO DE ROUPA', '*KG PEÇA LAVAR E SECAR')).toBe(

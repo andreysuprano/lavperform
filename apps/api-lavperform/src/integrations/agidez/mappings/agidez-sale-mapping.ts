@@ -8,15 +8,32 @@ import {
   AgidezTicket,
 } from '../api/agidez.types';
 
+function digits(value?: string | null): string {
+  return (value ?? '').replace(/\D/g, '');
+}
+
 export function agidezPhone(
   ddd?: string | null,
   celular?: string | null,
+  storeDdd?: string | null,
 ): string | undefined {
-  const number = (celular ?? '').replace(/\D/g, '');
+  const number = digits(celular);
   if (!number) return undefined;
-  const area = (ddd ?? '').replace(/\D/g, '');
   if (number.startsWith('55') && number.length >= 12) return number;
-  return `${area}${number}`;
+  const area = digits(ddd);
+  const prefix =
+    area || (number.length === 9 && digits(storeDdd).length === 2 ? digits(storeDdd) : '');
+  return `${prefix}${number}`;
+}
+
+/** Celular de 9 dígitos sem DDD, do jeito que a importação antiga gravou antes do DDD da loja. */
+export function agidezLegacyRawPhone(
+  ddd?: string | null,
+  celular?: string | null,
+): string | undefined {
+  const number = digits(celular);
+  if (digits(ddd) || number.length !== 9) return undefined;
+  return number;
 }
 
 export function agidezCustomerName(
@@ -75,17 +92,17 @@ export function dedupeServices(services: AgidezServico[]): AgidezServico[] {
 }
 
 export class AgidezSaleMapping {
-  static toCustomerIncoming(ticket: AgidezTicket) {
+  static toCustomerIncoming(ticket: AgidezTicket, storeDdd?: string) {
     return {
       name: agidezCustomerName(ticket.NomeCliente),
-      phone: agidezPhone(ticket.DDDCelular, ticket.Celular),
+      phone: agidezPhone(ticket.DDDCelular, ticket.Celular, storeDdd),
     };
   }
 
-  static toCustomerIncomingFromCatalog(customer: AgidezCliente) {
+  static toCustomerIncomingFromCatalog(customer: AgidezCliente, storeDdd?: string) {
     return {
       name: agidezCustomerName(customer.Nome, customer.Sobrenome),
-      phone: agidezPhone(customer.DDDCelular, customer.Celular),
+      phone: agidezPhone(customer.DDDCelular, customer.Celular, storeDdd),
       birthDate: customer.DataNasimento ?? undefined,
     };
   }
