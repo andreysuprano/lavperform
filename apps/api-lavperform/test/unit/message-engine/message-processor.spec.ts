@@ -424,6 +424,7 @@ describe('MessageProcessor', () => {
       id: 'ac1',
       active: true,
       sendMode: 'COVER_BATCH',
+      batchSnapshottedAt: new Date('2026-09-28T12:00:00.000Z'),
     });
     batch.customerStillInBatch.mockResolvedValue(false);
     await processor.process(baseJob);
@@ -440,6 +441,28 @@ describe('MessageProcessor', () => {
       abortedMessageId: 'msg1',
       reason: 'Cliente saiu da leva da campanha',
     });
+  });
+
+  it('sends a queued message when the cover batch is not snapshotted yet', async () => {
+    prisma.automaticCampaign.findUnique.mockResolvedValue({
+      id: 'ac1',
+      active: true,
+      sendMode: 'COVER_BATCH',
+      batchSnapshottedAt: null,
+    });
+    batch.customerStillInBatch.mockResolvedValue(false);
+    prisma.whatsappInstance.findFirst.mockResolvedValue({ name: 'instance', token: 'instance-token' });
+    whatsappService.sendMessageWithImage.mockResolvedValue(undefined);
+    prisma.message.updateMany.mockResolvedValue({ count: 1 });
+    prisma.campaignMetric.updateMany.mockResolvedValue({});
+    prisma.customer.updateMany.mockResolvedValue({});
+    await processor.process(baseJob);
+    expect(whatsappService.sendMessageWithImage).toHaveBeenCalled();
+    expect(prisma.message.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ error: 'Cliente saiu da leva da campanha' }),
+      }),
+    );
   });
 
   it('asks the batch service to complete after a successful automatic send', async () => {

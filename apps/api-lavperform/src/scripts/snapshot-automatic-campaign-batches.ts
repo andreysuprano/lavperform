@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
-import { AutomaticCampaignStatus } from '@prisma/client';
+import { AutomaticCampaignSendMode, AutomaticCampaignStatus } from '@prisma/client';
 import { AudiencesModule } from '../audiences/audiences.module';
 import { AutomaticCampaignBatchService } from '../automatic-campaign/application/automatic-campaign-batch.service';
 import { AutomaticCampaignBatchModule } from '../automatic-campaign/automatic-campaign-batch.module';
@@ -34,6 +34,7 @@ async function bootstrap() {
       where: {
         deletedAt: null,
         status: { not: AutomaticCampaignStatus.COMPLETED },
+        sendMode: AutomaticCampaignSendMode.COVER_BATCH,
         batchSnapshottedAt: null,
       },
       select: {

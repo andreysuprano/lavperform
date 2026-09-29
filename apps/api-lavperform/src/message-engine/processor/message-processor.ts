@@ -67,7 +67,7 @@ export class MessageProcessor {
         if (fresh.automaticCampaignId) {
             const campaignRow = await this.prisma.automaticCampaign.findUnique({
                 where: { id: fresh.automaticCampaignId },
-                select: { id: true, active: true, sendMode: true },
+                select: { id: true, active: true, sendMode: true, batchSnapshottedAt: true },
             });
             if (!campaignRow?.active) {
                 await this.prisma.message.update({
@@ -82,6 +82,7 @@ export class MessageProcessor {
 
             if (
                 campaignRow?.sendMode === 'COVER_BATCH' &&
+                campaignRow.batchSnapshottedAt &&
                 !(await this.batch.customerStillInBatch(
                     fresh.automaticCampaignId,
                     message.customerId,
