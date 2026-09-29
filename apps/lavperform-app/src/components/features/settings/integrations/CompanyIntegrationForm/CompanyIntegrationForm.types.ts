@@ -2,6 +2,7 @@ export interface Props {
   name: string
   logo?: string
   partnerId: string
+  partnerSlug?: string
   webhook?: string
   codigoLoja?: string
   token?: string

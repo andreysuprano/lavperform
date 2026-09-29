@@ -29,7 +29,10 @@ import {
   vmlavImportJobId,
   vmlavSaleJobId,
 } from '../vmlav-queue.util';
-import { normalizeVmLavCnpj } from '../api/vmlav-sales-response.util';
+import {
+  filterVmLavSalesByCnpj,
+  resolveVmLavCnpj,
+} from '../api/vmlav-sales-response.util';
 
 export type VmLavDailySalesResult = {
   companyId: string;
@@ -103,23 +106,36 @@ export class VmLavSalesService {
         throw new Error(`API Key não configurada para empresa ${companyId}`);
       }
 
-      const cnpj = normalizeVmLavCnpj(company.cnpj ?? '');
+      const integrationCnpjDigits = (integration.merchantId ?? '').replace(/\D/g, '');
+      if (integration.merchantId?.trim() && integrationCnpjDigits.length !== 14) {
+        this.logger.warn(
+          `Filtro de CNPJ da integração VM Lav ignorado para empresa ${companyId}: informe 14 dígitos. Usando o CNPJ da empresa.`,
+        );
+      }
+
+      const resolvedCnpj = resolveVmLavCnpj(integration.merchantId, company.cnpj);
+      const cnpj = resolvedCnpj.cnpj;
       if (!cnpj) {
         throw new Error(`CNPJ não configurado para empresa ${companyId}`);
       }
 
-      this.logger.log(`Integração encontrada. Buscando vendas na API...`);
+      this.logger.log(
+        `Integração encontrada. Buscando vendas do CNPJ ${cnpj} (${resolvedCnpj.source === 'integration' ? 'filtro da integração' : 'CNPJ da empresa'})...`,
+      );
 
       const sales = await this.vmLavService.getDailySales(
         integration.apiKey,
         cnpj,
         date,
       );
+      const salesForCnpj = filterVmLavSalesByCnpj(sales, cnpj);
 
-      this.logger.log(`Encontradas ${sales.length} vendas para processar`);
+      this.logger.log(
+        `API retornou ${sales.length} vendas; ${salesForCnpj.length} pertencem ao CNPJ ${cnpj}`,
+      );
 
       let enqueued = 0;
-      for (const sale of sales) {
+      for (const sale of salesForCnpj) {
         const result = await enqueueVmLavJob(
           this.vmLavSaleProcessQueue,
           QUEUE_NAMES.VMLAV_SALE_PROCESS,
@@ -149,7 +165,7 @@ export class VmLavSalesService {
         companyId,
         date,
         cnpj,
-        salesFound: sales.length,
+        salesFound: salesForCnpj.length,
         enqueued,
       };
     } catch (error) {

@@ -70,6 +70,7 @@ export const CompanyIntegrationList = () => {
                 name={integration.name}
                 onSuccess={fetchIntegrations}
                 partnerId={integration.id}
+                partnerSlug={integration.partnerSlug}
                 token={defaultIntegration?.apiKey}
                 apiSecret={defaultIntegration?.apiSecret}
                 apiPassword={defaultIntegration?.password}

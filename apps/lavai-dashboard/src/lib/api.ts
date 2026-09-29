@@ -107,6 +107,39 @@ export const api = {
       }),
   },
 
+  platformAgents: {
+    list: () => request<AgentWithConfigs[]>('/platform-agents'),
+    get: (id: string) => request<AgentWithConfigs>(`/platform-agents/${id}`),
+    create: (data: Record<string, unknown>) =>
+      request<AgentWithConfigs>('/platform-agents', {
+        method: 'POST',
+        body: JSON.stringify(data),
+      }),
+    update: (id: string, data: Partial<AgentData>) =>
+      request<AgentData>(`/platform-agents/${id}`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    toggle: (id: string) =>
+      request<AgentData>(`/platform-agents/${id}/toggle`, { method: 'PATCH' }),
+    delete: (id: string) => request<void>(`/platform-agents/${id}`, { method: 'DELETE' }),
+    updatePersona: (id: string, data: Partial<AgentPersona>) =>
+      request<AgentPersona>(`/platform-agents/${id}/persona`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    updateModelConfig: (id: string, data: Partial<AgentModelConfig>) =>
+      request<AgentModelConfig>(`/platform-agents/${id}/model-config`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+    updateMemoryConfig: (id: string, data: Partial<AgentMemoryConfig>) =>
+      request<AgentMemoryConfig>(`/platform-agents/${id}/memory-config`, {
+        method: 'PATCH',
+        body: JSON.stringify(data),
+      }),
+  },
+
   llm: {
     models: () => request<LLMModel[]>('/llm/models'),
   },

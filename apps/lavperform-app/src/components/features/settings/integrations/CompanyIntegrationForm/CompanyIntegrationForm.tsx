@@ -7,9 +7,10 @@ import {
   Input as ChakraInput,
   InputGroup,
   Stack,
+  Text,
 } from '@chakra-ui/react'
 import { yupResolver } from '@hookform/resolvers/yup'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { FaChevronRight } from 'react-icons/fa'
 import { RiSaveLine } from 'react-icons/ri'
@@ -27,13 +28,14 @@ import { integrationService } from '@/services'
 import { logger } from '@/utils/logger'
 
 import { Props } from './CompanyIntegrationForm.types'
-import { FormData, schema } from './schema'
+import { buildSchema, FormData } from './schema'
 
 function CompanyIntegrationForm({
   name,
   logo,
   partnerId,
   webhook,
+  partnerSlug,
   codigoLoja,
   token,
   apiSecret,
@@ -46,6 +48,8 @@ function CompanyIntegrationForm({
 
   const [isOpen, setIsOpen] = useState(false)
   const { selectedCompany } = useAuth()
+  const isVmLav = partnerSlug?.trim().toUpperCase() === 'VMLAV'
+  const formSchema = useMemo(() => buildSchema(partnerSlug), [partnerSlug])
 
   const {
     register,
@@ -53,7 +57,7 @@ function CompanyIntegrationForm({
     handleSubmit,
     formState: { isSubmitting },
   } = useForm<FormData>({
-    resolver: yupResolver<FormData, any, any>(schema),
+    resolver: yupResolver<FormData, any, any>(formSchema),
     mode: 'onChange',
     values: {
       webhook: webhook ?? '',
@@ -204,13 +208,25 @@ function CompanyIntegrationForm({
             </Clipboard.Root>
           )}
         />
-        <Input
-          control={control}
-          label="Código da loja"
-          placeholder="Código da loja"
-          required
-          {...register('codigoLoja')}
-        />
+        <Stack gap={1}>
+          <Input
+            control={control}
+            label={isVmLav ? 'CNPJ' : 'Código da loja'}
+            placeholder={isVmLav ? '00.000.000/0000-00' : 'Código da loja'}
+            required={!isVmLav}
+            {...register('codigoLoja')}
+          />
+          {isVmLav && (
+            <Text
+              color="fg.muted"
+              fontSize="sm"
+            >
+              Alguns tokens da VM Lav devolvem vendas de mais de um CNPJ.
+              Informe qual deve ser importado. Se ficar vazio, usamos o CNPJ
+              cadastrado na empresa.
+            </Text>
+          )}
+        </Stack>
         <Input
           control={control}
           label="Token / Apikey"

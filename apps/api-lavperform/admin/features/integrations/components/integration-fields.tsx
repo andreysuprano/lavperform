@@ -50,6 +50,7 @@ export function IntegrationFields({
         <CredentialField
           key={fieldName}
           fieldName={fieldName}
+          partnerSlug={partner.partnerSlug}
           required={partner.requiredFields.includes(fieldName)}
           mode={mode}
           revealSecrets={revealSecrets}
@@ -83,11 +84,13 @@ export function IntegrationFields({
 
 function CredentialField({
   fieldName,
+  partnerSlug,
   required,
   mode,
   revealSecrets,
 }: {
   fieldName: IntegrationFieldName
+  partnerSlug?: string | null
   required: boolean
   mode: "create" | "edit"
   revealSecrets?: boolean
@@ -98,15 +101,20 @@ function CredentialField({
     fieldName === "apiSecret" ||
     fieldName === "password"
 
+  const isVmLavCnpj =
+    partnerSlug?.toUpperCase() === "VMLAV" && fieldName === "merchantId"
+
   const placeholder =
     mode === "edit" && isSecret && !revealSecrets
       ? "Deixe em branco para manter o valor atual"
-      : undefined
+      : isVmLavCnpj
+        ? "00.000.000/0000-00"
+        : undefined
 
   return (
     <Field>
       <FieldLabel htmlFor={fieldName}>
-        {integrationFieldLabel(fieldName)}
+        {integrationFieldLabel(fieldName, partnerSlug)}
         {required ? " *" : ""}
       </FieldLabel>
       <Input
@@ -122,6 +130,13 @@ function CredentialField({
         autoComplete="off"
         {...form.register(fieldName)}
       />
+      {isVmLavCnpj ? (
+        <FieldDescription>
+          Alguns tokens da VM Lav devolvem vendas de mais de um CNPJ. Informe
+          qual deve ser importado. Se ficar vazio, usamos o CNPJ cadastrado na
+          empresa.
+        </FieldDescription>
+      ) : null}
       <FieldError errors={[form.formState.errors[fieldName]]} />
     </Field>
   )

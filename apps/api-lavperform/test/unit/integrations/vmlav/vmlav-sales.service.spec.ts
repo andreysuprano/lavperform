@@ -145,10 +145,55 @@ describe('VmLavSalesService', () => {
       expect(vmLavSaleProcessQueue.add).not.toHaveBeenCalled();
     });
 
+    it('busca e enfileira só o CNPJ informado no filtro da integração', async () => {
+      prisma.company.findUnique.mockResolvedValue({
+        id: 'company-1',
+        cnpj: '22.222.222/0001-22',
+      });
+      prisma.partner.findUnique.mockResolvedValue({
+        id: 'partner-1',
+        partnerSlug: VMLAV_PARTNER_SLUG,
+      });
+      digitalMenuIntegrationRepository.findByCompanyAndPartner.mockResolvedValue(
+        { apiKey: 'api-key', merchantId: '11.111.111/0001-11' },
+      );
+      const selected = buildSale({
+        idVenda: 1,
+        documentoEmpresa: { tipo: 'CNPJ', identificador: '11111111000111' },
+      });
+      const other = buildSale({
+        idVenda: 2,
+        documentoEmpresa: { tipo: 'CNPJ', identificador: '22222222000122' },
+      });
+      vmLavService.getDailySales.mockResolvedValue([selected, other]);
+      vmLavSaleProcessQueue.add.mockResolvedValue({ id: 'sale-job-1' });
+
+      const result = await service.processDailySales('company-1', '2026-09-04');
+
+      expect(vmLavService.getDailySales).toHaveBeenCalledWith(
+        'api-key',
+        '11111111000111',
+        '2026-09-04',
+      );
+      expect(vmLavSaleProcessQueue.add).toHaveBeenCalledTimes(1);
+      expect(vmLavSaleProcessQueue.add).toHaveBeenCalledWith(
+        QUEUE_NAMES.VMLAV_SALE_PROCESS,
+        expect.objectContaining({ sale: selected }),
+        expect.anything(),
+      );
+      expect(result).toEqual(
+        expect.objectContaining({
+          cnpj: '11111111000111',
+          salesFound: 1,
+          enqueued: 1,
+        }),
+      );
+    });
+
     it('enfileira venda com jobId estável por empresa e idVenda', async () => {
       prisma.company.findUnique.mockResolvedValue({
         id: 'company-1',
-        cnpj: '12345678000199',
+        cnpj: '12345678000190',
       });
       prisma.partner.findUnique.mockResolvedValue({
         id: 'partner-1',
@@ -179,7 +224,7 @@ describe('VmLavSalesService', () => {
     it('continua enfileirando próxima venda quando job ativo já existe', async () => {
       prisma.company.findUnique.mockResolvedValue({
         id: 'company-1',
-        cnpj: '12345678000199',
+        cnpj: '12345678000190',
       });
       prisma.partner.findUnique.mockResolvedValue({
         id: 'partner-1',
