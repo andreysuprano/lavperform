@@ -255,6 +255,14 @@ export function AutomaticCampaignDetailView({
                   value={String(campaign.maxDailySends)}
                 />
                 <DetailRow
+                  label="Modo de envio"
+                  value={
+                    campaign.sendMode === "CONTINUOUS"
+                      ? "Contínua"
+                      : "Encerra ao cobrir a leva"
+                  }
+                />
+                <DetailRow
                   label="Horário de envio"
                   value={formatSendScheduleLabel(
                     campaign.sendTimeStart,

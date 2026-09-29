@@ -104,6 +104,8 @@ export interface RecurringCampaignCreative {
 export type RecurringCampaignStatus =
   'PROCESSING' | 'IN_PROGRESS' | 'COMPLETED' | 'FAILED'
 
+export type AutomaticCampaignSendMode = 'COVER_BATCH' | 'CONTINUOUS'
+
 export interface RecurringCampaign {
   active: boolean
   campaignMetric: RecurringCampaignMetric[]
@@ -135,6 +137,7 @@ export interface RecurringCampaign {
   metaTemplateVariableMappings?: MetaTemplateVariableMapping[]
   /** Status operacional da campanha retornado pela API. */
   status?: RecurringCampaignStatus
+  sendMode?: AutomaticCampaignSendMode
   updatedAt: string
 }
 
@@ -326,4 +329,5 @@ export type CreateAutomaticCampaignRequest = {
   sendTimeEnd?: string | null
   metaMessageTemplateId?: string | null
   metaTemplateVariableMappings?: MetaTemplateVariableMapping[]
+  sendMode?: AutomaticCampaignSendMode
 }

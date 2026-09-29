@@ -4,7 +4,7 @@ import {
   ValidateNested, IsInt, Min, ValidateIf, IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
-import { AutomaticCampaignType, AutomaticCampaignStatus, CampaignChannel } from '@prisma/client';
+import { AutomaticCampaignSendMode, AutomaticCampaignType, AutomaticCampaignStatus, CampaignChannel } from '@prisma/client';
 import { CreateGiftDto } from '../../../automatic-campaign/application/dto/create-gift.dto';
 import { CreateCreativeDto } from '../../../automatic-campaign/application/dto/create-creative.dto';
 
@@ -28,6 +28,15 @@ export class UpdateAutomaticCampaignAdminDto {
   @IsOptional()
   @IsEnum(CampaignChannel)
   channel?: CampaignChannel;
+
+  @ApiProperty({
+    description: 'COVER_BATCH encerra ao cobrir a leva. CONTINUOUS segue até a data final e pode reenviar.',
+    enum: AutomaticCampaignSendMode,
+    required: false,
+  })
+  @IsEnum(AutomaticCampaignSendMode)
+  @IsOptional()
+  sendMode?: AutomaticCampaignSendMode;
 
   @ApiProperty({ description: 'Status da campanha', required: false, enum: AutomaticCampaignStatus })
   @IsOptional()

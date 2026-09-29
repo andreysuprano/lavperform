@@ -236,6 +236,7 @@ function mapCampaignToFormData(campaignData: RecurringCampaign): FormDataProps {
     sendTimeEnd: campaignData.sendTimeEnd ?? null,
     metaMessageTemplateId: campaignData.metaMessageTemplateId ?? null,
     metaTemplateVariableMappings: campaignData.metaTemplateVariableMappings ?? [],
+    sendMode: campaignData.sendMode ?? 'COVER_BATCH',
   }
 }
 

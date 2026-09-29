@@ -23,6 +23,10 @@ describe('MessageProcessor', () => {
   const slotRefill: any = {
     requestAfterAbort: jest.fn().mockResolvedValue(undefined),
   };
+  const batch: any = {
+    customerStillInBatch: jest.fn().mockResolvedValue(true),
+    completeIfCovered: jest.fn().mockResolvedValue(false),
+  };
 
   let processor: MessageProcessor;
 
@@ -31,6 +35,8 @@ describe('MessageProcessor', () => {
     renitencyEvaluator.shouldApplyRenitency.mockReturnValue(false);
     renitencyEvaluator.canContactCustomer.mockResolvedValue({ allowed: true });
     slotRefill.requestAfterAbort.mockResolvedValue(undefined);
+    batch.customerStillInBatch.mockResolvedValue(true);
+    batch.completeIfCovered.mockResolvedValue(false);
     prisma.message.findUnique = jest.fn().mockResolvedValue({
       id: 'msg1',
       status: MessageStatus.PROCESSING,
@@ -39,6 +45,7 @@ describe('MessageProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       active: true,
+      sendMode: 'CONTINUOUS',
     });
     processor = new MessageProcessor(
       prisma,
@@ -46,6 +53,7 @@ describe('MessageProcessor', () => {
       eventEmitter,
       renitencyEvaluator,
       slotRefill,
+      batch,
     );
   });
 
@@ -78,6 +86,7 @@ describe('MessageProcessor', () => {
     prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue({
       id: 'ac1',
       active: true,
+      sendMode: 'CONTINUOUS',
     });
     prisma.whatsappInstance.findFirst = jest.fn().mockResolvedValue({ name: 'instance', token: 'instance-token' });
     whatsappService.sendMessageWithImage = jest.fn().mockResolvedValue(undefined);
@@ -408,5 +417,67 @@ describe('MessageProcessor', () => {
     await processor.process(manualJob);
 
     expect(whatsappService.sendMessageWithImage).toHaveBeenCalled();
+  });
+
+  it('aborts before WhatsApp when the customer left a cover-batch', async () => {
+    prisma.automaticCampaign.findUnique.mockResolvedValue({
+      id: 'ac1',
+      active: true,
+      sendMode: 'COVER_BATCH',
+      batchSnapshottedAt: new Date('2026-09-28T12:00:00.000Z'),
+    });
+    batch.customerStillInBatch.mockResolvedValue(false);
+    await processor.process(baseJob);
+    expect(whatsappService.sendMessageWithImage).not.toHaveBeenCalled();
+    expect(prisma.message.update).toHaveBeenCalledWith({
+      where: { id: 'msg1' },
+      data: {
+        status: MessageStatus.ABORTED,
+        error: 'Cliente saiu da leva da campanha',
+      },
+    });
+    expect(slotRefill.requestAfterAbort).toHaveBeenCalledWith({
+      automaticCampaignId: 'ac1',
+      abortedMessageId: 'msg1',
+      reason: 'Cliente saiu da leva da campanha',
+    });
+  });
+
+  it('sends a queued message when the cover batch is not snapshotted yet', async () => {
+    prisma.automaticCampaign.findUnique.mockResolvedValue({
+      id: 'ac1',
+      active: true,
+      sendMode: 'COVER_BATCH',
+      batchSnapshottedAt: null,
+    });
+    batch.customerStillInBatch.mockResolvedValue(false);
+    prisma.whatsappInstance.findFirst.mockResolvedValue({ name: 'instance', token: 'instance-token' });
+    whatsappService.sendMessageWithImage.mockResolvedValue(undefined);
+    prisma.message.updateMany.mockResolvedValue({ count: 1 });
+    prisma.campaignMetric.updateMany.mockResolvedValue({});
+    prisma.customer.updateMany.mockResolvedValue({});
+    await processor.process(baseJob);
+    expect(whatsappService.sendMessageWithImage).toHaveBeenCalled();
+    expect(prisma.message.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ error: 'Cliente saiu da leva da campanha' }),
+      }),
+    );
+  });
+
+  it('asks the batch service to complete after a successful automatic send', async () => {
+    prisma.automaticCampaign.findUnique.mockResolvedValue({
+      id: 'ac1',
+      active: true,
+      sendMode: 'COVER_BATCH',
+    });
+    batch.customerStillInBatch.mockResolvedValue(true);
+    prisma.whatsappInstance.findFirst.mockResolvedValue({ name: 'instance', token: 'instance-token' });
+    whatsappService.sendMessageWithImage.mockResolvedValue(undefined);
+    prisma.message.updateMany.mockResolvedValue({ count: 1 });
+    prisma.campaignMetric.updateMany.mockResolvedValue({});
+    prisma.customer.updateMany.mockResolvedValue({});
+    await processor.process(baseJob);
+    expect(batch.completeIfCovered).toHaveBeenCalledWith('ac1');
   });
 });

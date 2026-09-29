@@ -89,6 +89,7 @@ export const createAutomaticCampaignSchema = z.object({
     ]
   ),
   segmentation: requiredString("Segmentação"),
+  sendMode: z.enum(["COVER_BATCH", "CONTINUOUS"]).default("COVER_BATCH"),
   startDate: requiredString("Data de início"),
   messageText: requiredString("Mensagem"),
   channel: z

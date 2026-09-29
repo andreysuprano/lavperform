@@ -1,4 +1,4 @@
-import { HStack, RadioGroup, Stack, VStack } from '@chakra-ui/react'
+import { HStack, RadioGroup, Stack, Text, VStack } from '@chakra-ui/react'
 import { yupResolver } from '@hookform/resolvers/yup'
 import { useEffect, useMemo } from 'react'
 import { Controller, FieldErrors, useForm } from 'react-hook-form'
@@ -108,6 +108,10 @@ function buildDetailsSchema(opts: {
       .min(1, 'Selecione ao menos um dia da semana para o disparo')
       .required('Informe os dias da semana para o disparo'),
     maxDailySends: maxDailySendsYupField,
+    sendMode: yup
+      .mixed<'COVER_BATCH' | 'CONTINUOUS'>()
+      .oneOf(['COVER_BATCH', 'CONTINUOUS'])
+      .default('COVER_BATCH'),
     ...sendScheduleYupFields,
   })
 }
@@ -148,6 +152,7 @@ export function Details(props: FormStepsProps) {
         ),
       sendTimeStart: props.formData?.sendTimeStart ?? '',
       sendTimeEnd: props.formData?.sendTimeEnd ?? '',
+      sendMode: props.formData?.sendMode ?? 'COVER_BATCH',
     }),
     [props.formData]
   )
@@ -317,6 +322,50 @@ export function Details(props: FormStepsProps) {
             name="customSendListId"
             required
           />
+        )}
+        <Controller
+          control={control}
+          name="sendMode"
+          render={({ field }) => (
+            <RadioGroup.Root
+              onValueChange={({ value }) => field.onChange(value)}
+              value={field.value ?? 'COVER_BATCH'}
+            >
+              <VStack
+                align="stretch"
+                gap={3}
+              >
+                <RadioGroup.Item
+                  alignItems="flex-start"
+                  value="COVER_BATCH"
+                >
+                  <RadioGroup.ItemHiddenInput />
+                  <RadioGroup.ItemIndicator />
+                  <RadioGroup.ItemText>
+                    {'Encerrar ao cobrir a leva. Envia uma vez para quem está no público ao salvar. Quando todos tiverem recebido, a campanha conclui.'}
+                  </RadioGroup.ItemText>
+                </RadioGroup.Item>
+                <RadioGroup.Item
+                  alignItems="flex-start"
+                  value="CONTINUOUS"
+                >
+                  <RadioGroup.ItemHiddenInput />
+                  <RadioGroup.ItemIndicator />
+                  <RadioGroup.ItemText>
+                    {'Contínua. Segue até a data final e pode reenviar depois da renitência.'}
+                  </RadioGroup.ItemText>
+                </RadioGroup.Item>
+              </VStack>
+            </RadioGroup.Root>
+          )}
+        />
+        {isEdit && (
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+          >
+            {'Salvar atualiza a lista com quem está no público agora. Quem já recebeu não recebe de novo.'}
+          </Text>
         )}
         <Input
           control={control}
