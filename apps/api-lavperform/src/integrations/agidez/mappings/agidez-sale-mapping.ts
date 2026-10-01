@@ -56,6 +56,13 @@ export function agidezTicketNetTotal(ticket: AgidezTicket): number {
   );
 }
 
+export function agidezExternalOrderId(
+  storeCode: number,
+  ticketCode: number,
+): string {
+  return `agidez:${storeCode}:${ticketCode}`;
+}
+
 export function agidezIntegratorOrderId(
   storeCode: number,
   ticketCode: number,
@@ -130,6 +137,10 @@ export class AgidezSaleMapping {
       ticket.QuantidadeTotalPecasEntregues >= ticket.QuantidadeTotalPecas;
 
     return {
+      externalOrderId: agidezExternalOrderId(
+        ticket.CodigoLoja,
+        ticket.CodigoTicket,
+      ),
       integratorOrderId: agidezIntegratorOrderId(
         ticket.CodigoLoja,
         ticket.CodigoTicket,

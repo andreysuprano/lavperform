@@ -20,7 +20,12 @@ import {
   resolveImportDateRange,
 } from '../../import-date-range.util';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
-import { AgidezSaleMapping, agidezLegacyRawPhone, agidezPhone } from '../mappings/agidez-sale-mapping';
+import {
+  AgidezSaleMapping,
+  agidezExternalOrderId,
+  agidezLegacyRawPhone,
+  agidezPhone,
+} from '../mappings/agidez-sale-mapping';
 import { resolveStoreDdd } from '../mappings/store-ddd';
 import { AgidezImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
 import { CreateOrderItemDto } from '../../../orders/application/dto/create-order-item.dto';
@@ -137,6 +142,42 @@ export class AgidezSalesService {
     pieces: AgidezPeca[] = [],
     storeDdd?: string,
   ): Promise<void> {
+    const existingOrder = await this.prisma.order.findFirst({
+      where: {
+        companyId,
+        salesChannel: 'AGIDEZ',
+        OR: [
+          {
+            externalOrderId: agidezExternalOrderId(
+              ticket.CodigoLoja,
+              ticket.CodigoTicket,
+            ),
+          },
+          {
+            displayId: ticket.CodigoTicket,
+            merchantId: ticket.CodigoLoja,
+          },
+        ],
+      },
+      select: { id: true },
+    });
+
+    if (existingOrder) {
+      const current = AgidezSaleMapping.toOrder(
+        ticket,
+        services,
+        products,
+        null,
+        companyId,
+        pieces,
+      );
+      await this.refreshExistingItems(existingOrder.id, current.items ?? []);
+      this.logger.log(
+        `Itens do ticket Agidez ${ticket.CodigoTicket} atualizados`,
+      );
+      return;
+    }
+
     const areaCode = storeDdd ?? (await this.storeDddFor(companyId));
     await this.adoptLegacyPhone(
       companyId,
@@ -160,20 +201,6 @@ export class AgidezSalesService {
       companyId,
       pieces,
     );
-    const integratorOrderId = orderData.integratorOrderId!;
-
-    const existingOrder = await this.orderService.findByIntegratorOrderId(
-      companyId,
-      integratorOrderId,
-    );
-
-    if (existingOrder) {
-      await this.refreshExistingItems(existingOrder.id, orderData.items ?? []);
-      this.logger.log(
-        `Itens do ticket Agidez ${ticket.CodigoTicket} atualizados`,
-      );
-      return;
-    }
     const {
       integratorOrderId: _integratorOrderId,
       items,
