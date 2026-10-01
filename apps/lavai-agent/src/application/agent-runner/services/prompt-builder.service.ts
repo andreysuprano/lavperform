@@ -13,6 +13,11 @@ export interface SenderContext {
   groupName?: string;
 }
 
+export interface PlatformSessionContext {
+  userName: string;
+  companyName: string;
+}
+
 /**
  * Monta o array de messages para o LLM:
  *  [system] persona + guidelines + guardrails + context + RAG chunks
@@ -33,6 +38,7 @@ export class PromptBuilderService {
     ragChunks: KnowledgeChunkWithScore[],
     userMessage: string,
     sender?: SenderContext,
+    session?: PlatformSessionContext,
   ): LlmMessage[] {
     const persona = agent.persona;
     const maxTokens = agent.modelConfig?.maxTokens ?? 1024;
@@ -57,7 +63,11 @@ export class PromptBuilderService {
       systemParts.push(`\n## Contexto do Negócio\n${persona.contextPrompt}`);
     }
 
-    if (sender) {
+    if (session) {
+      systemParts.push(
+        `\n## Sessão atual\n- Usuário: ${session.userName}\n- Empresa: ${session.companyName}`,
+      );
+    } else if (sender) {
       const lines = [
         `- Nome: ${sender.senderName}`,
         `- Telefone: ${sender.senderPhone}`,

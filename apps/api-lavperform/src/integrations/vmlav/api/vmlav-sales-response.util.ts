@@ -6,6 +6,43 @@ export function normalizeVmLavCnpj(cnpj: string): string {
   return String(cnpj ?? '').replace(/\D/g, '');
 }
 
+/**
+ * CNPJ usado na busca da VM Lav.
+ * O valor da integração (merchantId) prevalece quando tem 14 dígitos.
+ * Qualquer outro conteúdo é ignorado para não tratar código de loja antigo como CNPJ.
+ */
+export function resolveVmLavCnpj(
+  integrationCnpj: string | null | undefined,
+  companyCnpj: string | null | undefined,
+): { cnpj: string; source: 'integration' | 'company' } {
+  const fromIntegration = normalizeVmLavCnpj(integrationCnpj ?? '');
+  if (fromIntegration.length === 14) {
+    return { cnpj: fromIntegration, source: 'integration' };
+  }
+
+  return {
+    cnpj: normalizeVmLavCnpj(companyCnpj ?? ''),
+    source: 'company',
+  };
+}
+
+export function filterVmLavSalesByCnpj(
+  sales: VmLavSale[],
+  cnpj: string,
+): VmLavSale[] {
+  const target = normalizeVmLavCnpj(cnpj);
+  if (!target) {
+    return [];
+  }
+
+  return sales.filter((sale) => {
+    const saleCnpj = normalizeVmLavCnpj(
+      sale.documentoEmpresa?.identificador ?? '',
+    );
+    return saleCnpj === target;
+  });
+}
+
 export function extractVmLavSalesList(payload: unknown): VmLavSale[] {
   if (Array.isArray(payload)) {
     return payload;

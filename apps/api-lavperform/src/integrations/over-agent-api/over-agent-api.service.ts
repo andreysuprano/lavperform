@@ -1,10 +1,11 @@
 import {
-  Injectable,
-  Logger,
-  InternalServerErrorException,
-  NotFoundException,
-  ConflictException,
+  BadGatewayException,
   BadRequestException,
+  ConflictException,
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
@@ -29,6 +30,7 @@ export class LavaiAgentApiService {
     method: 'get' | 'post' | 'patch' | 'delete' | 'put',
     path: string,
     data?: unknown,
+    options?: { preserve502?: boolean },
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
     try {
@@ -45,11 +47,15 @@ export class LavaiAgentApiService {
       );
       return response.data;
     } catch (err) {
-      this.handleHttpError(err, path);
+      this.handleHttpError(err, path, options);
     }
   }
 
-  private handleHttpError(err: unknown, path: string): never {
+  private handleHttpError(
+    err: unknown,
+    path: string,
+    options?: { preserve502?: boolean },
+  ): never {
     const axiosError = err as AxiosError<{ message?: string | string[]; error?: string }>;
     const status = axiosError.response?.status;
     const responseData: unknown = axiosError.response?.data;
@@ -74,7 +80,7 @@ export class LavaiAgentApiService {
       detail = 'Erro ao comunicar com LavAI Agent';
     }
 
-    if (status === 502 || status === 503 || status === 504) {
+    if ((status === 502 || status === 503 || status === 504) && !options?.preserve502) {
       detail = `LavAI Agent indisponível (HTTP ${status}). Verifique se o container está rodando no Easypanel.`;
     }
 
@@ -83,6 +89,7 @@ export class LavaiAgentApiService {
     if (status === 404) throw new NotFoundException(detail);
     if (status === 409) throw new ConflictException(detail);
     if (status === 400) throw new BadRequestException(detail);
+    if (options?.preserve502 && status === 502) throw new BadGatewayException(detail);
 
     throw new InternalServerErrorException(
       `Falha na integração com LavAI Agent (${status ?? 'sem resposta'}): ${detail}`,
@@ -309,4 +316,54 @@ export class LavaiAgentApiService {
   async discardPromptStudioProposal(agentId: string) {
     return this.request<void>('post', `/agents/${agentId}/prompt-studio/thread/discard`);
   }
+
+  async listPlatformAgents() {
+    return this.request<MotorPlatformAgent[]>('get', '/platform-agents');
+  }
+
+  async getPlatformAgent(agentId: string) {
+    return this.request<MotorPlatformAgent>('get', `/platform-agents/${agentId}`);
+  }
+
+  async runPlatformTurn(
+    agentId: string,
+    dto: {
+      contextCompanyId: string;
+      platformUserId: string;
+      userName: string;
+      companyName: string;
+      text: string;
+    },
+  ) {
+    return this.request<{ conversationId: string; reply: string }>(
+      'post',
+      `/platform-agents/${agentId}/turns`,
+      dto,
+      { preserve502: true },
+    );
+  }
+
+  async listPlatformTurns(
+    agentId: string,
+    query: { contextCompanyId: string; platformUserId: string; limit: number },
+  ) {
+    const params = new URLSearchParams({
+      contextCompanyId: query.contextCompanyId,
+      platformUserId: query.platformUserId,
+      limit: String(query.limit),
+    });
+    return this.request<{
+      conversationId: string | null;
+      messages: Array<{ id: string; role: string; content: string; createdAt: string }>;
+    }>('get', `/platform-agents/${agentId}/turns?${params.toString()}`);
+  }
 }
+
+type MotorPlatformAgent = {
+  id: string;
+  name: string;
+  description: string | null;
+  active?: boolean;
+  kind?: string;
+  persona?: { personaName?: string | null; welcomeMessage?: string | null } | null;
+};

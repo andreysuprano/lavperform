@@ -47,6 +47,7 @@ type PersonaFormValues = z.infer<typeof personaSchema>;
 interface PersonaTabProps {
   agentId: string;
   persona: AgentPersona | null;
+  scope?: 'company' | 'platform';
 }
 
 function ReadonlyField({ label, value, large = false }: { label: string; value?: string | null; large?: boolean }) {
@@ -81,7 +82,7 @@ function ReadonlyField({ label, value, large = false }: { label: string; value?:
   );
 }
 
-export function PersonaTab({ agentId, persona }: PersonaTabProps) {
+export function PersonaTab({ agentId, persona, scope = 'company' }: PersonaTabProps) {
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -102,9 +103,14 @@ export function PersonaTab({ agentId, persona }: PersonaTabProps) {
   });
 
   const mutation = useMutation({
-    mutationFn: (data: PersonaFormValues) => api.agents.updatePersona(agentId, data),
+    mutationFn: (data: PersonaFormValues) =>
+      scope === 'platform'
+        ? api.platformAgents.updatePersona(agentId, data)
+        : api.agents.updatePersona(agentId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agents', agentId] });
+      queryClient.invalidateQueries({
+        queryKey: scope === 'platform' ? ['platform-agents', agentId] : ['agents', agentId],
+      });
       toast.success('Persona atualizada com sucesso!');
       setEditing(false);
     },
