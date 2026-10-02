@@ -15,11 +15,13 @@ import { AgidezSaleProcessor } from './infrastructure/jobs/agidez-sale.processor
 import { AgidezSalesTasks } from './crons/agidez-sales-tasks';
 import { AgidezController } from './presentation/agidez.controller';
 import { workerProviders } from '../../common/queue/worker-runtime.config';
+import { SalesImportModule } from '../sales-import/sales-import.module';
 
 @Module({
   imports: [
     HttpModule,
     PrismaModule,
+    SalesImportModule,
     PartnersModule,
     CustomersModule,
     OrderModule,

@@ -1,10 +1,19 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { Cron, CronExpression } from '@nestjs/schedule';
+import { Cron } from '@nestjs/schedule';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { PrismaService } from '../../../prisma/prisma.service';
-import { toDateOnlyString } from '../../../common/utils/date.utils';
+import { getOpeningHoursTimezone } from '../../../common/utils/date.utils';
+import {
+  catchupDates,
+  salesBackfill90JobId,
+  salesCatchupJobId,
+} from '../../sales-import/sales-import-schedule';
+import {
+  buildSalesImportJobOptions,
+  enqueueSalesImportJob,
+} from '../../sales-import/sales-import-queue';
 
 @Injectable()
 export class L2AutomateSalesTasks {
@@ -17,58 +26,51 @@ export class L2AutomateSalesTasks {
   ) {}
 
   /**
-   * Cron a cada 12 horas: enfileira importação de vendas do dia
-   * para todas as empresas com integração L2 Automate ativa
+   * A cada 30 minutos, enfileira hoje e ontem (UTC) para cada empresa
+   * com integração L2 Automate ativa. O jobId inclui o slot de 30 minutos.
    */
-  @Cron(CronExpression.EVERY_12_HOURS)
+  @Cron('*/30 * * * *')
   async handleDailySalesImport() {
     this.logger.debug('Iniciando importação de vendas L2 Automate');
 
     try {
-      const today = toDateOnlyString(new Date());
-
-      const companies = await this.prisma.company.findMany({
-        where: {
-          state: 'ACTIVE',
-          digitalMenuIntegration: {
-            some: {
-              active: true,
-              partner: { partnerSlug: 'L2AUTOMATE' },
-            },
-          },
-        },
-        include: {
-          digitalMenuIntegration: {
-            where: {
-              active: true,
-              partner: { partnerSlug: 'L2AUTOMATE' },
-            },
-            include: { partner: true },
-          },
-        },
-      });
+      const now = new Date();
+      const { today, yesterday } = catchupDates(now);
+      const companies = await this.findActiveL2AutomateCompanies();
 
       this.logger.log(
         `Encontradas ${companies.length} empresas com integração L2 Automate`,
       );
 
       for (const company of companies) {
-        await this.l2AutomateSalesQueue.add(
-          QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
-          { companyId: company.id, date: today },
-          {
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 5000 },
-          },
-        );
+        for (const date of [today, yesterday]) {
+          const result = await enqueueSalesImportJob(
+            this.l2AutomateSalesQueue,
+            QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
+            {
+              companyId: company.id,
+              date,
+            },
+            buildSalesImportJobOptions(
+              salesCatchupJobId('l2automate', company.id, date, now),
+            ),
+          );
 
-        this.logger.log(
-          `Empresa ${company.name} (${company.id}) adicionada à fila de importação L2 Automate`,
-        );
+          if (result === 'skipped') {
+            this.logger.debug(
+              `Importação L2 Automate já enfileirada para ${company.name} (${company.id}) em ${date}`,
+            );
+            continue;
+          }
+
+          this.logger.log(
+            `Empresa ${company.name} (${company.id}) adicionada à fila de importação em ${date}`,
+          );
+        }
       }
 
       this.logger.log(
-        `Total de ${companies.length} empresas enfileiradas para importação L2 Automate`,
+        `Total de ${companies.length} empresas adicionadas à fila de importação L2 Automate`,
       );
     } catch (error) {
       this.logger.error(
@@ -76,5 +78,81 @@ export class L2AutomateSalesTasks {
         error,
       );
     }
+  }
+
+  /**
+   * Segunda-feira às 03:00 no fuso de funcionamento, enfileira o backfill
+   * de 90 dias. Um job por empresa; colisão ativa é ignorada.
+   */
+  @Cron('0 3 * * 1', { timeZone: getOpeningHoursTimezone() })
+  async handleWeeklyBackfill() {
+    this.logger.debug('Iniciando backfill semanal de vendas L2 Automate');
+
+    try {
+      const companies = await this.findActiveL2AutomateCompanies();
+
+      this.logger.log(
+        `Encontradas ${companies.length} empresas com integração L2 Automate para backfill`,
+      );
+
+      for (const company of companies) {
+        const result = await enqueueSalesImportJob(
+          this.l2AutomateSalesQueue,
+          QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
+          {
+            companyId: company.id,
+            backfill90: true,
+          },
+          buildSalesImportJobOptions(
+            salesBackfill90JobId('l2automate', company.id),
+          ),
+        );
+
+        if (result === 'skipped') {
+          this.logger.debug(
+            `Backfill L2 Automate já enfileirado para ${company.name} (${company.id})`,
+          );
+          continue;
+        }
+
+        this.logger.log(
+          `Empresa ${company.name} (${company.id}) adicionada à fila de backfill de 90 dias`,
+        );
+      }
+    } catch (error) {
+      this.logger.error(
+        'Erro ao enfileirar backfill semanal de vendas L2 Automate:',
+        error,
+      );
+    }
+  }
+
+  private findActiveL2AutomateCompanies() {
+    return this.prisma.company.findMany({
+      where: {
+        state: 'ACTIVE',
+        digitalMenuIntegration: {
+          some: {
+            active: true,
+            partner: {
+              partnerSlug: 'L2AUTOMATE',
+            },
+          },
+        },
+      },
+      include: {
+        digitalMenuIntegration: {
+          where: {
+            active: true,
+            partner: {
+              partnerSlug: 'L2AUTOMATE',
+            },
+          },
+          include: {
+            partner: true,
+          },
+        },
+      },
+    });
   }
 }
