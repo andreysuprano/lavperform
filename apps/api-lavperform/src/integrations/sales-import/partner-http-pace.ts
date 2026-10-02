@@ -16,6 +16,13 @@ export function parseRetryAfterMs(
   if (!Number.isNaN(asSeconds)) {
     return asSeconds * 1000;
   }
+
+  const date = new Date(header);
+  if (!Number.isNaN(date.getTime())) {
+    const wait = date.getTime() - Date.now();
+    return wait > 0 ? wait : fallbackMs;
+  }
+
   return fallbackMs;
 }
 
@@ -47,6 +54,7 @@ export type With429RetryLogger = {
 export type With429RetryOptions = {
   sleep?: (ms: number) => Promise<void>;
   logger?: With429RetryLogger;
+  fallbackMs?: number;
 };
 
 export async function with429Retry<T>(
@@ -69,7 +77,7 @@ export async function with429Retry<T>(
       retriesLeft -= 1;
       const delayMs = parseRetryAfterMs(
         retryAfterHeaderFromError(error),
-        DEFAULT_PARTNER_HTTP_DELAY_MS,
+        options?.fallbackMs ?? DEFAULT_PARTNER_HTTP_DELAY_MS,
       );
       options?.logger?.warn?.(
         `HTTP 429: aguardando ${delayMs}ms antes de tentar novamente (${retriesLeft} retries restantes)`,
