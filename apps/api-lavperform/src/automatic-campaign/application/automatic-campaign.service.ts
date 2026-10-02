@@ -166,12 +166,7 @@ export class AutomaticCampaignService {
   private async syncBatchFromCampaign(campaign: BatchCampaignRef & {
     sendMode: AutomaticCampaignSendMode;
   }): Promise<void> {
-    if (campaign.sendMode === AutomaticCampaignSendMode.CONTINUOUS) {
-      await this.batch.clearContinuous(campaign.id, campaign.status);
-      return;
-    }
-    const customerIds = await this.batch.resolveContactableIds(campaign);
-    await this.batch.commitBatch(campaign, customerIds);
+    await this.batch.syncAfterSave(campaign);
   }
 
   private async validateMetaTemplateCampaign(
@@ -509,18 +504,12 @@ export class AutomaticCampaignService {
         );
     }
 
-    let resolvedIds: string[] = [];
-    if (nextSendMode === AutomaticCampaignSendMode.COVER_BATCH) {
-      resolvedIds = await this.batch.resolveContactableIds(nextRef);
-    }
-
     const updated = await this.automaticCampaignRepository.update(id, dataToUpdate);
 
-    if (nextSendMode === AutomaticCampaignSendMode.CONTINUOUS) {
-      await this.batch.clearContinuous(id, existing.status);
-    } else {
-      await this.batch.commitBatch(nextRef, resolvedIds);
-    }
+    await this.batch.syncAfterSave({
+      ...nextRef,
+      sendMode: nextSendMode,
+    });
 
     // Reconcilia templates Meta com os novos criativos: edita os templates
     // existentes (POST /{TEMPLATE_ID}) na mesma posição, cria templates para

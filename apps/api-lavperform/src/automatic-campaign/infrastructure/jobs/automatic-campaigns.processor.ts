@@ -59,13 +59,23 @@ export class AutomaticCampaignsProcessor {
       }
 
       const sendMode = campaign.sendMode ?? 'COVER_BATCH';
-      if (sendMode === 'COVER_BATCH') {
-        if (!campaign.batchSnapshottedAt) {
-          this.logger.log(
-            `Campanha ${campaign.id}: leva ainda não congelada — nenhum envio`,
-          );
-          return;
+      let useCoverBatch = sendMode === 'COVER_BATCH';
+      if (useCoverBatch && !campaign.batchSnapshottedAt) {
+        const outcome = await this.batch.tryFreezeCoverBatch({
+          id: campaign.id,
+          companyId: campaign.companyId,
+          targetingMode: campaign.targetingMode,
+          segmentation: campaign.segmentation,
+          audienceId: campaign.audienceId ?? null,
+          customSendListId: campaign.customSendListId ?? null,
+          channel: campaign.channel,
+          status: campaign.status,
+        });
+        if (outcome === 'failed') {
+          useCoverBatch = false;
         }
+      }
+      if (useCoverBatch) {
         const covered = await this.batch.completeIfCovered(campaign.id);
         if (covered) {
           this.logger.log(`Campanha ${campaign.id}: leva coberta — concluída`);
@@ -125,7 +135,7 @@ export class AutomaticCampaignsProcessor {
         this.logger.log(
           `Campanha ${automaticCampaignId}: limite diário atingido (${alreadyScheduledToday}/${maxDailySends} agendadas) — nenhuma nova mensagem será criada`,
         );
-        if (sendMode !== 'COVER_BATCH') {
+        if (!useCoverBatch) {
           await this.persistContactableReach(campaign);
         }
         await this.markLastProcessedAt(automaticCampaignId);
@@ -141,7 +151,7 @@ export class AutomaticCampaignsProcessor {
       const requestedTake = maxDailySends * 5;
 
       let candidates;
-      if (sendMode === 'COVER_BATCH') {
+      if (useCoverBatch) {
         const recipients = await this.prisma.automaticCampaignBatchRecipient.findMany({
           where: { automaticCampaignId: campaign.id },
           select: { customerId: true },
@@ -278,7 +288,7 @@ export class AutomaticCampaignsProcessor {
       // No contínuo, take corta a amostra: encher esse teto significa que ainda
       // pode haver contactáveis além dela. Na leva a lista já está completa.
       const sampleTruncated =
-        sendMode !== 'COVER_BATCH' && candidates.length >= requestedTake;
+        !useCoverBatch && candidates.length >= requestedTake;
 
       const revalidationPending =
         staleNotAttempted > 0 ||

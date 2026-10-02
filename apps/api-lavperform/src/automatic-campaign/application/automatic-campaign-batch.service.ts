@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import {
   AutomaticCampaignSendMode,
   AutomaticCampaignStatus,
@@ -27,10 +27,36 @@ type Tx = Prisma.TransactionClient;
 
 @Injectable()
 export class AutomaticCampaignBatchService {
+  private readonly logger = new Logger(AutomaticCampaignBatchService.name);
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly resolver: CampaignCustomerResolverService,
   ) {}
+
+  async tryFreezeCoverBatch(campaign: BatchCampaignRef): Promise<'frozen' | 'failed'> {
+    try {
+      const customerIds = await this.resolveContactableIds(campaign);
+      await this.commitBatch(campaign, customerIds);
+      return 'frozen';
+    } catch (error) {
+      this.logger.error(
+        `Campanha ${campaign.id}: falha ao gravar a leva`,
+        error instanceof Error ? error.stack : error,
+      );
+      return 'failed';
+    }
+  }
+
+  async syncAfterSave(
+    campaign: BatchCampaignRef & { sendMode: AutomaticCampaignSendMode },
+  ): Promise<void> {
+    if (campaign.sendMode === AutomaticCampaignSendMode.CONTINUOUS) {
+      await this.clearContinuous(campaign.id, campaign.status);
+      return;
+    }
+    await this.tryFreezeCoverBatch(campaign);
+  }
 
   async resolveContactableIds(campaign: BatchCampaignRef): Promise<string[]> {
     const customers = await this.resolver.resolveCustomers({

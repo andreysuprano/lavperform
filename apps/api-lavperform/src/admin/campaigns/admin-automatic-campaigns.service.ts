@@ -201,12 +201,7 @@ export class AdminAutomaticCampaignsService {
     };
 
     try {
-      if (sendMode === AutomaticCampaignSendMode.CONTINUOUS) {
-        await this.batch.clearContinuous(created.id, created.status);
-      } else {
-        const customerIds = await this.batch.resolveContactableIds(batchRef);
-        await this.batch.commitBatch(batchRef, customerIds);
-      }
+      await this.batch.syncAfterSave({ ...batchRef, sendMode });
     } catch (error) {
       try {
         await this.prisma.gift.deleteMany({
@@ -253,11 +248,6 @@ export class AdminAutomaticCampaignsService {
       channel: updateDto.channel ?? existing.channel,
       status: existing.status,
     };
-
-    let resolvedIds: string[] = [];
-    if (nextSendMode === AutomaticCampaignSendMode.COVER_BATCH) {
-      resolvedIds = await this.batch.resolveContactableIds(nextRef);
-    }
 
     const updateData: Prisma.AutomaticCampaignUpdateInput = { ...scalarData };
 
@@ -306,11 +296,10 @@ export class AdminAutomaticCampaignsService {
       include: updateInclude,
     });
 
-    if (nextSendMode === AutomaticCampaignSendMode.CONTINUOUS) {
-      await this.batch.clearContinuous(id, existing.status);
-    } else {
-      await this.batch.commitBatch(nextRef, resolvedIds);
-    }
+    await this.batch.syncAfterSave({
+      ...nextRef,
+      sendMode: nextSendMode,
+    });
 
     // Re-enqueue para regenerar mensagens do dia após edição
     const todayStr = new Date().toISOString().slice(0, 10);
