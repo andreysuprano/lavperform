@@ -352,9 +352,10 @@ function ModelMetaCard({ model }: { model: LLMModel }) {
 interface ModelTabProps {
   agentId: string;
   modelConfig: AgentModelConfig | null;
+  scope?: 'company' | 'platform';
 }
 
-export function ModelTab({ agentId, modelConfig }: ModelTabProps) {
+export function ModelTab({ agentId, modelConfig, scope = 'company' }: ModelTabProps) {
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -387,9 +388,13 @@ export function ModelTab({ agentId, modelConfig }: ModelTabProps) {
 
   const mutation = useMutation({
     mutationFn: (data: ModelFormValues) =>
-      api.agents.updateModelConfig(agentId, data),
+      scope === 'platform'
+        ? api.platformAgents.updateModelConfig(agentId, data)
+        : api.agents.updateModelConfig(agentId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agents', agentId] });
+      queryClient.invalidateQueries({
+        queryKey: scope === 'platform' ? ['platform-agents', agentId] : ['agents', agentId],
+      });
       toast.success('Modelo LLM atualizado com sucesso!');
       setEditing(false);
     },

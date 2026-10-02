@@ -11,6 +11,7 @@ export interface CompanyIntegration {
   name: string
   logoUrl?: string
   baseUrlWebhook?: string
+  partnerSlug?: string
   requiredFields?: string[]
   digitalMenuIntegrations: DigitalMenuIntegration[]
 }

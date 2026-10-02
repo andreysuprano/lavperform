@@ -12,7 +12,7 @@ const OPTIONAL_COMMON = ['apiSecret', 'merchantId', 'digitalMenuUrl'];
 export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
   VMLAV: {
     requiredFields: ['apiKey'],
-    optionalFields: [],
+    optionalFields: ['merchantId'],
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },

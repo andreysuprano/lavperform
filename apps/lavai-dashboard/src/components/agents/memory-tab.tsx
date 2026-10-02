@@ -64,9 +64,10 @@ const MEMORY_DESCRIPTIONS: Record<string, { title: string; description: string; 
 interface MemoryTabProps {
   agentId: string;
   memoryConfig: AgentMemoryConfig | null;
+  scope?: 'company' | 'platform';
 }
 
-export function MemoryTab({ agentId, memoryConfig }: MemoryTabProps) {
+export function MemoryTab({ agentId, memoryConfig, scope = 'company' }: MemoryTabProps) {
   const [editing, setEditing] = useState(false);
   const queryClient = useQueryClient();
 
@@ -83,9 +84,14 @@ export function MemoryTab({ agentId, memoryConfig }: MemoryTabProps) {
   const memoryType = form.watch('memoryType');
 
   const mutation = useMutation({
-    mutationFn: (data: MemoryFormValues) => api.agents.updateMemoryConfig(agentId, data),
+    mutationFn: (data: MemoryFormValues) =>
+      scope === 'platform'
+        ? api.platformAgents.updateMemoryConfig(agentId, data)
+        : api.agents.updateMemoryConfig(agentId, data),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['agents', agentId] });
+      queryClient.invalidateQueries({
+        queryKey: scope === 'platform' ? ['platform-agents', agentId] : ['agents', agentId],
+      });
       toast.success('Configuração de memória atualizada!');
       setEditing(false);
     },

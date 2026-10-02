@@ -39,6 +39,11 @@ export enum AgentMemoryType {
   NONE = 'NONE',
 }
 
+export enum AgentKind {
+  PUBLIC = 'PUBLIC',
+  INTERNAL = 'INTERNAL',
+}
+
 export enum JourneyTrigger {
   FIRST_MESSAGE = 'FIRST_MESSAGE',
   MENU_LINK_SENT = 'MENU_LINK_SENT',
@@ -177,6 +182,7 @@ export interface AgentData {
   name: string;
   description: string | null;
   active: boolean;
+  kind: AgentKind;
   /** Nome da instância WhatsApp vinculada a este agente (UAZAPI instanceName). */
   instanceName: string | null;
   createdAt: Date;
@@ -271,6 +277,7 @@ export interface CreateAgentInput {
   description?: string;
   /** Nome da instância WhatsApp (UAZAPI) a ser vinculada ao agente. */
   instanceName?: string;
+  kind?: AgentKind;
   persona?: CreateAgentPersonaInput;
   modelConfig?: CreateAgentModelConfigInput;
   memoryConfig?: CreateAgentMemoryConfigInput;
@@ -294,6 +301,7 @@ export interface AgentRepositoryPort {
   create(input: CreateAgentInput): Promise<AgentWithConfigsData>;
   findById(id: string): Promise<AgentWithConfigsData | null>;
   findAllByCompany(companyId: string): Promise<AgentData[]>;
+  findAllByKind(kind: AgentKind): Promise<AgentWithConfigsData[]>;
   findFirstActiveByCompany(companyId: string): Promise<AgentWithConfigsData | null>;
   /**
    * Busca o agente ativo vinculado a uma instância WhatsApp específica.

@@ -13,6 +13,12 @@ const navItems = [
     icon: Building2,
     description: 'Tenants e agentes',
   },
+  {
+    label: 'Plataforma',
+    href: '/platform-agents',
+    icon: Bot,
+    description: 'Catálogo interno',
+  },
 ];
 
 export function Sidebar() {

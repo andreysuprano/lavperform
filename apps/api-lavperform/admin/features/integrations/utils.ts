@@ -19,7 +19,13 @@ const SLUG_LABELS: Record<string, string> = {
   CONSUMER: "Consumer",
 }
 
-export function integrationFieldLabel(field: IntegrationFieldName): string {
+export function integrationFieldLabel(
+  field: IntegrationFieldName,
+  partnerSlug?: string | null,
+): string {
+  if (partnerSlug?.toUpperCase() === "VMLAV" && field === "merchantId") {
+    return "CNPJ"
+  }
   return FIELD_LABELS[field]
 }
 

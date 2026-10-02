@@ -82,7 +82,10 @@ export function buildUpdatePayload(
   if (values.apiSecret?.trim()) payload.apiSecret = values.apiSecret.trim()
   if (values.username?.trim()) payload.username = values.username.trim()
   if (values.password?.trim()) payload.password = values.password.trim()
-  if (values.merchantId?.trim()) payload.merchantId = values.merchantId.trim()
+  const merchantId = values.merchantId?.trim() ?? ""
+  if (merchantId !== (existing.merchantId ?? "")) {
+    payload.merchantId = merchantId
+  }
   if (values.digitalMenuUrl?.trim()) {
     payload.digitalMenuUrl = values.digitalMenuUrl.trim()
   }

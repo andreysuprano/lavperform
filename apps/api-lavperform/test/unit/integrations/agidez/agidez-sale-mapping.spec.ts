@@ -107,6 +107,7 @@ describe('agidez-sale-mapping', () => {
     );
 
     expect(withServices.salesChannel).toBe('AGIDEZ');
+    expect(withServices.externalOrderId).toBe('agidez:100:148119');
     expect(withServices.status).toBe('confirmed');
     expect(withServices.total).toBe(7);
     expect(withServices.items).toHaveLength(1);

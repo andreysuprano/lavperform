@@ -1,5 +1,6 @@
 generator client {
   provider = "prisma-client-js"
+  output   = "../src/generated/prisma"
 }
 
 datasource db {
@@ -64,6 +65,11 @@ enum AgentMemoryType {
   SUMMARY
   VECTOR
   NONE
+}
+
+enum AgentKind {
+  PUBLIC
+  INTERNAL
 }
 
 enum McpTransport {
@@ -131,6 +137,7 @@ model Agent {
   name         String
   description  String?
   active       Boolean  @default(true)
+  kind         AgentKind @default(PUBLIC)
   /// Nome da instância WhatsApp (UAZAPI instanceName) vinculada a este agente.
   /// Usado para rotear o webhook ao agente correto quando a empresa tem múltiplos agentes.
   instanceName String?  @unique @map("instance_name")
@@ -152,6 +159,7 @@ model Agent {
   customerJourneys CustomerJourney[]
   helpRequests   HelpRequest[]
   promptStudioThread PromptStudioThread?
+  platformConversations PlatformConversation[]
 
   @@map("agents")
 }
@@ -552,6 +560,37 @@ model AgentRunStep {
   agentRun AgentRun @relation(fields: [agentRunId], references: [id], onDelete: Cascade)
 
   @@map("agent_run_steps")
+}
+
+/// Conversa do usuário da plataforma com um agente da Lavperform.
+model PlatformConversation {
+  id               String   @id @default(uuid())
+  agentId          String   @map("agent_id")
+  /// Company.id do api-lavperform. Não é o id da empresa no motor.
+  contextCompanyId String   @map("context_company_id")
+  /// User.id do JWT.
+  platformUserId   String   @map("platform_user_id")
+  createdAt        DateTime @default(now()) @map("created_at")
+  updatedAt        DateTime @updatedAt @map("updated_at")
+
+  agent    Agent                         @relation(fields: [agentId], references: [id], onDelete: Cascade)
+  messages PlatformConversationMessage[]
+
+  @@unique([agentId, contextCompanyId, platformUserId], name: "platform_agent_company_user")
+  @@map("platform_conversations")
+}
+
+model PlatformConversationMessage {
+  id             String      @id @default(uuid())
+  conversationId String      @map("conversation_id")
+  role           MessageRole
+  content        String
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  conversation PlatformConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+
+  @@index([conversationId, createdAt])
+  @@map("platform_conversation_messages")
 }
 
 model PromptStudioThread {

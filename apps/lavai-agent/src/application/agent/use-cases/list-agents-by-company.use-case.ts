@@ -1,5 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
-import { AGENT_REPOSITORY, AgentData } from '../ports/agent.repository.port';
+import { AGENT_REPOSITORY, AgentData, AgentKind } from '../ports/agent.repository.port';
 import type { AgentRepositoryPort } from '../ports/agent.repository.port';
 
 @Injectable()
@@ -10,6 +10,7 @@ export class ListAgentsByCompanyUseCase {
   ) {}
 
   async execute(companyId: string): Promise<AgentData[]> {
-    return this.repository.findAllByCompany(companyId);
+    const agents = await this.repository.findAllByCompany(companyId);
+    return agents.filter((agent) => agent.kind === AgentKind.PUBLIC);
   }
 }
