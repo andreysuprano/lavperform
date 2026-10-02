@@ -1,7 +1,7 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { getQueueToken } from '@nestjs/bull';
 const SCHEDULE_CRON_OPTIONS = 'SCHEDULE_CRON_OPTIONS';
-import { VmLavSalesTasks } from 'src/integrations/vmlav/crons/vmlav-sales-tasks';
+import { L2AutomateSalesTasks } from 'src/integrations/l2automate/crons/l2automate-sales-tasks';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { getOpeningHoursTimezone } from 'src/common/utils/date.utils';
@@ -13,8 +13,8 @@ import {
 
 const NOW = new Date('2026-10-02T14:10:00.000Z');
 
-describe('VmLavSalesTasks', () => {
-  let tasks: VmLavSalesTasks;
+describe('L2AutomateSalesTasks', () => {
+  let tasks: L2AutomateSalesTasks;
 
   const mockPrisma = {
     company: {
@@ -35,16 +35,16 @@ describe('VmLavSalesTasks', () => {
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
-        VmLavSalesTasks,
+        L2AutomateSalesTasks,
         { provide: PrismaService, useValue: mockPrisma },
         {
-          provide: getQueueToken(QUEUE_NAMES.VMLAV_SALES_IMPORT),
+          provide: getQueueToken(QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT),
           useValue: mockQueue,
         },
       ],
     }).compile();
 
-    tasks = module.get(VmLavSalesTasks);
+    tasks = module.get(L2AutomateSalesTasks);
     jest.clearAllMocks();
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
@@ -61,14 +61,27 @@ describe('VmLavSalesTasks', () => {
 
     await tasks.handleDailySalesImport();
 
+    expect(mockPrisma.company.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          state: 'ACTIVE',
+          digitalMenuIntegration: {
+            some: {
+              active: true,
+              partner: { partnerSlug: 'L2AUTOMATE' },
+            },
+          },
+        }),
+      }),
+    );
     expect(mockQueue.add).toHaveBeenCalledTimes(4);
     for (const companyId of ['company-1', 'company-2']) {
       for (const date of [today, yesterday]) {
         expect(mockQueue.add).toHaveBeenCalledWith(
-          QUEUE_NAMES.VMLAV_SALES_IMPORT,
+          QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
           { companyId, date },
           expect.objectContaining({
-            jobId: salesCatchupJobId('vmlav', companyId, date, NOW),
+            jobId: salesCatchupJobId('l2automate', companyId, date, NOW),
             attempts: 3,
             backoff: { type: 'exponential', delay: 5000 },
             removeOnComplete: true,
@@ -86,7 +99,12 @@ describe('VmLavSalesTasks', () => {
   it('continua enfileirando a empresa seguinte quando o primeiro job já existe', async () => {
     mockPrisma.company.findMany.mockResolvedValue(companies);
     const { today, yesterday } = catchupDates(NOW);
-    const duplicateJobId = salesCatchupJobId('vmlav', 'company-1', today, NOW);
+    const duplicateJobId = salesCatchupJobId(
+      'l2automate',
+      'company-1',
+      today,
+      NOW,
+    );
     mockQueue.add.mockImplementation(async (_name, _data, opts) => ({
       id: opts.jobId,
       timestamp: 2_000,
@@ -100,17 +118,17 @@ describe('VmLavSalesTasks', () => {
 
     expect(mockQueue.add).toHaveBeenCalledTimes(4);
     expect(mockQueue.add).toHaveBeenCalledWith(
-      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
       { companyId: 'company-2', date: today },
       expect.objectContaining({
-        jobId: salesCatchupJobId('vmlav', 'company-2', today, NOW),
+        jobId: salesCatchupJobId('l2automate', 'company-2', today, NOW),
       }),
     );
     expect(mockQueue.add).toHaveBeenCalledWith(
-      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
       { companyId: 'company-2', date: yesterday },
       expect.objectContaining({
-        jobId: salesCatchupJobId('vmlav', 'company-2', yesterday, NOW),
+        jobId: salesCatchupJobId('l2automate', 'company-2', yesterday, NOW),
       }),
     );
   });
@@ -118,7 +136,7 @@ describe('VmLavSalesTasks', () => {
   it('executa o catch-up a cada 30 minutos', () => {
     const cronOptions = Reflect.getMetadata(
       SCHEDULE_CRON_OPTIONS,
-      VmLavSalesTasks.prototype.handleDailySalesImport,
+      L2AutomateSalesTasks.prototype.handleDailySalesImport,
     );
 
     expect(cronOptions).toEqual(
@@ -134,10 +152,10 @@ describe('VmLavSalesTasks', () => {
 
     expect(mockQueue.add).toHaveBeenCalledTimes(2);
     expect(mockQueue.add).toHaveBeenCalledWith(
-      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
       { companyId: 'company-1', backfill90: true },
       expect.objectContaining({
-        jobId: salesBackfill90JobId('vmlav', 'company-1'),
+        jobId: salesBackfill90JobId('l2automate', 'company-1'),
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
         removeOnComplete: true,
@@ -145,10 +163,10 @@ describe('VmLavSalesTasks', () => {
       }),
     );
     expect(mockQueue.add).toHaveBeenCalledWith(
-      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
       { companyId: 'company-2', backfill90: true },
       expect.objectContaining({
-        jobId: 'vmlav-backfill-90:company-2',
+        jobId: 'l2automate-backfill-90:company-2',
       }),
     );
   });
@@ -156,7 +174,7 @@ describe('VmLavSalesTasks', () => {
   it('executa o backfill às 3h de segunda no fuso de funcionamento', () => {
     const cronOptions = Reflect.getMetadata(
       SCHEDULE_CRON_OPTIONS,
-      VmLavSalesTasks.prototype.handleWeeklyBackfill,
+      L2AutomateSalesTasks.prototype.handleWeeklyBackfill,
     );
 
     expect(cronOptions).toEqual(

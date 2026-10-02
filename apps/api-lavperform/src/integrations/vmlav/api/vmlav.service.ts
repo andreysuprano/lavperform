@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { formatError } from '../../../common/utils/formatters';
+import { with429Retry } from '../../sales-import/partner-http-pace';
 import {
   VmLavSale,
   GetSalesParams,
@@ -50,20 +51,24 @@ export class VmLavService {
         quantidade: params.quantidade ?? 100,
       };
 
-      const response = await firstValueFrom(
-        this.httpService.get<VmLavSalesResponse>(
-          `${this.baseUrl}/vendas`,
-          {
-            headers: this.getHeaders(apiKey),
-            params: queryParams,
-          }
-        ).pipe(
-          catchError((error) => {
-            const errorMessage = formatError(error);
-            this.logger.error(`Erro ao buscar vendas: ${errorMessage}`);
-            throw error;
-          })
-        )
+      const response = await with429Retry(
+        () =>
+          firstValueFrom(
+            this.httpService.get<VmLavSalesResponse>(
+              `${this.baseUrl}/vendas`,
+              {
+                headers: this.getHeaders(apiKey),
+                params: queryParams,
+              }
+            ).pipe(
+              catchError((error) => {
+                const errorMessage = formatError(error);
+                this.logger.error(`Erro ao buscar vendas: ${errorMessage}`);
+                throw error;
+              })
+            )
+          ),
+        { logger: this.logger },
       );
 
       const sales = extractVmLavSalesList(response.data);
@@ -135,20 +140,24 @@ export class VmLavService {
         direcaoOrdenacao: 'desc',
       };
 
-      const response = await firstValueFrom(
-        this.httpService.get<VmLavCustomersResponse>(
-          `${this.baseUrl}/clientes`,
-          {
-            headers: this.getHeaders(apiKey),
-            params: queryParams,
-          }
-        ).pipe(
-          catchError((error) => {
-            const errorMessage = formatError(error);
-            this.logger.error(`Erro ao buscar cliente: ${errorMessage}`);
-            throw error;
-          })
-        )
+      const response = await with429Retry(
+        () =>
+          firstValueFrom(
+            this.httpService.get<VmLavCustomersResponse>(
+              `${this.baseUrl}/clientes`,
+              {
+                headers: this.getHeaders(apiKey),
+                params: queryParams,
+              }
+            ).pipe(
+              catchError((error) => {
+                const errorMessage = formatError(error);
+                this.logger.error(`Erro ao buscar cliente: ${errorMessage}`);
+                throw error;
+              })
+            )
+          ),
+        { logger: this.logger },
       );
 
       const customers = response.data;

@@ -13,6 +13,11 @@ import {
   buildUtcDateOnlyRange,
   resolveImportDateRange,
 } from '../../import-date-range.util';
+import { salesDailyImportJobId } from '../../sales-import/sales-import-schedule';
+import {
+  buildSalesImportJobOptions,
+  enqueueSalesImportJob,
+} from '../../sales-import/sales-import-queue';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { L2AutomateSaleMapping } from '../mappings/l2automate-sale-mapping';
 import { L2AutomateImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
@@ -250,15 +255,22 @@ export class L2AutomateSalesService {
 
       let jobsCreated = 0;
       for (const date of dates) {
-        await this.l2AutomateSalesQueue.add(
+        const result = await enqueueSalesImportJob(
+          this.l2AutomateSalesQueue,
           QUEUE_NAMES.L2AUTOMATE_SALES_IMPORT,
           { companyId, date },
-          {
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 5000 },
-          },
+          buildSalesImportJobOptions(
+            salesDailyImportJobId('l2automate', companyId, date),
+          ),
         );
-        jobsCreated++;
+
+        if (result === 'queued') {
+          jobsCreated++;
+        } else {
+          this.logger.debug(
+            `Importação histórica ${date} já enfileirada para empresa ${companyId}`,
+          );
+        }
       }
 
       this.logger.log(

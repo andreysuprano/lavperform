@@ -3,6 +3,11 @@ import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { formatError } from '../../../common/utils/formatters';
 import {
+  DEFAULT_PARTNER_HTTP_DELAY_MS,
+  sleep as paceSleep,
+  with429Retry,
+} from '../../sales-import/partner-http-pace';
+import {
   AgidezCliente,
   AgidezCredentials,
   AgidezDaySales,
@@ -16,7 +21,7 @@ const DEFAULT_BASE_URL =
   'https://viewinterface-agidez-integracoes.hybex.com.br';
 
 /** Pausa entre chamadas. A Hybex bloqueia rajadas de dezenas de requests por segundo. */
-const INTER_REQUEST_DELAY_MS = 1000;
+const INTER_REQUEST_DELAY_MS = DEFAULT_PARTNER_HTTP_DELAY_MS;
 
 @Injectable()
 export class AgidezService {
@@ -75,7 +80,7 @@ export class AgidezService {
   }
 
   private sleep(ms: number): Promise<void> {
-    return new Promise((resolve) => setTimeout(resolve, ms));
+    return paceSleep(ms);
   }
 
   private async select<T>(
@@ -98,20 +103,24 @@ export class AgidezService {
         `Agidez ${name} loja ${credentials.storeCode}${start ? ` (${start} → ${end})` : ''}`,
       );
 
-      const response = await firstValueFrom(
-        this.httpService
-          .post<T[]>(`${this.baseUrl}/api/View/Select`, { name, parameters }, {
-            headers: {
-              accept: 'application/json',
-              'Content-Type': 'application/json',
-              ApiPassword: credentials.apiPassword,
-            },
-          })
-          .pipe(
-            catchError((error) => {
-              throw error;
-            }),
+      const response = await with429Retry(
+        () =>
+          firstValueFrom(
+            this.httpService
+              .post<T[]>(`${this.baseUrl}/api/View/Select`, { name, parameters }, {
+                headers: {
+                  accept: 'application/json',
+                  'Content-Type': 'application/json',
+                  ApiPassword: credentials.apiPassword,
+                },
+              })
+              .pipe(
+                catchError((error) => {
+                  throw error;
+                }),
+              ),
           ),
+        { logger: this.logger, sleep: (ms) => this.sleep(ms) },
       );
 
       const rows = Array.isArray(response.data) ? response.data : [];

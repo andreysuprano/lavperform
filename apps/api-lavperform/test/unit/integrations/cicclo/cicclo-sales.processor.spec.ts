@@ -1,6 +1,5 @@
 import { Job } from 'bull';
-import { VmLavSalesProcessor } from 'src/integrations/vmlav/infrastructure/jobs/vmlav-sales.processor';
-import { VmLavSaleProcessor } from 'src/integrations/vmlav/infrastructure/jobs/vmlav-sale.processor';
+import { CiccloSalesProcessor } from 'src/integrations/cicclo/infrastructure/jobs/cicclo-sales.processor';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 
 const PROCESS_METADATA = 'bull:module_queue_process';
@@ -12,64 +11,50 @@ function salesJob(
   return {
     data,
     attemptsMade,
-    opts: { attempts: 3, jobId: 'vmlav-job' },
-    id: 'vmlav-job',
+    opts: { attempts: 3, jobId: 'cicclo-job' },
+    id: 'cicclo-job',
   } as Job;
 }
 
-describe('VmLav processors', () => {
+describe('CiccloSalesProcessor', () => {
   it('processa a fila de importação com concorrência 1', () => {
     const options = Reflect.getMetadata(
       PROCESS_METADATA,
-      VmLavSalesProcessor.prototype.processSalesImport,
+      CiccloSalesProcessor.prototype.processSalesImport,
     );
 
     expect(options).toEqual(
       expect.objectContaining({
-        name: QUEUE_NAMES.VMLAV_SALES_IMPORT,
+        name: QUEUE_NAMES.CICCLO_SALES_IMPORT,
         concurrency: 1,
       }),
     );
   });
 
-  it('devolve o resultado da importação diária no job da fila', async () => {
-    const vmLavSalesService = {
-      processDailySales: jest.fn().mockResolvedValue({
-        companyId: 'company-1',
-        date: '2026-09-01',
-        cnpj: '12345678000190',
-        salesFound: 0,
-        enqueued: 0,
-      }),
+  it('importa o dia pedido no job da fila', async () => {
+    const ciccloSalesService = {
+      processDailySales: jest.fn().mockResolvedValue(undefined),
       importHistoricalSales: jest.fn(),
     };
     const alert = { notify: jest.fn() };
-    const processor = new VmLavSalesProcessor(
-      vmLavSalesService as any,
+    const processor = new CiccloSalesProcessor(
+      ciccloSalesService as any,
       alert as any,
     );
 
-    const result = await processor.processSalesImport(
+    await processor.processSalesImport(
       salesJob({ companyId: 'company-1', date: '2026-09-01' }, 0),
     );
 
-    expect(vmLavSalesService.processDailySales).toHaveBeenCalledWith(
+    expect(ciccloSalesService.processDailySales).toHaveBeenCalledWith(
       'company-1',
       '2026-09-01',
     );
-    expect(vmLavSalesService.importHistoricalSales).not.toHaveBeenCalled();
-
-    expect(result).toEqual({
-      companyId: 'company-1',
-      date: '2026-09-01',
-      cnpj: '12345678000190',
-      salesFound: 0,
-      enqueued: 0,
-    });
+    expect(ciccloSalesService.importHistoricalSales).not.toHaveBeenCalled();
   });
 
   it('importa 90 dias quando o job pede backfill', async () => {
-    const vmLavSalesService = {
+    const ciccloSalesService = {
       processDailySales: jest.fn(),
       importHistoricalSales: jest.fn().mockResolvedValue({
         message: 'ok',
@@ -78,8 +63,8 @@ describe('VmLav processors', () => {
       }),
     };
     const alert = { notify: jest.fn() };
-    const processor = new VmLavSalesProcessor(
-      vmLavSalesService as any,
+    const processor = new CiccloSalesProcessor(
+      ciccloSalesService as any,
       alert as any,
     );
 
@@ -87,22 +72,22 @@ describe('VmLav processors', () => {
       salesJob({ companyId: 'company-1', backfill90: true }, 0),
     );
 
-    expect(vmLavSalesService.importHistoricalSales).toHaveBeenCalledWith(
+    expect(ciccloSalesService.importHistoricalSales).toHaveBeenCalledWith(
       'company-1',
       {},
     );
-    expect(vmLavSalesService.processDailySales).not.toHaveBeenCalled();
+    expect(ciccloSalesService.processDailySales).not.toHaveBeenCalled();
   });
 
   it('avisa o alerta na última falha do catch-up e relança o erro', async () => {
     const error = new Error('api fora');
-    const vmLavSalesService = {
+    const ciccloSalesService = {
       processDailySales: jest.fn().mockRejectedValue(error),
       importHistoricalSales: jest.fn(),
     };
     const alert = { notify: jest.fn().mockResolvedValue(undefined) };
-    const processor = new VmLavSalesProcessor(
-      vmLavSalesService as any,
+    const processor = new CiccloSalesProcessor(
+      ciccloSalesService as any,
       alert as any,
     );
 
@@ -114,7 +99,7 @@ describe('VmLav processors', () => {
 
     expect(alert.notify).toHaveBeenCalledWith(
       expect.objectContaining({
-        partner: 'vmlav',
+        partner: 'cicclo',
         companyId: 'company-1',
         kind: 'catchup',
         date: '2026-10-02',
@@ -126,12 +111,12 @@ describe('VmLav processors', () => {
 
   it('não avisa o alerta antes da última tentativa e relança o erro', async () => {
     const error = new Error('api fora');
-    const vmLavSalesService = {
+    const ciccloSalesService = {
       processDailySales: jest.fn().mockRejectedValue(error),
     };
     const alert = { notify: jest.fn() };
-    const processor = new VmLavSalesProcessor(
-      vmLavSalesService as any,
+    const processor = new CiccloSalesProcessor(
+      ciccloSalesService as any,
       alert as any,
     );
 
@@ -146,13 +131,13 @@ describe('VmLav processors', () => {
 
   it('avisa o alerta na última falha do backfill e relança o erro', async () => {
     const error = new Error('historico falhou');
-    const vmLavSalesService = {
+    const ciccloSalesService = {
       processDailySales: jest.fn(),
       importHistoricalSales: jest.fn().mockRejectedValue(error),
     };
     const alert = { notify: jest.fn().mockResolvedValue(undefined) };
-    const processor = new VmLavSalesProcessor(
-      vmLavSalesService as any,
+    const processor = new CiccloSalesProcessor(
+      ciccloSalesService as any,
       alert as any,
     );
 
@@ -164,34 +149,13 @@ describe('VmLav processors', () => {
 
     expect(alert.notify).toHaveBeenCalledWith(
       expect.objectContaining({
-        partner: 'vmlav',
+        partner: 'cicclo',
         companyId: 'company-1',
         kind: 'backfill90',
         attempts: 3,
         error,
       }),
     );
-    expect(vmLavSalesService.processDailySales).not.toHaveBeenCalled();
-  });
-
-  it('devolve o resultado do processamento da venda no job da fila', async () => {
-    const vmLavSalesService = {
-      processSale: jest.fn().mockResolvedValue({
-        status: 'queued',
-        saleId: 9001,
-      }),
-    };
-    const processor = new VmLavSaleProcessor(vmLavSalesService as any);
-
-    const result = await processor.processSale({
-      data: {
-        companyId: 'company-1',
-        sale: { idVenda: 9001, nomeCliente: '' },
-        apiKey: 'api-key',
-        partnerId: 'partner-1',
-      },
-    } as Job<any>);
-
-    expect(result).toEqual({ status: 'queued', saleId: 9001 });
+    expect(ciccloSalesService.processDailySales).not.toHaveBeenCalled();
   });
 });

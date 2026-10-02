@@ -1,34 +1,5 @@
-import { DateTime } from 'luxon';
 import { AgidezSalesService } from 'src/integrations/agidez/application/agidez-sales.service';
 import { AgidezTicket } from 'src/integrations/agidez/api/agidez.types';
-import {
-  agidezBusinessDate,
-  agidezDailyImportJobId,
-} from 'src/integrations/agidez/crons/agidez-sales-tasks';
-
-describe('importação diária Agidez', () => {
-  it('usa o dia civil de São Paulo, inclusive depois da meia-noite UTC', () => {
-    const at2330InSaoPaulo = new Date('2026-10-01T02:30:00.000Z');
-
-    expect(agidezBusinessDate(at2330InSaoPaulo)).toBe('2026-09-30');
-    expect(agidezDailyImportJobId('company-1', at2330InSaoPaulo)).toBe(
-      'agidez-daily:company-1:2026-09-30:23',
-    );
-  });
-
-  it('permite uma nova importação na hora seguinte do mesmo dia', () => {
-    const noon = DateTime.fromISO('2026-10-01T12:00:00', {
-      zone: 'America/Sao_Paulo',
-    }).toJSDate();
-    const onePm = DateTime.fromISO('2026-10-01T13:00:00', {
-      zone: 'America/Sao_Paulo',
-    }).toJSDate();
-
-    expect(agidezDailyImportJobId('company-1', noon)).not.toBe(
-      agidezDailyImportJobId('company-1', onePm),
-    );
-  });
-});
 
 describe('AgidezSalesService.processSale', () => {
   const ticket = {
