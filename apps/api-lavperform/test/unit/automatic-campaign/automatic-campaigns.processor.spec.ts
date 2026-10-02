@@ -78,6 +78,7 @@ describe('AutomaticCampaignsProcessor', () => {
   };
   const batch: any = {
     completeIfCovered: jest.fn().mockResolvedValue(false),
+    tryFreezeCoverBatch: jest.fn().mockResolvedValue('frozen'),
   };
 
   let processor: AutomaticCampaignsProcessor;
@@ -128,6 +129,7 @@ describe('AutomaticCampaignsProcessor', () => {
     });
     whatsappService.validateAndPersistCustomerWhatsapp.mockResolvedValue(true);
     batch.completeIfCovered.mockResolvedValue(false);
+    batch.tryFreezeCoverBatch.mockResolvedValue('frozen');
     prisma.automaticCampaignBatchRecipient.findMany.mockResolvedValue([]);
     processor = new AutomaticCampaignsProcessor(
       prisma,
@@ -745,14 +747,67 @@ describe('AutomaticCampaignsProcessor', () => {
     ]);
   });
 
-  it('does not send or complete a cover-batch campaign before the snapshot exists', async () => {
+  it('sends like a continuous campaign when freezing a missing batch fails', async () => {
+    (getDayOfWeekPtBr as jest.Mock).mockReturnValue('seg');
+    batch.tryFreezeCoverBatch.mockResolvedValue('failed');
     prisma.automaticCampaign.findUnique.mockResolvedValue(
       whatsappCampaign({ sendMode: 'COVER_BATCH', batchSnapshottedAt: null }),
     );
+    campaignCustomerResolver.resolveCustomers.mockResolvedValue([freshCustomer('c1')]);
+
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+
+    expect(batch.tryFreezeCoverBatch).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'ac1', companyId: 'comp1' }),
+    );
+    expect(batch.completeIfCovered).not.toHaveBeenCalled();
+    expect(campaignCustomerResolver.resolveCustomers).toHaveBeenCalled();
+    expect(strategy.generateMessages).toHaveBeenCalled();
+    expect(prisma.automaticCampaign.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ status: AutomaticCampaignStatus.FAILED }),
+      }),
+    );
+    expect(prisma.automaticCampaign.update).not.toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          lastProcessingError: expect.any(String),
+        }),
+      }),
+    );
+  });
+
+  it('sends the frozen batch in the same run when the snapshot succeeds', async () => {
+    (getDayOfWeekPtBr as jest.Mock).mockReturnValue('seg');
+    batch.tryFreezeCoverBatch.mockResolvedValue('frozen');
+    batch.completeIfCovered.mockResolvedValue(false);
+    prisma.automaticCampaign.findUnique.mockResolvedValue(
+      whatsappCampaign({ sendMode: 'COVER_BATCH', batchSnapshottedAt: null }),
+    );
+    prisma.automaticCampaignBatchRecipient.findMany.mockResolvedValue([
+      { customerId: 'ready' },
+    ]);
+    prisma.customer.findMany.mockResolvedValue([freshCustomer('ready')]);
+
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+
+    expect(batch.completeIfCovered).toHaveBeenCalledWith('ac1');
     expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
+    const generated = strategy.generateMessages.mock.calls[0][0].customers;
+    expect(generated.map((customer: { id: string }) => customer.id)).toEqual(['ready']);
+  });
+
+  it('does not send when freezing the missing batch completes the campaign', async () => {
+    batch.tryFreezeCoverBatch.mockResolvedValue('frozen');
+    batch.completeIfCovered.mockResolvedValue(true);
+    prisma.automaticCampaign.findUnique.mockResolvedValue(
+      whatsappCampaign({ sendMode: 'COVER_BATCH', batchSnapshottedAt: null }),
+    );
+
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+
     expect(strategy.generateMessages).not.toHaveBeenCalled();
-    expect(prisma.automaticCampaign.update).not.toHaveBeenCalled();
+    expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
   });
 
   it('completes a cover-batch campaign when the batch service says it is covered', async () => {
@@ -787,6 +842,7 @@ describe('AutomaticCampaignsProcessor', () => {
     prisma.customer.findMany = jest.fn().mockResolvedValue([freshCustomer('ready')]);
     await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
     expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
+    expect(batch.tryFreezeCoverBatch).not.toHaveBeenCalled();
     expect(prisma.customer.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({ id: { in: ['ready'] } }),

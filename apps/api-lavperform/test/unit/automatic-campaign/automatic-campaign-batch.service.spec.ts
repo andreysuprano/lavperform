@@ -1,4 +1,4 @@
-import { AutomaticCampaignStatus, AudienceTargetingMode, CampaignChannel, MessageStatus } from '@prisma/client';
+import { AutomaticCampaignSendMode, AutomaticCampaignStatus, AudienceTargetingMode, CampaignChannel, MessageStatus } from '@prisma/client';
 import { BATCH_LEFT_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
 import { AutomaticCampaignBatchService } from 'src/automatic-campaign/application/automatic-campaign-batch.service';
 
@@ -209,6 +209,50 @@ describe('AutomaticCampaignBatchService', () => {
     tx.message.findMany.mockResolvedValue([{ customerId: 'c1' }]);
     await expect(service.completeIfCovered('ac1')).resolves.toBe(false);
     expect(tx.automaticCampaign.update).not.toHaveBeenCalled();
+  });
+
+  it('returns failed and skips the commit when resolving the audience throws', async () => {
+    resolver.resolveCustomers.mockRejectedValue(new Error('resolver down'));
+    await expect(service.tryFreezeCoverBatch(campaign)).resolves.toBe('failed');
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+
+  it('returns failed when committing the batch throws', async () => {
+    resolver.resolveCustomers.mockResolvedValue([{ id: 'c1' }]);
+    prisma.$transaction.mockRejectedValueOnce(new Error('tx down'));
+    await expect(service.tryFreezeCoverBatch(campaign)).resolves.toBe('failed');
+  });
+
+  it('returns frozen after committing the resolved ids', async () => {
+    resolver.resolveCustomers.mockResolvedValue([{ id: 'c1' }]);
+    tx.message.findMany.mockResolvedValue([]);
+    await expect(service.tryFreezeCoverBatch(campaign)).resolves.toBe('frozen');
+    expect(tx.automaticCampaignBatchRecipient.createMany).toHaveBeenCalled();
+  });
+
+  it('clears the batch when saving a continuous campaign', async () => {
+    await service.syncAfterSave({
+      ...campaign,
+      sendMode: AutomaticCampaignSendMode.CONTINUOUS,
+    });
+    expect(tx.automaticCampaign.update).toHaveBeenCalledWith({
+      where: { id: 'ac1' },
+      data: {
+        sendMode: 'CONTINUOUS',
+        batchSnapshottedAt: null,
+      },
+    });
+  });
+
+  it('saves a cover batch without throwing when the audience lookup fails', async () => {
+    resolver.resolveCustomers.mockRejectedValue(new Error('resolver down'));
+    await expect(
+      service.syncAfterSave({
+        ...campaign,
+        sendMode: AutomaticCampaignSendMode.COVER_BATCH,
+      }),
+    ).resolves.toBeUndefined();
+    expect(prisma.$transaction).not.toHaveBeenCalled();
   });
 
   it('does not complete a batch that was never snapshotted', async () => {
