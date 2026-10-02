@@ -56,8 +56,8 @@ describe('VmLavSalesService', () => {
   const orderIngestionService = {
     enqueue: jest.fn(),
   };
-  const vmLavSalesQueue = { add: jest.fn() };
-  const vmLavSaleProcessQueue = { add: jest.fn() };
+  const vmLavSalesQueue = { add: jest.fn(), getJob: jest.fn() };
+  const vmLavSaleProcessQueue = { add: jest.fn(), getJob: jest.fn() };
 
   let service: VmLavSalesService;
 
@@ -191,9 +191,14 @@ describe('VmLavSalesService', () => {
       const sale = buildSale({ idVenda: 123, nomeCliente: 'Cliente Teste' });
       const sale2 = buildSale({ idVenda: 456, nomeCliente: 'Cliente 2' });
       vmLavService.getDailySales.mockResolvedValue([sale, sale2]);
-      vmLavSaleProcessQueue.add
-        .mockRejectedValueOnce(new Error('Job already exists'))
-        .mockResolvedValueOnce({ id: 'sale-job-2' });
+      vmLavSaleProcessQueue.add.mockImplementation(async (_name, _data, opts) => ({
+        id: opts.jobId,
+        timestamp: 2_000,
+      }));
+      vmLavSaleProcessQueue.getJob.mockImplementation(async (jobId: string) => ({
+        id: jobId,
+        timestamp: jobId === 'vmlav-sale:company-1:123' ? 1_000 : 2_000,
+      }));
 
       await service.processDailySales('company-1', '2026-09-04');
 
@@ -264,9 +269,15 @@ describe('VmLavSalesService', () => {
       digitalMenuIntegrationRepository.findByCompanyAndPartner.mockResolvedValue(
         { apiKey: 'api-key' },
       );
-      vmLavSalesQueue.add
-        .mockRejectedValueOnce(new Error('Job already exists'))
-        .mockResolvedValueOnce({ id: 'import-job-2' });
+      vmLavSalesQueue.add.mockImplementation(async (_name, _data, opts) => ({
+        id: opts.jobId,
+        timestamp: 2_000,
+      }));
+      vmLavSalesQueue.getJob.mockImplementation(async (jobId: string) => ({
+        id: jobId,
+        timestamp:
+          jobId === 'vmlav-import:company-1:2026-09-01' ? 1_000 : 2_000,
+      }));
 
       await service.importHistoricalSales('company-1', {
         startDate: '2026-09-01',

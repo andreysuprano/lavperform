@@ -6,7 +6,7 @@ import {
 } from 'src/integrations/vmlav/vmlav-queue.util';
 
 describe('vmlav-queue.util', () => {
-  it('detecta colisão Job already exists', () => {
+  it('reconhece a mensagem antiga Job already exists', () => {
     expect(isVmLavDuplicateJobError(new Error('Job already exists'))).toBe(true);
     expect(isVmLavDuplicateJobError(new Error('other'))).toBe(false);
   });
@@ -31,14 +31,26 @@ describe('vmlav-queue.util', () => {
     });
   });
 
-  it('enqueueVmLavJob retorna skipped em colisão ativa', async () => {
+  it('enqueueVmLavJob retorna skipped quando o job persistido é mais antigo', async () => {
     const queue = {
-      add: jest.fn().mockRejectedValue(new Error('Job already exists')),
+      add: jest.fn().mockResolvedValue({ id: 'x', timestamp: 2_000 }),
+      getJob: jest.fn().mockResolvedValue({ id: 'x', timestamp: 1_000 }),
     };
 
     await expect(
       enqueueVmLavJob(queue as any, 'job-name', {}, { jobId: 'x' }),
     ).resolves.toBe('skipped');
+  });
+
+  it('enqueueVmLavJob retorna queued quando o timestamp persistido coincide', async () => {
+    const queue = {
+      add: jest.fn().mockResolvedValue({ id: 'x', timestamp: 2_000 }),
+      getJob: jest.fn().mockResolvedValue({ id: 'x', timestamp: 2_000 }),
+    };
+
+    await expect(
+      enqueueVmLavJob(queue as any, 'job-name', {}, { jobId: 'x' }),
+    ).resolves.toBe('queued');
   });
 
   it('enqueueVmLavJob propaga outros erros', async () => {

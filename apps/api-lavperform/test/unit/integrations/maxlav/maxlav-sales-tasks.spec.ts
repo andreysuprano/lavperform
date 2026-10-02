@@ -24,6 +24,7 @@ describe('MaxlavSalesTasks', () => {
 
   const mockQueue = {
     add: jest.fn(),
+    getJob: jest.fn(),
   };
 
   const companies = [
@@ -97,10 +98,16 @@ describe('MaxlavSalesTasks', () => {
 
   it('continua enfileirando a empresa seguinte quando o primeiro job já existe', async () => {
     mockPrisma.company.findMany.mockResolvedValue(companies);
-    mockQueue.add
-      .mockRejectedValueOnce(new Error('Job already exists'))
-      .mockResolvedValue({ id: 'job-2' });
     const { today, yesterday } = catchupDates(NOW);
+    const duplicateJobId = salesCatchupJobId('maxlav', 'company-1', today, NOW);
+    mockQueue.add.mockImplementation(async (_name, _data, opts) => ({
+      id: opts.jobId,
+      timestamp: 2_000,
+    }));
+    mockQueue.getJob.mockImplementation(async (jobId: string) => ({
+      id: jobId,
+      timestamp: jobId === duplicateJobId ? 1_000 : 2_000,
+    }));
 
     await tasks.handleDailySalesImport();
 

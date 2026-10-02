@@ -43,3 +43,11 @@ export function salesBackfill90JobId(
 ): string {
   return `${partner}-backfill-90:${companyId}`;
 }
+
+export function salesDailyImportJobId(
+  partner: SalesImportPartnerSlug,
+  companyId: string,
+  date: string,
+): string {
+  return `${partner}-import:${companyId}:${date}`;
+}

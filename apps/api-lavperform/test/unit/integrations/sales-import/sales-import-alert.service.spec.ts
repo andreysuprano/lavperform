@@ -26,6 +26,25 @@ jest.mock('@sentry/nestjs', () => ({
 const ANDREY = 'andrey@overgroup.com.br';
 const BRUNO = 'bruno.saibert@overgroup.com.br';
 
+function sentryContext(current: SalesImportFailureAlert) {
+  return {
+    extra: {
+      partner: current.partner,
+      companyId: current.companyId,
+      date: current.date,
+      jobId: current.jobId,
+      kind: current.kind,
+    },
+    tags: {
+      partner: current.partner,
+      companyId: current.companyId,
+      date: current.date ?? '',
+      jobId: current.jobId ?? '',
+      kind: current.kind,
+    },
+  };
+}
+
 function alert(
   overrides: Partial<SalesImportFailureAlert> = {},
 ): SalesImportFailureAlert {
@@ -99,7 +118,10 @@ describe('SalesImportAlertService', () => {
     expect(mockPrisma.company.findUnique).toHaveBeenCalledWith(
       expect.objectContaining({ where: { id: 'company-1' } }),
     );
-    expect(Sentry.captureException).toHaveBeenCalledWith(error);
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      error,
+      sentryContext(alert({ error })),
+    );
   });
 
   it('descreve backfill de 90 dias no corpo', async () => {
@@ -150,7 +172,10 @@ describe('SalesImportAlertService', () => {
 
     await expect(service.notify(alert({ error }))).resolves.toBeUndefined();
 
-    expect(Sentry.captureException).toHaveBeenCalledWith(error);
+    expect(Sentry.captureException).toHaveBeenCalledWith(
+      error,
+      sentryContext(alert({ error })),
+    );
     expect(Smtp).toHaveBeenCalled();
   });
 });

@@ -13,6 +13,11 @@ import {
   buildUtcDateOnlyRange,
   resolveImportDateRange,
 } from '../../import-date-range.util';
+import { salesDailyImportJobId } from '../../sales-import/sales-import-schedule';
+import {
+  buildSalesImportJobOptions,
+  enqueueSalesImportJob,
+} from '../../sales-import/sales-import-queue';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { MaxlavSaleMapping } from '../mappings/maxlav-sale-mapping';
 import { MaxlavImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
@@ -261,15 +266,22 @@ export class MaxlavSalesService {
 
       let jobsCreated = 0;
       for (const date of dates) {
-        await this.maxlavSalesQueue.add(
+        const result = await enqueueSalesImportJob(
+          this.maxlavSalesQueue,
           QUEUE_NAMES.MAXLAV_SALES_IMPORT,
           { companyId, date },
-          {
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 5000 },
-          },
+          buildSalesImportJobOptions(
+            salesDailyImportJobId('maxlav', companyId, date),
+          ),
         );
-        jobsCreated++;
+
+        if (result === 'queued') {
+          jobsCreated++;
+        } else {
+          this.logger.debug(
+            `Importação histórica ${date} já enfileirada para empresa ${companyId}`,
+          );
+        }
       }
 
       this.logger.log(

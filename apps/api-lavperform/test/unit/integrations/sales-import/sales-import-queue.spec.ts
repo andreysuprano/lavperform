@@ -5,7 +5,7 @@ import {
 } from 'src/integrations/sales-import/sales-import-queue';
 
 describe('sales-import-queue', () => {
-  it('detecta Job already exists', () => {
+  it('reconhece a mensagem antiga Job already exists', () => {
     expect(isDuplicateJobError(new Error('Job already exists'))).toBe(true);
     expect(isDuplicateJobError(new Error('redis down'))).toBe(false);
   });
@@ -20,12 +20,46 @@ describe('sales-import-queue', () => {
     });
   });
 
-  it('enqueue retorna skipped na colisão', async () => {
+  it('enqueue retorna skipped quando add devolve o jobId existente como string', async () => {
     const queue = {
-      add: jest.fn().mockRejectedValue(new Error('Job already exists')),
+      add: jest.fn().mockResolvedValue('x'),
     };
+
     await expect(
       enqueueSalesImportJob(queue as any, 'vmlav-sales-import', {}, { jobId: 'x' }),
     ).resolves.toBe('skipped');
+  });
+
+  it('enqueue retorna queued quando o job persistido tem o mesmo timestamp', async () => {
+    const queue = {
+      add: jest.fn().mockResolvedValue({ id: 'x', timestamp: 2_000 }),
+      getJob: jest.fn().mockResolvedValue({ id: 'x', timestamp: 2_000 }),
+    };
+
+    await expect(
+      enqueueSalesImportJob(queue as any, 'vmlav-sales-import', {}, { jobId: 'x' }),
+    ).resolves.toBe('queued');
+    expect(queue.getJob).toHaveBeenCalledWith('x');
+  });
+
+  it('enqueue retorna skipped quando o job persistido é mais antigo', async () => {
+    const queue = {
+      add: jest.fn().mockResolvedValue({ id: 'x', timestamp: 2_000 }),
+      getJob: jest.fn().mockResolvedValue({ id: 'x', timestamp: 1_000 }),
+    };
+
+    await expect(
+      enqueueSalesImportJob(queue as any, 'vmlav-sales-import', {}, { jobId: 'x' }),
+    ).resolves.toBe('skipped');
+  });
+
+  it('enqueue propaga erro de redis', async () => {
+    const queue = {
+      add: jest.fn().mockRejectedValue(new Error('redis down')),
+    };
+
+    await expect(
+      enqueueSalesImportJob(queue as any, 'vmlav-sales-import', {}, { jobId: 'x' }),
+    ).rejects.toThrow('redis down');
   });
 });

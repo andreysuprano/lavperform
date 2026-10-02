@@ -92,7 +92,23 @@ export class SalesImportAlertService {
   constructor(private readonly prisma: PrismaService) {}
 
   async notify(alert: SalesImportFailureAlert): Promise<void> {
-    Sentry.captureException(alert.error);
+    const sentryFields = {
+      partner: alert.partner,
+      companyId: alert.companyId,
+      date: alert.date,
+      jobId: alert.jobId,
+      kind: alert.kind,
+    };
+    Sentry.captureException(alert.error, {
+      extra: sentryFields,
+      tags: {
+        partner: alert.partner,
+        companyId: alert.companyId,
+        date: alert.date ?? '',
+        jobId: alert.jobId ?? '',
+        kind: alert.kind,
+      },
+    });
 
     const key = salesImportAlertThrottleKey(alert);
     if (this.sentKeys.has(key)) {

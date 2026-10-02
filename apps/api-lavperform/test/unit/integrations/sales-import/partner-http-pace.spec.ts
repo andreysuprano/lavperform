@@ -1,5 +1,6 @@
 import {
   DEFAULT_PARTNER_HTTP_DELAY_MS,
+  MAX_PARTNER_HTTP_DELAY_MS,
   isHttp429,
   parseRetryAfterMs,
   with429Retry,
@@ -29,6 +30,21 @@ describe('partner-http-pace', () => {
     expect(parseRetryAfterMs('Fri, 02 Oct 2026 14:00:00 GMT', 60_000)).toBe(
       60_000,
     );
+    jest.useRealTimers();
+  });
+
+  it('segura o atraso entre 400 ms e 60 s', () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-02T15:00:00.000Z'));
+    expect(parseRetryAfterMs('0')).toBe(DEFAULT_PARTNER_HTTP_DELAY_MS);
+    expect(parseRetryAfterMs('120')).toBe(MAX_PARTNER_HTTP_DELAY_MS);
+    expect(parseRetryAfterMs('Fri, 02 Oct 2026 15:02:00 GMT')).toBe(
+      MAX_PARTNER_HTTP_DELAY_MS,
+    );
+    expect(parseRetryAfterMs(undefined, 15 * 60 * 1000)).toBe(
+      MAX_PARTNER_HTTP_DELAY_MS,
+    );
+    expect(parseRetryAfterMs('', 100)).toBe(DEFAULT_PARTNER_HTTP_DELAY_MS);
     jest.useRealTimers();
   });
 
@@ -71,7 +87,7 @@ describe('partner-http-pace', () => {
     await expect(
       with429Retry(run, { sleep, fallbackMs: 15 * 60 * 1000 }),
     ).resolves.toBe('ok');
-    expect(sleep).toHaveBeenCalledWith(15 * 60 * 1000);
+    expect(sleep).toHaveBeenCalledWith(MAX_PARTNER_HTTP_DELAY_MS);
   });
 
   it('falha depois de 3 retries em 429', async () => {

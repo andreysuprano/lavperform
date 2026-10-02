@@ -1,5 +1,16 @@
 export const DEFAULT_PARTNER_HTTP_DELAY_MS = 400;
+export const MAX_PARTNER_HTTP_DELAY_MS = 60_000;
 export const MAX_RETRIES_ON_429 = 3;
+
+function clampPartnerHttpDelay(ms: number): number {
+  if (!Number.isFinite(ms)) {
+    return DEFAULT_PARTNER_HTTP_DELAY_MS;
+  }
+  return Math.min(
+    MAX_PARTNER_HTTP_DELAY_MS,
+    Math.max(DEFAULT_PARTNER_HTTP_DELAY_MS, ms),
+  );
+}
 
 export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -10,20 +21,20 @@ export function parseRetryAfterMs(
   fallbackMs: number = DEFAULT_PARTNER_HTTP_DELAY_MS,
 ): number {
   if (header === undefined || header.trim() === '') {
-    return fallbackMs;
+    return clampPartnerHttpDelay(fallbackMs);
   }
   const asSeconds = Number.parseInt(header, 10);
   if (!Number.isNaN(asSeconds)) {
-    return asSeconds * 1000;
+    return clampPartnerHttpDelay(asSeconds * 1000);
   }
 
   const date = new Date(header);
   if (!Number.isNaN(date.getTime())) {
     const wait = date.getTime() - Date.now();
-    return wait > 0 ? wait : fallbackMs;
+    return clampPartnerHttpDelay(wait > 0 ? wait : fallbackMs);
   }
 
-  return fallbackMs;
+  return clampPartnerHttpDelay(fallbackMs);
 }
 
 export function isHttp429(error: unknown): boolean {

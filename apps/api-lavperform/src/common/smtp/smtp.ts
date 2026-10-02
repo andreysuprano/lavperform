@@ -16,21 +16,15 @@ export class Smtp {
 			},
             secure: true,
 		};
-        console.log(config);
 		this.transporter = createTransport(config);
 	}
 
-	async sendMail(to: string, subject: string, conteudo: string) {
-		this.transporter.sendMail(
-			{
-				from: `"${process.env.WHITELABEL === 'lavperform' ? 'LavPerform' : 'FoodCRM'}" ` + process.env.SMTP_USER,
-				to,
-				subject,
-				html: conteudo
-			},
-			(error, info) => {
-				console.log(error, info);
-			}
-		);
+	sendMail(to: string, subject: string, conteudo: string) {
+		return this.transporter.sendMail({
+			from: `"${process.env.WHITELABEL === 'lavperform' ? 'LavPerform' : 'FoodCRM'}" ` + process.env.SMTP_USER,
+			to,
+			subject,
+			html: conteudo
+		});
 	}
 }

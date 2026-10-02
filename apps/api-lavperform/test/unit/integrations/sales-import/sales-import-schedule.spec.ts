@@ -3,6 +3,7 @@ import {
   previousUtcDateOnly,
   salesBackfill90JobId,
   salesCatchupJobId,
+  salesDailyImportJobId,
   salesImportSlot,
   utcDateOnly,
 } from 'src/integrations/sales-import/sales-import-schedule';
@@ -52,6 +53,18 @@ describe('sales-import-schedule', () => {
   it('jobId de backfill é um por empresa', () => {
     expect(salesBackfill90JobId('agidez', 'company-1')).toBe(
       'agidez-backfill-90:company-1',
+    );
+  });
+
+  it('jobId diário estável não inclui o slot de 30 minutos', () => {
+    expect(salesDailyImportJobId('cicclo', 'company-1', '2026-09-01')).toBe(
+      'cicclo-import:company-1:2026-09-01',
+    );
+    expect(salesDailyImportJobId('maxlav', 'company-1', '2026-09-01')).toBe(
+      'maxlav-import:company-1:2026-09-01',
+    );
+    expect(salesDailyImportJobId('l2automate', 'c1', '2026-09-02')).toBe(
+      'l2automate-import:c1:2026-09-02',
     );
   });
 });
