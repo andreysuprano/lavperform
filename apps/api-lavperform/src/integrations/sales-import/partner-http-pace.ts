@@ -16,12 +16,20 @@ export function sleep(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function resolveFallbackMs(fallbackMs: number): number {
+  if (!Number.isFinite(fallbackMs) || fallbackMs <= 0) {
+    return DEFAULT_PARTNER_HTTP_DELAY_MS;
+  }
+  return fallbackMs;
+}
+
 export function parseRetryAfterMs(
   header?: string,
   fallbackMs: number = DEFAULT_PARTNER_HTTP_DELAY_MS,
 ): number {
+  const fallback = resolveFallbackMs(fallbackMs);
   if (header === undefined || header.trim() === '') {
-    return clampPartnerHttpDelay(fallbackMs);
+    return fallback;
   }
   const asSeconds = Number.parseInt(header, 10);
   if (!Number.isNaN(asSeconds)) {
@@ -31,10 +39,10 @@ export function parseRetryAfterMs(
   const date = new Date(header);
   if (!Number.isNaN(date.getTime())) {
     const wait = date.getTime() - Date.now();
-    return clampPartnerHttpDelay(wait > 0 ? wait : fallbackMs);
+    return wait > 0 ? clampPartnerHttpDelay(wait) : fallback;
   }
 
-  return clampPartnerHttpDelay(fallbackMs);
+  return fallback;
 }
 
 export function isHttp429(error: unknown): boolean {

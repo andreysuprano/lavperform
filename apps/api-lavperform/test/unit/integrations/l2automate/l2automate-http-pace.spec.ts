@@ -69,7 +69,7 @@ describe('L2AutomateService HTTP pace', () => {
     expect(sleep).toHaveBeenCalledWith(2000);
   });
 
-  it('em 429 sem Retry-After espera no máximo 60 segundos', async () => {
+  it('em 429 sem Retry-After espera a janela de 15 minutos', async () => {
     const httpService = {
       get: jest
         .fn()
@@ -83,6 +83,6 @@ describe('L2AutomateService HTTP pace', () => {
 
     await service.getSales('token', '2026-10-01', '2026-10-01');
 
-    expect(sleep).toHaveBeenCalledWith(60_000);
+    expect(sleep).toHaveBeenCalledWith(15 * 60 * 1000);
   });
 });

@@ -42,9 +42,9 @@ describe('partner-http-pace', () => {
       MAX_PARTNER_HTTP_DELAY_MS,
     );
     expect(parseRetryAfterMs(undefined, 15 * 60 * 1000)).toBe(
-      MAX_PARTNER_HTTP_DELAY_MS,
+      15 * 60 * 1000,
     );
-    expect(parseRetryAfterMs('', 100)).toBe(DEFAULT_PARTNER_HTTP_DELAY_MS);
+    expect(parseRetryAfterMs('', 100)).toBe(100);
     jest.useRealTimers();
   });
 
@@ -87,7 +87,7 @@ describe('partner-http-pace', () => {
     await expect(
       with429Retry(run, { sleep, fallbackMs: 15 * 60 * 1000 }),
     ).resolves.toBe('ok');
-    expect(sleep).toHaveBeenCalledWith(MAX_PARTNER_HTTP_DELAY_MS);
+    expect(sleep).toHaveBeenCalledWith(15 * 60 * 1000);
   });
 
   it('falha depois de 3 retries em 429', async () => {
