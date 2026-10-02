@@ -1,4 +1,9 @@
 import { JobOptions, Queue } from 'bull';
+import {
+  buildSalesImportJobOptions,
+  enqueueSalesImportJob,
+  isDuplicateJobError,
+} from 'src/integrations/sales-import/sales-import-queue';
 
 export function vmlavImportJobId(companyId: string, date: string): string {
   return `vmlav-import:${companyId}:${date}`;
@@ -9,13 +14,7 @@ export function vmlavSaleJobId(companyId: string, idVenda: number): string {
 }
 
 export function buildVmLavImportJobOptions(jobId: string): JobOptions {
-  return {
-    jobId,
-    attempts: 3,
-    backoff: { type: 'exponential', delay: 5000 },
-    removeOnComplete: true,
-    removeOnFail: true,
-  };
+  return buildSalesImportJobOptions(jobId);
 }
 
 export function buildVmLavSaleJobOptions(jobId: string): JobOptions {
@@ -29,9 +28,7 @@ export function buildVmLavSaleJobOptions(jobId: string): JobOptions {
 }
 
 export function isVmLavDuplicateJobError(error: unknown): boolean {
-  const message =
-    error instanceof Error ? error.message : String(error ?? '');
-  return message.includes('Job already exists');
+  return isDuplicateJobError(error);
 }
 
 export async function enqueueVmLavJob(
@@ -40,13 +37,5 @@ export async function enqueueVmLavJob(
   data: unknown,
   options: JobOptions,
 ): Promise<'queued' | 'skipped'> {
-  try {
-    await queue.add(name, data, options);
-    return 'queued';
-  } catch (error) {
-    if (isVmLavDuplicateJobError(error)) {
-      return 'skipped';
-    }
-    throw error;
-  }
+  return enqueueSalesImportJob(queue, name, data, options);
 }
