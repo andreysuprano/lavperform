@@ -4,6 +4,14 @@ const SCHEDULE_CRON_OPTIONS = 'SCHEDULE_CRON_OPTIONS';
 import { VmLavSalesTasks } from 'src/integrations/vmlav/crons/vmlav-sales-tasks';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
+import { getOpeningHoursTimezone } from 'src/common/utils/date.utils';
+import {
+  catchupDates,
+  salesBackfill90JobId,
+  salesCatchupJobId,
+} from 'src/integrations/sales-import/sales-import-schedule';
+
+const NOW = new Date('2026-10-02T14:10:00.000Z');
 
 describe('VmLavSalesTasks', () => {
   let tasks: VmLavSalesTasks;
@@ -17,6 +25,11 @@ describe('VmLavSalesTasks', () => {
   const mockQueue = {
     add: jest.fn(),
   };
+
+  const companies = [
+    { id: 'company-1', name: 'Empresa 1' },
+    { id: 'company-2', name: 'Empresa 2' },
+  ];
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
@@ -32,76 +45,118 @@ describe('VmLavSalesTasks', () => {
 
     tasks = module.get(VmLavSalesTasks);
     jest.clearAllMocks();
+    jest.useFakeTimers();
+    jest.setSystemTime(NOW);
   });
 
-  it('enfileira importação diária com jobId estável por empresa e data', async () => {
-    mockPrisma.company.findMany.mockResolvedValue([
-      { id: 'company-1', name: 'Empresa 1' },
-      { id: 'company-2', name: 'Empresa 2' },
-    ]);
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('enfileira hoje e ontem com jobId de slot para cada empresa', async () => {
+    mockPrisma.company.findMany.mockResolvedValue(companies);
     mockQueue.add.mockResolvedValue({ id: 'job-1' });
+    const { today, yesterday } = catchupDates(NOW);
 
     await tasks.handleDailySalesImport();
 
-    expect(mockQueue.add).toHaveBeenCalledWith(
-      QUEUE_NAMES.VMLAV_SALES_IMPORT,
-      {
-        companyId: 'company-1',
-        date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      },
-      expect.objectContaining({
-        jobId: expect.stringMatching(/^vmlav-import:company-1:/),
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        removeOnComplete: true,
-        removeOnFail: true,
-      }),
-    );
+    expect(mockQueue.add).toHaveBeenCalledTimes(4);
+    for (const companyId of ['company-1', 'company-2']) {
+      for (const date of [today, yesterday]) {
+        expect(mockQueue.add).toHaveBeenCalledWith(
+          QUEUE_NAMES.VMLAV_SALES_IMPORT,
+          { companyId, date },
+          expect.objectContaining({
+            jobId: salesCatchupJobId('vmlav', companyId, date, NOW),
+            attempts: 3,
+            backoff: { type: 'exponential', delay: 5000 },
+            removeOnComplete: true,
+            removeOnFail: true,
+          }),
+        );
+      }
+    }
 
-    expect(mockQueue.add).toHaveBeenCalledWith(
-      QUEUE_NAMES.VMLAV_SALES_IMPORT,
-      {
-        companyId: 'company-2',
-        date: expect.stringMatching(/^\d{4}-\d{2}-\d{2}$/),
-      },
-      expect.objectContaining({
-        jobId: expect.stringMatching(/^vmlav-import:company-2:/),
-      }),
-    );
-    expect(mockQueue.add).toHaveBeenCalledTimes(2);
+    for (const call of mockQueue.add.mock.calls) {
+      expect(call[1]).not.toHaveProperty('backfill90');
+    }
   });
 
-  it('continua enfileirando próxima empresa quando job ativo já existe', async () => {
-    mockPrisma.company.findMany.mockResolvedValue([
-      { id: 'company-1', name: 'Empresa 1' },
-      { id: 'company-2', name: 'Empresa 2' },
-    ]);
+  it('continua enfileirando a empresa seguinte quando o primeiro job já existe', async () => {
+    mockPrisma.company.findMany.mockResolvedValue(companies);
     mockQueue.add
       .mockRejectedValueOnce(new Error('Job already exists'))
-      .mockResolvedValueOnce({ id: 'job-2' });
+      .mockResolvedValue({ id: 'job-2' });
+    const { today, yesterday } = catchupDates(NOW);
 
     await tasks.handleDailySalesImport();
 
-    expect(mockQueue.add).toHaveBeenCalledTimes(2);
-    expect(mockQueue.add).toHaveBeenLastCalledWith(
+    expect(mockQueue.add).toHaveBeenCalledTimes(4);
+    expect(mockQueue.add).toHaveBeenCalledWith(
       QUEUE_NAMES.VMLAV_SALES_IMPORT,
-      expect.objectContaining({ companyId: 'company-2' }),
+      { companyId: 'company-2', date: today },
       expect.objectContaining({
-        jobId: expect.stringMatching(/^vmlav-import:company-2:/),
-        removeOnComplete: true,
-        removeOnFail: true,
+        jobId: salesCatchupJobId('vmlav', 'company-2', today, NOW),
+      }),
+    );
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      { companyId: 'company-2', date: yesterday },
+      expect.objectContaining({
+        jobId: salesCatchupJobId('vmlav', 'company-2', yesterday, NOW),
       }),
     );
   });
 
-  it('executa cron a cada 30 minutos', () => {
+  it('executa o catch-up a cada 30 minutos', () => {
     const cronOptions = Reflect.getMetadata(
       SCHEDULE_CRON_OPTIONS,
       VmLavSalesTasks.prototype.handleDailySalesImport,
     );
 
     expect(cronOptions).toEqual(
-      expect.objectContaining({ cronTime: '0 */30 * * * *' }),
+      expect.objectContaining({ cronTime: '*/30 * * * *' }),
+    );
+  });
+
+  it('enfileira o backfill semanal de 90 dias por empresa', async () => {
+    mockPrisma.company.findMany.mockResolvedValue(companies);
+    mockQueue.add.mockResolvedValue({ id: 'job-backfill' });
+
+    await tasks.handleWeeklyBackfill();
+
+    expect(mockQueue.add).toHaveBeenCalledTimes(2);
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      { companyId: 'company-1', backfill90: true },
+      expect.objectContaining({
+        jobId: salesBackfill90JobId('vmlav', 'company-1'),
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      }),
+    );
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      QUEUE_NAMES.VMLAV_SALES_IMPORT,
+      { companyId: 'company-2', backfill90: true },
+      expect.objectContaining({
+        jobId: 'vmlav-backfill-90:company-2',
+      }),
+    );
+  });
+
+  it('executa o backfill às 3h de segunda no fuso de funcionamento', () => {
+    const cronOptions = Reflect.getMetadata(
+      SCHEDULE_CRON_OPTIONS,
+      VmLavSalesTasks.prototype.handleWeeklyBackfill,
+    );
+
+    expect(cronOptions).toEqual(
+      expect.objectContaining({
+        cronTime: '0 3 * * 1',
+        timeZone: getOpeningHoursTimezone(),
+      }),
     );
   });
 });
