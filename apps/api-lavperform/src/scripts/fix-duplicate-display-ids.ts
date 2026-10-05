@@ -19,6 +19,13 @@ import { PrismaService } from '../prisma/prisma.service';
  *   DRY_RUN=1 npm run script:fix-duplicate-display-ids                    # só lista, não apaga
  *   COMPANY_ID=<uuid> npm run script:fix-duplicate-display-ids            # restringe a uma empresa
  *   COMPANY_ID=<uuid> DRY_RUN=1 npm run script:fix-duplicate-display-ids  # dry run de uma empresa
+ *   SALES_CHANNEL=CICCLO DRY_RUN=1 npm run script:fix-duplicate-display-ids  # só um canal
+ *
+ * Com SALES_CHANNEL definido:
+ * - lista apenas pedidos desse canal;
+ * - mantém preferencialmente o pedido que já tem MessageOrder (senão o mais antigo);
+ * - move os MessageOrder das cópias para o pedido mantido antes de apagá-las;
+ * - se SALES_CHANNEL=CICCLO e o mantido tem integratorOrderId nulo, grava displayId nele.
  */
 
 interface DuplicateGroup {
@@ -31,6 +38,20 @@ interface DuplicateGroup {
 
 const isDryRun = process.env.DRY_RUN === '1' || process.env.DRY_RUN === 'true';
 const companyIdFilter = process.env.COMPANY_ID?.trim() || null;
+const salesChannelFilter = process.env.SALES_CHANNEL?.trim() || null;
+
+/**
+ * Prefere o pedido que já tem MessageOrder; sem nenhum, o mais antigo do grupo.
+ * `orderIds` vem de ARRAY_AGG(id ORDER BY "createdAt", id).
+ */
+async function chooseSurvivor(prisma: PrismaService, orderIds: string[]): Promise<string> {
+  const linked = await prisma.messageOrder.findFirst({
+    where: { orderId: { in: orderIds } },
+    select: { orderId: true },
+    orderBy: { createdAt: 'asc' },
+  });
+  return linked?.orderId ?? orderIds[0];
+}
 
 async function findDuplicates(
   prisma: PrismaService,
@@ -46,9 +67,17 @@ async function findDuplicates(
     );
   }
 
-  const whereClause = companyId
-    ? Prisma.sql`WHERE "companyId" = ${companyId}`
-    : Prisma.empty;
+  const conditions: Prisma.Sql[] = [];
+  if (companyId) {
+    conditions.push(Prisma.sql`"companyId" = ${companyId}`);
+  }
+  if (salesChannelFilter) {
+    conditions.push(Prisma.sql`"salesChannel"::text = ${salesChannelFilter}`);
+  }
+  const whereClause =
+    conditions.length > 0
+      ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
+      : Prisma.empty;
 
   const duplicates = await prisma.$queryRaw<
     Array<{
@@ -113,6 +142,7 @@ async function fixDuplicates(prisma: PrismaService, duplicates: DuplicateGroup[]
 
   let totalDeleted = 0;
   let totalKept = 0;
+  let totalMessageOrdersMoved = 0;
   const companiesProcessed = new Set<string>();
 
   for (const duplicate of duplicates) {
@@ -128,9 +158,68 @@ async function fixDuplicates(prisma: PrismaService, duplicates: DuplicateGroup[]
     console.log(`   📦 displayId: ${duplicate.displayId} | integratorOrderId: ${integ}`);
     console.log(`   📈 Pedidos no grupo: ${duplicate.count}`);
 
-    const [keptOrderId, ...duplicatedOrderIds] = duplicate.orderIds;
+    let keptOrderId: string;
+    let duplicatedOrderIds: string[];
 
-    const keptOrder = await getOrderDetails(prisma, keptOrderId);
+    if (salesChannelFilter) {
+      keptOrderId = await chooseSurvivor(prisma, duplicate.orderIds);
+    } else {
+      keptOrderId = duplicate.orderIds[0];
+    }
+    duplicatedOrderIds = duplicate.orderIds.filter((id) => id !== keptOrderId);
+
+    let keptOrder = await getOrderDetails(prisma, keptOrderId);
+
+    if (
+      salesChannelFilter === 'CICCLO' &&
+      keptOrder &&
+      keptOrder.integratorOrderId === null
+    ) {
+      if (isDryRun) {
+        console.log(
+          `   [DRY_RUN] Gravaria integratorOrderId = ${duplicate.displayId} no pedido ${keptOrderId}`,
+        );
+      } else {
+        try {
+          await prisma.order.update({
+            where: { id: keptOrderId },
+            data: { integratorOrderId: duplicate.displayId },
+          });
+          console.log(
+            `   🔧 integratorOrderId = ${duplicate.displayId} gravado no pedido ${keptOrderId}`,
+          );
+        } catch (error) {
+          if (
+            error instanceof Prisma.PrismaClientKnownRequestError &&
+            error.code === 'P2002'
+          ) {
+            // Outro pedido do grupo já recebeu esse integratorOrderId: ele passa a ser o mantido.
+            const holder = await prisma.order.findFirst({
+              where: {
+                companyId: duplicate.companyId,
+                integratorOrderId: duplicate.displayId,
+              },
+              select: { id: true },
+            });
+            if (holder && duplicate.orderIds.includes(holder.id)) {
+              console.warn(
+                `   ⚠️  P2002 em ${keptOrderId}: mantendo ${holder.id}, que já tem integratorOrderId ${duplicate.displayId}`,
+              );
+              keptOrderId = holder.id;
+              duplicatedOrderIds = duplicate.orderIds.filter((id) => id !== keptOrderId);
+              keptOrder = await getOrderDetails(prisma, keptOrderId);
+            } else {
+              console.warn(
+                `   ⚠️  P2002 em ${keptOrderId}: integratorOrderId ${duplicate.displayId} já pertence a pedido fora do grupo (${holder?.id ?? 'desconhecido'}); mantendo ${keptOrderId} sem alterar o id`,
+              );
+            }
+          } else {
+            throw error;
+          }
+        }
+      }
+    }
+
     console.log(`   ✅ Mantendo pedido: ${keptOrderId}`);
     console.log(`      - Criado em: ${keptOrder?.createdAt.toLocaleString('pt-BR')}`);
     console.log(`      - Total: R$ ${keptOrder?.total ?? 0}`);
@@ -146,13 +235,39 @@ async function fixDuplicates(prisma: PrismaService, duplicates: DuplicateGroup[]
             `      - Criado em: ${orderToDelete?.createdAt.toLocaleString('pt-BR')}`,
           );
           console.log(`      - Total: R$ ${orderToDelete?.total ?? 0}`);
+          if (salesChannelFilter) {
+            const toMove = await prisma.messageOrder.count({ where: { orderId } });
+            if (toMove > 0) {
+              console.log(
+                `      - [DRY_RUN] Moveria ${toMove} MessageOrder para o pedido ${keptOrderId}`,
+              );
+            }
+            totalMessageOrdersMoved += toMove;
+          }
           totalDeleted++;
           continue;
         }
 
-        await prisma.order.delete({
-          where: { id: orderId },
-        });
+        if (salesChannelFilter) {
+          const moved = await prisma.$transaction(async (tx) => {
+            const result = await tx.messageOrder.updateMany({
+              where: { orderId },
+              data: { orderId: keptOrderId },
+            });
+            await tx.order.delete({ where: { id: orderId } });
+            return result.count;
+          });
+          if (moved > 0) {
+            console.log(
+              `      - ${moved} MessageOrder movido(s) para o pedido ${keptOrderId}`,
+            );
+          }
+          totalMessageOrdersMoved += moved;
+        } else {
+          await prisma.order.delete({
+            where: { id: orderId },
+          });
+        }
 
         console.log(`   🗑️  Pedido ${orderId} EXCLUÍDO`);
         console.log(
@@ -179,6 +294,11 @@ async function fixDuplicates(prisma: PrismaService, duplicates: DuplicateGroup[]
   console.log(
     `${isDryRun ? '🔎 Pedidos que seriam excluídos' : '🗑️  Pedidos excluídos'}: ${totalDeleted}`,
   );
+  if (salesChannelFilter) {
+    console.log(
+      `${isDryRun ? '🔎 MessageOrder que seriam movidos' : '🔀 MessageOrder movidos'}: ${totalMessageOrdersMoved}`,
+    );
+  }
   console.log('='.repeat(70));
 }
 
@@ -211,6 +331,9 @@ async function bootstrap() {
   console.log('🚀 Script de exclusão de pedidos duplicados\n');
   if (isDryRun) {
     console.log('ℹ️  DRY_RUN ativo: nenhum pedido será apagado.\n');
+  }
+  if (salesChannelFilter) {
+    console.log(`ℹ️  Filtro de canal ativo: SALES_CHANNEL=${salesChannelFilter}\n`);
   }
   if (companyIdFilter) {
     console.log(`ℹ️  Filtro de empresa ativo: COMPANY_ID=${companyIdFilter}\n`);
