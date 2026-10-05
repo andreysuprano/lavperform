@@ -5,7 +5,6 @@ import { PrismaService } from 'src/prisma/prisma.service';
 import { SalesImportPartnerSlug } from './sales-import-schedule';
 
 export const DEFAULT_SALES_IMPORT_ALERT_EMAILS = [
-  'andrey@overgroup.com.br',
   'bruno.saibert@overgroup.com.br',
 ];
 
@@ -28,18 +27,31 @@ export function isSalesImportLastAttempt(job: {
   return job.attemptsMade + 1 >= attempts;
 }
 
+const EXCLUDED_SALES_IMPORT_ALERT_EMAILS = ['andrey@overgroup.com.br'];
+
+function withoutExcludedAlertEmails(emails: string[]): string[] {
+  const excluded = new Set(
+    EXCLUDED_SALES_IMPORT_ALERT_EMAILS.map((email) => email.toLowerCase()),
+  );
+  return emails.filter((email) => !excluded.has(email.toLowerCase()));
+}
+
 function resolveSalesImportAlertRecipients(): string[] {
   const raw = process.env.SALES_IMPORT_ALERT_EMAIL;
   if (raw == null || raw.trim() === '') {
-    return [...DEFAULT_SALES_IMPORT_ALERT_EMAILS];
+    return withoutExcludedAlertEmails([...DEFAULT_SALES_IMPORT_ALERT_EMAILS]);
   }
 
-  const emails = raw
-    .split(',')
-    .map((email) => email.trim())
-    .filter((email) => email.length > 0);
+  const emails = withoutExcludedAlertEmails(
+    raw
+      .split(',')
+      .map((email) => email.trim())
+      .filter((email) => email.length > 0),
+  );
 
-  return emails.length > 0 ? emails : [...DEFAULT_SALES_IMPORT_ALERT_EMAILS];
+  return emails.length > 0
+    ? emails
+    : withoutExcludedAlertEmails([...DEFAULT_SALES_IMPORT_ALERT_EMAILS]);
 }
 
 function salesImportAlertThrottleKey(alert: SalesImportFailureAlert): string {

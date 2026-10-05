@@ -23,7 +23,6 @@ jest.mock('@sentry/nestjs', () => ({
   captureException: jest.fn(),
 }));
 
-const ANDREY = 'andrey@overgroup.com.br';
 const BRUNO = 'bruno.saibert@overgroup.com.br';
 
 function sentryContext(current: SalesImportFailureAlert) {
@@ -90,11 +89,11 @@ describe('SalesImportAlertService', () => {
     service = module.get(SalesImportAlertService);
   });
 
-  it('expõe os destinatários padrão Andrey e Bruno', () => {
-    expect(DEFAULT_SALES_IMPORT_ALERT_EMAILS).toEqual([ANDREY, BRUNO]);
+  it('expõe o destinatário padrão Bruno', () => {
+    expect(DEFAULT_SALES_IMPORT_ALERT_EMAILS).toEqual([BRUNO]);
   });
 
-  it('envia para Andrey e Bruno quando a env não está definida', async () => {
+  it('envia para Bruno quando a env não está definida', async () => {
     const error = new Error('timeout no parceiro');
     await service.notify(alert({ error }));
 
@@ -104,7 +103,7 @@ describe('SalesImportAlertService', () => {
       string,
       string,
     ];
-    expect(to).toBe(`${ANDREY},${BRUNO}`);
+    expect(to).toBe(BRUNO);
     expect(subject).toContain('vmlav');
     expect(html).toContain('vmlav');
     expect(html).toContain('De Praxe');
@@ -129,6 +128,16 @@ describe('SalesImportAlertService', () => {
 
     const html = mockSendMail.mock.calls[0][2] as string;
     expect(html).toContain('backfill de 90 dias');
+  });
+
+  it('ignora o e-mail do Andrey mesmo quando a env o inclui', async () => {
+    process.env.SALES_IMPORT_ALERT_EMAIL =
+      'andrey@overgroup.com.br, bruno.saibert@overgroup.com.br';
+
+    await service.notify(alert());
+
+    expect(mockSendMail).toHaveBeenCalledTimes(1);
+    expect(mockSendMail.mock.calls[0][0]).toBe(BRUNO);
   });
 
   it('usa SALES_IMPORT_ALERT_EMAIL separado por vírgula, com trim', async () => {
