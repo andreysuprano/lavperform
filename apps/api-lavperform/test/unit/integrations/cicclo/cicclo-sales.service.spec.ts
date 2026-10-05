@@ -100,6 +100,16 @@ describe('CiccloSalesService processSale', () => {
 
     await service.processSale('company-1', buildSale(777));
 
+    expect(prisma.order.findFirst).toHaveBeenCalledTimes(1);
+    expect(prisma.order.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          companyId: 'company-1',
+          salesChannel: 'CICCLO',
+          OR: [{ integratorOrderId: 777 }, { displayId: 777 }],
+        },
+      }),
+    );
     expect(orderService.create).not.toHaveBeenCalled();
     expect(customerIdentityService.resolveForSale).not.toHaveBeenCalled();
     expect(prisma.order.update).toHaveBeenCalledWith({
@@ -117,6 +127,27 @@ describe('CiccloSalesService processSale', () => {
     orderService.create.mockRejectedValue(unique);
 
     await expect(service.processSale('company-1', buildSale())).resolves.toBeUndefined();
+  });
+
+  it('trata P2002 com target em string (nome da constraint) como venda já gravada', async () => {
+    prisma.order.findFirst.mockResolvedValue(null);
+    const unique = Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+      meta: { target: 'Order_companyId_integratorOrderId_key' },
+    });
+    orderService.create.mockRejectedValue(unique);
+
+    await expect(service.processSale('company-1', buildSale())).resolves.toBeUndefined();
+  });
+
+  it('repropaga P2002 de create sem meta.target', async () => {
+    prisma.order.findFirst.mockResolvedValue(null);
+    const unique = Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+    });
+    orderService.create.mockRejectedValue(unique);
+
+    await expect(service.processSale('company-1', buildSale())).rejects.toBe(unique);
   });
 
   it('repropaga P2002 de create cujo target não é o id do integrador', async () => {

@@ -1,10 +1,13 @@
-import { NestFactory } from '@nestjs/core';
-import { Prisma } from '@prisma/client';
-import { AppModule } from '../app.module';
-import { PrismaService } from '../prisma/prisma.service';
+import 'dotenv/config';
+import { Prisma, PrismaClient } from '@prisma/client';
+import { PrismaPg } from '@prisma/adapter-pg';
+import { createDatabasePool } from '../prisma/database-pool';
 
 /**
  * Remove pedidos duplicados por (companyId, displayId, integratorOrderId).
+ *
+ * Não sobe o AppModule do Nest (evita iniciar processors/cron contra o banco real);
+ * usa apenas um PrismaClient próprio.
  *
  * Integrações como Cicclo usam displayId e integratorOrderId alinhados ao ID da venda
  * externa; reprocessamentos podem gerar mais de um registro com a mesma chave lógica.
@@ -23,7 +26,10 @@ import { PrismaService } from '../prisma/prisma.service';
  *
  * Com SALES_CHANNEL definido:
  * - lista apenas pedidos desse canal;
- * - mantém preferencialmente o pedido que já tem MessageOrder (senão o mais antigo);
+ * - agrupa só por (companyId, displayId), sem integratorOrderId (depois que o processSale
+ *   grava o id na cópia mais antiga, o agrupamento por integratorOrderId separaria o grupo);
+ * - mantém, nesta ordem: pedido que já tem integratorOrderId; senão o que tem o
+ *   MessageOrder mais antigo; senão o primeiro (mais antigo por createdAt, id);
  * - move os MessageOrder das cópias para o pedido mantido antes de apagá-las;
  * - se SALES_CHANNEL=CICCLO e o mantido tem integratorOrderId nulo, grava displayId nele.
  */
@@ -41,10 +47,24 @@ const companyIdFilter = process.env.COMPANY_ID?.trim() || null;
 const salesChannelFilter = process.env.SALES_CHANNEL?.trim() || null;
 
 /**
- * Prefere o pedido que já tem MessageOrder; sem nenhum, o mais antigo do grupo.
+ * Ordem de preferência: pedido com integratorOrderId já gravado; senão o com
+ * MessageOrder mais antigo; senão o primeiro do grupo.
  * `orderIds` vem de ARRAY_AGG(id ORDER BY "createdAt", id).
  */
-async function chooseSurvivor(prisma: PrismaService, orderIds: string[]): Promise<string> {
+async function chooseSurvivor(prisma: PrismaClient, orderIds: string[]): Promise<string> {
+  const stamped = await prisma.order.findMany({
+    where: { id: { in: orderIds }, integratorOrderId: { not: null } },
+    select: { id: true },
+  });
+  if (stamped.length > 0) {
+    const stampedIds = new Set(stamped.map((o) => o.id));
+    // preserva a ordem (createdAt, id) do grupo
+    const first = orderIds.find((id) => stampedIds.has(id));
+    if (first) {
+      return first;
+    }
+  }
+
   const linked = await prisma.messageOrder.findFirst({
     where: { orderId: { in: orderIds } },
     select: { orderId: true },
@@ -54,17 +74,16 @@ async function chooseSurvivor(prisma: PrismaService, orderIds: string[]): Promis
 }
 
 async function findDuplicates(
-  prisma: PrismaService,
+  prisma: PrismaClient,
   companyId: string | null,
 ): Promise<DuplicateGroup[]> {
+  const keys = salesChannelFilter
+    ? 'companyId + displayId'
+    : 'companyId + displayId + integratorOrderId';
   if (companyId) {
-    console.log(
-      `🔍 Buscando pedidos duplicados (displayId + integratorOrderId) para a empresa ${companyId}...\n`,
-    );
+    console.log(`🔍 Buscando pedidos duplicados (${keys}) para a empresa ${companyId}...\n`);
   } else {
-    console.log(
-      '🔍 Buscando pedidos duplicados (companyId + displayId + integratorOrderId) em TODAS as empresas...\n',
-    );
+    console.log(`🔍 Buscando pedidos duplicados (${keys}) em TODAS as empresas...\n`);
   }
 
   const conditions: Prisma.Sql[] = [];
@@ -79,27 +98,43 @@ async function findDuplicates(
       ? Prisma.sql`WHERE ${Prisma.join(conditions, ' AND ')}`
       : Prisma.empty;
 
-  const duplicates = await prisma.$queryRaw<
-    Array<{
-      companyId: string;
-      displayId: number;
-      integratorOrderId: number | null;
-      count: bigint;
-      orderIds: string[];
-    }>
-  >`
-    SELECT
-      "companyId",
-      "displayId",
-      "integratorOrderId",
-      COUNT(*)::bigint AS count,
-      ARRAY_AGG(id ORDER BY "createdAt", id) AS "orderIds"
-    FROM "Order"
-    ${whereClause}
-    GROUP BY "companyId", "displayId", "integratorOrderId"
-    HAVING COUNT(*) > 1
-    ORDER BY count DESC, "companyId", "displayId", "integratorOrderId"
-  `;
+  type Row = {
+    companyId: string;
+    displayId: number;
+    integratorOrderId: number | null;
+    count: bigint;
+    orderIds: string[];
+  };
+
+  // Com SALES_CHANNEL: só (companyId, displayId). Depois que o processSale grava o id
+  // na cópia mais antiga, incluir integratorOrderId separaria o grupo e perderia as cópias.
+  const duplicates = salesChannelFilter
+    ? await prisma.$queryRaw<Row[]>`
+        SELECT
+          "companyId",
+          "displayId",
+          NULL::int AS "integratorOrderId",
+          COUNT(*)::bigint AS count,
+          ARRAY_AGG(id ORDER BY "createdAt", id) AS "orderIds"
+        FROM "Order"
+        ${whereClause}
+        GROUP BY "companyId", "displayId"
+        HAVING COUNT(*) > 1
+        ORDER BY count DESC, "companyId", "displayId"
+      `
+    : await prisma.$queryRaw<Row[]>`
+        SELECT
+          "companyId",
+          "displayId",
+          "integratorOrderId",
+          COUNT(*)::bigint AS count,
+          ARRAY_AGG(id ORDER BY "createdAt", id) AS "orderIds"
+        FROM "Order"
+        ${whereClause}
+        GROUP BY "companyId", "displayId", "integratorOrderId"
+        HAVING COUNT(*) > 1
+        ORDER BY count DESC, "companyId", "displayId", "integratorOrderId"
+      `;
 
   return duplicates.map((d) => ({
     companyId: d.companyId,
@@ -110,7 +145,7 @@ async function findDuplicates(
   }));
 }
 
-async function getCompanyName(prisma: PrismaService, companyId: string): Promise<string> {
+async function getCompanyName(prisma: PrismaClient, companyId: string): Promise<string> {
   const company = await prisma.company.findUnique({
     where: { id: companyId },
     select: { name: true },
@@ -118,7 +153,7 @@ async function getCompanyName(prisma: PrismaService, companyId: string): Promise
   return company?.name || 'Desconhecida';
 }
 
-async function getOrderDetails(prisma: PrismaService, orderId: string) {
+async function getOrderDetails(prisma: PrismaClient, orderId: string) {
   return prisma.order.findUnique({
     where: { id: orderId },
     select: {
@@ -132,7 +167,7 @@ async function getOrderDetails(prisma: PrismaService, orderId: string) {
   });
 }
 
-async function fixDuplicates(prisma: PrismaService, duplicates: DuplicateGroup[]): Promise<void> {
+async function fixDuplicates(prisma: PrismaClient, duplicates: DuplicateGroup[]): Promise<void> {
   console.log(`\n📊 Encontrados ${duplicates.length} grupos duplicados\n`);
 
   if (duplicates.length === 0) {
@@ -149,8 +184,9 @@ async function fixDuplicates(prisma: PrismaService, duplicates: DuplicateGroup[]
     const companyName = await getCompanyName(prisma, duplicate.companyId);
     companiesProcessed.add(duplicate.companyId);
 
-    const integ =
-      duplicate.integratorOrderId === null
+    const integ = salesChannelFilter
+      ? '(fora do agrupamento)'
+      : duplicate.integratorOrderId === null
         ? 'NULL'
         : String(duplicate.integratorOrderId);
 
@@ -303,7 +339,7 @@ async function fixDuplicates(prisma: PrismaService, duplicates: DuplicateGroup[]
 }
 
 async function validateFix(
-  prisma: PrismaService,
+  prisma: PrismaClient,
   companyId: string | null,
 ): Promise<void> {
   console.log('\n🔍 Validando correção...\n');
@@ -312,15 +348,21 @@ async function validateFix(
 
   if (remainingDuplicates.length === 0) {
     console.log(
-      '✅ Validação: não há mais duplicados por (companyId, displayId, integratorOrderId)!\n',
+      `✅ Validação: não há mais duplicados por (${
+        salesChannelFilter
+          ? 'companyId, displayId'
+          : 'companyId, displayId, integratorOrderId'
+      })!\n`,
     );
   } else {
     console.log(`⚠️  Ainda existem ${remainingDuplicates.length} grupos duplicados:`);
     for (const dup of remainingDuplicates) {
       const companyName = await getCompanyName(prisma, dup.companyId);
-      const integ = dup.integratorOrderId === null ? 'NULL' : String(dup.integratorOrderId);
+      const integ = salesChannelFilter
+        ? ''
+        : `, integratorOrderId ${dup.integratorOrderId === null ? 'NULL' : String(dup.integratorOrderId)}`;
       console.log(
-        `   - ${companyName}: displayId ${dup.displayId}, integratorOrderId ${integ} (${dup.count} ocorrências)`,
+        `   - ${companyName}: displayId ${dup.displayId}${integ} (${dup.count} ocorrências)`,
       );
     }
     console.log('\n');
@@ -341,11 +383,10 @@ async function bootstrap() {
     console.log('ℹ️  Nenhum COMPANY_ID informado: rodando em TODAS as empresas.\n');
   }
 
-  const app = await NestFactory.createApplicationContext(AppModule, {
-    logger: ['error', 'warn', 'log'],
-  });
-
-  const prisma = app.get(PrismaService);
+  // PrismaClient próprio (mesmo pool/adapter do PrismaService), sem AppModule:
+  // não inicia CiccloSalesProcessor nem cron.
+  const pool = createDatabasePool();
+  const prisma = new PrismaClient({ adapter: new PrismaPg(pool) });
 
   try {
     if (companyIdFilter) {
@@ -358,7 +399,8 @@ async function bootstrap() {
         console.error(
           `❌ Empresa não encontrada para COMPANY_ID=${companyIdFilter}. Abortando.\n`,
         );
-        process.exit(1);
+        process.exitCode = 1;
+        return;
       }
 
       console.log(`🏢 Empresa alvo: ${company.name} (${company.id})\n`);
@@ -401,9 +443,10 @@ async function bootstrap() {
   } catch (error) {
     console.error('\n❌ Erro ao executar script:');
     console.error(error);
-    process.exit(1);
+    process.exitCode = 1;
   } finally {
-    await app.close();
+    await prisma.$disconnect();
+    await pool.end();
   }
 }
 

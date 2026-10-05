@@ -29,7 +29,8 @@ function isIntegratorOrderIdUniqueConflict(error: unknown): boolean {
   }
   const target = err.meta?.target;
   if (typeof target === 'string') {
-    return target === 'integratorOrderId';
+    // nome da constraint, ex.: Order_companyId_integratorOrderId_key
+    return target.includes('integratorOrderId');
   }
   return Array.isArray(target) && target.includes('integratorOrderId');
 }
@@ -133,7 +134,10 @@ export class CiccloSalesService {
   }
 
   /**
-   * Processa uma venda individual: upsert do cliente e criação do pedido
+   * Processa uma venda individual: antes de criar, procura pedido CICCLO da empresa
+   * com integratorOrderId ou displayId igual ao id da venda (pedidos antigos só têm
+   * displayId). Se existir, grava integratorOrderId quando faltar e não cria cópia;
+   * senão faz upsert do cliente e cria o pedido.
    */
   async processSale(companyId: string, sale: CiccloSale): Promise<void> {
     try {
