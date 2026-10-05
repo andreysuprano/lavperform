@@ -22,6 +22,18 @@ import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-in
 import { CiccloSaleMapping } from '../mappings/cicclo-sale-mapping';
 import { CiccloImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
 
+function isIntegratorOrderIdUniqueConflict(error: unknown): boolean {
+  const err = error as { code?: string; meta?: { target?: unknown } };
+  if (err?.code !== 'P2002') {
+    return false;
+  }
+  const target = err.meta?.target;
+  if (typeof target === 'string') {
+    return target === 'integratorOrderId';
+  }
+  return Array.isArray(target) && target.includes('integratorOrderId');
+}
+
 @Injectable()
 export class CiccloSalesService {
   private readonly logger = new Logger(CiccloSalesService.name);
@@ -144,10 +156,20 @@ export class CiccloSalesService {
 
       if (existingOrder) {
         if (existingOrder.integratorOrderId == null) {
-          await this.prisma.order.update({
-            where: { id: existingOrder.id },
-            data: { integratorOrderId: sale.id },
-          });
+          try {
+            await this.prisma.order.update({
+              where: { id: existingOrder.id },
+              data: { integratorOrderId: sale.id },
+            });
+          } catch (error) {
+            if (isIntegratorOrderIdUniqueConflict(error)) {
+              this.logger.log(
+                `Pedido Cicclo ${sale.id} já foi gravado por outra execução, ignorando`,
+              );
+              return;
+            }
+            throw error;
+          }
         }
         this.logger.log(`Pedido Cicclo ${sale.id} já existe, ignorando`);
         return;
@@ -185,29 +207,32 @@ export class CiccloSalesService {
 
       const saleDate = parseUTCDate(sale.createdAt);
 
-      const order = await this.orderService.create({
-        ...orderCreateData,
-        integratorOrderId: sale.id,
-        createdAt: saleDate!,
-        updatedAt: saleDate!,
-        items,
-        discounts,
-        payments,
-        deliveryAddress,
-        schedule,
-      });
+      try {
+        const order = await this.orderService.create({
+          ...orderCreateData,
+          integratorOrderId: sale.id,
+          createdAt: saleDate!,
+          updatedAt: saleDate!,
+          items,
+          discounts,
+          payments,
+          deliveryAddress,
+          schedule,
+        });
 
-      this.logger.log(
-        `Pedido ${order.id} criado com sucesso para venda Cicclo ${sale.id}`,
-      );
-    } catch (error) {
-      const code = (error as { code?: string })?.code;
-      if (code === 'P2002') {
         this.logger.log(
-          `Pedido Cicclo ${sale.id} já foi gravado por outra execução, ignorando`,
+          `Pedido ${order.id} criado com sucesso para venda Cicclo ${sale.id}`,
         );
-        return;
+      } catch (error) {
+        if (isIntegratorOrderIdUniqueConflict(error)) {
+          this.logger.log(
+            `Pedido Cicclo ${sale.id} já foi gravado por outra execução, ignorando`,
+          );
+          return;
+        }
+        throw error;
       }
+    } catch (error) {
       this.logger.error(
         `Erro ao processar venda Cicclo ${sale.id}:`,
         error.message,

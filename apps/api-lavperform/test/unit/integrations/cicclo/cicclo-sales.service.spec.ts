@@ -112,9 +112,49 @@ describe('CiccloSalesService processSale', () => {
     prisma.order.findFirst.mockResolvedValue(null);
     const unique = Object.assign(new Error('Unique constraint failed'), {
       code: 'P2002',
+      meta: { target: ['companyId', 'integratorOrderId'] },
     });
     orderService.create.mockRejectedValue(unique);
 
     await expect(service.processSale('company-1', buildSale())).resolves.toBeUndefined();
+  });
+
+  it('repropaga P2002 de create cujo target não é o id do integrador', async () => {
+    prisma.order.findFirst.mockResolvedValue(null);
+    const unique = Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+      meta: { target: ['companyId', 'externalOrderId'] },
+    });
+    orderService.create.mockRejectedValue(unique);
+
+    await expect(service.processSale('company-1', buildSale())).rejects.toBe(unique);
+  });
+
+  it('repropaga P2002 de resolveForSale mesmo com target do integrador', async () => {
+    prisma.order.findFirst.mockResolvedValue(null);
+    const unique = Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+      meta: { target: ['companyId', 'integratorOrderId'] },
+    });
+    customerIdentityService.resolveForSale.mockRejectedValue(unique);
+
+    await expect(service.processSale('company-1', buildSale())).rejects.toBe(unique);
+    expect(orderService.create).not.toHaveBeenCalled();
+  });
+
+  it('trata corrida no update do integratorOrderId sem criar pedido', async () => {
+    prisma.order.findFirst.mockResolvedValue({
+      id: 'order-old',
+      integratorOrderId: null,
+    });
+    const unique = Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+      meta: { target: ['companyId', 'integratorOrderId'] },
+    });
+    prisma.order.update.mockRejectedValue(unique);
+
+    await expect(service.processSale('company-1', buildSale(777))).resolves.toBeUndefined();
+    expect(orderService.create).not.toHaveBeenCalled();
+    expect(customerIdentityService.resolveForSale).not.toHaveBeenCalled();
   });
 });
