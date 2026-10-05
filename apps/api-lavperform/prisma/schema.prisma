@@ -827,8 +827,9 @@ model Order {
 
   @@unique([companyId, externalOrderId])
   @@index([merchantId, displayId])
+  @@index([companyId, displayId])
   @@index([companyId, createdAt])
-  @@index([companyId, integratorOrderId])
+  @@unique([companyId, integratorOrderId])
   @@index([companyId, externalOrderId])
   @@index([customerId])
   @@index([customerId, createdAt(sort: Desc)])
