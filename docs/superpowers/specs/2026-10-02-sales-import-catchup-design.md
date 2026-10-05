@@ -95,12 +95,11 @@ Na revalidação, se 400 ms ainda gerar 429 ou a fila semanal ficar lenta demais
 
 Job de importação ou backfill que quebra não marca o dia como concluído. Bull tenta 3 vezes com backoff exponencial. O próximo slot de 30 minutos ainda puxa hoje e ontem.
 
-Alerta só na última tentativa. Destinatários:
+Alerta só na última tentativa. Destinatário:
 
-- andrey@overgroup.com.br
 - bruno.saibert@overgroup.com.br
 
-Lista configurável por env (`SALES_IMPORT_ALERT_EMAIL`), padrão esses dois. Não envia para o e-mail da loja.
+Lista configurável por env (`SALES_IMPORT_ALERT_EMAIL`), padrão esse endereço. `andrey@overgroup.com.br` é ignorado mesmo se estiver na env. Não envia para o e-mail da loja.
 
 Corpo do e-mail:
 
