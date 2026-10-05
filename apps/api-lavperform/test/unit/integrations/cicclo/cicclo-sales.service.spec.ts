@@ -107,4 +107,14 @@ describe('CiccloSalesService processSale', () => {
       data: { integratorOrderId: 777 },
     });
   });
+
+  it('trata corrida do índice único como venda já gravada', async () => {
+    prisma.order.findFirst.mockResolvedValue(null);
+    const unique = Object.assign(new Error('Unique constraint failed'), {
+      code: 'P2002',
+    });
+    orderService.create.mockRejectedValue(unique);
+
+    await expect(service.processSale('company-1', buildSale())).resolves.toBeUndefined();
+  });
 });

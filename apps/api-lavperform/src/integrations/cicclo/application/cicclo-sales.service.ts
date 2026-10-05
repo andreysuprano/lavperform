@@ -201,6 +201,13 @@ export class CiccloSalesService {
         `Pedido ${order.id} criado com sucesso para venda Cicclo ${sale.id}`,
       );
     } catch (error) {
+      const code = (error as { code?: string })?.code;
+      if (code === 'P2002') {
+        this.logger.log(
+          `Pedido Cicclo ${sale.id} já foi gravado por outra execução, ignorando`,
+        );
+        return;
+      }
       this.logger.error(
         `Erro ao processar venda Cicclo ${sale.id}:`,
         error.message,
