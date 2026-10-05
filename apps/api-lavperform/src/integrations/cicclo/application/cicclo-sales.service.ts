@@ -129,8 +129,31 @@ export class CiccloSalesService {
         `Processando venda Cicclo ${sale.id} - Cliente: ${sale.customer?.name}`,
       );
 
-      const ciccloCustomer = sale.customer;
+      const existingOrder = await this.prisma.order.findFirst({
+        where: {
+          companyId,
+          salesChannel: 'CICCLO',
+          OR: [
+            { integratorOrderId: sale.id },
+            { displayId: sale.id },
+          ],
+        },
+        select: { id: true, integratorOrderId: true },
+        orderBy: { id: 'asc' },
+      });
 
+      if (existingOrder) {
+        if (existingOrder.integratorOrderId == null) {
+          await this.prisma.order.update({
+            where: { id: existingOrder.id },
+            data: { integratorOrderId: sale.id },
+          });
+        }
+        this.logger.log(`Pedido Cicclo ${sale.id} já existe, ignorando`);
+        return;
+      }
+
+      const ciccloCustomer = sale.customer;
       const customer = await this.customerIdentityService.resolveForSale({
         companyId,
         incoming: {
@@ -144,23 +167,14 @@ export class CiccloSalesService {
         },
       });
 
-      const existingOrder = await this.orderService.findByIntegratorOrderId(
-        companyId,
-        sale.id,
-      );
-
-      if (existingOrder) {
-        this.logger.log(
-          `Pedido Cicclo ${sale.id} já existe, ignorando`,
-        );
-        return;
-      }
-
       this.logger.log(`Criando pedido para venda Cicclo ${sale.id}`);
 
-      const orderData = CiccloSaleMapping.toOrder(sale, customer?.id ?? null, companyId);
+      const orderData = CiccloSaleMapping.toOrder(
+        sale,
+        customer?.id ?? null,
+        companyId,
+      );
       const {
-        integratorOrderId,
         items,
         discounts,
         payments,
@@ -173,6 +187,7 @@ export class CiccloSalesService {
 
       const order = await this.orderService.create({
         ...orderCreateData,
+        integratorOrderId: sale.id,
         createdAt: saleDate!,
         updatedAt: saleDate!,
         items,
