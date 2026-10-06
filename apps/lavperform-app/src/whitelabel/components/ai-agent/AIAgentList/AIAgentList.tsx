@@ -38,8 +38,8 @@ function AIAgentListBase({ onAgentSelect: _onAgentSelect }: Props) {
   if (error) {
     return (
       <Empty
-        title="Erro ao carregar agentes"
-        description="Não foi possível carregar os agentes de IA. Tente novamente."
+        title="Em manutenção"
+        description="Estamos ajustando os agentes de IA. Tente novamente mais tarde."
       />
     )
   }
