@@ -6,6 +6,7 @@ import {
   salesDailyImportJobId,
   salesImportSlot,
   utcDateOnly,
+  weeklyReplayRange,
 } from 'src/integrations/sales-import/sales-import-schedule';
 
 describe('sales-import-schedule', () => {
@@ -48,6 +49,13 @@ describe('sales-import-schedule', () => {
     expect(a).toBe('vmlav-import:c1:2026-10-01:1400');
     expect(b).toBe('vmlav-import:c1:2026-10-01:1430');
     expect(a).not.toBe(b);
+  });
+
+  it('reexecução semanal cobre os últimos 7 dias, incluindo hoje', () => {
+    expect(weeklyReplayRange(new Date('2026-10-05T06:00:00.000Z'))).toEqual({
+      startDate: '2026-09-29',
+      endDate: '2026-10-05',
+    });
   });
 
   it('jobId de backfill é um por empresa', () => {

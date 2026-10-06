@@ -76,7 +76,7 @@ function escapeHtml(value: string): string {
 }
 
 function kindLabel(kind: SalesImportFailureAlert['kind']): string {
-  return kind === 'backfill90' ? 'backfill de 90 dias' : 'catch-up do dia';
+  return kind === 'backfill90' ? 'reexecução de 7 dias' : 'catch-up do dia';
 }
 
 function renderSalesImportAlertHtml(

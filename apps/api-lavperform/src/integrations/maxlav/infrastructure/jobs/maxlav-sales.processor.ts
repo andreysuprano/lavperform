@@ -7,6 +7,7 @@ import {
   isSalesImportLastAttempt,
   SalesImportAlertService,
 } from '../../../sales-import/sales-import-alert.service';
+import { weeklyReplayRange } from '../../../sales-import/sales-import-schedule';
 
 interface MaxlavSalesJobData {
   companyId: string;
@@ -30,16 +31,16 @@ export class MaxlavSalesProcessor {
     try {
       if (backfill90) {
         this.logger.log(
-          `Processando backfill de 90 dias Maxlav para empresa ${companyId}`,
+          `Processando reexecução de 7 dias Maxlav para empresa ${companyId}`,
         );
 
         const result = await this.maxlavSalesService.importHistoricalSales(
           companyId,
-          {},
+          weeklyReplayRange(),
         );
 
         this.logger.log(
-          `Backfill de 90 dias concluído para empresa ${companyId}: ${result.jobsCreated} jobs`,
+          `Reexecução de 7 dias concluída para empresa ${companyId}: ${result.jobsCreated} jobs`,
         );
 
         return result;

@@ -81,8 +81,8 @@ export class L2AutomateSalesTasks {
   }
 
   /**
-   * Segunda-feira às 03:00 no fuso de funcionamento, enfileira o backfill
-   * de 90 dias. Um job por empresa; colisão ativa é ignorada.
+   * Segunda-feira às 03:00 no fuso de funcionamento, enfileira a reexecução
+   * dos últimos 7 dias. Um job por empresa; colisão ativa é ignorada.
    */
   @Cron('0 3 * * 1', { timeZone: getOpeningHoursTimezone() })
   async handleWeeklyBackfill() {
@@ -116,7 +116,7 @@ export class L2AutomateSalesTasks {
         }
 
         this.logger.log(
-          `Empresa ${company.name} (${company.id}) adicionada à fila de backfill de 90 dias`,
+          `Empresa ${company.name} (${company.id}) adicionada à fila de reexecução de 7 dias`,
         );
       }
     } catch (error) {

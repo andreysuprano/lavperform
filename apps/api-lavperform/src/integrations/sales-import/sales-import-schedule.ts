@@ -37,6 +37,17 @@ export function salesCatchupJobId(
   return `${partner}-import:${companyId}:${date}:${salesImportSlot(now)}`;
 }
 
+const WEEKLY_REPLAY_DAYS = 7;
+
+export function weeklyReplayRange(now: Date = new Date()): {
+  startDate: string;
+  endDate: string;
+} {
+  const start = new Date(now);
+  start.setUTCDate(start.getUTCDate() - (WEEKLY_REPLAY_DAYS - 1));
+  return { startDate: utcDateOnly(start), endDate: utcDateOnly(now) };
+}
+
 export function salesBackfill90JobId(
   partner: SalesImportPartnerSlug,
   companyId: string,
