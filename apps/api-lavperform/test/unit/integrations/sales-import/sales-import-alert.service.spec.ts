@@ -123,11 +123,11 @@ describe('SalesImportAlertService', () => {
     );
   });
 
-  it('descreve backfill de 90 dias no corpo', async () => {
+  it('descreve a reexecução de 7 dias no corpo', async () => {
     await service.notify(alert({ kind: 'backfill90', date: undefined }));
 
     const html = mockSendMail.mock.calls[0][2] as string;
-    expect(html).toContain('backfill de 90 dias');
+    expect(html).toContain('reexecução de 7 dias');
   });
 
   it('ignora o e-mail do Andrey mesmo quando a env o inclui', async () => {

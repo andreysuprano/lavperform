@@ -1,5 +1,6 @@
 import { Job } from 'bull';
 import { L2AutomateSalesProcessor } from 'src/integrations/l2automate/infrastructure/jobs/l2automate-sales.processor';
+import { weeklyReplayRange } from 'src/integrations/sales-import/sales-import-schedule';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 
 const PROCESS_METADATA = 'bull:module_queue_process';
@@ -53,7 +54,7 @@ describe('L2AutomateSalesProcessor', () => {
     expect(l2AutomateSalesService.importHistoricalSales).not.toHaveBeenCalled();
   });
 
-  it('importa 90 dias quando o job pede backfill', async () => {
+  it('reexecuta os últimos 7 dias quando o job pede backfill', async () => {
     const l2AutomateSalesService = {
       processDailySales: jest.fn(),
       importHistoricalSales: jest.fn().mockResolvedValue({
@@ -74,7 +75,7 @@ describe('L2AutomateSalesProcessor', () => {
 
     expect(l2AutomateSalesService.importHistoricalSales).toHaveBeenCalledWith(
       'company-1',
-      {},
+      weeklyReplayRange(),
     );
     expect(l2AutomateSalesService.processDailySales).not.toHaveBeenCalled();
   });

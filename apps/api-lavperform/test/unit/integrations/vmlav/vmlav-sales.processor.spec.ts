@@ -1,5 +1,6 @@
 import { Job } from 'bull';
 import { VmLavSalesProcessor } from 'src/integrations/vmlav/infrastructure/jobs/vmlav-sales.processor';
+import { weeklyReplayRange } from 'src/integrations/sales-import/sales-import-schedule';
 import { VmLavSaleProcessor } from 'src/integrations/vmlav/infrastructure/jobs/vmlav-sale.processor';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 
@@ -68,7 +69,7 @@ describe('VmLav processors', () => {
     });
   });
 
-  it('importa 90 dias quando o job pede backfill', async () => {
+  it('reexecuta os últimos 7 dias quando o job pede backfill', async () => {
     const vmLavSalesService = {
       processDailySales: jest.fn(),
       importHistoricalSales: jest.fn().mockResolvedValue({
@@ -89,7 +90,7 @@ describe('VmLav processors', () => {
 
     expect(vmLavSalesService.importHistoricalSales).toHaveBeenCalledWith(
       'company-1',
-      {},
+      weeklyReplayRange(),
     );
     expect(vmLavSalesService.processDailySales).not.toHaveBeenCalled();
   });

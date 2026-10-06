@@ -139,7 +139,7 @@ describe('MaxlavSalesTasks', () => {
     );
   });
 
-  it('enfileira o backfill semanal de 90 dias por empresa', async () => {
+  it('enfileira a reexecução semanal por empresa', async () => {
     mockPrisma.company.findMany.mockResolvedValue(companies);
     mockQueue.add.mockResolvedValue({ id: 'job-backfill' });
 

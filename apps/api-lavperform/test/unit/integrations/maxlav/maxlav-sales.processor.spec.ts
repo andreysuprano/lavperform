@@ -1,5 +1,6 @@
 import { Job } from 'bull';
 import { MaxlavSalesProcessor } from 'src/integrations/maxlav/infrastructure/jobs/maxlav-sales.processor';
+import { weeklyReplayRange } from 'src/integrations/sales-import/sales-import-schedule';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 
 const PROCESS_METADATA = 'bull:module_queue_process';
@@ -53,7 +54,7 @@ describe('MaxlavSalesProcessor', () => {
     expect(maxlavSalesService.importHistoricalSales).not.toHaveBeenCalled();
   });
 
-  it('importa 90 dias quando o job pede backfill', async () => {
+  it('reexecuta os últimos 7 dias quando o job pede backfill', async () => {
     const maxlavSalesService = {
       processDailySales: jest.fn(),
       importHistoricalSales: jest.fn().mockResolvedValue({
@@ -74,7 +75,7 @@ describe('MaxlavSalesProcessor', () => {
 
     expect(maxlavSalesService.importHistoricalSales).toHaveBeenCalledWith(
       'company-1',
-      {},
+      weeklyReplayRange(),
     );
     expect(maxlavSalesService.processDailySales).not.toHaveBeenCalled();
   });

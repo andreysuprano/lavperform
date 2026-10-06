@@ -1,5 +1,6 @@
 import { Job } from 'bull';
 import { AgidezSalesProcessor } from 'src/integrations/agidez/infrastructure/jobs/agidez-sales.processor';
+import { weeklyReplayRange } from 'src/integrations/sales-import/sales-import-schedule';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 
 const PROCESS_METADATA = 'bull:module_queue_process';
@@ -85,7 +86,7 @@ describe('AgidezSalesProcessor', () => {
     expect(order).toEqual(['sync', 'backfill']);
     expect(agidezSalesService.importHistoricalSales).toHaveBeenCalledWith(
       'company-1',
-      {},
+      weeklyReplayRange(),
     );
     expect(agidezSalesService.processDailySales).not.toHaveBeenCalled();
   });
@@ -114,7 +115,7 @@ describe('AgidezSalesProcessor', () => {
     expect(agidezSalesService.syncCustomers).not.toHaveBeenCalled();
   });
 
-  it('importa 90 dias quando o job pede backfill', async () => {
+  it('reexecuta os últimos 7 dias quando o job pede backfill', async () => {
     const agidezSalesService = {
       syncCustomers: jest.fn(),
       processDailySales: jest.fn(),
@@ -136,7 +137,7 @@ describe('AgidezSalesProcessor', () => {
 
     expect(agidezSalesService.importHistoricalSales).toHaveBeenCalledWith(
       'company-1',
-      {},
+      weeklyReplayRange(),
     );
     expect(agidezSalesService.processDailySales).not.toHaveBeenCalled();
     expect(agidezSalesService.syncCustomers).not.toHaveBeenCalled();
