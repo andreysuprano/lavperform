@@ -4,10 +4,10 @@ export class IngestOrderQueuedResponseDto {
   @ApiProperty({ example: 'queued', enum: ['queued'] })
   status: 'queued';
 
-  @ApiProperty({ example: 'company-uuid:order-ext-123' })
+  @ApiProperty({ example: 'company-uuid:os-ext-12345' })
   jobId: string;
 
-  @ApiProperty({ example: 'order-ext-123' })
+  @ApiProperty({ example: 'os-ext-12345' })
   externalOrderId: string;
 }
 
@@ -15,10 +15,10 @@ export class IngestOrderAlreadyReceivedResponseDto {
   @ApiProperty({ example: 'already_received', enum: ['already_received'] })
   status: 'already_received';
 
-  @ApiProperty({ example: 'order-ext-123' })
+  @ApiProperty({ example: 'os-ext-12345' })
   externalOrderId: string;
 
-  @ApiPropertyOptional({ example: 'uuid-do-pedido' })
+  @ApiPropertyOptional({ example: 'uuid-da-os' })
   orderId?: string;
 }
 

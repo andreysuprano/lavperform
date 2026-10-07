@@ -52,7 +52,7 @@ export class IngestOrderDiscountDto {
   @IsNumber()
   value: number;
 
-  @ApiPropertyOptional({ example: 'Cupom de boas-vindas' })
+  @ApiPropertyOptional({ example: 'Cupom de primeira lavagem' })
   @IsOptional()
   @IsString()
   description?: string;
@@ -94,22 +94,28 @@ export class IngestOrderDeliveryAddressDto {
   @IsString()
   zipCode?: string;
 
-  @ApiPropertyOptional({ example: 'Portão azul' })
+  @ApiPropertyOptional({ example: 'Portaria do condomínio' })
   @IsOptional()
   @IsString()
   reference?: string;
 }
 
 export class IngestOrderScheduleDto {
-  @ApiProperty({ example: '2026-06-18' })
+  @ApiProperty({
+    example: '2026-06-18',
+    description: 'Data prevista de coleta ou entrega (YYYY-MM-DD)',
+  })
   @IsString()
   deliveryDateRaw: string;
 
-  @ApiProperty({ example: '19:30' })
+  @ApiProperty({ example: '19:30', description: 'Horário previsto de coleta ou entrega' })
   @IsString()
   deliveryTimeRaw: string;
 
-  @ApiPropertyOptional({ example: '2026-06-18T19:30:00.000Z' })
+  @ApiPropertyOptional({
+    example: '2026-06-18T19:30:00.000Z',
+    description: 'Data e hora previstas de coleta ou entrega',
+  })
   @IsOptional()
   @IsString()
   deliveryAt?: string;
