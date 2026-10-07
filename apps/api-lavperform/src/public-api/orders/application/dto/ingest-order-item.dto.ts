@@ -12,7 +12,7 @@ export class IngestOrderOptionDto {
   @IsString()
   externalCode?: string;
 
-  @ApiProperty({ example: 'Bacon extra' })
+  @ApiProperty({ example: 'Amaciante' })
   @IsString()
   name: string;
 
@@ -28,7 +28,7 @@ export class IngestOrderOptionDto {
   @IsNumber()
   optionGroupId: number;
 
-  @ApiProperty({ example: 'Adicionais' })
+  @ApiProperty({ example: 'Acabamento' })
   @IsString()
   optionGroupName: string;
 }
@@ -43,7 +43,7 @@ export class IngestOrderItemDto {
   @IsString()
   externalCode?: string;
 
-  @ApiProperty({ example: 'X-Burger' })
+  @ApiProperty({ example: 'Camisa social' })
   @IsString()
   name: string;
 
@@ -67,7 +67,7 @@ export class IngestOrderItemDto {
   @IsString()
   status: string;
 
-  @ApiPropertyOptional({ example: 'Sem cebola' })
+  @ApiPropertyOptional({ example: 'Sem amaciante' })
   @IsOptional()
   @IsString()
   observation?: string;
