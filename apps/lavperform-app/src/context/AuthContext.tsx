@@ -26,7 +26,7 @@ interface AuthContextData {
   updateCompanyFlags: (
     companyId: string,
     flags: Partial<
-      Pick<UserCompany, 'showTodayPurchases' | 'showIncentivizedSales'>
+      Pick<UserCompany, 'showTodayPurchases' | 'showIncentivizedSales' | 'serviceModel'>
     >
   ) => void
 }
@@ -146,7 +146,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   function updateCompanyFlags(
     companyId: string,
     flags: Partial<
-      Pick<UserCompany, 'showTodayPurchases' | 'showIncentivizedSales'>
+      Pick<UserCompany, 'showTodayPurchases' | 'showIncentivizedSales' | 'serviceModel'>
     >
   ) {
     const updatedCompanies = companies.map((c) =>

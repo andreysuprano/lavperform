@@ -1,6 +1,7 @@
 import {
   ConfiguratorReplyError,
   decideProposal,
+  finalizeConfiguratorReply,
   parseConfiguratorReply,
   STALE_MESSAGE,
   toClientBlocks,
@@ -58,6 +59,47 @@ describe('parseConfiguratorReply', () => {
         }),
       ),
     ).toThrow(ConfiguratorReplyError);
+  });
+});
+
+describe('finalizeConfiguratorReply', () => {
+  const proposal = { behavior: 'Passa a avisar o horário.', document };
+
+  it('mostra a ação concluída e esconde o prompt', () => {
+    const client = toClientBlocks('msg-1', 'pending', [
+      { type: 'activity', label: 'Lendo a ficha e o prompt do agente' },
+      ...finalizeConfiguratorReply('O agente passa a avisar o horário.', proposal, '2026-10-08T00:00:00.000Z'),
+    ]);
+    expect(client).toEqual([
+      { type: 'activity', label: 'Lendo a ficha e o prompt do agente' },
+      { type: 'markdown', content: 'O agente passa a avisar o horário.' },
+      {
+        type: 'proposal',
+        messageId: 'msg-1',
+        behavior: 'Passa a avisar o horário.',
+        status: 'pending',
+      },
+    ]);
+    expect(JSON.stringify(client)).not.toContain('contexto');
+  });
+
+  it('aceita markdown puro e rejeita resposta vazia', () => {
+    expect(finalizeConfiguratorReply('Só uma resposta.', null, 't1')).toEqual([
+      { type: 'markdown', content: 'Só uma resposta.' },
+    ]);
+    expect(() => finalizeConfiguratorReply('   ', null, 't1')).toThrow('O modelo devolveu uma resposta vazia.');
+  });
+
+  it('não descarta a proposta quando o modelo devolve JSON inválido', () => {
+    const blocks = finalizeConfiguratorReply('{"contextPrompt":"segredo"}', proposal, 't1');
+    expect(blocks.map((block) => block.type)).toEqual(['markdown', 'proposal']);
+    expect(JSON.stringify(toClientBlocks('msg-1', 'pending', blocks))).not.toContain('segredo');
+  });
+
+  it('explica quando o JSON não serve e não há proposta', () => {
+    expect(() => finalizeConfiguratorReply('{"blocks":[]}', null, 't1')).toThrow(
+      'O modelo devolveu um formato inválido.',
+    );
   });
 });
 

@@ -11,6 +11,8 @@ import { HttpService } from '@nestjs/axios';
 import { ConfigService } from '@nestjs/config';
 import { firstValueFrom } from 'rxjs';
 import { AxiosError } from 'axios';
+import type { IncomingMessage } from 'http';
+import type { Response } from 'express';
 
 @Injectable()
 export class LavaiAgentApiService {
@@ -389,6 +391,42 @@ export class LavaiAgentApiService {
       dto,
       { preserve502: true },
     );
+  }
+
+  async streamConfiguratorTurn(dto: Record<string, unknown>, res: Response): Promise<void> {
+    const path = '/agent-configurator/turns/stream';
+    const response = await firstValueFrom(
+      this.httpService.post<IncomingMessage>(`${this.baseUrl}${path}`, dto, {
+        responseType: 'stream',
+        timeout: 120_000,
+        headers: { Accept: 'text/event-stream' },
+      }),
+    ).catch((err: unknown) => {
+      this.handleHttpError(err, path, { preserve502: true });
+    });
+
+    res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
+    res.setHeader('Cache-Control', 'no-cache, no-transform');
+    res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no');
+    res.flushHeaders();
+    res.socket?.setNoDelay(true);
+
+    const upstream = response.data;
+    await new Promise<void>((resolve, reject) => {
+      let settled = false;
+      upstream.on('error', (error) => {
+        if (settled) return;
+        settled = true;
+        reject(error);
+      });
+      upstream.on('end', () => {
+        if (settled) return;
+        settled = true;
+        resolve();
+      });
+      upstream.pipe(res);
+    });
   }
 
   listConfiguratorTurns(query: {

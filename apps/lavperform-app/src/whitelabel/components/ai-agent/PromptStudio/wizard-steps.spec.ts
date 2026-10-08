@@ -1,6 +1,15 @@
 import { describe, expect, it } from 'vitest'
 
-import { nextWizardKey, wizardChoice, wizardQuestion } from './wizard-steps'
+import { CADASTRO_KEYS } from './sheet-script'
+import {
+  laundryModelFromLabel,
+  nextWizardKey,
+  objectiveFor,
+  wizardChoice,
+  wizardKeys,
+  wizardQuestion,
+  wizardStepForMissing,
+} from './wizard-steps'
 
 const empty = {
   agentName: '',
@@ -8,43 +17,52 @@ const empty = {
   answers: {} as Record<string, string>,
 }
 
-describe('wizard steps', () => {
-  it('abre na primeira pergunta vazia, começando por nome e objetivo', () => {
-    expect(nextWizardKey('SELF_SERVICE', empty)).toBe('agentName')
-    expect(
-      nextWizardKey('SELF_SERVICE', { ...empty, agentName: 'Aria' }),
-    ).toBe('agentObjective')
-    expect(
-      nextWizardKey('CONVENTIONAL', {
-        agentName: 'Aria',
-        agentObjective: 'Atender',
-        answers: {},
-      }),
-    ).toBe('name')
-  })
+const storeAnswers = Object.fromEntries(CADASTRO_KEYS.map((key) => [key, 'ok']))
 
-  it('retoma o rascunho na próxima pergunta vazia', () => {
+describe('wizard steps', () => {
+  it('pergunta o nome, o tipo da lavanderia e confirma a loja', () => {
+    expect(nextWizardKey('SELF_SERVICE', empty)).toBe('agentName')
+    expect(nextWizardKey('SELF_SERVICE', { ...empty, agentName: 'Aria' })).toBe('laundryType')
+    expect(
+      nextWizardKey('SELF_SERVICE', {
+        ...empty,
+        agentName: 'Aria',
+        agentObjective: objectiveFor('SELF_SERVICE'),
+      }),
+    ).toBe('store')
     expect(
       nextWizardKey('SELF_SERVICE', {
         agentName: 'Aria',
-        agentObjective: 'Atender',
-        answers: { name: 'Lav', phone: '' },
+        agentObjective: objectiveFor('SELF_SERVICE'),
+        answers: storeAnswers,
       }),
-    ).toBe('phone')
+    ).toBe('referencePoint')
+    expect(wizardKeys('CONVENTIONAL')).not.toContain('phone')
+    expect(wizardKeys('CONVENTIONAL')).not.toContain('agentObjective')
   })
 
-  it('cadastro com valor oferece esse valor e cadastro vazio pede texto', () => {
-    expect(wizardChoice('name', 'SELF_SERVICE', 'Lav Teste')).toEqual({
-      options: ['Lav Teste'],
-      textOnly: false,
-    })
-    expect(wizardChoice('phone', 'SELF_SERVICE', null)).toEqual({
-      options: [],
-      textOnly: true,
-    })
-    expect(wizardChoice('agentName', 'SELF_SERVICE', 'Lav Teste').options).toEqual([
-      'Lav Teste',
+  it('retoma a confirmação da loja quando falta um dado do cadastro', () => {
+    expect(
+      nextWizardKey('SELF_SERVICE', {
+        agentName: 'Aria',
+        agentObjective: objectiveFor('SELF_SERVICE'),
+        answers: { ...storeAnswers, phone: '' },
+      }),
+    ).toBe('store')
+    expect(wizardStepForMissing('phone')).toBe('store')
+  })
+
+  it('oferece auto serviço ou convencional e define o objetivo', () => {
+    expect(wizardChoice('laundryType', 'CONVENTIONAL', null).options).toEqual([
+      'Auto serviço',
+      'Convencional',
     ])
+    expect(laundryModelFromLabel('Auto serviço')).toBe('SELF_SERVICE')
+    expect(objectiveFor('CONVENTIONAL')).toBe(
+      'Responder os clientes de uma lavanderia convencional.',
+    )
+    expect(wizardQuestion('laundryType', 'CONVENTIONAL')).toMatch(/tipo|auto serviço|convencional/i)
+    expect(wizardQuestion('store', 'CONVENTIONAL')).toMatch(/dados da loja/i)
   })
 
   it('não grava Outra resposta como opção pronta', () => {

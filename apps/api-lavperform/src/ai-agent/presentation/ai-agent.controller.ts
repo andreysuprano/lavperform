@@ -9,9 +9,13 @@ import {
   Param,
   Query,
   HttpCode,
+  HttpException,
   HttpStatus,
+  Logger,
   UseGuards,
+  Res,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
 import { User } from '../../common/decorators/user.decorator';
@@ -364,7 +368,12 @@ export class AiAgentController {
   @ApiOperation({ summary: 'Gravar nome e objetivo do agente no rascunho' })
   putPromptSheetIntro(
     @Param('companyId') companyId: string,
-    @Body() body: { agentName?: string; agentObjective?: string; sheetUpdatedAt?: string },
+    @Body() body: {
+      agentName?: string;
+      agentObjective?: string;
+      serviceModel?: 'CONVENTIONAL' | 'SELF_SERVICE';
+      sheetUpdatedAt?: string;
+    },
   ) {
     return this.promptSheetService.putIntro(companyId, 'draft', body);
   }
@@ -542,6 +551,39 @@ export class AiAgentController {
     @Body() body: { text: string },
   ) {
     return this.aiAgentService.configuratorTurn(userId, companyId, agentId, body.text);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('companies/:companyId/ai-agents/:agentId/configurator/turns/stream')
+  async streamConfiguratorTurn(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { text?: string },
+    @Res() res: Response,
+  ) {
+    try {
+      await this.aiAgentService.streamConfiguratorTurn(
+        userId,
+        companyId,
+        agentId,
+        body.text ?? '',
+        res,
+      );
+    } catch (error) {
+      const detail = error instanceof Error ? error.message : String(error);
+      new Logger(AiAgentController.name).error(`Stream do configurador falhou: ${detail}`);
+      if (res.headersSent) {
+        if (!res.writableEnded) res.end();
+        return;
+      }
+      if (error instanceof HttpException) {
+        const payload = error.getResponse();
+        res.status(error.getStatus()).json(typeof payload === 'string' ? { message: payload } : payload);
+        return;
+      }
+      res.status(HttpStatus.BAD_GATEWAY).json({ message: detail || 'A resposta falhou.' });
+    }
   }
 
   @UseGuards(AuthGuard('jwt'))
