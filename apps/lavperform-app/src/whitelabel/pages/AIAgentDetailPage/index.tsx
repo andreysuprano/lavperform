@@ -5,18 +5,16 @@ import {
   HStack,
   IconButton,
   Switch,
-  Tabs,
   Text,
-  useTabs,
 } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useMemo, useRef } from 'react'
+import { memo, useCallback, useEffect, useRef } from 'react'
 import { LuBot } from 'react-icons/lu'
 import {
   RiArrowLeftLine,
   RiDeleteBinLine,
   RiRefreshLine,
 } from 'react-icons/ri'
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { useNavigate, useParams } from 'react-router-dom'
 
 import {
   AppContentLayout,
@@ -25,15 +23,7 @@ import {
   LoadingState,
 } from '@/components'
 import { useAuth } from '@/context/AuthContext'
-import {
-  ConversationsTab,
-  FiltersTab,
-  JourneyTab,
-  McpTab,
-  MediaTab,
-  PersonaTab,
-  RagTab,
-} from '@/whitelabel/components/ai-agent/tabs'
+import { ConversationsTab } from '@/whitelabel/components/ai-agent/tabs'
 import {
   useAIAgent,
   useDeleteAIAgent,
@@ -43,25 +33,9 @@ import {
 
 const AI_AGENT_LIST_PATH = '/whitelabel/ai-agent'
 
-const TAB_VALUES = [
-  'persona',
-  'media',
-  'filters',
-  'journey',
-  'rag',
-  'mcp',
-  'conversations',
-] as const
-
-const TAB_ALIASES: Record<string, (typeof TAB_VALUES)[number]> = {
-  conversas: 'conversations',
-  conversations: 'conversations',
-}
-
 function AIAgentDetailPageBase() {
   const { agentId } = useParams<{ agentId: string }>()
   const navigate = useNavigate()
-  const [searchParams] = useSearchParams()
   const { selectedCompany } = useAuth()
 
   const { data: agent, isLoading, isError } = useAIAgent(
@@ -83,19 +57,6 @@ function AIAgentDetailPageBase() {
     }
     companyIdWhenMounted.current = selectedCompany.id
   }, [selectedCompany?.id, navigate])
-
-  const initialTab = useMemo(() => {
-    const raw = searchParams.get('tab')
-    if (!raw) return 'persona'
-    return (
-      TAB_ALIASES[raw] ??
-      (TAB_VALUES.includes(raw as (typeof TAB_VALUES)[number])
-        ? (raw as (typeof TAB_VALUES)[number])
-        : 'persona')
-    )
-  }, [searchParams])
-
-  const tabs = useTabs({ defaultValue: initialTab })
 
   const goBack = useCallback(() => {
     navigate(AI_AGENT_LIST_PATH)
@@ -200,42 +161,10 @@ function AIAgentDetailPageBase() {
       </HStack>
 
       <Box mt={2}>
-        <Tabs.RootProvider value={tabs}>
-          <Tabs.List mb={4} overflowX="auto">
-            <Tabs.Trigger value="persona">Persona</Tabs.Trigger>
-            <Tabs.Trigger value="media">Mídia</Tabs.Trigger>
-            <Tabs.Trigger value="filters">Filtros</Tabs.Trigger>
-            <Tabs.Trigger value="journey">Jornada</Tabs.Trigger>
-            <Tabs.Trigger value="rag">Base RAG</Tabs.Trigger>
-            <Tabs.Trigger value="mcp">Ferramentas MCP</Tabs.Trigger>
-            <Tabs.Trigger value="conversations">Conversas</Tabs.Trigger>
-          </Tabs.List>
-
-          <Tabs.Content value="persona">
-            <PersonaTab agent={agent} />
-          </Tabs.Content>
-          <Tabs.Content value="media">
-            <MediaTab agent={agent} />
-          </Tabs.Content>
-          <Tabs.Content value="filters">
-            <FiltersTab agent={agent} />
-          </Tabs.Content>
-          <Tabs.Content value="journey">
-            <JourneyTab agent={agent} />
-          </Tabs.Content>
-          <Tabs.Content value="rag">
-            <RagTab agent={agent} />
-          </Tabs.Content>
-          <Tabs.Content value="mcp">
-            <McpTab agent={agent} />
-          </Tabs.Content>
-          <Tabs.Content value="conversations">
-            <ConversationsTab
-              key={`${selectedCompany?.id}-${agent.id}`}
-              agent={agent}
-            />
-          </Tabs.Content>
-        </Tabs.RootProvider>
+        <ConversationsTab
+          key={`${selectedCompany?.id}-${agent.id}`}
+          agent={agent}
+        />
       </Box>
     </AppContentLayout>
   )

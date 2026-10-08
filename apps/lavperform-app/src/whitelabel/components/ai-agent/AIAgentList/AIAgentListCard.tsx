@@ -80,7 +80,7 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
           transform: 'translateY(-2px)',
           borderColor: 'primary.400',
         }}
-        onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}`)}
+        onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/conversa`)}
         cursor="pointer"
       >
         <Card.Header>
