@@ -64,6 +64,7 @@ export interface TestPromptStudioResult {
 }
 
 export type ConfiguratorBlock =
+  | { type: 'activity'; label: string }
   | { type: 'markdown'; content: string }
   | {
       type: 'proposal'

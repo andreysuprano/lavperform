@@ -4,6 +4,7 @@ import type {
   AIAgentConversationsResponse,
   AIAgentKnowledgeFileResponse,
   AIAgentMcpServer,
+  ConfiguratorBlock,
   ConfiguratorDecision,
   ConfiguratorTurnMessage,
   ConfiguratorTurnResult,
@@ -28,6 +29,8 @@ import type {
 } from '@/whitelabel/types'
 
 import { client } from '@/services/client'
+
+import { takeSseEvents } from './configurator-stream'
 
 export const aiAgentService = {
   async listAgents(companyId: string) {
@@ -288,7 +291,12 @@ export const aiAgentService = {
 
   async putPromptSheetIntro(
     companyId: string,
-    data: { agentName?: string; agentObjective?: string; sheetUpdatedAt?: string }
+    data: {
+      agentName?: string
+      agentObjective?: string
+      serviceModel?: 'CONVENTIONAL' | 'SELF_SERVICE'
+      sheetUpdatedAt?: string
+    }
   ) {
     return await client.put<PromptSheetResponse>(
       `/companies/${companyId}/ai-agents/prompt-sheet/intro`,
@@ -313,6 +321,86 @@ export const aiAgentService = {
       `/companies/${companyId}/ai-agents/${agentId}/configurator/turns`,
       { text }
     )
+  },
+
+  async streamConfiguratorTurn(
+    companyId: string,
+    agentId: string,
+    text: string,
+    handlers: {
+      signal?: AbortSignal
+      onActivity: (event: { id: string; label: string; status: 'running' | 'done' }) => void
+      onDone: (blocks: ConfiguratorBlock[]) => void
+      onError: (message: string) => void
+    }
+  ) {
+    const token = localStorage.getItem('@FoodCRM:token')
+    const baseURL = String(import.meta.env.VITE_API_URL || 'https://api.foodcrm.com.br').replace(/\/$/, '')
+    const response = await fetch(
+      `${baseURL}/companies/${companyId}/ai-agents/${agentId}/configurator/turns/stream`,
+      {
+        method: 'POST',
+        signal: handlers.signal,
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'text/event-stream',
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+        },
+        body: JSON.stringify({ text }),
+      }
+    )
+    if (!response.ok || !response.body) {
+      const data = (await response.json().catch(() => null)) as { message?: string } | null
+      throw new Error(data?.message || 'A resposta falhou.')
+    }
+
+    const reader = response.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    let finished = false
+    const handle = (event: unknown) => {
+      if (!event || typeof event !== 'object') return
+      const row = event as {
+        type?: string
+        id?: string
+        label?: string
+        status?: string
+        message?: string
+        blocks?: ConfiguratorBlock[]
+      }
+      if (
+        row.type === 'activity' &&
+        row.id &&
+        row.label &&
+        (row.status === 'running' || row.status === 'done')
+      ) {
+        handlers.onActivity({ id: row.id, label: row.label, status: row.status })
+        return
+      }
+      if (row.type === 'done' && Array.isArray(row.blocks)) {
+        finished = true
+        handlers.onDone(row.blocks)
+        return
+      }
+      if (row.type === 'error') {
+        finished = true
+        handlers.onError(row.message || 'A resposta falhou.')
+      }
+    }
+
+    while (true) {
+      const { value, done } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const parsed = takeSseEvents(buffer)
+      buffer = parsed.rest
+      parsed.events.forEach(handle)
+    }
+    if (buffer.trim()) {
+      const parsed = takeSseEvents(`${buffer}\n\n`)
+      parsed.events.forEach(handle)
+    }
+    if (!finished) handlers.onError('A resposta falhou.')
   },
 
   async acceptConfiguratorProposal(

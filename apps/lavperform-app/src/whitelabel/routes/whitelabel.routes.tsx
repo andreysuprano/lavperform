@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Navigate, Routes, Route } from 'react-router-dom'
 import { LoadingState } from '@/components'
 import { useWhitelabelActive } from '../hooks/useWhitelabelActive'
 
@@ -12,12 +12,6 @@ const AIAgentConfigPage = lazy(() =>
 const AIAgentDetailPage = lazy(() =>
   import('../pages/AIAgentDetailPage').then((module) => ({
     default: module.AIAgentDetailPage,
-  }))
-)
-
-const AIAgentWizardPage = lazy(() =>
-  import('../pages/AIAgentWizardPage').then((module) => ({
-    default: module.AIAgentWizardPage,
   }))
 )
 
@@ -104,7 +98,7 @@ export function WhitelabelRoutes() {
         />
         <Route
           path="/ai-agent/novo"
-          element={<AIAgentWizardPage />}
+          element={<Navigate to="/whitelabel/ai-agent" state={{ openWizard: true }} replace />}
         />
         <Route
           path="/ai-agent/:agentId/conversa"

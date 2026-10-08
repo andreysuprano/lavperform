@@ -48,7 +48,7 @@ describe('PromptSheetService', () => {
   };
   let service: PromptSheetService;
   let tx: {
-    company: { findUnique: jest.Mock };
+    company: { findUnique: jest.Mock; update: jest.Mock };
     promptSheet: {
       create: jest.Mock;
       update: jest.Mock;
@@ -63,6 +63,7 @@ describe('PromptSheetService', () => {
     tx = {
       company: {
         findUnique: jest.fn().mockResolvedValue({ serviceModel: 'SELF_SERVICE' }),
+        update: jest.fn(),
       },
       promptSheet: {
         create: jest.fn(),
@@ -351,6 +352,34 @@ describe('PromptSheetService', () => {
     expect(tx.promptSheet.update).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ agentName: 'Aria' }),
+      }),
+    );
+  });
+
+  it('grava o tipo da lavanderia na empresa', async () => {
+    tx.$queryRaw.mockResolvedValue([{ id: sheetId, answers: {}, updatedAt }]);
+    prisma.promptSheet.findUnique.mockResolvedValue({
+      answers: {},
+      agentName: null,
+      agentObjective: 'Responder os clientes de uma lavanderia convencional.',
+      pendingAgentId: null,
+      updatedAt,
+    });
+    await service.putIntro(companyId, 'draft', {
+      serviceModel: 'CONVENTIONAL',
+      agentObjective: 'Responder os clientes de uma lavanderia convencional.',
+      sheetUpdatedAt: updatedAt.toISOString(),
+    });
+    expect(tx.company.update).toHaveBeenCalledWith({
+      where: { id: companyId },
+      data: { serviceModel: 'CONVENTIONAL' },
+    });
+    expect(tx.promptSheet.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          serviceModel: 'CONVENTIONAL',
+          agentObjective: 'Responder os clientes de uma lavanderia convencional.',
+        }),
       }),
     );
   });

@@ -73,14 +73,16 @@ export class OpenRouterLlmService implements LlmProviderPort {
 
     const toolCalls: LlmToolCall[] = (message?.tool_calls ?? [])
       .filter((tc) => tc.type === 'function')
-      .map((tc) => {
+      .flatMap((tc) => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const fn = (tc as any).function as { name: string; arguments: string };
-        return {
+        const fn = (tc as any).function as { name?: string; arguments?: unknown } | undefined;
+        if (!fn?.name) return [];
+        const args = typeof fn.arguments === 'string' ? fn.arguments : JSON.stringify(fn.arguments ?? {});
+        return [{
           id: tc.id,
           type: 'function' as const,
-          function: { name: fn.name, arguments: fn.arguments },
-        };
+          function: { name: fn.name, arguments: args },
+        }];
       });
 
     const usage = response.usage;

@@ -7,6 +7,7 @@ export const CONFIGURATOR_CODE = 'agent-configurator';
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
 
 export type StoredBlock =
+  | { type: 'activity'; label: string }
   | { type: 'markdown'; content: string }
   | {
       type: 'proposal';
@@ -16,8 +17,14 @@ export type StoredBlock =
     };
 
 export type ClientBlock =
+  | { type: 'activity'; label: string }
   | { type: 'markdown'; content: string }
   | { type: 'proposal'; messageId: string; behavior: string; status: ProposalStatus };
+
+export type ProposalDraft = {
+  behavior: string;
+  document: PromptDocument;
+};
 
 export class ConfiguratorReplyError extends Error {
   constructor(message = 'A resposta falhou.') {
@@ -83,7 +90,7 @@ export function stampProposal(
 
 export function toClientBlocks(messageId: string, status: ProposalStatus | null, blocks: StoredBlock[]): ClientBlock[] {
   return blocks.map((block) => {
-    if (block.type === 'markdown') return block;
+    if (block.type === 'markdown' || block.type === 'activity') return block;
     return {
       type: 'proposal',
       messageId,
@@ -95,9 +102,62 @@ export function toClientBlocks(messageId: string, status: ProposalStatus | null,
 
 export function joinedMarkdown(blocks: Array<{ type: string; content?: string; behavior?: string }>): string {
   return blocks
-    .map((block) => (block.type === 'markdown' ? block.content : block.behavior) ?? '')
+    .map((block) => {
+      if (block.type === 'activity') return '';
+      return (block.type === 'markdown' ? block.content : block.behavior) ?? '';
+    })
     .filter((text) => text.trim() !== '')
     .join('\n\n');
+}
+
+export function finalizeConfiguratorReply(
+  content: string | null,
+  proposal: ProposalDraft | null,
+  baseUpdatedAt: string,
+): StoredBlock[] {
+  const text = content?.trim() ?? '';
+  const json = jsonCandidate(text);
+  if (json) {
+    try {
+      const parsed = stampProposal(parseConfiguratorReply(json), baseUpdatedAt);
+      const blocks = proposal
+        ? [
+            ...parsed.filter((block) => block.type === 'markdown'),
+            { type: 'proposal' as const, behavior: proposal.behavior, document: proposal.document, baseUpdatedAt },
+          ]
+        : parsed;
+      if (!blocks.some((block) => block.type === 'markdown')) {
+        throw new ConfiguratorReplyError('O modelo devolveu uma resposta sem texto.');
+      }
+      return blocks;
+    } catch (error) {
+      if (proposal) return proposalBlocks(proposal, baseUpdatedAt);
+      if (error instanceof ConfiguratorReplyError && error.message !== 'A resposta falhou.') throw error;
+      throw new ConfiguratorReplyError('O modelo devolveu um formato inválido.');
+    }
+  }
+  if (text) {
+    const blocks: StoredBlock[] = [{ type: 'markdown', content: text }];
+    if (proposal) {
+      blocks.push({ type: 'proposal', behavior: proposal.behavior, document: proposal.document, baseUpdatedAt });
+    }
+    return blocks;
+  }
+  if (proposal) return proposalBlocks(proposal, baseUpdatedAt);
+  throw new ConfiguratorReplyError('O modelo devolveu uma resposta vazia.');
+}
+
+function proposalBlocks(proposal: ProposalDraft, baseUpdatedAt: string): StoredBlock[] {
+  return [
+    { type: 'markdown', content: 'Veja o que o agente passa a fazer.' },
+    { type: 'proposal', behavior: proposal.behavior, document: proposal.document, baseUpdatedAt },
+  ];
+}
+
+function jsonCandidate(text: string): string | null {
+  const fenced = text.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
+  const body = (fenced?.[1] ?? text).trim();
+  return body.startsWith('{') ? body : null;
 }
 
 export function decideProposal(input: {

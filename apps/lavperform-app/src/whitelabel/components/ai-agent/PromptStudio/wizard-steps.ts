@@ -1,5 +1,23 @@
 import { CADASTRO_KEYS, scriptFor, type ServiceModel } from './sheet-script'
 
+export const LAUNDRY_TYPE_KEY = 'laundryType'
+export const STORE_KEY = 'store'
+
+export const LAUNDRY_TYPE_OPTIONS: Array<{ id: ServiceModel; label: string }> = [
+  { id: 'SELF_SERVICE', label: 'Auto serviço' },
+  { id: 'CONVENTIONAL', label: 'Convencional' },
+]
+
+export function objectiveFor(model: ServiceModel): string {
+  return model === 'SELF_SERVICE'
+    ? 'Responder os clientes de uma lavanderia de auto serviço.'
+    : 'Responder os clientes de uma lavanderia convencional.'
+}
+
+export function laundryModelFromLabel(label: string): ServiceModel | null {
+  return LAUNDRY_TYPE_OPTIONS.find((option) => option.label === label)?.id ?? null
+}
+
 export type WizardAnswers = {
   agentName: string
   agentObjective: string
@@ -48,27 +66,27 @@ const OPTION_GROUPS: Record<string, string[]> = {
   supportHours: ['24 horas', 'Horário comercial', 'Fechado', 'Não se aplica'],
 }
 
-const OBJECTIVE = [
-  'Atender clientes no WhatsApp sobre horário, preço e máquinas.',
-  'Responder dúvidas e chamar um atendente quando não souber.',
-]
-
 function filled(value: string | undefined): boolean {
   return (value ?? '').trim() !== ''
 }
 
+function isCadastroKey(key: string): boolean {
+  return (CADASTRO_KEYS as readonly string[]).includes(key)
+}
+
 export function wizardKeys(model: ServiceModel): string[] {
-  return ['agentName', 'agentObjective', ...scriptFor(model).map((field) => field.key)]
+  const asked = scriptFor(model)
+    .map((field) => field.key)
+    .filter((key) => !isCadastroKey(key))
+  return ['agentName', LAUNDRY_TYPE_KEY, STORE_KEY, ...asked]
+}
+
+export function wizardStepForMissing(key: string): string {
+  return isCadastroKey(key) ? STORE_KEY : key
 }
 
 export function nextWizardKey(model: ServiceModel, progress: WizardAnswers): string | null {
-  return (
-    wizardKeys(model).find((key) => {
-      if (key === 'agentName') return !filled(progress.agentName)
-      if (key === 'agentObjective') return !filled(progress.agentObjective)
-      return !filled(progress.answers[key])
-    }) ?? null
-  )
+  return wizardKeys(model).find((key) => stepEmpty(key, progress)) ?? null
 }
 
 export function wizardProgress(model: ServiceModel, progress: WizardAnswers): {
@@ -76,32 +94,33 @@ export function wizardProgress(model: ServiceModel, progress: WizardAnswers): {
   total: number
 } {
   const keys = wizardKeys(model)
-  const answered = keys.length - keys.filter((key) => nextIsEmpty(key, progress)).length
+  const answered = keys.filter((key) => !stepEmpty(key, progress)).length
   return { answered, total: keys.length }
 }
 
-function nextIsEmpty(key: string, progress: WizardAnswers): boolean {
+function stepEmpty(key: string, progress: WizardAnswers): boolean {
   if (key === 'agentName') return !filled(progress.agentName)
-  if (key === 'agentObjective') return !filled(progress.agentObjective)
+  if (key === LAUNDRY_TYPE_KEY) return !filled(progress.agentObjective)
+  if (key === STORE_KEY) return CADASTRO_KEYS.some((cadastroKey) => !filled(progress.answers[cadastroKey]))
   return !filled(progress.answers[key])
 }
 
 export function wizardChoice(
   key: string,
-  model: ServiceModel,
+  _model: ServiceModel,
   preset: string | null,
 ): Pick<WizardChoice, 'options' | 'textOnly'> {
-  if (key === 'agentName' || (CADASTRO_KEYS as readonly string[]).includes(key)) {
-    if (!preset || preset.trim() === '') return { options: [], textOnly: true }
-    return { options: [preset.trim()], textOnly: false }
+  if (key === LAUNDRY_TYPE_KEY) {
+    return { options: LAUNDRY_TYPE_OPTIONS.map((option) => option.label), textOnly: false }
   }
 
-  if (key === 'agentObjective') {
-    const extra =
-      model === 'SELF_SERVICE'
-        ? 'Orientar o cliente a operar as máquinas.'
-        : 'Informar como funciona o serviço da loja.'
-    return { options: [...OBJECTIVE, extra], textOnly: false }
+  if (key === STORE_KEY) {
+    return { options: [], textOnly: false }
+  }
+
+  if (key === 'agentName' || isCadastroKey(key)) {
+    if (!preset || preset.trim() === '') return { options: [], textOnly: true }
+    return { options: [preset.trim()], textOnly: false }
   }
 
   if (YES_NO.includes(key)) {
@@ -116,7 +135,8 @@ export function wizardChoice(
 
 export function wizardQuestion(key: string, model: ServiceModel): string {
   if (key === 'agentName') return 'Qual é o nome do agente?'
-  if (key === 'agentObjective') return 'Qual é o objetivo deste agente?'
+  if (key === LAUNDRY_TYPE_KEY) return 'Sua lavanderia é de auto serviço ou convencional?'
+  if (key === STORE_KEY) return 'Confira os dados da loja'
   const field = scriptFor(model).find((item) => item.key === key)
   return field?.question ?? ''
 }

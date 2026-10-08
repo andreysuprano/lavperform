@@ -265,7 +265,12 @@ export class PromptSheetService {
   async putIntro(
     companyId: string,
     draftKey: string,
-    input: { agentName?: string; agentObjective?: string; sheetUpdatedAt?: string },
+    input: {
+      agentName?: string;
+      agentObjective?: string;
+      serviceModel?: 'CONVENTIONAL' | 'SELF_SERVICE';
+      sheetUpdatedAt?: string;
+    },
   ): Promise<PromptSheetResponse> {
     await this.prisma.$transaction(async (tx) => {
       const company = await tx.company.findUnique({
@@ -274,6 +279,13 @@ export class PromptSheetService {
       });
       if (!company) {
         throw new NotFoundException('Empresa não encontrada');
+      }
+
+      if (input.serviceModel) {
+        await tx.company.update({
+          where: { id: companyId },
+          data: { serviceModel: input.serviceModel },
+        });
       }
 
       const locked = await tx.$queryRaw<LockedSheetRow[]>`
@@ -293,7 +305,7 @@ export class PromptSheetService {
       const data = {
         ...(input.agentName !== undefined ? { agentName: input.agentName } : {}),
         ...(input.agentObjective !== undefined ? { agentObjective: input.agentObjective } : {}),
-        serviceModel: company.serviceModel,
+        serviceModel: input.serviceModel ?? company.serviceModel,
       };
 
       if (locked.length === 0) {

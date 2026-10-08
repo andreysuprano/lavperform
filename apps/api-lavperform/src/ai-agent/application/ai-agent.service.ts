@@ -5,6 +5,7 @@ import {
   BadRequestException,
   ForbiddenException,
 } from '@nestjs/common';
+import type { Response } from 'express';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
 import { LavaiAgentApiService } from '../../integrations/over-agent-api/over-agent-api.service';
@@ -598,6 +599,22 @@ export class AiAgentService {
   }
 
   async configuratorTurn(userId: string, companyId: string, agentId: string, text: string) {
+    const context = await this.configuratorContext(userId, companyId, agentId);
+    return this.lavaiAgentApi.runConfiguratorTurn({ ...context, text });
+  }
+
+  async streamConfiguratorTurn(
+    userId: string,
+    companyId: string,
+    agentId: string,
+    text: string,
+    res: Response,
+  ) {
+    const context = await this.configuratorContext(userId, companyId, agentId);
+    await this.lavaiAgentApi.streamConfiguratorTurn({ ...context, text }, res);
+  }
+
+  private async configuratorContext(userId: string, companyId: string, agentId: string) {
     await this.ensureCompanyAccess(userId, companyId);
     const [user, company, sheet] = await Promise.all([
       this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
@@ -610,16 +627,15 @@ export class AiAgentService {
     if (!user || !company) {
       throw new NotFoundException('Agente não encontrado.');
     }
-    return this.lavaiAgentApi.runConfiguratorTurn({
+    return {
       contextCompanyId: companyId,
       platformUserId: userId,
       userName: user.name,
       companyName: company.name,
       targetAgentId: agentId,
-      text,
       serviceModel: sheet.serviceModel,
       answers: sheet.answers,
-    });
+    };
   }
 
   async decideConfiguratorProposal(
