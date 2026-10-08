@@ -185,6 +185,7 @@ export interface AgentData {
   kind: AgentKind;
   /** Nome da instância WhatsApp vinculada a este agente (UAZAPI instanceName). */
   instanceName: string | null;
+  platformCode?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -278,6 +279,7 @@ export interface CreateAgentInput {
   /** Nome da instância WhatsApp (UAZAPI) a ser vinculada ao agente. */
   instanceName?: string;
   kind?: AgentKind;
+  platformCode?: string | null;
   persona?: CreateAgentPersonaInput;
   modelConfig?: CreateAgentModelConfigInput;
   memoryConfig?: CreateAgentMemoryConfigInput;
@@ -300,6 +302,7 @@ export type UpdateAgentMemoryConfigInput = Partial<CreateAgentMemoryConfigInput>
 export interface AgentRepositoryPort {
   create(input: CreateAgentInput): Promise<AgentWithConfigsData>;
   findById(id: string): Promise<AgentWithConfigsData | null>;
+  findByPlatformCode(code: string): Promise<AgentWithConfigsData | null>;
   findAllByCompany(companyId: string): Promise<AgentData[]>;
   findAllByKind(kind: AgentKind): Promise<AgentWithConfigsData[]>;
   findFirstActiveByCompany(companyId: string): Promise<AgentWithConfigsData | null>;

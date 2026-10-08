@@ -5007,8 +5007,10 @@ __metadata:
     react-hook-form: "npm:^7.62.0"
     react-icons: "npm:^5.5.0"
     react-is: "npm:^19.2.4"
+    react-markdown: "npm:^10.1.0"
     react-router-dom: "npm:^7.8.2"
     recharts: "npm:^3.2.0"
+    remark-gfm: "npm:^4.0.1"
     typescript: "npm:~5.7.2"
     typescript-eslint: "npm:^8.24.1"
     use-mask-input: "npm:^3.5.0"
@@ -23362,7 +23364,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"react-markdown@npm:~10.1.0":
+"react-markdown@npm:^10.1.0, react-markdown@npm:~10.1.0":
   version: 10.1.0
   resolution: "react-markdown@npm:10.1.0"
   dependencies:
@@ -23899,7 +23901,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"remark-gfm@npm:~4.0.0":
+"remark-gfm@npm:^4.0.1, remark-gfm@npm:~4.0.0":
   version: 4.0.1
   resolution: "remark-gfm@npm:4.0.1"
   dependencies:

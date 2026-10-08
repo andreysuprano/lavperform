@@ -357,6 +357,74 @@ export class LavaiAgentApiService {
       messages: Array<{ id: string; role: string; content: string; createdAt: string }>;
     }>('get', `/platform-agents/${agentId}/turns?${params.toString()}`);
   }
+
+  async fillWhatsappPrompt(dto: { model: string; answers: Record<string, string> }) {
+    const path = '/agent-configurator/fill';
+    try {
+      const response = await firstValueFrom(
+        this.httpService.post<{
+          contextPrompt: string;
+          systemPrompt: string;
+          behaviorGuidelines: string;
+          guardrails: string;
+        }>(`${this.baseUrl}${path}`, dto),
+      );
+      return response.data;
+    } catch (err) {
+      const axiosError = err as AxiosError<{ missing?: string[] }>;
+      if (
+        axiosError.response?.status === 400 &&
+        Array.isArray(axiosError.response.data?.missing)
+      ) {
+        throw new BadRequestException({ missing: axiosError.response.data.missing });
+      }
+      this.handleHttpError(err, path);
+    }
+  }
+
+  runConfiguratorTurn(dto: Record<string, unknown>) {
+    return this.request<{ conversationId: string; blocks: unknown[] }>(
+      'post',
+      '/agent-configurator/turns',
+      dto,
+      { preserve502: true },
+    );
+  }
+
+  listConfiguratorTurns(query: {
+    contextCompanyId: string;
+    platformUserId: string;
+    targetAgentId: string;
+    limit: number;
+  }) {
+    const params = new URLSearchParams({
+      contextCompanyId: query.contextCompanyId,
+      platformUserId: query.platformUserId,
+      targetAgentId: query.targetAgentId,
+      limit: String(query.limit),
+    });
+    return this.request<
+      Array<{
+        id: string;
+        role: string;
+        content: string;
+        createdAt: string;
+        blocks?: unknown[];
+      }>
+    >('get', `/agent-configurator/turns?${params.toString()}`);
+  }
+
+  decideConfiguratorProposal(
+    messageId: string,
+    action: 'accept' | 'reject',
+    body: { contextCompanyId: string; platformUserId: string; targetAgentId: string },
+  ) {
+    return this.request<{ status: string; message?: string }>(
+      'post',
+      `/agent-configurator/proposals/${messageId}/${action}`,
+      body,
+    );
+  }
 }
 
 type MotorPlatformAgent = {

@@ -190,7 +190,7 @@ function AIAgentDetailPageBase() {
           variant="outline"
           onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/conversa`)}
         >
-          Editar na conversa
+          Configurar
         </Button>
         {agent.description && (
           <Text fontSize="sm" color="fg.muted" lineClamp={1}>

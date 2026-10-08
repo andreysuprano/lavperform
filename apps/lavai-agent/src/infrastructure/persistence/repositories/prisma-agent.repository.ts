@@ -52,6 +52,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
         description: input.description,
         instanceName: input.instanceName ?? null,
         kind: input.kind ?? 'PUBLIC',
+        platformCode: input.platformCode,
         persona: {
           create: {
             personaName: input.persona?.personaName ?? input.name,
@@ -101,6 +102,14 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
   async findById(id: string): Promise<AgentWithConfigsData | null> {
     const row = await this.prisma.agent.findUnique({
       where: { id },
+      include: includeConfigs,
+    });
+    return row ? this.mapWithConfigs(row) : null;
+  }
+
+  async findByPlatformCode(code: string): Promise<AgentWithConfigsData | null> {
+    const row = await this.prisma.agent.findUnique({
+      where: { platformCode: code },
       include: includeConfigs,
     });
     return row ? this.mapWithConfigs(row) : null;
@@ -262,7 +271,8 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
 
   private mapBase(row: {
     id: string; companyId: string; name: string; description: string | null;
-    active: boolean; kind?: AgentKind | string; instanceName?: string | null; createdAt: Date; updatedAt: Date;
+    active: boolean; kind?: AgentKind | string; instanceName?: string | null;
+    platformCode?: string | null; createdAt: Date; updatedAt: Date;
   }): AgentData {
     return {
       id: row.id,
@@ -272,6 +282,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
       active: row.active,
       kind: (row.kind as AgentKind | undefined) ?? AgentKind.PUBLIC,
       instanceName: row.instanceName ?? null,
+      platformCode: row.platformCode ?? null,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

@@ -49,7 +49,13 @@ describe('PromptSheetService', () => {
   let service: PromptSheetService;
   let tx: {
     company: { findUnique: jest.Mock };
-    promptSheet: { create: jest.Mock; update: jest.Mock };
+    promptSheet: {
+      create: jest.Mock;
+      update: jest.Mock;
+      findUnique: jest.Mock;
+      upsert: jest.Mock;
+      delete: jest.Mock;
+    };
     $queryRaw: jest.Mock;
   };
 
@@ -61,6 +67,9 @@ describe('PromptSheetService', () => {
       promptSheet: {
         create: jest.fn(),
         update: jest.fn(),
+        findUnique: jest.fn(),
+        upsert: jest.fn(),
+        delete: jest.fn(),
       },
       $queryRaw: jest.fn().mockResolvedValue([]),
     };
@@ -165,6 +174,9 @@ describe('PromptSheetService', () => {
         ],
       },
       answers,
+      agentName: null,
+      agentObjective: null,
+      pendingAgentId: null,
       updatedAt,
     });
   });
@@ -313,5 +325,54 @@ describe('PromptSheetService', () => {
         data: expect.objectContaining({ serviceModel: 'CONVENTIONAL' }),
       }),
     );
+  });
+
+  it('grava nome e objetivo e recusa updatedAt antigo', async () => {
+    tx.$queryRaw.mockResolvedValue([{ id: sheetId, answers: {}, updatedAt }]);
+    await expect(
+      service.putIntro(companyId, 'draft', {
+        agentName: 'Aria',
+        sheetUpdatedAt: '2000-01-01T00:00:00.000Z',
+      }),
+    ).rejects.toBeInstanceOf(ConflictException);
+
+    tx.$queryRaw.mockResolvedValue([{ id: sheetId, answers: {}, updatedAt }]);
+    prisma.promptSheet.findUnique.mockResolvedValue({
+      answers: {},
+      agentName: 'Aria',
+      agentObjective: null,
+      pendingAgentId: null,
+      updatedAt,
+    });
+    await service.putIntro(companyId, 'draft', {
+      agentName: 'Aria',
+      sheetUpdatedAt: updatedAt.toISOString(),
+    });
+    expect(tx.promptSheet.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ agentName: 'Aria' }),
+      }),
+    );
+  });
+
+  it('copia a ficha para o agente e apaga o rascunho', async () => {
+    tx.promptSheet.findUnique
+      .mockResolvedValueOnce({
+        id: sheetId,
+        answers: { name: 'Lav' },
+        agentName: 'Aria',
+        agentObjective: 'Atender',
+      })
+      .mockResolvedValueOnce(null);
+    await service.adoptAndClear(companyId, 'agent-1');
+    expect(tx.promptSheet.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        create: expect.objectContaining({
+          draftKey: 'agent-1',
+          agentName: 'Aria',
+        }),
+      }),
+    );
+    expect(tx.promptSheet.delete).toHaveBeenCalledWith({ where: { id: sheetId } });
   });
 });

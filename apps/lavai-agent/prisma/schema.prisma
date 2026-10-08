@@ -141,6 +141,7 @@ model Agent {
   /// Nome da instância WhatsApp (UAZAPI instanceName) vinculada a este agente.
   /// Usado para rotear o webhook ao agente correto quando a empresa tem múltiplos agentes.
   instanceName String?  @unique @map("instance_name")
+  platformCode String?  @unique @map("platform_code")
   createdAt    DateTime @default(now()) @map("created_at")
   updatedAt    DateTime @updatedAt @map("updated_at")
 
@@ -570,13 +571,14 @@ model PlatformConversation {
   contextCompanyId String   @map("context_company_id")
   /// User.id do JWT.
   platformUserId   String   @map("platform_user_id")
+  targetAgentId    String   @default("") @map("target_agent_id")
   createdAt        DateTime @default(now()) @map("created_at")
   updatedAt        DateTime @updatedAt @map("updated_at")
 
   agent    Agent                         @relation(fields: [agentId], references: [id], onDelete: Cascade)
   messages PlatformConversationMessage[]
 
-  @@unique([agentId, contextCompanyId, platformUserId], name: "platform_agent_company_user")
+  @@unique([agentId, contextCompanyId, platformUserId, targetAgentId], name: "platform_agent_company_user_target")
   @@map("platform_conversations")
 }
 
@@ -585,6 +587,8 @@ model PlatformConversationMessage {
   conversationId String      @map("conversation_id")
   role           MessageRole
   content        String
+  blocksJson     String?     @map("blocks_json")
+  proposalStatus String?     @map("proposal_status")
   createdAt      DateTime    @default(now()) @map("created_at")
 
   conversation PlatformConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
