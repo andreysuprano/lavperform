@@ -149,7 +149,7 @@ export function finalizeConfiguratorReply(
 
 function proposalBlocks(proposal: ProposalDraft, baseUpdatedAt: string): StoredBlock[] {
   return [
-    { type: 'markdown', content: 'Veja o que o agente passa a fazer.' },
+    { type: 'markdown', content: proposal.behavior.trim() },
     { type: 'proposal', behavior: proposal.behavior, document: proposal.document, baseUpdatedAt },
   ];
 }

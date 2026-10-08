@@ -37,7 +37,7 @@ export function configuratorTools(): LlmTool[] {
       function: {
         name: PROPOSE_TOOL,
         description:
-          'Registra a mudança. behavior descreve o que o agente de WhatsApp passa a fazer, em markdown, sem colar o prompt. Os quatro campos precisam ter texto.',
+          'Só chame quando a mudança estiver decidida e não restar dúvida que impeça de escrever os quatro campos. Se faltar fato ou o pedido for vago, não chame: a resposta deve perguntar. behavior descreve o que o agente de WhatsApp passa a fazer, em markdown, sem colar o prompt. Os quatro campos precisam ter texto.',
         parameters: {
           type: 'object',
           additionalProperties: false,
@@ -94,7 +94,7 @@ export function runConfiguratorTool(
       };
     }
     return {
-      content: 'Proposta registrada. Responda a pessoa em markdown, sem mostrar o prompt.',
+      content: 'Proposta registrada. Responda sobre o que a pessoa pediu e diga o que muda. Não repita uma frase genérica e não mostre o prompt.',
       proposal,
     };
   }
