@@ -106,6 +106,9 @@ model PromptSheet {
   draftKey     String              @default("draft")
   serviceModel CompanyServiceModel
   answers      Json
+  agentName       String?
+  agentObjective  String?
+  pendingAgentId  String?
   createdAt    DateTime            @default(now())
   updatedAt    DateTime            @updatedAt
 

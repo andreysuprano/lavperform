@@ -144,6 +144,19 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
                 <RiChat3Line />
               </IconButton>
 
+              <IconButton
+                size="sm"
+                variant="ghost"
+                aria-label="Configurar agente"
+                title="Configurar agente"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/whitelabel/ai-agent/${agent.id}/conversa`)
+                }}
+              >
+                <RiRobot2Line />
+              </IconButton>
+
               <DeleteConfirmationDialog
                 title="Excluir agente de IA"
                 description={`Tem certeza que deseja excluir o agente "${agent.name}"? Esta ação não pode ser desfeita.`}

@@ -7,6 +7,7 @@ export interface PlatformConversationData {
   agentId: string;
   contextCompanyId: string;
   platformUserId: string;
+  targetAgentId: string;
 }
 
 export interface PlatformMessageData {
@@ -15,6 +16,8 @@ export interface PlatformMessageData {
   role: MessageRole;
   content: string;
   createdAt: Date;
+  blocksJson?: string | null;
+  proposalStatus?: string | null;
 }
 
 export interface PlatformConversationRepositoryPort {
@@ -22,16 +25,20 @@ export interface PlatformConversationRepositoryPort {
     agentId: string;
     contextCompanyId: string;
     platformUserId: string;
+    targetAgentId?: string;
   }): Promise<PlatformConversationData>;
   findByTrio(
     agentId: string,
     contextCompanyId: string,
     platformUserId: string,
+    targetAgentId?: string,
   ): Promise<PlatformConversationData | null>;
   addMessage(input: {
     conversationId: string;
     role: MessageRole;
     content: string;
+    blocksJson?: string | null;
+    proposalStatus?: string | null;
   }): Promise<PlatformMessageData>;
   findRecentMessagesExcept(
     conversationId: string,
@@ -39,4 +46,6 @@ export interface PlatformConversationRepositoryPort {
     limit: number,
   ): Promise<PlatformMessageData[]>;
   listLatestMessages(conversationId: string, limit: number): Promise<PlatformMessageData[]>;
+  findMessage(id: string): Promise<(PlatformMessageData & { conversation: PlatformConversationData }) | null>;
+  updateProposalStatus(id: string, proposalStatus: string): Promise<void>;
 }

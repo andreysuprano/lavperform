@@ -31,6 +31,9 @@ export type PromptSheetResponse = {
   snapshot: PromptSheetSnapshot
   answers: Record<string, string>
   updatedAt: string | null
+  agentName: string | null
+  agentObjective: string | null
+  pendingAgentId: string | null
 }
 
 export interface PromptDocument {
@@ -58,6 +61,33 @@ export interface GeneratePromptStudioResult {
 
 export interface TestPromptStudioResult {
   answer: string
+}
+
+export type ConfiguratorBlock =
+  | { type: 'markdown'; content: string }
+  | {
+      type: 'proposal'
+      messageId: string
+      behavior: string
+      status: 'pending' | 'accepted' | 'rejected'
+    }
+
+export type ConfiguratorTurnMessage = {
+  id: string
+  role: string
+  content: string
+  createdAt: string
+  blocks?: ConfiguratorBlock[]
+}
+
+export type ConfiguratorTurnResult = {
+  conversationId: string
+  blocks: ConfiguratorBlock[]
+}
+
+export type ConfiguratorDecision = {
+  status: string
+  message?: string
 }
 
 export interface ProposePromptStudioPayload {

@@ -4,6 +4,9 @@ import type {
   AIAgentConversationsResponse,
   AIAgentKnowledgeFileResponse,
   AIAgentMcpServer,
+  ConfiguratorDecision,
+  ConfiguratorTurnMessage,
+  ConfiguratorTurnResult,
   CreateAIAgentMcpServerPayload,
   CreateAIAgentPayload,
   CreateKnowledgeFilePayload,
@@ -280,6 +283,55 @@ export const aiAgentService = {
   async discardPromptStudioProposal(agentId: string) {
     return await client.post(
       `/ai-agents/${agentId}/prompt-studio/thread/discard`
+    )
+  },
+
+  async putPromptSheetIntro(
+    companyId: string,
+    data: { agentName?: string; agentObjective?: string; sheetUpdatedAt?: string }
+  ) {
+    return await client.put<PromptSheetResponse>(
+      `/companies/${companyId}/ai-agents/prompt-sheet/intro`,
+      data
+    )
+  },
+
+  async finishWizard(companyId: string) {
+    return await client.post<{ id: string }>(
+      `/companies/${companyId}/ai-agents/from-wizard`
+    )
+  },
+
+  async listConfiguratorTurns(companyId: string, agentId: string) {
+    return await client.get<ConfiguratorTurnMessage[]>(
+      `/companies/${companyId}/ai-agents/${agentId}/configurator/turns`
+    )
+  },
+
+  async sendConfiguratorTurn(companyId: string, agentId: string, text: string) {
+    return await client.post<ConfiguratorTurnResult>(
+      `/companies/${companyId}/ai-agents/${agentId}/configurator/turns`,
+      { text }
+    )
+  },
+
+  async acceptConfiguratorProposal(
+    companyId: string,
+    agentId: string,
+    messageId: string
+  ) {
+    return await client.post<ConfiguratorDecision>(
+      `/companies/${companyId}/ai-agents/${agentId}/configurator/proposals/${messageId}/accept`
+    )
+  },
+
+  async rejectConfiguratorProposal(
+    companyId: string,
+    agentId: string,
+    messageId: string
+  ) {
+    return await client.post<ConfiguratorDecision>(
+      `/companies/${companyId}/ai-agents/${agentId}/configurator/proposals/${messageId}/reject`
     )
   },
 }

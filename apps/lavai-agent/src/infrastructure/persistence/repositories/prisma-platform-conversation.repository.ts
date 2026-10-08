@@ -15,16 +15,24 @@ export class PrismaPlatformConversationRepository implements PlatformConversatio
     agentId: string;
     contextCompanyId: string;
     platformUserId: string;
+    targetAgentId?: string;
   }): Promise<PlatformConversationData> {
+    const targetAgentId = input.targetAgentId ?? '';
     const row = await this.prisma.platformConversation.upsert({
       where: {
-        platform_agent_company_user: {
+        platform_agent_company_user_target: {
           agentId: input.agentId,
           contextCompanyId: input.contextCompanyId,
           platformUserId: input.platformUserId,
+          targetAgentId,
         },
       },
-      create: input,
+      create: {
+        agentId: input.agentId,
+        contextCompanyId: input.contextCompanyId,
+        platformUserId: input.platformUserId,
+        targetAgentId,
+      },
       update: {},
     });
     return this.mapConversation(row);
@@ -34,10 +42,16 @@ export class PrismaPlatformConversationRepository implements PlatformConversatio
     agentId: string,
     contextCompanyId: string,
     platformUserId: string,
+    targetAgentId = '',
   ): Promise<PlatformConversationData | null> {
     const row = await this.prisma.platformConversation.findUnique({
       where: {
-        platform_agent_company_user: { agentId, contextCompanyId, platformUserId },
+        platform_agent_company_user_target: {
+          agentId,
+          contextCompanyId,
+          platformUserId,
+          targetAgentId,
+        },
       },
     });
     return row ? this.mapConversation(row) : null;
@@ -47,8 +61,18 @@ export class PrismaPlatformConversationRepository implements PlatformConversatio
     conversationId: string;
     role: MessageRole;
     content: string;
+    blocksJson?: string | null;
+    proposalStatus?: string | null;
   }): Promise<PlatformMessageData> {
-    const row = await this.prisma.platformConversationMessage.create({ data: input });
+    const row = await this.prisma.platformConversationMessage.create({
+      data: {
+        conversationId: input.conversationId,
+        role: input.role,
+        content: input.content,
+        blocksJson: input.blocksJson,
+        proposalStatus: input.proposalStatus,
+      },
+    });
     return this.mapMessage(row);
   }
 
@@ -74,17 +98,35 @@ export class PrismaPlatformConversationRepository implements PlatformConversatio
     return rows.reverse().map((row) => this.mapMessage(row));
   }
 
+  async findMessage(id: string): Promise<(PlatformMessageData & { conversation: PlatformConversationData }) | null> {
+    const row = await this.prisma.platformConversationMessage.findUnique({
+      where: { id },
+      include: { conversation: true },
+    });
+    if (!row) return null;
+    return { ...this.mapMessage(row), conversation: this.mapConversation(row.conversation) };
+  }
+
+  async updateProposalStatus(id: string, proposalStatus: string): Promise<void> {
+    await this.prisma.platformConversationMessage.update({
+      where: { id },
+      data: { proposalStatus },
+    });
+  }
+
   private mapConversation(row: {
     id: string;
     agentId: string;
     contextCompanyId: string;
     platformUserId: string;
+    targetAgentId: string;
   }): PlatformConversationData {
     return {
       id: row.id,
       agentId: row.agentId,
       contextCompanyId: row.contextCompanyId,
       platformUserId: row.platformUserId,
+      targetAgentId: row.targetAgentId,
     };
   }
 
@@ -94,6 +136,8 @@ export class PrismaPlatformConversationRepository implements PlatformConversatio
     role: string;
     content: string;
     createdAt: Date;
+    blocksJson?: string | null;
+    proposalStatus?: string | null;
   }): PlatformMessageData {
     return {
       id: row.id,
@@ -101,6 +145,8 @@ export class PrismaPlatformConversationRepository implements PlatformConversatio
       role: row.role as MessageRole,
       content: row.content,
       createdAt: row.createdAt,
+      blocksJson: row.blocksJson ?? null,
+      proposalStatus: row.proposalStatus ?? null,
     };
   }
 }

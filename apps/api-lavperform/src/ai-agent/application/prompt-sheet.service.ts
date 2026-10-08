@@ -28,6 +28,9 @@ export type PromptSheetResponse = {
   serviceModel: CompanyServiceModel;
   snapshot: PromptSheetSnapshot;
   answers: Record<string, string>;
+  agentName: string | null;
+  agentObjective: string | null;
+  pendingAgentId: string | null;
   updatedAt: Date | null;
 };
 
@@ -112,6 +115,9 @@ export class PromptSheetService {
         })),
       },
       answers: (sheet?.answers as Record<string, string> | null) ?? {},
+      agentName: sheet?.agentName ?? null,
+      agentObjective: sheet?.agentObjective ?? null,
+      pendingAgentId: sheet?.pendingAgentId ?? null,
       updatedAt: sheet?.updatedAt ?? null,
     };
   }
@@ -254,5 +260,110 @@ export class PromptSheetService {
       answers: sheet.answers as Record<string, string>,
       updatedAt: sheet.updatedAt,
     };
+  }
+
+  async putIntro(
+    companyId: string,
+    draftKey: string,
+    input: { agentName?: string; agentObjective?: string; sheetUpdatedAt?: string },
+  ): Promise<PromptSheetResponse> {
+    await this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({
+        where: { id: companyId },
+        select: { serviceModel: true },
+      });
+      if (!company) {
+        throw new NotFoundException('Empresa não encontrada');
+      }
+
+      const locked = await tx.$queryRaw<LockedSheetRow[]>`
+        SELECT id, answers, "updatedAt"
+        FROM "PromptSheet"
+        WHERE "companyId" = ${companyId} AND "draftKey" = ${draftKey}
+        FOR UPDATE
+      `;
+
+      if (input.sheetUpdatedAt !== undefined) {
+        const currentUpdatedAt = locked[0]?.updatedAt?.toISOString() ?? null;
+        if (currentUpdatedAt !== input.sheetUpdatedAt) {
+          throw new ConflictException(STALE_MESSAGE);
+        }
+      }
+
+      const data = {
+        ...(input.agentName !== undefined ? { agentName: input.agentName } : {}),
+        ...(input.agentObjective !== undefined ? { agentObjective: input.agentObjective } : {}),
+        serviceModel: company.serviceModel,
+      };
+
+      if (locked.length === 0) {
+        await tx.promptSheet.create({
+          data: {
+            companyId,
+            draftKey,
+            answers: {},
+            ...data,
+          },
+        });
+      } else {
+        await tx.promptSheet.update({
+          where: { id: locked[0].id },
+          data,
+        });
+      }
+    });
+
+    return this.get(companyId, draftKey);
+  }
+
+  async markPending(companyId: string, agentId: string): Promise<void> {
+    await this.prisma.promptSheet.update({
+      where: { companyId_draftKey: { companyId, draftKey: 'draft' } },
+      data: { pendingAgentId: agentId },
+    });
+  }
+
+  async adoptAndClear(companyId: string, agentId: string): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const company = await tx.company.findUnique({
+        where: { id: companyId },
+        select: { serviceModel: true },
+      });
+      if (!company) {
+        throw new NotFoundException('Empresa não encontrada');
+      }
+
+      const draft = await tx.promptSheet.findUnique({
+        where: { companyId_draftKey: { companyId, draftKey: 'draft' } },
+      });
+      if (!draft) {
+        const adopted = await tx.promptSheet.findUnique({
+          where: { companyId_draftKey: { companyId, draftKey: agentId } },
+        });
+        if (!adopted) {
+          throw new NotFoundException('Rascunho não encontrado');
+        }
+        return;
+      }
+
+      await tx.promptSheet.upsert({
+        where: { companyId_draftKey: { companyId, draftKey: agentId } },
+        create: {
+          companyId,
+          draftKey: agentId,
+          serviceModel: company.serviceModel,
+          answers: draft.answers as Prisma.InputJsonValue,
+          agentName: draft.agentName,
+          agentObjective: draft.agentObjective,
+        },
+        update: {
+          serviceModel: company.serviceModel,
+          answers: draft.answers as Prisma.InputJsonValue,
+          agentName: draft.agentName,
+          agentObjective: draft.agentObjective,
+        },
+      });
+      await tx.promptSheet.delete({ where: { id: draft.id } });
+    });
   }
 }

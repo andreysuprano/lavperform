@@ -9,6 +9,10 @@
       {
         "include": "generated/prisma/**/*",
         "watchAssets": true
+      },
+      {
+        "include": "application/agent-configurator/prompts/**/*.md",
+        "watchAssets": true
       }
     ]
   }

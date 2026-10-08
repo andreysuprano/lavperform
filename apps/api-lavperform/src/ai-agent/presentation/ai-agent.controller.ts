@@ -10,8 +10,11 @@ import {
   Query,
   HttpCode,
   HttpStatus,
+  UseGuards,
 } from '@nestjs/common';
+import { AuthGuard } from '@nestjs/passport';
 import { ApiTags, ApiOperation, ApiParam } from '@nestjs/swagger';
+import { User } from '../../common/decorators/user.decorator';
 import { AiAgentService } from '../application/ai-agent.service';
 import { PromptSheetService } from '../application/prompt-sheet.service';
 import { CreateAgentDto } from '../application/dto/create-agent.dto';
@@ -357,6 +360,21 @@ export class AiAgentController {
     );
   }
 
+  @Put('companies/:companyId/ai-agents/prompt-sheet/intro')
+  @ApiOperation({ summary: 'Gravar nome e objetivo do agente no rascunho' })
+  putPromptSheetIntro(
+    @Param('companyId') companyId: string,
+    @Body() body: { agentName?: string; agentObjective?: string; sheetUpdatedAt?: string },
+  ) {
+    return this.promptSheetService.putIntro(companyId, 'draft', body);
+  }
+
+  @Post('companies/:companyId/ai-agents/from-wizard')
+  @ApiOperation({ summary: 'Criar o agente público a partir da ficha preenchida' })
+  finishWizard(@Param('companyId') companyId: string) {
+    return this.aiAgentService.finishWizard(companyId);
+  }
+
   @Get('companies/:companyId/ai-agents/:agentId/prompt-sheet')
   @ApiOperation({ summary: 'Obter ficha de prompt do agente' })
   @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
@@ -503,5 +521,48 @@ export class AiAgentController {
   @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
   async discardPromptStudioProposal(@Param('agentId') agentId: string) {
     await this.aiAgentService.discardPromptStudioProposal(agentId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Get('companies/:companyId/ai-agents/:agentId/configurator/turns')
+  listConfiguratorTurns(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.aiAgentService.listConfiguratorTurns(userId, companyId, agentId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('companies/:companyId/ai-agents/:agentId/configurator/turns')
+  configuratorTurn(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { text: string },
+  ) {
+    return this.aiAgentService.configuratorTurn(userId, companyId, agentId, body.text);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('companies/:companyId/ai-agents/:agentId/configurator/proposals/:messageId/accept')
+  acceptConfiguratorProposal(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.aiAgentService.decideConfiguratorProposal(userId, companyId, agentId, messageId, 'accept');
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('companies/:companyId/ai-agents/:agentId/configurator/proposals/:messageId/reject')
+  rejectConfiguratorProposal(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Param('messageId') messageId: string,
+  ) {
+    return this.aiAgentService.decideConfiguratorProposal(userId, companyId, agentId, messageId, 'reject');
   }
 }

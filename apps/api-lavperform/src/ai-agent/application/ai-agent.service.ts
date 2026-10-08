@@ -2,6 +2,8 @@ import {
   Injectable,
   NotFoundException,
   Logger,
+  BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -549,5 +551,98 @@ export class AiAgentService {
 
   discardPromptStudioProposal(agentId: string) {
     return this.lavaiAgentApi.discardPromptStudioProposal(agentId);
+  }
+
+  async finishWizard(companyId: string) {
+    const sheet = await this.promptSheetService.get(companyId, 'draft');
+    const missing: string[] = [];
+    if (!sheet.agentName?.trim()) missing.push('agentName');
+    if (!sheet.agentObjective?.trim()) missing.push('agentObjective');
+    if (missing.length > 0) {
+      throw new BadRequestException({ missing });
+    }
+
+    let agentId = sheet.pendingAgentId;
+    if (!agentId) {
+      const document = await this.lavaiAgentApi.fillWhatsappPrompt({
+        model: sheet.serviceModel,
+        answers: sheet.answers,
+      });
+      const created = (await this.createAgent(companyId, {
+        name: sheet.agentName!,
+        description: sheet.agentObjective!,
+        persona: {
+          personaName: sheet.agentName!,
+          systemPrompt: document.systemPrompt,
+          behaviorGuidelines: document.behaviorGuidelines,
+          guardrails: document.guardrails,
+          contextPrompt: document.contextPrompt,
+        },
+      } as CreateAgentDto)) as OverAgentAgent;
+      agentId = created.id;
+      await this.promptSheetService.markPending(companyId, agentId);
+    }
+
+    await this.promptSheetService.adoptAndClear(companyId, agentId);
+    return { id: agentId };
+  }
+
+  async listConfiguratorTurns(userId: string, companyId: string, agentId: string) {
+    await this.ensureCompanyAccess(userId, companyId);
+    return this.lavaiAgentApi.listConfiguratorTurns({
+      contextCompanyId: companyId,
+      platformUserId: userId,
+      targetAgentId: agentId,
+      limit: 50,
+    });
+  }
+
+  async configuratorTurn(userId: string, companyId: string, agentId: string, text: string) {
+    await this.ensureCompanyAccess(userId, companyId);
+    const [user, company, sheet] = await Promise.all([
+      this.prisma.user.findUnique({ where: { id: userId }, select: { name: true } }),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { name: true, serviceModel: true },
+      }),
+      this.promptSheetService.get(companyId, agentId),
+    ]);
+    if (!user || !company) {
+      throw new NotFoundException('Agente não encontrado.');
+    }
+    return this.lavaiAgentApi.runConfiguratorTurn({
+      contextCompanyId: companyId,
+      platformUserId: userId,
+      userName: user.name,
+      companyName: company.name,
+      targetAgentId: agentId,
+      text,
+      serviceModel: sheet.serviceModel,
+      answers: sheet.answers,
+    });
+  }
+
+  async decideConfiguratorProposal(
+    userId: string,
+    companyId: string,
+    agentId: string,
+    messageId: string,
+    action: 'accept' | 'reject',
+  ) {
+    await this.ensureCompanyAccess(userId, companyId);
+    return this.lavaiAgentApi.decideConfiguratorProposal(messageId, action, {
+      contextCompanyId: companyId,
+      platformUserId: userId,
+      targetAgentId: agentId,
+    });
+  }
+
+  private async ensureCompanyAccess(userId: string, companyId: string): Promise<void> {
+    const link = await this.prisma.userCompany.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+    });
+    if (!link) {
+      throw new ForbiddenException('Usuário sem acesso a esta empresa');
+    }
   }
 }
