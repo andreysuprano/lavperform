@@ -92,8 +92,12 @@ describe('finalizeConfiguratorReply', () => {
 
   it('não descarta a proposta quando o modelo devolve JSON inválido', () => {
     const blocks = finalizeConfiguratorReply('{"contextPrompt":"segredo"}', proposal, 't1');
-    expect(blocks.map((block) => block.type)).toEqual(['markdown', 'proposal']);
+    expect(blocks).toEqual([
+      { type: 'markdown', content: 'Passa a avisar o horário.' },
+      { type: 'proposal', behavior: 'Passa a avisar o horário.', document, baseUpdatedAt: 't1' },
+    ]);
     expect(JSON.stringify(toClientBlocks('msg-1', 'pending', blocks))).not.toContain('segredo');
+    expect(JSON.stringify(blocks)).not.toContain('Veja o que o agente passa a fazer.');
   });
 
   it('explica quando o JSON não serve e não há proposta', () => {
