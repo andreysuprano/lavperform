@@ -14,7 +14,7 @@ API pública para integração de sistemas externos (PDVs, marketplaces, ERPs) c
 3. [Autenticação](#autenticação)
 4. [Arquitetura de processamento](#arquitetura-de-processamento)
 5. [Endpoints](#endpoints)
-6. [Referência do payload — Ingestão de pedidos](#referência-do-payload--ingestão-de-pedidos)
+6. [Referência do payload — Ingestão de ordens de serviço](#referência-do-payload--ingestão-de-ordens-de-serviço)
 7. [Respostas de sucesso](#respostas-de-sucesso)
 8. [Cenários de erro](#cenários-de-erro)
 9. [Exemplos de requisição](#exemplos-de-requisição)
@@ -26,14 +26,14 @@ API pública para integração de sistemas externos (PDVs, marketplaces, ERPs) c
 
 ## Visão geral
 
-A Public API é um serviço NestJS **independente** da API principal. Ela expõe endpoints REST autenticados por **API key** e processa pedidos de forma **assíncrona** via fila Redis (Bull).
+A Public API é um serviço NestJS **independente** da API principal. Ela expõe endpoints REST autenticados por **API key** e processa ordens de serviço de forma **assíncrona** via fila Redis (Bull).
 
 | Característica | Detalhe |
 |---|---|
 | Protocolo | HTTPS (recomendado em produção) |
 | Formato | JSON (`Content-Type: application/json`) |
 | Autenticação | Header `x-api-key` |
-| Escopo | Pedidos vinculados à **empresa** da API key |
+| Escopo | Ordens de serviço vinculadas à **empresa** da API key |
 | Idempotência | Por `externalOrderId` + `companyId` |
 
 ---
@@ -118,21 +118,21 @@ sequenceDiagram
 
     Cliente->>API: POST /v1/orders + x-api-key
     API->>DB: Verifica idempotência (externalOrderId)
-    alt Pedido já existe
+    alt Ordem de serviço já existe
         API-->>Cliente: 200 already_received
-    else Pedido novo
+    else Ordem de serviço nova
         API->>Redis: Enfileira job (ingest-order)
         API-->>Cliente: 202 queued
         Worker->>Redis: Consome job
         Worker->>DB: Resolve/cria cliente
-        Worker->>DB: Cria pedido
+        Worker->>DB: Cria ordem de serviço
     end
 ```
 
 | Etapa | Comportamento |
 |---|---|
 | **Síncrona (HTTP)** | Validação de payload, autenticação, checagem de idempotência, enfileiramento |
-| **Assíncrona (Worker)** | Resolução de cliente (telefone/CPF), criação do pedido e itens/pagamentos |
+| **Assíncrona (Worker)** | Resolução de cliente (telefone/CPF), criação da ordem de serviço, peças e pagamentos |
 
 **Configuração da fila:**
 
@@ -144,7 +144,7 @@ sequenceDiagram
 | Backoff | Exponencial, 3 s |
 | Job ID | `{companyId}:{externalOrderId}` |
 
-> O worker roda em processo separado (`public-api-order-worker`). Sem o worker ativo, pedidos ficam enfileirados mas não são persistidos.
+> O worker roda em processo separado (`public-api-order-worker`). Sem o worker ativo, as ordens de serviço ficam enfileiradas mas não são persistidas.
 
 ---
 
@@ -152,7 +152,7 @@ sequenceDiagram
 
 ### `POST /v1/orders`
 
-Inclui um novo pedido para a loja vinculada à API key.
+Inclui uma ordem de serviço da lavanderia vinculada à API key.
 
 | Item | Valor |
 |---|---|
@@ -161,27 +161,27 @@ Inclui um novo pedido para a loja vinculada à API key.
 | Auth | `x-api-key` (obrigatório) |
 | Content-Type | `application/json` |
 
-**Descrição:** Recebe o payload do pedido, valida os campos e enfileira para processamento assíncrono. Retorna imediatamente — a persistência ocorre no worker.
+**Descrição:** Recebe o payload da ordem de serviço, valida os campos e enfileira para processamento assíncrono. Retorna imediatamente — a persistência ocorre no worker.
 
 ---
 
-## Referência do payload — Ingestão de pedidos
+## Referência do payload — Ingestão de ordens de serviço
 
-### Campos do pedido (`IngestOrderDto`)
+### Campos da ordem de serviço (`IngestOrderDto`)
 
 #### Obrigatórios
 
 | Campo | Tipo | Descrição |
 |---|---|---|
-| `externalOrderId` | `string` | ID único do pedido no sistema integrador. Chave de idempotência. |
-| `displayId` | `number` | Número exibido do pedido (comanda). |
-| `status` | `string` | Status do pedido (ver enum abaixo). |
-| `orderType` | `string` | Tipo do pedido (ver enum abaixo). |
+| `externalOrderId` | `string` | ID único da ordem de serviço no sistema integrador. Chave de idempotência. |
+| `displayId` | `number` | Número exibido da ordem de serviço (OS). |
+| `status` | `string` | Status da ordem de serviço (ver enum abaixo). |
+| `orderType` | `string` | Tipo do atendimento (ver enum abaixo). |
 | `orderTiming` | `string` | `instant` ou `scheduled`. |
-| `deliveryFee` | `number` | Taxa de entrega. |
+| `deliveryFee` | `number` | Taxa de coleta/entrega. |
 | `serviceFee` | `number` | Taxa de serviço. |
 | `additionalFee` | `number` | Taxas adicionais. |
-| `total` | `number` | Valor total do pedido. |
+| `total` | `number` | Valor total da ordem de serviço. |
 | `customer` | `object` | Dados do cliente (ver abaixo). |
 | `createdAt` | `string` (ISO 8601) | Data/hora de criação na origem. |
 | `updatedAt` | `string` (ISO 8601) | Data/hora da última atualização na origem. |
@@ -191,17 +191,17 @@ Inclui um novo pedido para a loja vinculada à API key.
 | Campo | Tipo | Descrição |
 |---|---|---|
 | `salesChannel` | `string` | Canal de venda. Se omitido, usa slug do partner ou `"public_api"`. |
-| `partnerId` | `string` (UUID) | ID do partner de origem (ex.: iFood, Anota AI). |
-| `customerOrigin` | `string` | Origem do cliente. Default: valor de `salesChannel`. |
-| `merchantId` | `number` | ID do merchant na origem. Default: `0`. |
-| `tableNumber` | `string` | Número da mesa (ex.: `"Mesa 12"`). |
+| `partnerId` | `string` (UUID) | ID do partner de origem (ex.: Cicclo, MaxLav). |
+| `customerOrigin` | `string` | Origem do cliente (ex.: `whatsapp`, `balcao`, `site`). Default: valor de `salesChannel`. |
+| `merchantId` | `number` | ID da loja na origem. Default: `0`. |
+| `tableNumber` | `string` | Ponto de atendimento na loja (ex.: `"Máquina 03"`, box ou balcão). |
 | `estimatedTime` | `number` | Tempo estimado em minutos. |
 | `cancellationReason` | `string` | Motivo do cancelamento (quando `status = cancelled`). |
 | `fiscalDocument` | `string` | Documento fiscal (NFC-e, etc.). |
-| `observation` | `string` | Observações gerais do pedido. |
-| `deliveryAddress` | `object` | Endereço de entrega. |
-| `schedule` | `object` | Agendamento (pedidos `scheduled`). |
-| `items` | `array` | Itens do pedido. |
+| `observation` | `string` | Observação (cuidados da peça ou instrução de coleta/entrega). |
+| `deliveryAddress` | `object` | Endereço de coleta/entrega. |
+| `schedule` | `object` | Agendamento de coleta ou entrega (`orderTiming = scheduled`). |
+| `items` | `array` | Peças ou serviços da ordem de serviço. |
 | `payments` | `array` | Pagamentos. |
 | `discounts` | `array` | Descontos aplicados. |
 
@@ -220,6 +220,12 @@ Valores aceitos:
 ```
 delivery | takeout | dine_in | indoor | pickup
 ```
+
+| Valor | Uso na lavanderia |
+|---|---|
+| `delivery` | Coleta e entrega |
+| `takeout`, `pickup` | Retirada na loja |
+| `dine_in`, `indoor` | Atendimento no balcão |
 
 #### Enums — `orderTiming`
 
@@ -255,7 +261,7 @@ instant | scheduled
 
 ---
 
-### Endereço de entrega (`deliveryAddress`)
+### Endereço de coleta/entrega (`deliveryAddress`)
 
 | Campo | Tipo |
 |---|---|
@@ -276,13 +282,13 @@ Todos os campos são opcionais.
 
 | Campo | Tipo | Obrigatório |
 |---|---|---|
-| `deliveryDateRaw` | `string` | Sim — ex.: `"2026-06-18"` |
-| `deliveryTimeRaw` | `string` | Sim — ex.: `"19:30"` |
+| `deliveryDateRaw` | `string` | Sim — data prevista de coleta ou entrega, ex.: `"2026-06-18"` |
+| `deliveryTimeRaw` | `string` | Sim — horário previsto de coleta ou entrega, ex.: `"19:30"` |
 | `deliveryAt` | `string` (ISO 8601) | Não |
 
 ---
 
-### Item do pedido (`items[]`)
+### Peça ou serviço (`items[]`)
 
 | Campo | Tipo | Obrigatório |
 |---|---|---|
@@ -295,8 +301,8 @@ Todos os campos são opcionais.
 | `status` | `string` | Sim — `confirmed` ou `cancelled` |
 | `externalCode` | `string` | Não |
 | `observation` | `string` | Não |
-| `items` | `array` | Não — sub-itens (combos) |
-| `options` | `array` | Não — adicionais/opções |
+| `items` | `array` | Não — subitens (combos, ex.: lavagem + secagem) |
+| `options` | `array` | Não — acabamentos (ex.: amaciante, passadoria) |
 
 #### Opção de item (`options[]`)
 
@@ -340,15 +346,15 @@ Todos os campos são opcionais.
 
 ## Respostas de sucesso
 
-### `202 Accepted` — Pedido enfileirado
+### `202 Accepted` — Ordem de serviço enfileirada
 
-Retornado quando o pedido é **novo** e foi enfileirado com sucesso.
+Retornado quando a ordem de serviço é **nova** e foi enfileirada com sucesso.
 
 ```json
 {
   "status": "queued",
-  "jobId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890:order-ext-12345",
-  "externalOrderId": "order-ext-12345"
+  "jobId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890:os-ext-12345",
+  "externalOrderId": "os-ext-12345"
 }
 ```
 
@@ -360,14 +366,14 @@ Retornado quando o pedido é **novo** e foi enfileirado com sucesso.
 
 ---
 
-### `200 OK` — Pedido já recebido (idempotência)
+### `200 OK` — Ordem de serviço já recebida (idempotência)
 
-Retornado quando um pedido com o mesmo `externalOrderId` **já existe** para a empresa da API key.
+Retornado quando uma ordem de serviço com o mesmo `externalOrderId` **já existe** para a empresa da API key.
 
 ```json
 {
   "status": "already_received",
-  "externalOrderId": "order-ext-12345",
+  "externalOrderId": "os-ext-12345",
   "orderId": "550e8400-e29b-41d4-a716-446655440000"
 }
 ```
@@ -376,9 +382,9 @@ Retornado quando um pedido com o mesmo `externalOrderId` **já existe** para a e
 |---|---|
 | `status` | Sempre `"already_received"`. |
 | `externalOrderId` | Eco do identificador enviado. |
-| `orderId` | UUID do pedido já persistido (quando disponível). |
+| `orderId` | UUID da ordem de serviço já persistida (quando disponível). |
 
-> Reenviar o mesmo pedido é seguro: não cria duplicatas nem reprocessa o job.
+> Reenviar a mesma ordem de serviço é seguro: não cria duplicatas nem reprocessa o job.
 
 ---
 
@@ -509,7 +515,7 @@ Quando múltiplas validações falham, `message` é um **array**:
 
 ### `503 Service Unavailable` — Fila indisponível
 
-Retornado quando o Redis/fila não está acessível e o pedido não pôde ser enfileirado.
+Retornado quando o Redis/fila não está acessível e a ordem de serviço não pôde ser enfileirada.
 
 ```json
 {
@@ -527,8 +533,8 @@ Retornado quando o Redis/fila não está acessível e o pedido não pôde ser en
 
 | Código | Situação | Ação do integrador |
 |---|---|---|
-| `202` | Pedido novo enfileirado | OK — aguardar processamento assíncrono |
-| `200` | Pedido duplicado (idempotência) | OK — tratar como sucesso |
+| `202` | Ordem de serviço nova enfileirada | OK — aguardar processamento assíncrono |
+| `200` | Ordem de serviço duplicada (idempotência) | OK — tratar como sucesso |
 | `400` | Payload ou partner inválido | Corrigir dados e reenviar |
 | `401` | Problema de autenticação | Verificar/rotacionar API key |
 | `503` | Fila indisponível | Retry com backoff |
@@ -537,20 +543,20 @@ Retornado quando o Redis/fila não está acessível e o pedido não pôde ser en
 
 ## Exemplos de requisição
 
-### Pedido completo (delivery)
+### Ordem de serviço completa (coleta e entrega)
 
 ```bash
 curl -X POST "http://localhost:3003/v1/orders" \
   -H "Content-Type: application/json" \
   -H "x-api-key: fcrm_abcd1234_SEU_SECRET_AQUI" \
   -d '{
-    "externalOrderId": "order-ext-12345",
+    "externalOrderId": "os-ext-12345",
     "displayId": 12345,
     "status": "closed",
     "orderType": "delivery",
     "orderTiming": "instant",
-    "salesChannel": "ifood",
-    "customerOrigin": "ifood",
+    "salesChannel": "pdv",
+    "customerOrigin": "whatsapp",
     "merchantId": 0,
     "deliveryFee": 5,
     "serviceFee": 0,
@@ -568,12 +574,14 @@ curl -X POST "http://localhost:3003/v1/orders" \
       "neighborhood": "Centro",
       "city": "Curitiba",
       "state": "PR",
-      "zipCode": "80010-000"
+      "zipCode": "80010-000",
+      "reference": "Portaria do condomínio"
     },
+    "observation": "Deixar com o porteiro",
     "items": [
       {
         "itemId": 100,
-        "name": "X-Burger",
+        "name": "Camisa social",
         "quantity": 2,
         "unitPrice": 25,
         "totalPrice": 50,
@@ -600,18 +608,18 @@ curl -X POST "http://localhost:3003/v1/orders" \
 ```json
 {
   "status": "queued",
-  "jobId": "company-uuid:order-ext-12345",
-  "externalOrderId": "order-ext-12345"
+  "jobId": "company-uuid:os-ext-12345",
+  "externalOrderId": "os-ext-12345"
 }
 ```
 
 ---
 
-### Pedido sem CPF (somente telefone)
+### Ordem de serviço sem CPF (somente telefone)
 
 ```json
 {
-  "externalOrderId": "order-ext-no-cpf",
+  "externalOrderId": "os-ext-no-cpf",
   "displayId": 12346,
   "status": "closed",
   "orderType": "delivery",
@@ -631,11 +639,11 @@ curl -X POST "http://localhost:3003/v1/orders" \
 
 ---
 
-### Pedido sem telefone (somente CPF)
+### Ordem de serviço sem telefone (somente CPF)
 
 ```json
 {
-  "externalOrderId": "order-ext-no-phone",
+  "externalOrderId": "os-ext-no-phone",
   "displayId": 12347,
   "status": "closed",
   "orderType": "takeout",
@@ -655,11 +663,11 @@ curl -X POST "http://localhost:3003/v1/orders" \
 
 ---
 
-### Pedido cancelado
+### Ordem de serviço cancelada
 
 ```json
 {
-  "externalOrderId": "order-ext-cancelled",
+  "externalOrderId": "os-ext-cancelled",
   "displayId": 12348,
   "status": "cancelled",
   "orderType": "delivery",
@@ -680,19 +688,19 @@ curl -X POST "http://localhost:3003/v1/orders" \
 
 ---
 
-### Pedido em nome de um partner
+### Ordem de serviço em nome de um partner
 
-Quando a integração envia pedidos de um marketplace/parceiro, informe `partnerId`:
+Quando a integração envia ordens de serviço de um PDV ou parceiro (ex.: Cicclo, MaxLav), informe `partnerId`:
 
 ```json
 {
-  "externalOrderId": "order-ext-partner",
+  "externalOrderId": "os-ext-partner",
   "displayId": 12349,
   "status": "closed",
   "orderType": "delivery",
   "orderTiming": "instant",
   "partnerId": "123e4567-e89b-12d3-a456-426614174000",
-  "salesChannel": "ifood",
+  "salesChannel": "cicclo",
   "deliveryFee": 5,
   "serviceFee": 0,
   "additionalFee": 0,
@@ -708,11 +716,11 @@ Quando a integração envia pedidos de um marketplace/parceiro, informe `partner
 
 ---
 
-### Pedido mínimo (campos obrigatórios apenas)
+### Ordem de serviço mínima (campos obrigatórios apenas)
 
 ```json
 {
-  "externalOrderId": "order-minimal-001",
+  "externalOrderId": "os-minimal-001",
   "displayId": 1,
   "status": "closed",
   "orderType": "delivery",
@@ -737,7 +745,7 @@ Quando a integração envia pedidos de um marketplace/parceiro, informe `partner
 ### Idempotência
 
 - A chave de idempotência é `{companyId}:{externalOrderId}`.
-- Pedidos duplicados retornam `200` com `status: "already_received"`.
+- Ordens de serviço duplicadas retornam `200` com `status: "already_received"`.
 - O job na fila também usa o mesmo ID, evitando processamento duplicado concorrente.
 
 ### Resolução de cliente (worker)
@@ -765,7 +773,7 @@ Prioridade de resolução:
 |---|---|
 | Worker offline | HTTP retorna `202`, job aguarda na fila |
 | Falha transient no worker | Até 5 tentativas com backoff exponencial |
-| Pedido duplicado no worker | Ignorado silenciosamente (`skipped: true`) |
+| Ordem de serviço duplicada no worker | Ignorado silenciosamente (`skipped: true`) |
 | Erro não recuperável no worker | Job permanece na fila (`removeOnFail: false`) |
 
 ---
@@ -783,7 +791,7 @@ As API keys são gerenciadas via **Admin API** (autenticação JWT de administra
 | Revogar key | `PATCH /admin/companies/:companyId/api-keys/:id/revoke` |
 | Excluir key | `DELETE /admin/companies/:companyId/api-keys/:id` |
 
-> Cada API key está vinculada a **uma empresa**. Pedidos enviados com essa key são sempre associados a essa empresa.
+> Cada API key está vinculada a **uma empresa**. Ordens de serviço enviadas com essa key são sempre associadas a essa empresa.
 
 ---
 

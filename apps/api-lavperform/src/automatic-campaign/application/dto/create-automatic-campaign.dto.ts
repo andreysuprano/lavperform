@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsDateString, IsOptional, IsBoolean, IsNotEmpty, IsEnum, IsArray, ValidateNested, IsInt, Min, IsUUID, Matches, ValidateIf } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { AudienceTargetingMode, AutomaticCampaignType, CampaignChannel } from '@prisma/client';
+import { AudienceTargetingMode, AutomaticCampaignSendMode, AutomaticCampaignType, CampaignChannel } from '@prisma/client';
 import { CreateGiftDto } from './create-gift.dto';
 import { CreateCreativeDto } from './create-creative.dto';
 import { MetaTemplateVariableMappingDto } from './meta-template-variable-mapping.dto';
@@ -36,6 +36,16 @@ export class CreateAutomaticCampaignDto {
   @IsEnum(CampaignChannel)
   @IsOptional()
   channel?: CampaignChannel = CampaignChannel.WHATSAPP_WEB;
+
+  @ApiProperty({
+    description: 'COVER_BATCH encerra ao cobrir a leva. CONTINUOUS segue até a data final e pode reenviar.',
+    enum: AutomaticCampaignSendMode,
+    required: false,
+    default: AutomaticCampaignSendMode.COVER_BATCH,
+  })
+  @IsEnum(AutomaticCampaignSendMode)
+  @IsOptional()
+  sendMode?: AutomaticCampaignSendMode = AutomaticCampaignSendMode.COVER_BATCH;
 
   @ApiProperty({
     description: 'Modo de segmentação',

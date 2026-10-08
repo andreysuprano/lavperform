@@ -140,6 +140,7 @@ export interface AutomaticCampaign {
   status: AutomaticCampaignStatus
   companyId: string
   segmentation: string
+  sendMode: "COVER_BATCH" | "CONTINUOUS"
   maxDailySends: number
   active: boolean
   showSalesOnCard: boolean

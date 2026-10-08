@@ -28,13 +28,13 @@ import {
 } from '../application/dto/ingest-order-response.dto';
 
 const FULL_ORDER_EXAMPLE: IngestOrderDto = {
-  externalOrderId: 'order-ext-12345',
+  externalOrderId: 'os-ext-12345',
   displayId: 12345,
   status: 'closed',
   orderType: 'delivery',
   orderTiming: 'instant',
-  salesChannel: 'ifood',
-  customerOrigin: 'ifood',
+  salesChannel: 'pdv',
+  customerOrigin: 'whatsapp',
   merchantId: 0,
   deliveryFee: 5,
   serviceFee: 0,
@@ -53,11 +53,13 @@ const FULL_ORDER_EXAMPLE: IngestOrderDto = {
     city: 'Curitiba',
     state: 'PR',
     zipCode: '80010-000',
+    reference: 'Portaria do condomínio',
   },
+  observation: 'Deixar com o porteiro',
   items: [
     {
       itemId: 100,
-      name: 'X-Burger',
+      name: 'Camisa social',
       quantity: 2,
       unitPrice: 25,
       totalPrice: 50,
@@ -80,7 +82,7 @@ const FULL_ORDER_EXAMPLE: IngestOrderDto = {
 
 const ORDER_WITHOUT_CPF_EXAMPLE: IngestOrderDto = {
   ...FULL_ORDER_EXAMPLE,
-  externalOrderId: 'order-ext-no-cpf',
+  externalOrderId: 'os-ext-no-cpf',
   customer: {
     name: 'Maria Souza',
     phone: '41988887777',
@@ -89,7 +91,7 @@ const ORDER_WITHOUT_CPF_EXAMPLE: IngestOrderDto = {
 
 const ORDER_WITHOUT_PHONE_EXAMPLE: IngestOrderDto = {
   ...FULL_ORDER_EXAMPLE,
-  externalOrderId: 'order-ext-no-phone',
+  externalOrderId: 'os-ext-no-phone',
   customer: {
     name: 'Carlos Lima',
     cpf: '98765432100',
@@ -98,19 +100,19 @@ const ORDER_WITHOUT_PHONE_EXAMPLE: IngestOrderDto = {
 
 const ORDER_FROM_PARTNER_EXAMPLE: IngestOrderDto = {
   ...FULL_ORDER_EXAMPLE,
-  externalOrderId: 'order-ext-partner',
+  externalOrderId: 'os-ext-partner',
   partnerId: '123e4567-e89b-12d3-a456-426614174000',
-  salesChannel: 'ifood',
+  salesChannel: 'cicclo',
 };
 
 const CANCELLED_ORDER_EXAMPLE: IngestOrderDto = {
   ...FULL_ORDER_EXAMPLE,
-  externalOrderId: 'order-ext-cancelled',
+  externalOrderId: 'os-ext-cancelled',
   status: 'cancelled',
   cancellationReason: 'Cliente desistiu',
 };
 
-@ApiTags('Orders')
+@ApiTags('Ordens de serviço')
 @ApiSecurity('x-api-key')
 @ApiHeader({
   name: 'x-api-key',
@@ -124,43 +126,43 @@ export class PublicOrdersController {
 
   @Post()
   @ApiOperation({
-    summary: 'Inclui uma nova ordem para a loja',
+    summary: 'Inclui uma ordem de serviço da lavanderia',
     description:
-      'Recebe uma ordem e enfileira para processamento assíncrono. '
+      'Recebe uma ordem de serviço e enfileira para processamento assíncrono. '
   })
   @ApiBody({
     type: IngestOrderDto,
     examples: {
       complete: {
-        summary: 'Pedido completo',
+        summary: 'Ordem de serviço completa',
         value: FULL_ORDER_EXAMPLE,
       },
       withoutCpf: {
-        summary: 'Pedido sem CPF',
+        summary: 'Ordem de serviço sem CPF',
         value: ORDER_WITHOUT_CPF_EXAMPLE,
       },
       withoutPhone: {
-        summary: 'Pedido sem telefone',
+        summary: 'Ordem de serviço sem telefone',
         value: ORDER_WITHOUT_PHONE_EXAMPLE,
       },
       cancelled: {
-        summary: 'Pedido cancelado',
+        summary: 'Ordem de serviço cancelada',
         value: CANCELLED_ORDER_EXAMPLE,
       },
       fromPartner: {
-        summary: 'Pedido enviado em nome de um partner',
+        summary: 'Ordem de serviço enviada em nome de um partner',
         value: ORDER_FROM_PARTNER_EXAMPLE,
       },
     },
   })
   @ApiResponse({
     status: 202,
-    description: 'Pedido enfileirado para processamento',
+    description: 'Ordem de serviço enfileirada para processamento',
     type: IngestOrderQueuedResponseDto,
   })
   @ApiResponse({
     status: 200,
-    description: 'Pedido já havia sido recebido anteriormente',
+    description: 'Ordem de serviço já havia sido recebida anteriormente',
     type: IngestOrderAlreadyReceivedResponseDto,
   })
   @ApiResponse({

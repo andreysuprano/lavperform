@@ -15,11 +15,13 @@ import { CustomersModule } from '../../customers/customers.module';
 import { OrderModule } from '../../orders/order.module';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { workerProviders } from '../../common/queue/worker-runtime.config';
+import { SalesImportModule } from '../sales-import/sales-import.module';
 
 @Module({
   imports: [
     HttpModule,
     PrismaModule,
+    SalesImportModule,
     PartnersModule,
     CustomersModule,
     OrderModule,

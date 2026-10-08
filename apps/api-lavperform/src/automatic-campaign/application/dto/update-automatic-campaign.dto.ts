@@ -1,7 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { IsString, IsDateString, IsOptional, IsBoolean, IsEnum, IsArray, ValidateNested, IsInt, Min, ValidateIf, IsUUID, Matches } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
-import { AudienceTargetingMode, AutomaticCampaignType, CampaignChannel } from '@prisma/client';
+import { AudienceTargetingMode, AutomaticCampaignSendMode, AutomaticCampaignType, CampaignChannel } from '@prisma/client';
 import { CreateGiftDto } from './create-gift.dto';
 import { CreateCreativeDto } from './create-creative.dto';
 import { MetaTemplateVariableMappingDto } from './meta-template-variable-mapping.dto';
@@ -35,6 +35,15 @@ export class UpdateAutomaticCampaignDto {
   @IsEnum(CampaignChannel)
   @IsOptional()
   channel?: CampaignChannel;
+
+  @ApiProperty({
+    description: 'COVER_BATCH encerra ao cobrir a leva. CONTINUOUS segue até a data final e pode reenviar.',
+    enum: AutomaticCampaignSendMode,
+    required: false,
+  })
+  @IsEnum(AutomaticCampaignSendMode)
+  @IsOptional()
+  sendMode?: AutomaticCampaignSendMode;
 
   @ApiProperty({
     description: 'Segmentação RFV dos clientes',

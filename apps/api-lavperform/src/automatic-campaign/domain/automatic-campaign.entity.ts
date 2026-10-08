@@ -27,6 +27,8 @@ export class AutomaticCampaign {
     status: AutomaticCampaignStatus;
     maxDailySends: number;
     active: boolean;
+    sendMode?: 'COVER_BATCH' | 'CONTINUOUS';
+    batchSnapshottedAt?: Date | null;
     showSalesOnCard: boolean;
     daysOfWeek: string[];
     messageText: string;

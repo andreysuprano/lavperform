@@ -13,6 +13,7 @@ import { DisparoProModule } from 'src/integrations/disparo-pro/disparo-pro.modul
 import { workerProviders } from 'src/common/queue/worker-runtime.config';
 import { RenitencyModule } from 'src/renitency/renitency.module';
 import { AutomaticCampaignSlotRefillModule } from 'src/automatic-campaign/automatic-campaign-slot-refill.module';
+import { AutomaticCampaignBatchModule } from 'src/automatic-campaign/automatic-campaign-batch.module';
 @Module({
   imports: [HttpModule,
     OpenAIModule,
@@ -21,6 +22,7 @@ import { AutomaticCampaignSlotRefillModule } from 'src/automatic-campaign/automa
     DisparoProModule,
     RenitencyModule,
     AutomaticCampaignSlotRefillModule,
+    AutomaticCampaignBatchModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.MESSAGE_ENGINE,
       defaultJobOptions: {

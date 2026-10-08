@@ -15,11 +15,13 @@ import { MaxlavSaleProcessor } from './infrastructure/jobs/maxlav-sale.processor
 import { MaxlavSalesTasks } from './crons/maxlav-sales-tasks';
 import { MaxlavController } from './presentation/maxlav.controller';
 import { workerProviders } from '../../common/queue/worker-runtime.config';
+import { SalesImportModule } from '../sales-import/sales-import.module';
 
 @Module({
   imports: [
     HttpModule,
     PrismaModule,
+    SalesImportModule,
     PartnersModule,
     CustomersModule,
     OrderModule,

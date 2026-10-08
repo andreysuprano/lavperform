@@ -7,8 +7,9 @@ import { getQueueToken } from '@nestjs/bull';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { MetaTemplatesService } from 'src/integrations/meta/application/meta-templates.service';
 import { CustomSendListsService } from 'src/custom-send-lists/application/custom-send-lists.service';
-import { MessageStatus } from '@prisma/client';
+import { AutomaticCampaignSendMode, MessageStatus } from '@prisma/client';
 import { CAMPAIGN_PAUSED_ABORT_ERROR } from 'src/automatic-campaign/automatic-campaign.constants';
+import { AutomaticCampaignBatchService } from 'src/automatic-campaign/application/automatic-campaign-batch.service';
 
 describe('AutomaticCampaignService', () => {
   let service: AutomaticCampaignService;
@@ -37,9 +38,12 @@ describe('AutomaticCampaignService', () => {
     },
     automaticCampaign: {
       update: jest.fn().mockResolvedValue({}),
+      delete: jest.fn().mockResolvedValue({}),
     },
     $transaction: jest.fn(async (fn) => fn(mockPrisma)),
     coupon: { findFirst: jest.fn() },
+    gift: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
+    campaignMetric: { deleteMany: jest.fn().mockResolvedValue({ count: 0 }) },
   };
 
   const mockQueue = { add: jest.fn().mockResolvedValue(undefined) };
@@ -57,6 +61,14 @@ describe('AutomaticCampaignService', () => {
     assertCustomSendListBelongsToCompany: jest.fn(),
   };
 
+  const mockBatch = {
+    resolveContactableIds: jest.fn().mockResolvedValue([]),
+    commitBatch: jest.fn().mockResolvedValue(undefined),
+    clearContinuous: jest.fn().mockResolvedValue(undefined),
+    syncAfterSave: jest.fn().mockResolvedValue(undefined),
+    tryFreezeCoverBatch: jest.fn().mockResolvedValue('frozen'),
+  };
+
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -72,6 +84,7 @@ describe('AutomaticCampaignService', () => {
           provide: CustomSendListsService,
           useValue: mockCustomSendListsService,
         },
+        { provide: AutomaticCampaignBatchService, useValue: mockBatch },
       ],
     }).compile();
 
@@ -80,6 +93,12 @@ describe('AutomaticCampaignService', () => {
 
     jest.clearAllMocks();
     mockQueue.add.mockResolvedValue(undefined);
+    mockBatch.resolveContactableIds.mockResolvedValue([]);
+    mockBatch.commitBatch.mockResolvedValue(undefined);
+    mockBatch.clearContinuous.mockResolvedValue(undefined);
+    mockBatch.syncAfterSave.mockResolvedValue(undefined);
+    mockBatch.tryFreezeCoverBatch.mockResolvedValue('frozen');
+    mockRepository.findById.mockResolvedValue({ id: 'ac1' });
   });
 
   describe('create', () => {
@@ -109,6 +128,56 @@ describe('AutomaticCampaignService', () => {
         creatives,
       );
       expect(result).toEqual({ id: 'ac1', metaTemplates: [] });
+    });
+
+    it('freezes the batch after creating when sendMode is omitted', async () => {
+      mockRepository.createWithRelations.mockResolvedValue({
+        id: 'ac1',
+        status: 'IN_PROGRESS',
+        channel: 'WHATSAPP_WEB',
+      });
+
+      await service.create('comp1', {
+        name: 'Auto',
+        type: 'BIRTHDAY',
+        segmentation: 'campeao',
+        startDate: '2024-01-01',
+      } as any);
+
+      expect(mockBatch.syncAfterSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'ac1',
+          companyId: 'comp1',
+          sendMode: AutomaticCampaignSendMode.COVER_BATCH,
+        }),
+      );
+      expect(mockRepository.createWithRelations.mock.invocationCallOrder[0]).toBeLessThan(
+        mockBatch.syncAfterSave.mock.invocationCallOrder[0],
+      );
+      expect(mockPrisma.automaticCampaign.delete).not.toHaveBeenCalled();
+    });
+
+    it('deletes the created campaign when clearing the continuous batch fails', async () => {
+      mockRepository.createWithRelations.mockResolvedValue({
+        id: 'ac1',
+        status: 'IN_PROGRESS',
+        channel: 'WHATSAPP_WEB',
+      });
+      mockBatch.syncAfterSave.mockRejectedValueOnce(new Error('clear failed'));
+
+      await expect(
+        service.create('comp1', {
+          name: 'Auto',
+          type: 'BIRTHDAY',
+          segmentation: 'campeao',
+          startDate: '2024-01-01',
+          sendMode: AutomaticCampaignSendMode.CONTINUOUS,
+        } as any),
+      ).rejects.toThrow('clear failed');
+
+      expect(mockPrisma.automaticCampaign.delete).toHaveBeenCalledWith({
+        where: { id: 'ac1' },
+      });
     });
 
     it('rejects when couponId references a coupon that does not exist', async () => {
@@ -152,8 +221,14 @@ describe('AutomaticCampaignService', () => {
 
   describe('update', () => {
     it('updates using repository with gift and creative logic', async () => {
-      mockRepository.findById.mockResolvedValue({ id: 'ac1', companyId: 'comp1' });
-      mockRepository.update.mockResolvedValue({ id: 'ac1', name: 'Updated' });
+      mockRepository.findById
+        .mockResolvedValueOnce({
+          id: 'ac1',
+          companyId: 'comp1',
+          segmentation: 'campeao',
+        })
+        .mockResolvedValue({ id: 'ac1', name: 'Updated' });
+      mockRepository.update.mockResolvedValue({ id: 'ac1', name: 'Updated', status: 'PROCESSING' });
 
       const result = await service.update('ac1', {
         name: 'Updated',
@@ -180,6 +255,7 @@ describe('AutomaticCampaignService', () => {
       mockRepository.findById.mockResolvedValue({
         id: 'ac1',
         companyId: 'comp1',
+        segmentation: 'campeao',
         couponId: 'cp1',
       });
       mockRepository.update.mockResolvedValue({ id: 'ac1', name: 'Updated' });
@@ -200,6 +276,7 @@ describe('AutomaticCampaignService', () => {
       mockRepository.findById.mockResolvedValue({
         id: 'ac1',
         companyId: 'comp1',
+        segmentation: 'campeao',
         couponId: 'cp1',
       });
       mockPrisma.coupon.findFirst.mockResolvedValueOnce({
@@ -241,6 +318,7 @@ describe('AutomaticCampaignService', () => {
       mockRepository.findById.mockResolvedValue({
         id: 'ac1',
         companyId: 'comp1',
+        segmentation: 'campeao',
         channel: 'WHATSAPP_BUSINESS_API',
         creatives: [previousCreative],
       });
@@ -281,6 +359,7 @@ describe('AutomaticCampaignService', () => {
       mockRepository.findById.mockResolvedValue({
         id: 'ac1',
         companyId: 'comp1',
+        segmentation: 'campeao',
         channel: 'WHATSAPP_WEB',
         creatives: [],
       });
@@ -308,6 +387,7 @@ describe('AutomaticCampaignService', () => {
       mockRepository.findById.mockResolvedValue({
         id: 'ac1',
         companyId: 'comp1',
+        segmentation: 'campeao',
         couponId: 'cp1',
       });
       mockRepository.update.mockResolvedValue({ id: 'ac1' });
@@ -318,6 +398,94 @@ describe('AutomaticCampaignService', () => {
       expect(repository.update).toHaveBeenCalledWith(
         'ac1',
         expect.objectContaining({ couponId: null }),
+      );
+    });
+
+    it('freezes the batch after updating when sendMode is COVER_BATCH', async () => {
+      mockRepository.findById.mockResolvedValue({
+        id: 'ac1',
+        companyId: 'comp1',
+        segmentation: 'campeao',
+        channel: 'WHATSAPP_WEB',
+        status: 'IN_PROGRESS',
+      });
+      mockRepository.update.mockResolvedValue({ id: 'ac1' });
+
+      await service.update('ac1', {
+        name: 'Updated',
+        sendMode: AutomaticCampaignSendMode.COVER_BATCH,
+      } as any);
+
+      expect(mockBatch.syncAfterSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'ac1',
+          companyId: 'comp1',
+          sendMode: AutomaticCampaignSendMode.COVER_BATCH,
+        }),
+      );
+      expect(mockRepository.update.mock.invocationCallOrder[0]).toBeLessThan(
+        mockBatch.syncAfterSave.mock.invocationCallOrder[0],
+      );
+    });
+
+    it('keeps the saved campaign when syncing the cover batch resolves', async () => {
+      mockRepository.findById.mockResolvedValue({
+        id: 'ac1',
+        companyId: 'comp1',
+        segmentation: 'campeao',
+        channel: 'WHATSAPP_WEB',
+        status: 'IN_PROGRESS',
+      });
+      mockRepository.update.mockResolvedValue({ id: 'ac1' });
+
+      await expect(
+        service.update('ac1', { sendMode: AutomaticCampaignSendMode.COVER_BATCH } as any),
+      ).resolves.toEqual(expect.objectContaining({ id: 'ac1' }));
+
+      expect(repository.update).toHaveBeenCalled();
+    });
+
+    it('rejects the update when clearing the continuous batch fails, after the campaign was saved', async () => {
+      mockRepository.findById.mockResolvedValue({
+        id: 'ac1',
+        companyId: 'comp1',
+        segmentation: 'campeao',
+        channel: 'WHATSAPP_WEB',
+        status: 'IN_PROGRESS',
+      });
+      mockRepository.update.mockResolvedValue({ id: 'ac1' });
+      mockBatch.syncAfterSave.mockRejectedValueOnce(new Error('clear failed'));
+
+      await expect(
+        service.update('ac1', { sendMode: AutomaticCampaignSendMode.CONTINUOUS } as any),
+      ).rejects.toThrow('clear failed');
+
+      expect(repository.update).toHaveBeenCalled();
+    });
+
+    it('syncs a continuous campaign after updating and does not freeze before the save', async () => {
+      mockRepository.findById.mockResolvedValue({
+        id: 'ac1',
+        companyId: 'comp1',
+        segmentation: 'campeao',
+        channel: 'WHATSAPP_WEB',
+        status: 'IN_PROGRESS',
+      });
+      mockRepository.update.mockResolvedValue({ id: 'ac1' });
+
+      await service.update('ac1', {
+        sendMode: AutomaticCampaignSendMode.CONTINUOUS,
+      } as any);
+
+      expect(mockBatch.syncAfterSave).toHaveBeenCalledWith(
+        expect.objectContaining({
+          id: 'ac1',
+          sendMode: AutomaticCampaignSendMode.CONTINUOUS,
+          status: 'IN_PROGRESS',
+        }),
+      );
+      expect(mockRepository.update.mock.invocationCallOrder[0]).toBeLessThan(
+        mockBatch.syncAfterSave.mock.invocationCallOrder[0],
       );
     });
   });

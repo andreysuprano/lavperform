@@ -2,6 +2,7 @@ import { Injectable, Logger } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { formatError } from '../../../common/utils/formatters';
+import { with429Retry } from '../../sales-import/partner-http-pace';
 import {
   CiccloSale,
   CiccloSalesQueryParams,
@@ -43,21 +44,25 @@ export class CiccloService {
         dateTo,
       };
 
-      const response = await firstValueFrom(
-        this.httpService
-          .post<CiccloSalesResponse>(`${this.baseUrl}/api/sales/query`, body, {
-            headers: {
-              accept: 'application/json',
-              'Content-Type': 'application/json',
-            },
-          })
-          .pipe(
-            catchError((error) => {
-              const errorMessage = formatError(error);
-              this.logger.error(`Erro ao buscar vendas Cicclo: ${errorMessage}`);
-              throw error;
-            }),
+      const response = await with429Retry(
+        () =>
+          firstValueFrom(
+            this.httpService
+              .post<CiccloSalesResponse>(`${this.baseUrl}/api/sales/query`, body, {
+                headers: {
+                  accept: 'application/json',
+                  'Content-Type': 'application/json',
+                },
+              })
+              .pipe(
+                catchError((error) => {
+                  const errorMessage = formatError(error);
+                  this.logger.error(`Erro ao buscar vendas Cicclo: ${errorMessage}`);
+                  throw error;
+                }),
+              ),
           ),
+        { logger: this.logger },
       );
 
       const data = response.data;

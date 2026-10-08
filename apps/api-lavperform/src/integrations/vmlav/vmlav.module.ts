@@ -14,11 +14,13 @@ import { BullBoardModule } from '@bull-board/nestjs';
 import { BullAdapter } from '@bull-board/api/bullAdapter';
 import { workerProviders } from '../../common/queue/worker-runtime.config';
 import { PublicApiOrderIngestionModule } from '../../public-api/orders/public-api-order-ingestion.module';
+import { SalesImportModule } from '../sales-import/sales-import.module';
 
 @Module({
   imports: [
     HttpModule,
     PrismaModule,
+    SalesImportModule,
     PartnersModule,
     PublicApiOrderIngestionModule,
     BullModule.registerQueue(

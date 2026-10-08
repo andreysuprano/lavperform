@@ -524,6 +524,11 @@ enum AutomaticCampaignStatus {
   FAILED
 }
 
+enum AutomaticCampaignSendMode {
+  COVER_BATCH
+  CONTINUOUS
+}
+
 model AutomaticCampaign {
   id              String                      @id @default(uuid())
   name            String
@@ -539,6 +544,9 @@ model AutomaticCampaign {
   customSendList    CustomSendList?             @relation(fields: [customSendListId], references: [id], onDelete: SetNull)
   maxDailySends   Int                         @default(50)
   active          Boolean                     @default(true)
+  sendMode            AutomaticCampaignSendMode @default(COVER_BATCH)
+  batchSnapshottedAt  DateTime?
+  batchRecipients     AutomaticCampaignBatchRecipient[]
   showSalesOnCard Boolean                     @default(true)
   images          String?
   daysOfWeek      String[]                    @default(["seg", "ter", "qua", "qui", "sex", "sab", "dom"])
@@ -588,6 +596,17 @@ model AutomaticCampaignCreative {
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
+  @@index([automaticCampaignId])
+}
+
+model AutomaticCampaignBatchRecipient {
+  id                  String            @id @default(uuid())
+  automaticCampaignId String
+  automaticCampaign   AutomaticCampaign @relation(fields: [automaticCampaignId], references: [id], onDelete: Cascade)
+  customerId          String
+  createdAt           DateTime          @default(now())
+
+  @@unique([automaticCampaignId, customerId])
   @@index([automaticCampaignId])
 }
 
@@ -811,8 +830,9 @@ model Order {
 
   @@unique([companyId, externalOrderId])
   @@index([merchantId, displayId])
+  @@index([companyId, displayId])
   @@index([companyId, createdAt])
-  @@index([companyId, integratorOrderId])
+  @@unique([companyId, integratorOrderId])
   @@index([companyId, externalOrderId])
   @@index([customerId])
   @@index([customerId, createdAt(sort: Desc)])

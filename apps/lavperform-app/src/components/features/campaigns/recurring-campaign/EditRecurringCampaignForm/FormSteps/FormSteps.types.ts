@@ -1,3 +1,5 @@
+import type { AutomaticCampaignSendMode } from '@/types'
+
 export interface FormDataProps {
   campaignType: 'REACTIVATION' | 'RECURRENCE'
   messageText: string
@@ -19,6 +21,7 @@ export interface FormDataProps {
   startDate: string
   target: string[]
   selectedDays?: number[]
+  sendMode?: AutomaticCampaignSendMode
 }
 
 export interface FormStepsProps {

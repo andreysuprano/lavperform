@@ -26,6 +26,7 @@ import { CustomSendListsModule } from '../custom-send-lists/custom-send-lists.mo
 import { CustomersModule } from '../customers/customers.module';
 import { MessageCostModule } from '../message-engine/pricing/message-cost.module';
 import { WhatsappModule } from '../whatsapp/whatsapp.module';
+import { AutomaticCampaignBatchModule } from './automatic-campaign-batch.module';
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { WhatsappModule } from '../whatsapp/whatsapp.module';
     CustomersModule,
     WhatsappModule,
     MessageCostModule,
+    AutomaticCampaignBatchModule,
     BullModule.registerQueue({
       name: QUEUE_NAMES.AUTOMATIC_CAMPAIGNS_ENGINE,
       defaultJobOptions: {

@@ -13,9 +13,27 @@ import {
   buildUtcDateOnlyRange,
   resolveImportDateRange,
 } from '../../import-date-range.util';
+import { salesDailyImportJobId } from '../../sales-import/sales-import-schedule';
+import {
+  buildSalesImportJobOptions,
+  enqueueSalesImportJob,
+} from '../../sales-import/sales-import-queue';
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { CiccloSaleMapping } from '../mappings/cicclo-sale-mapping';
 import { CiccloImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
+
+function isIntegratorOrderIdUniqueConflict(error: unknown): boolean {
+  const err = error as { code?: string; meta?: { target?: unknown } };
+  if (err?.code !== 'P2002') {
+    return false;
+  }
+  const target = err.meta?.target;
+  if (typeof target === 'string') {
+    // nome da constraint, ex.: Order_companyId_integratorOrderId_key
+    return target.includes('integratorOrderId');
+  }
+  return Array.isArray(target) && target.includes('integratorOrderId');
+}
 
 @Injectable()
 export class CiccloSalesService {
@@ -116,7 +134,10 @@ export class CiccloSalesService {
   }
 
   /**
-   * Processa uma venda individual: upsert do cliente e criação do pedido
+   * Processa uma venda individual: antes de criar, procura pedido CICCLO da empresa
+   * com integratorOrderId ou displayId igual ao id da venda (pedidos antigos só têm
+   * displayId). Se existir, grava integratorOrderId quando faltar e não cria cópia;
+   * senão faz upsert do cliente e cria o pedido.
    */
   async processSale(companyId: string, sale: CiccloSale): Promise<void> {
     try {
@@ -124,8 +145,41 @@ export class CiccloSalesService {
         `Processando venda Cicclo ${sale.id} - Cliente: ${sale.customer?.name}`,
       );
 
-      const ciccloCustomer = sale.customer;
+      const existingOrder = await this.prisma.order.findFirst({
+        where: {
+          companyId,
+          salesChannel: 'CICCLO',
+          OR: [
+            { integratorOrderId: sale.id },
+            { displayId: sale.id },
+          ],
+        },
+        select: { id: true, integratorOrderId: true },
+        orderBy: { id: 'asc' },
+      });
 
+      if (existingOrder) {
+        if (existingOrder.integratorOrderId == null) {
+          try {
+            await this.prisma.order.update({
+              where: { id: existingOrder.id },
+              data: { integratorOrderId: sale.id },
+            });
+          } catch (error) {
+            if (isIntegratorOrderIdUniqueConflict(error)) {
+              this.logger.log(
+                `Pedido Cicclo ${sale.id} já foi gravado por outra execução, ignorando`,
+              );
+              return;
+            }
+            throw error;
+          }
+        }
+        this.logger.log(`Pedido Cicclo ${sale.id} já existe, ignorando`);
+        return;
+      }
+
+      const ciccloCustomer = sale.customer;
       const customer = await this.customerIdentityService.resolveForSale({
         companyId,
         incoming: {
@@ -139,23 +193,14 @@ export class CiccloSalesService {
         },
       });
 
-      const existingOrder = await this.orderService.findByIntegratorOrderId(
-        companyId,
-        sale.id,
-      );
-
-      if (existingOrder) {
-        this.logger.log(
-          `Pedido Cicclo ${sale.id} já existe, ignorando`,
-        );
-        return;
-      }
-
       this.logger.log(`Criando pedido para venda Cicclo ${sale.id}`);
 
-      const orderData = CiccloSaleMapping.toOrder(sale, customer?.id ?? null, companyId);
+      const orderData = CiccloSaleMapping.toOrder(
+        sale,
+        customer?.id ?? null,
+        companyId,
+      );
       const {
-        integratorOrderId,
         items,
         discounts,
         payments,
@@ -166,20 +211,31 @@ export class CiccloSalesService {
 
       const saleDate = parseUTCDate(sale.createdAt);
 
-      const order = await this.orderService.create({
-        ...orderCreateData,
-        createdAt: saleDate!,
-        updatedAt: saleDate!,
-        items,
-        discounts,
-        payments,
-        deliveryAddress,
-        schedule,
-      });
+      try {
+        const order = await this.orderService.create({
+          ...orderCreateData,
+          integratorOrderId: sale.id,
+          createdAt: saleDate!,
+          updatedAt: saleDate!,
+          items,
+          discounts,
+          payments,
+          deliveryAddress,
+          schedule,
+        });
 
-      this.logger.log(
-        `Pedido ${order.id} criado com sucesso para venda Cicclo ${sale.id}`,
-      );
+        this.logger.log(
+          `Pedido ${order.id} criado com sucesso para venda Cicclo ${sale.id}`,
+        );
+      } catch (error) {
+        if (isIntegratorOrderIdUniqueConflict(error)) {
+          this.logger.log(
+            `Pedido Cicclo ${sale.id} já foi gravado por outra execução, ignorando`,
+          );
+          return;
+        }
+        throw error;
+      }
     } catch (error) {
       this.logger.error(
         `Erro ao processar venda Cicclo ${sale.id}:`,
@@ -256,15 +312,22 @@ export class CiccloSalesService {
 
       let jobsCreated = 0;
       for (const date of dates) {
-        await this.ciccloSalesQueue.add(
+        const result = await enqueueSalesImportJob(
+          this.ciccloSalesQueue,
           QUEUE_NAMES.CICCLO_SALES_IMPORT,
           { companyId, date },
-          {
-            attempts: 3,
-            backoff: { type: 'exponential', delay: 5000 },
-          },
+          buildSalesImportJobOptions(
+            salesDailyImportJobId('cicclo', companyId, date),
+          ),
         );
-        jobsCreated++;
+
+        if (result === 'queued') {
+          jobsCreated++;
+        } else {
+          this.logger.debug(
+            `Importação histórica ${date} já enfileirada para empresa ${companyId}`,
+          );
+        }
       }
 
       this.logger.log(

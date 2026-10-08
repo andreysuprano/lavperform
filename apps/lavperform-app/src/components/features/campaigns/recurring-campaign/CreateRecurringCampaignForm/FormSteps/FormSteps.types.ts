@@ -1,4 +1,7 @@
-import type { AudienceTargetingMode } from '@/types'
+import type {
+  AudienceTargetingMode,
+  AutomaticCampaignSendMode,
+} from '@/types'
 
 export interface FormDataProps {
   campaignType: 'REACTIVATION' | 'RECURRENCE'
@@ -36,6 +39,7 @@ export interface FormDataProps {
   metaMessageTemplateId?: string | null
   metaTemplateVariableMappings?: import('@/utils/campaigns/metaTemplateVariable.constants').MetaTemplateVariableMapping[]
   selectedMetaTemplateLabel?: string
+  sendMode?: AutomaticCampaignSendMode
 }
 
 export type CampaignCreative = {
