@@ -1,7 +1,7 @@
 import { Box, Button, Flex, IconButton, Input, Spinner, Stack, Text } from '@chakra-ui/react'
 import { AxiosError } from 'axios'
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { LuCheck, LuSend, LuSettings, LuZap } from 'react-icons/lu'
+import { LuCheck, LuSend, LuZap } from 'react-icons/lu'
 import { useNavigate, useParams } from 'react-router-dom'
 
 import { useAuth } from '@/context/AuthContext'
@@ -190,8 +190,7 @@ function AIAgentConfiguratorPageBase() {
           flexShrink={0}
           onClick={() => navigate(agentId ? `/whitelabel/ai-agent/${agentId}` : '/whitelabel/ai-agent')}
         >
-          <LuSettings />
-          Configurações
+          Conversas
         </Button>
       </Flex>
 

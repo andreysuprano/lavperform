@@ -21,7 +21,7 @@ describe('AIAgentConfiguratorPage', () => {
     cleanup()
   })
 
-  it('mostra o título, as configurações e o campo de mensagem', async () => {
+  it('mostra o título, as conversas e o campo de mensagem', async () => {
     render(
       <Provider>
         <MemoryRouter initialEntries={['/whitelabel/ai-agent/agent-1/conversa']}>
@@ -33,7 +33,7 @@ describe('AIAgentConfiguratorPage', () => {
     )
 
     expect(await screen.findByPlaceholderText('Escreva uma mensagem...')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Configurações' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Conversas' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeInTheDocument()
     expect(screen.getByText('Configurar agente')).toBeInTheDocument()
   })

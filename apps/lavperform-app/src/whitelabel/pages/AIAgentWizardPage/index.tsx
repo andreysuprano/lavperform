@@ -208,7 +208,7 @@ function AIAgentWizardModalBase({ open, onClose }: Props) {
       if (!goNext(fresh)) {
         const created = await aiAgentService.finishWizard(companyId)
         onClose()
-        navigate(`/whitelabel/ai-agent/${created.data.id}`)
+        navigate(`/whitelabel/ai-agent/${created.data.id}/conversa`)
       }
     } catch (error) {
       const axiosError = error as AxiosError<{ message?: string; missing?: string[] }>
