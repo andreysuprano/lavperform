@@ -1,11 +1,12 @@
-import { Box, Button, Flex, IconButton, Input, Spinner, Stack, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, HStack, IconButton, Input, Spinner, Stack, Switch, Text } from '@chakra-ui/react'
 import { AxiosError } from 'axios'
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { LuCheck, LuSend, LuZap } from 'react-icons/lu'
-import { useNavigate, useParams } from 'react-router-dom'
+import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { useAuth } from '@/context/AuthContext'
 import { SafeMarkdown } from '@/whitelabel/components/ai-agent/SafeMarkdown/SafeMarkdown'
+import { AIAgentPlaygroundPage } from '@/whitelabel/pages/AIAgentPlaygroundPage'
 import { aiAgentService } from '@/whitelabel/services'
 import type { ConfiguratorBlock, ConfiguratorTurnMessage } from '@/whitelabel/types'
 
@@ -17,6 +18,8 @@ type LiveActivity = { id: string; label: string; status: 'running' | 'done' }
 function AIAgentConfiguratorPageBase() {
   const { agentId = '' } = useParams()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
+  const showTest = searchParams.get('teste') === '1'
   const { selectedCompany } = useAuth()
   const companyId = selectedCompany?.id
   const [messages, setMessages] = useState<ConfiguratorTurnMessage[]>([])
@@ -183,16 +186,42 @@ function AIAgentConfiguratorPageBase() {
         <Text fontWeight="normal" truncate flex="1" minW={0}>
           {title}
         </Text>
-        <Button
-          size="sm"
-          variant="outline"
-          borderRadius="lg"
-          flexShrink={0}
-          onClick={() => navigate(agentId ? `/whitelabel/ai-agent/${agentId}` : '/whitelabel/ai-agent')}
-        >
-          Conversas
-        </Button>
+        <HStack gap={3} flexShrink={0}>
+          <Switch.Root
+            checked={showTest}
+            onCheckedChange={(details) => {
+              const next = new URLSearchParams(searchParams)
+              if (details.checked) next.set('teste', '1')
+              else next.delete('teste')
+              setSearchParams(next, { replace: true })
+            }}
+            size="sm"
+          >
+            <Switch.HiddenInput />
+            <Switch.Control>
+              <Switch.Thumb />
+            </Switch.Control>
+          </Switch.Root>
+          <Text fontSize="sm">Testar</Text>
+          <Button
+            size="sm"
+            variant="outline"
+            borderRadius="lg"
+            flexShrink={0}
+            onClick={() => navigate(agentId ? `/whitelabel/ai-agent/${agentId}` : '/whitelabel/ai-agent')}
+          >
+            Conversas
+          </Button>
+        </HStack>
       </Flex>
+
+      <Flex flex="1" minH={0}>
+        <Flex
+          direction="column"
+          flex="1"
+          minW={0}
+          display={{ base: showTest ? 'none' : 'flex', md: 'flex' }}
+        >
 
       <Stack flex="1" minH={0} overflowY="auto" gap={8} px={{ base: 4, md: 8 }} py={8}>
         {unavailable ? (
@@ -269,6 +298,19 @@ function AIAgentConfiguratorPageBase() {
           </Flex>
         </Box>
       )}
+        </Flex>
+        {showTest && (
+          <Box
+            flex={{ base: '1', md: '0 0 42%' }}
+            minW={0}
+            minH={0}
+            borderLeftWidth={{ base: 0, md: '1px' }}
+            borderColor="border.muted"
+          >
+            <AIAgentPlaygroundPage embedded />
+          </Box>
+        )}
+      </Flex>
     </Flex>
   )
 }

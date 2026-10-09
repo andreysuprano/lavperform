@@ -36,5 +36,22 @@ describe('AIAgentConfiguratorPage', () => {
     expect(screen.getByRole('button', { name: 'Conversas' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeInTheDocument()
     expect(screen.getByText('Configurar agente')).toBeInTheDocument()
+    expect(screen.getByText('Testar')).toBeInTheDocument()
+    expect(screen.queryByText('Testar agente')).not.toBeInTheDocument()
+  })
+
+  it('mostra o chat de teste ao lado quando o interruptor está ligado', async () => {
+    render(
+      <Provider>
+        <MemoryRouter initialEntries={['/whitelabel/ai-agent/agent-1/conversa?teste=1']}>
+          <Routes>
+            <Route path="/whitelabel/ai-agent/:agentId/conversa" element={<AIAgentConfiguratorPage />} />
+          </Routes>
+        </MemoryRouter>
+      </Provider>
+    )
+
+    expect(await screen.findByText('Testar agente')).toBeInTheDocument()
+    expect(screen.getAllByPlaceholderText('Escreva uma mensagem...')).toHaveLength(2)
   })
 })

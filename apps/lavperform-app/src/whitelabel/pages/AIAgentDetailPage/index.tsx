@@ -8,11 +8,12 @@ import {
   Text,
 } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useRef } from 'react'
-import { LuBot } from 'react-icons/lu'
+import { LuBot, LuPlay } from 'react-icons/lu'
 import {
   RiArrowLeftLine,
   RiDeleteBinLine,
   RiRefreshLine,
+  RiRobot2Line,
 } from 'react-icons/ri'
 import { useNavigate, useParams } from 'react-router-dom'
 
@@ -96,6 +97,22 @@ function AIAgentDetailPageBase() {
       <Button
         size="sm"
         variant="outline"
+        onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/conversa`)}
+      >
+        <RiRobot2Line />
+        Configurar
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/conversa?teste=1`)}
+      >
+        <LuPlay />
+        Testar
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
         onClick={() => updateWebhook.mutate(agent.id)}
         loading={updateWebhook.isPending}
       >
@@ -142,23 +159,9 @@ function AIAgentDetailPageBase() {
   return (
     <AppContentLayout icon={<LuBot />} title={agent.name} action={headerActions}>
       <HStack gap={3}>
-        <Button size="xs" variant="ghost" onClick={goBack}>
+        <Button size="sm" variant="ghost" onClick={goBack}>
           <RiArrowLeftLine />
           Agentes de IA
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/conversa`)}
-        >
-          Configurar
-        </Button>
-        <Button
-          size="xs"
-          variant="outline"
-          onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/teste`)}
-        >
-          Testar
         </Button>
         {agent.description && (
           <Text fontSize="sm" color="fg.muted" lineClamp={1}>
