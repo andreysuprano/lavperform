@@ -17,6 +17,7 @@ import {
   LuFileText,
   LuGraduationCap,
   LuHeart,
+  LuPlay,
   LuScale,
   LuSmile,
   LuWrench,
@@ -142,6 +143,19 @@ function AIAgentListCardBase({ agent, onDelete, isDeleting }: Props) {
                 }}
               >
                 <RiChat3Line />
+              </IconButton>
+
+              <IconButton
+                size="sm"
+                variant="ghost"
+                aria-label="Testar agente"
+                title="Testar agente"
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(`/whitelabel/ai-agent/${agent.id}/conversa?teste=1`)
+                }}
+              >
+                <LuPlay />
               </IconButton>
 
               <IconButton

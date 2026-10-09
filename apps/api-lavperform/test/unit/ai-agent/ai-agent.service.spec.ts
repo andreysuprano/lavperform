@@ -114,9 +114,11 @@ describe('AiAgentService - playgroundTurn', () => {
   const prisma: any = {
     userCompany: { findUnique: jest.fn() },
     user: { findUnique: jest.fn() },
+    company: { findUnique: jest.fn() },
   };
   const lavaiAgentApi: any = {
     runPlaygroundTurn: jest.fn(),
+    getAgent: jest.fn(),
   };
   const service = new AiAgentService(
     prisma,
@@ -130,6 +132,8 @@ describe('AiAgentService - playgroundTurn', () => {
     jest.clearAllMocks();
     prisma.userCompany.findUnique.mockResolvedValue({ userId: 'user-1' });
     prisma.user.findUnique.mockResolvedValue({ name: 'Ana' });
+    prisma.company.findUnique.mockResolvedValue({ overAgentCompanyId: 'over-1' });
+    lavaiAgentApi.getAgent.mockResolvedValue({ id: 'agent-1', companyId: 'over-1' });
     lavaiAgentApi.runPlaygroundTurn.mockResolvedValue({ content: 'Abrimos às 8h' });
   });
 
@@ -143,7 +147,7 @@ describe('AiAgentService - playgroundTurn', () => {
 
     expect(result).toEqual({ content: 'Abrimos às 8h' });
     expect(lavaiAgentApi.runPlaygroundTurn).toHaveBeenCalledWith({
-      contextCompanyId: 'company-1',
+      contextCompanyId: 'over-1',
       platformUserId: 'user-1',
       userName: 'Ana',
       targetAgentId: 'agent-1',
@@ -151,6 +155,19 @@ describe('AiAgentService - playgroundTurn', () => {
       content: 'Qual o horário?',
       history,
     });
+  });
+
+  it('recusa o teste quando o agente é de outra empresa', async () => {
+    lavaiAgentApi.getAgent.mockResolvedValue({ id: 'agent-1', companyId: 'outra' });
+
+    await expect(
+      service.playgroundTurn('user-1', 'company-1', 'agent-1', {
+        sessionId: '550e8400-e29b-41d4-a716-446655440000',
+        content: 'Oi',
+        history: [],
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    expect(lavaiAgentApi.runPlaygroundTurn).not.toHaveBeenCalled();
   });
 
   it('devolve indisponível quando o agente de teste não existe', async () => {

@@ -664,15 +664,19 @@ export class AiAgentService {
     },
   ) {
     await this.ensureCompanyAccess(userId, companyId);
-    const user = await this.prisma.user.findUnique({
-      where: { id: userId },
-      select: { name: true },
-    });
-    if (!user) {
+    const [user, overAgentCompanyId, agent] = await Promise.all([
+      this.prisma.user.findUnique({
+        where: { id: userId },
+        select: { name: true },
+      }),
+      this.getOverAgentCompanyId(companyId),
+      this.getAgent(agentId) as Promise<OverAgentAgent | null>,
+    ]);
+    if (!user || !agent || agent.companyId !== overAgentCompanyId) {
       throw new NotFoundException('O teste não está disponível.');
     }
     return this.lavaiAgentApi.runPlaygroundTurn({
-      contextCompanyId: companyId,
+      contextCompanyId: overAgentCompanyId,
       platformUserId: userId,
       userName: user.name,
       targetAgentId: agentId,

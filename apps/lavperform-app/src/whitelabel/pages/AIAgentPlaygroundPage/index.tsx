@@ -13,7 +13,7 @@ const UNAVAILABLE = 'O teste não está disponível.'
 
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
 
-function AIAgentPlaygroundPageBase() {
+function AIAgentPlaygroundPageBase({ embedded = false }: { embedded?: boolean }) {
   const { agentId = '' } = useParams()
   const navigate = useNavigate()
   const { selectedCompany } = useAuth()
@@ -72,11 +72,12 @@ function AIAgentPlaygroundPageBase() {
   return (
     <Flex
       direction="column"
-      h={{ base: 'calc(100vh - 64px - 2rem)', md: 'calc(100vh - 64px - 3rem)' }}
+      h={embedded ? '100%' : { base: 'calc(100vh - 64px - 2rem)', md: 'calc(100vh - 64px - 3rem)' }}
+      minH={0}
       bg="bg"
-      borderWidth="1px"
+      borderWidth={embedded ? 0 : '1px'}
       borderColor="border.muted"
-      borderRadius="2xl"
+      borderRadius={embedded ? 0 : '2xl'}
       overflow="hidden"
     >
       <Flex
@@ -92,15 +93,17 @@ function AIAgentPlaygroundPageBase() {
         <Text fontWeight="normal" truncate flex="1" minW={0}>
           Testar agente
         </Text>
-        <Button
-          size="sm"
-          variant="outline"
-          borderRadius="lg"
-          flexShrink={0}
-          onClick={() => navigate(agentId ? `/whitelabel/ai-agent/${agentId}` : '/whitelabel/ai-agent')}
-        >
-          Conversas
-        </Button>
+        {!embedded && (
+          <Button
+            size="sm"
+            variant="outline"
+            borderRadius="lg"
+            flexShrink={0}
+            onClick={() => navigate(agentId ? `/whitelabel/ai-agent/${agentId}` : '/whitelabel/ai-agent')}
+          >
+            Conversas
+          </Button>
+        )}
       </Flex>
 
       <Stack flex="1" minH={0} overflowY="auto" gap={8} px={{ base: 4, md: 8 }} py={8}>
