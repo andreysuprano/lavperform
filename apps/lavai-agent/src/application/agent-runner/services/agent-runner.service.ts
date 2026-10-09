@@ -2,6 +2,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { CONVERSATION_REPOSITORY } from '../../webhook/ports/conversation.repository.port';
 import type {
   ConversationData,
+  ConversationMessageData,
   ConversationRepositoryPort,
 } from '../../webhook/ports/conversation.repository.port';
 import { MessageRole } from '../../webhook/ports/conversation.repository.port';
