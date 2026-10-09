@@ -607,4 +607,24 @@ export class AiAgentController {
   ) {
     return this.aiAgentService.decideConfiguratorProposal(userId, companyId, agentId, messageId, 'reject');
   }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('companies/:companyId/ai-agents/:agentId/playground/turns')
+  playgroundTurn(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Body()
+    body: {
+      sessionId?: string;
+      content?: string;
+      history?: Array<{ role?: string; content?: string }>;
+    },
+  ) {
+    return this.aiAgentService.playgroundTurn(userId, companyId, agentId, {
+      sessionId: body.sessionId ?? '',
+      content: body.content ?? '',
+      history: Array.isArray(body.history) ? body.history : [],
+    });
+  }
 }

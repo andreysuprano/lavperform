@@ -463,6 +463,20 @@ export class LavaiAgentApiService {
       body,
     );
   }
+
+  runPlaygroundTurn(body: {
+    contextCompanyId: string;
+    platformUserId: string;
+    userName: string;
+    targetAgentId: string;
+    sessionId: string;
+    content: string;
+    history: Array<{ role?: string; content?: string }>;
+  }) {
+    return this.request<{ content: string }>('post', '/agent-playground/turns', body, {
+      preserve502: true,
+    });
+  }
 }
 
 type MotorPlatformAgent = {

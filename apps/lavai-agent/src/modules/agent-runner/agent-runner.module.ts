@@ -47,6 +47,6 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     McpToolLoaderService,
     AgentRunnerService,
   ],
-  exports: [AgentRunnerService, PromptBuilderService],
+  exports: [AgentRunnerService, PromptBuilderService, CONVERSATION_REPOSITORY],
 })
 export class AgentRunnerModule {}

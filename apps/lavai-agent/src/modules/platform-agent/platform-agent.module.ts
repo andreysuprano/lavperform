@@ -6,6 +6,8 @@ import { EnsureConfiguratorAgentService } from '../../application/agent-configur
 import { DecideConfiguratorProposalUseCase } from '../../application/agent-configurator/use-cases/decide-configurator-proposal.use-case';
 import { RunConfiguratorTurnUseCase } from '../../application/agent-configurator/use-cases/run-configurator-turn.use-case';
 import { AgentConfiguratorController } from '../../infrastructure/http/agent-configurator/agent-configurator.controller';
+import { AgentPlaygroundController } from '../../infrastructure/http/agent-playground/agent-playground.controller';
+import { RunPlaygroundTurnUseCase } from '../../application/agent-playground/use-cases/run-playground-turn.use-case';
 import { CreatePlatformAgentUseCase } from '../../application/platform-agent/use-cases/create-platform-agent.use-case';
 import { ListPlatformAgentsUseCase } from '../../application/platform-agent/use-cases/list-platform-agents.use-case';
 import { ListPlatformTurnsUseCase } from '../../application/platform-agent/use-cases/list-platform-turns.use-case';
@@ -17,11 +19,12 @@ import { PrismaPlatformConversationRepository } from '../../infrastructure/persi
 import { AgentModule } from '../agent/agent.module';
 import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
 import { AgentTraceModule } from '../agent-trace/agent-trace.module';
+import { CustomerJourneyModule } from '../customer-journey/customer-journey.module';
 import { LlmModule } from '../llm/llm.module';
 
 @Module({
-  imports: [AgentModule, AgentRunnerModule, LlmModule, AgentTraceModule],
-  controllers: [PlatformAgentController, AgentConfiguratorController],
+  imports: [AgentModule, AgentRunnerModule, LlmModule, AgentTraceModule, CustomerJourneyModule],
+  controllers: [PlatformAgentController, AgentConfiguratorController, AgentPlaygroundController],
   providers: [
     { provide: AGENT_REPOSITORY, useExisting: PrismaAgentRepository },
     PrismaPlatformCompanyService,
@@ -35,6 +38,7 @@ import { LlmModule } from '../llm/llm.module';
     RunConfiguratorTurnUseCase,
     DecideConfiguratorProposalUseCase,
     EnsureConfiguratorAgentService,
+    RunPlaygroundTurnUseCase,
   ],
 })
 export class PlatformAgentModule {}
