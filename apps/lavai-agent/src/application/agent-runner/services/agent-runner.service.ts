@@ -20,7 +20,7 @@ import type {
 } from '../ports/llm-provider.port';
 import { MESSAGE_SENDER_PORT } from '../ports/message-sender.port';
 import type { MessageSenderPort, SendContext } from '../ports/message-sender.port';
-import { PromptBuilderService } from './prompt-builder.service';
+import { PromptBuilderService, type SenderContext } from './prompt-builder.service';
 import { ToolRegistry } from '../tools/tool-registry';
 import { ToolExecutorService } from '../tools/tool-executor.service';
 import { SearchKnowledgeTool } from '../tools/builtin/search-knowledge.tool';
@@ -32,6 +32,20 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import type { NormalizedAgentPrompt } from '../../webhook/types/normalized-agent-prompt.types';
 import { AGENT_RUN_TRACKER_PORT } from '../../agent-trace/ports/agent-run-tracker.port';
 import type { AgentRunTrackerPort } from '../../agent-trace/ports/agent-run-tracker.port';
+
+export interface CompleteAgentTurnInput {
+  agent: AgentWithConfigsData;
+  conversation: ConversationData;
+  history: ConversationMessageData[];
+  userMessage: string;
+  sender: SenderContext;
+}
+
+interface LoopProgress {
+  iterations: number;
+  totalToolCalls: number;
+  assistantText: string;
+}
 
 @Injectable()
 export class AgentRunnerService implements OnModuleInit {
@@ -75,14 +89,43 @@ export class AgentRunnerService implements OnModuleInit {
     this.toolRegistry.register(this.requestHumanHelpTool);
   }
 
+  async complete(input: CompleteAgentTurnInput): Promise<string> {
+    const runId = await this.tracker.startRun({
+      agentId: input.agent.id,
+      companyId: input.conversation.companyId,
+      conversationId: input.conversation.id,
+      inputPrompt: input.userMessage,
+    });
+    const progress: LoopProgress = { iterations: 0, totalToolCalls: 0, assistantText: '' };
+
+    try {
+      await this.executeLoop({ ...input, runId, progress });
+      await this.tracker.completeRun(
+        runId,
+        progress.assistantText,
+        progress.iterations,
+        progress.totalToolCalls,
+      );
+      return progress.assistantText;
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      await this.tracker.addStep(runId, {
+        stepType: 'ERROR',
+        errorMessage,
+        iteration: progress.iterations,
+      });
+      await this.tracker.failRun(runId, errorMessage);
+      throw err;
+    }
+  }
+
   async run(
     prompt: NormalizedAgentPrompt,
     conversation: ConversationData,
     agent: AgentWithConfigsData,
   ): Promise<void> {
     const windowSize = agent.memoryConfig?.windowSize ?? 10;
-    const modelConfig = agent.modelConfig;
-    const model = modelConfig?.modelName ?? 'openai/gpt-4o';
+    const model = agent.modelConfig?.modelName ?? 'openai/gpt-4o';
 
     this.logger.log(
       `[Runner] Iniciando execução | agente=${agent.id} | conv=${conversation.id} | model=${model} | sender=${prompt.context.senderPhone}`,
@@ -98,199 +141,39 @@ export class AgentRunnerService implements OnModuleInit {
       inputPrompt: prompt.userMessage,
     });
 
-    let iterations = 0;
-    let totalToolCalls = 0;
-    let assistantText = '';
+    const progress: LoopProgress = { iterations: 0, totalToolCalls: 0, assistantText: '' };
 
     try {
-      // 1. Carregar histórico
       const history = await this.conversationRepo.findRecentMessages(
         conversation.id,
         windowSize,
       );
       this.logger.log(`[Runner] Histórico carregado | ${history.length} mensagens | janela=${windowSize}`);
 
-      // 2. Buscar chunks RAG
-      const ragStart = Date.now();
-      const ragChunks = await this.fetchRagChunks(
-        prompt.userMessage,
-        conversation.companyId,
-      );
-      const ragDuration = Date.now() - ragStart;
-      this.logger.log(`[Runner] RAG concluído | ${ragChunks.length} chunk(s) recuperado(s)`);
-
-      await this.tracker.addStep(runId, {
-        stepType: 'RAG_SEARCH',
-        toolName: 'rag_search',
-        input: { query: prompt.userMessage },
-        output: {
-          chunks: ragChunks.map((c) => ({ content: c.content.slice(0, 200), score: c.score })),
-          total: ragChunks.length,
-        },
-        durationMs: ragDuration,
-        iteration: 0,
-      });
-
-      // 3. Montar prompt com contexto do remetente
-      const messages: LlmMessage[] = this.promptBuilder.build(
+      await this.executeLoop({
+        runId,
         agent,
+        conversation,
         history,
-        ragChunks,
-        prompt.userMessage,
-        {
+        userMessage: prompt.userMessage,
+        sender: {
           senderName: prompt.context.senderName,
           senderPhone: prompt.context.senderPhone,
           chatId: prompt.context.chatId,
           isGroup: prompt.context.isGroup,
           groupName: prompt.context.groupName,
         },
-      );
-      this.logger.log(`[Runner] Prompt montado | ${messages.length} mensagem(s) para o LLM`);
-
-      // 4. Carregar tools MCP dinâmicas do agente
-      const mcpSessions = await this.mcpToolLoader.openSessionsForAgent(agent.id);
-      const mcpTools = mcpSessions.flatMap((s) => s.tools);
-      if (mcpTools.length > 0) {
-        this.logger.log(`[Runner] MCP: ${mcpTools.length} tool(s) carregada(s) de ${mcpSessions.length} servidor(es)`);
-      }
-
-      const mcpToolNames = new Set(mcpTools.map((t) => t.name));
-      let builtinTools = this.toolRegistry.toOpenAiTools();
-      if (!agent.journeyConfig?.enabled) {
-        builtinTools = builtinTools.filter((t) => t.function.name !== 'request_human_help');
-      }
-      const mcpOpenAiTools = mcpTools.map((t) => ({
-        type: 'function' as const,
-        function: {
-          name: t.name,
-          description: t.description,
-          parameters: t.inputSchema,
-        },
-      }));
-      const tools = [...builtinTools, ...mcpOpenAiTools];
-
-      const toolContext = {
-        companyId: conversation.companyId,
-        agentId: agent.id,
-        senderPhone: conversation.userPhone,
-        conversationId: conversation.id,
-      };
-
-      // 5. Loop LLM + tool calling
-      this.logger.log(`[Runner] Iniciando chamada ao LLM (iteração 1)`);
-      const llmStart = Date.now();
-      let response: LlmCompletionResponse = await this.llm.complete({
-        model,
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-        temperature: modelConfig?.temperature,
-        maxTokens: modelConfig?.maxTokens,
-        topP: modelConfig?.topP,
-        frequencyPenalty: modelConfig?.frequencyPenalty,
-        presencePenalty: modelConfig?.presencePenalty,
+        progress,
       });
 
-      await this.tracker.addStep(runId, {
-        stepType: 'LLM_CALL',
-        toolName: model,
-        input: { messageCount: messages.length, toolCount: tools.length },
-        output: { finishReason: response.finishReason, toolCallCount: response.toolCalls.length, contentLength: (response.content ?? '').length },
-        durationMs: Date.now() - llmStart,
-        iteration: 0,
-      });
+      const assistantText = progress.assistantText;
 
-      try {
-        while (
-          response.finishReason === 'tool_calls' &&
-          response.toolCalls.length > 0 &&
-          iterations < this.maxToolIterations
-        ) {
-          this.logger.log(
-            `[Runner] Tool calls (iter ${iterations + 1}): ${response.toolCalls.map((tc) => tc.function.name).join(', ')}`,
-          );
-
-          messages.push({
-            role: 'assistant',
-            content: response.content,
-            tool_calls: response.toolCalls,
-          });
-
-          const toolCallStart = Date.now();
-          const toolResults = await this.toolExecutor.execute(
-            response.toolCalls,
-            toolContext,
-            mcpTools,
-          );
-          const toolCallDuration = Date.now() - toolCallStart;
-          totalToolCalls += toolResults.length;
-
-          for (let i = 0; i < toolResults.length; i++) {
-            const call = response.toolCalls[i];
-            const result = toolResults[i];
-            const isMcp = mcpToolNames.has(call.function.name);
-
-            await this.tracker.addStep(runId, {
-              stepType: isMcp ? 'MCP_TOOL_CALL' : 'TOOL_CALL',
-              toolName: call.function.name,
-              input: this.safeParseJson(call.function.arguments),
-              output: this.safeParseJson(result.content),
-              errorMessage: result.errorMessage,
-              durationMs: Math.round(toolCallDuration / toolResults.length),
-              iteration: iterations + 1,
-            });
-
-            messages.push({
-              role: 'tool',
-              content: result.content,
-              tool_call_id: result.tool_call_id,
-            });
-          }
-
-          this.logger.log(`[Runner] Reinvocando LLM com resultados das tools (iteração ${iterations + 2})`);
-          const llmIterStart = Date.now();
-          response = await this.llm.complete({
-            model,
-            messages,
-            tools: tools.length > 0 ? tools : undefined,
-            temperature: modelConfig?.temperature,
-            maxTokens: modelConfig?.maxTokens,
-            topP: modelConfig?.topP,
-            frequencyPenalty: modelConfig?.frequencyPenalty,
-            presencePenalty: modelConfig?.presencePenalty,
-          });
-
-          await this.tracker.addStep(runId, {
-            stepType: 'LLM_CALL',
-            toolName: model,
-            input: { messageCount: messages.length, toolCount: tools.length },
-            output: { finishReason: response.finishReason, toolCallCount: response.toolCalls.length, contentLength: (response.content ?? '').length },
-            durationMs: Date.now() - llmIterStart,
-            iteration: iterations + 1,
-          });
-
-          iterations++;
-        }
-      } finally {
-        await this.mcpToolLoader.closeSessions(mcpSessions);
-      }
-
-      if (iterations >= this.maxToolIterations) {
-        this.logger.warn(`[Runner] Limite de ${this.maxToolIterations} iterações de tool calls atingido | conv=${conversation.id}`);
-      }
-
-      assistantText = response.content ?? '';
-      this.logger.log(
-        `[Runner] Loop LLM concluído | iterações=${iterations} | finishReason=${response.finishReason} | resposta=${assistantText.length} chars`,
-      );
-
-      // 7. Persistir resposta do assistente
       await this.conversationRepo.addMessage({
         conversationId: conversation.id,
         role: MessageRole.ASSISTANT,
         content: assistantText,
       });
 
-      // 8. Enviar resposta via provider de mensagens (com assinatura se configurada)
       if (assistantText.trim()) {
         const signature = agent.persona?.messageSignature?.trim() ?? '';
         const sendCtx: SendContext = {
@@ -318,7 +201,12 @@ export class AgentRunnerService implements OnModuleInit {
         );
       }
 
-      await this.tracker.completeRun(runId, assistantText, iterations, totalToolCalls);
+      await this.tracker.completeRun(
+        runId,
+        progress.assistantText,
+        progress.iterations,
+        progress.totalToolCalls,
+      );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       this.logger.error(`[Runner] Execução falhou | conv=${conversation.id} | erro=${errorMessage}`, err);
@@ -326,12 +214,175 @@ export class AgentRunnerService implements OnModuleInit {
       await this.tracker.addStep(runId, {
         stepType: 'ERROR',
         errorMessage,
-        iteration: iterations,
+        iteration: progress.iterations,
       });
       await this.tracker.failRun(runId, errorMessage);
 
       throw err;
     }
+  }
+
+  private async executeLoop(input: CompleteAgentTurnInput & {
+    runId: string;
+    progress: LoopProgress;
+  }): Promise<void> {
+    const { agent, conversation, history, userMessage, sender, runId, progress } = input;
+    const modelConfig = agent.modelConfig;
+    const model = modelConfig?.modelName ?? 'openai/gpt-4o';
+
+    const ragStart = Date.now();
+    const ragChunks = await this.fetchRagChunks(userMessage, conversation.companyId);
+    const ragDuration = Date.now() - ragStart;
+    this.logger.log(`[Runner] RAG concluído | ${ragChunks.length} chunk(s) recuperado(s)`);
+
+    await this.tracker.addStep(runId, {
+      stepType: 'RAG_SEARCH',
+      toolName: 'rag_search',
+      input: { query: userMessage },
+      output: {
+        chunks: ragChunks.map((chunk) => ({ content: chunk.content.slice(0, 200), score: chunk.score })),
+        total: ragChunks.length,
+      },
+      durationMs: ragDuration,
+      iteration: 0,
+    });
+
+    const messages: LlmMessage[] = this.promptBuilder.build(
+      agent,
+      history,
+      ragChunks,
+      userMessage,
+      sender,
+    );
+    this.logger.log(`[Runner] Prompt montado | ${messages.length} mensagem(s) para o LLM`);
+
+    const mcpSessions = await this.mcpToolLoader.openSessionsForAgent(agent.id);
+    const mcpTools = mcpSessions.flatMap((session) => session.tools);
+    if (mcpTools.length > 0) {
+      this.logger.log(`[Runner] MCP: ${mcpTools.length} tool(s) carregada(s) de ${mcpSessions.length} servidor(es)`);
+    }
+
+    const mcpToolNames = new Set(mcpTools.map((tool) => tool.name));
+    let builtinTools = this.toolRegistry.toOpenAiTools();
+    if (!agent.journeyConfig?.enabled) {
+      builtinTools = builtinTools.filter((tool) => tool.function.name !== 'request_human_help');
+    }
+    const tools = [
+      ...builtinTools,
+      ...mcpTools.map((tool) => ({
+        type: 'function' as const,
+        function: {
+          name: tool.name,
+          description: tool.description,
+          parameters: tool.inputSchema,
+        },
+      })),
+    ];
+    const toolContext = {
+      companyId: conversation.companyId,
+      agentId: agent.id,
+      senderPhone: conversation.userPhone,
+      conversationId: conversation.id,
+    };
+
+    const ask = () =>
+      this.llm.complete({
+        model,
+        messages,
+        tools: tools.length > 0 ? tools : undefined,
+        temperature: modelConfig?.temperature,
+        maxTokens: modelConfig?.maxTokens,
+        topP: modelConfig?.topP,
+        frequencyPenalty: modelConfig?.frequencyPenalty,
+        presencePenalty: modelConfig?.presencePenalty,
+      });
+
+    this.logger.log(`[Runner] Iniciando chamada ao LLM (iteração 1)`);
+    const llmStart = Date.now();
+    let response: LlmCompletionResponse = await ask();
+    await this.tracker.addStep(runId, {
+      stepType: 'LLM_CALL',
+      toolName: model,
+      input: { messageCount: messages.length, toolCount: tools.length },
+      output: {
+        finishReason: response.finishReason,
+        toolCallCount: response.toolCalls.length,
+        contentLength: (response.content ?? '').length,
+      },
+      durationMs: Date.now() - llmStart,
+      iteration: 0,
+    });
+
+    try {
+      while (
+        response.finishReason === 'tool_calls' &&
+        response.toolCalls.length > 0 &&
+        progress.iterations < this.maxToolIterations
+      ) {
+        this.logger.log(
+          `[Runner] Tool calls (iter ${progress.iterations + 1}): ${response.toolCalls.map((call) => call.function.name).join(', ')}`,
+        );
+        messages.push({
+          role: 'assistant',
+          content: response.content,
+          tool_calls: response.toolCalls,
+        });
+
+        const toolCallStart = Date.now();
+        const toolResults = await this.toolExecutor.execute(response.toolCalls, toolContext, mcpTools);
+        const toolCallDuration = Date.now() - toolCallStart;
+        progress.totalToolCalls += toolResults.length;
+
+        for (let index = 0; index < toolResults.length; index++) {
+          const call = response.toolCalls[index];
+          const result = toolResults[index];
+          await this.tracker.addStep(runId, {
+            stepType: mcpToolNames.has(call.function.name) ? 'MCP_TOOL_CALL' : 'TOOL_CALL',
+            toolName: call.function.name,
+            input: this.safeParseJson(call.function.arguments),
+            output: this.safeParseJson(result.content),
+            errorMessage: result.errorMessage,
+            durationMs: Math.round(toolCallDuration / toolResults.length),
+            iteration: progress.iterations + 1,
+          });
+          messages.push({
+            role: 'tool',
+            content: result.content,
+            tool_call_id: result.tool_call_id,
+          });
+        }
+
+        this.logger.log(`[Runner] Reinvocando LLM com resultados das tools (iteração ${progress.iterations + 2})`);
+        const llmIterStart = Date.now();
+        response = await ask();
+        await this.tracker.addStep(runId, {
+          stepType: 'LLM_CALL',
+          toolName: model,
+          input: { messageCount: messages.length, toolCount: tools.length },
+          output: {
+            finishReason: response.finishReason,
+            toolCallCount: response.toolCalls.length,
+            contentLength: (response.content ?? '').length,
+          },
+          durationMs: Date.now() - llmIterStart,
+          iteration: progress.iterations + 1,
+        });
+        progress.iterations++;
+      }
+    } finally {
+      await this.mcpToolLoader.closeSessions(mcpSessions);
+    }
+
+    if (progress.iterations >= this.maxToolIterations) {
+      this.logger.warn(
+        `[Runner] Limite de ${this.maxToolIterations} iterações de tool calls atingido | conv=${conversation.id}`,
+      );
+    }
+
+    progress.assistantText = response.content ?? '';
+    this.logger.log(
+      `[Runner] Loop LLM concluído | iterações=${progress.iterations} | finishReason=${response.finishReason} | resposta=${progress.assistantText.length} chars`,
+    );
   }
 
   /**

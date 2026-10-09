@@ -9,6 +9,7 @@ import {
   PaginatedConversations,
   UpsertConversationInput,
 } from '../../../application/webhook/ports/conversation.repository.port';
+import { excludePlaygroundChats } from '../../../application/agent-playground/playground-conversation';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -87,6 +88,15 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
     return this.mapMessage(row);
   }
 
+  async findLatestInstanceToken(agentId: string): Promise<string | null> {
+    const row = await this.prisma.conversation.findFirst({
+      where: excludePlaygroundChats({ agentId }),
+      orderBy: { updatedAt: 'desc' },
+      select: { instanceToken: true },
+    });
+    return row?.instanceToken ?? null;
+  }
+
   async listByAgentId(
     agentId: string,
     options: { page: number; limit: number; search?: string },
@@ -97,7 +107,7 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
     const search = options.search?.trim() ?? '';
     const digits = search.replace(/\D/g, '');
 
-    const where = {
+    const where = excludePlaygroundChats({
       agentId,
       ...(search
         ? {
@@ -111,7 +121,7 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
             ],
           }
         : {}),
-    };
+    });
 
     const [rows, total] = await Promise.all([
       this.prisma.conversation.findMany({

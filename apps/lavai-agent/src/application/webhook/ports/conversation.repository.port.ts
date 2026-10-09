@@ -95,6 +95,12 @@ export interface ConversationRepositoryPort {
   ): Promise<ConversationData | null>;
 
   /**
+   * Token da conversa real mais recente do agente.
+   * Conversa real é aquela cujo chatId não começa com `playground:`.
+   */
+  findLatestInstanceToken(agentId: string): Promise<string | null>;
+
+  /**
    * Retorna as últimas `limit` mensagens da conversa, em ordem cronológica.
    */
   findRecentMessages(conversationId: string, limit: number): Promise<ConversationMessageData[]>;

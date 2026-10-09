@@ -153,6 +153,13 @@ function AIAgentDetailPageBase() {
         >
           Configurar
         </Button>
+        <Button
+          size="xs"
+          variant="outline"
+          onClick={() => navigate(`/whitelabel/ai-agent/${agent.id}/teste`)}
+        >
+          Testar
+        </Button>
         {agent.description && (
           <Text fontSize="sm" color="fg.muted" lineClamp={1}>
             {agent.description}

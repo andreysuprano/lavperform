@@ -653,6 +653,35 @@ export class AiAgentService {
     });
   }
 
+  async playgroundTurn(
+    userId: string,
+    companyId: string,
+    agentId: string,
+    body: {
+      sessionId: string;
+      content: string;
+      history: Array<{ role?: string; content?: string }>;
+    },
+  ) {
+    await this.ensureCompanyAccess(userId, companyId);
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true },
+    });
+    if (!user) {
+      throw new NotFoundException('O teste não está disponível.');
+    }
+    return this.lavaiAgentApi.runPlaygroundTurn({
+      contextCompanyId: companyId,
+      platformUserId: userId,
+      userName: user.name,
+      targetAgentId: agentId,
+      sessionId: body.sessionId,
+      content: body.content,
+      history: body.history,
+    });
+  }
+
   private async ensureCompanyAccess(userId: string, companyId: string): Promise<void> {
     const link = await this.prisma.userCompany.findUnique({
       where: { userId_companyId: { userId, companyId } },

@@ -1,3 +1,4 @@
+import { NotFoundException } from '@nestjs/common';
 import { AiAgentService } from 'src/ai-agent/application/ai-agent.service';
 
 describe('AiAgentService - setupAgentWebhook', () => {
@@ -106,5 +107,63 @@ describe('AiAgentService - setupAgentWebhook', () => {
       ['messages'],
       { action: 'add', excludeMessages: ['wasSentByApi', 'isGroupYes'] },
     );
+  });
+});
+
+describe('AiAgentService - playgroundTurn', () => {
+  const prisma: any = {
+    userCompany: { findUnique: jest.fn() },
+    user: { findUnique: jest.fn() },
+  };
+  const lavaiAgentApi: any = {
+    runPlaygroundTurn: jest.fn(),
+  };
+  const service = new AiAgentService(
+    prisma,
+    lavaiAgentApi,
+    {} as any,
+    { get: jest.fn() } as any,
+    { get: jest.fn() } as any,
+  );
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    prisma.userCompany.findUnique.mockResolvedValue({ userId: 'user-1' });
+    prisma.user.findUnique.mockResolvedValue({ name: 'Ana' });
+    lavaiAgentApi.runPlaygroundTurn.mockResolvedValue({ content: 'Abrimos às 8h' });
+  });
+
+  it('repassa o turno com o nome do usuário logado', async () => {
+    const history = [{ role: 'user', content: 'Oi' }];
+    const result = await service.playgroundTurn('user-1', 'company-1', 'agent-1', {
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
+      content: 'Qual o horário?',
+      history,
+    });
+
+    expect(result).toEqual({ content: 'Abrimos às 8h' });
+    expect(lavaiAgentApi.runPlaygroundTurn).toHaveBeenCalledWith({
+      contextCompanyId: 'company-1',
+      platformUserId: 'user-1',
+      userName: 'Ana',
+      targetAgentId: 'agent-1',
+      sessionId: '550e8400-e29b-41d4-a716-446655440000',
+      content: 'Qual o horário?',
+      history,
+    });
+  });
+
+  it('devolve indisponível quando o agente de teste não existe', async () => {
+    lavaiAgentApi.runPlaygroundTurn.mockRejectedValue(
+      new NotFoundException('O teste não está disponível.'),
+    );
+
+    await expect(
+      service.playgroundTurn('user-1', 'company-1', 'agent-1', {
+        sessionId: '550e8400-e29b-41d4-a716-446655440000',
+        content: 'Oi',
+        history: [],
+      }),
+    ).rejects.toBeInstanceOf(NotFoundException);
   });
 });

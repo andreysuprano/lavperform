@@ -323,6 +323,23 @@ export const aiAgentService = {
     )
   },
 
+  async sendPlaygroundTurn(
+    companyId: string,
+    agentId: string,
+    body: {
+      sessionId: string
+      content: string
+      history: Array<{ role: 'user' | 'assistant'; content: string }>
+    },
+    signal?: AbortSignal
+  ) {
+    return await client.post<{ content: string }>(
+      `/companies/${companyId}/ai-agents/${agentId}/playground/turns`,
+      body,
+      { signal }
+    )
+  },
+
   async streamConfiguratorTurn(
     companyId: string,
     agentId: string,
