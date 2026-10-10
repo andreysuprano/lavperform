@@ -1,5 +1,8 @@
 import { PromptBuilderService } from './prompt-builder.service';
 import { AgentRunnerService } from './agent-runner.service';
+import { CUSTOMER_FALLBACK_REPLY } from '../customer-reply';
+import { MessageType } from '../../webhook/types/incoming-message.types';
+import type { NormalizedAgentPrompt } from '../../webhook/types/normalized-agent-prompt.types';
 import {
   AgentCommunicationStyle,
   AgentKind,
@@ -188,4 +191,86 @@ describe('AgentRunnerService.complete', () => {
     expect(conversationRepo.addMessage).not.toHaveBeenCalled();
     expect(messageSender.send).not.toHaveBeenCalled();
   });
+
+  it('responde com uma frase simples quando o modelo falha', async () => {
+    llm.complete.mockRejectedValue(new Error('timeout'));
+
+    const text = await service.complete(turn());
+
+    expect(text).toBe(CUSTOMER_FALLBACK_REPLY);
+    expect(tracker.failRun).not.toHaveBeenCalled();
+    expect(tracker.completeRun).toHaveBeenCalledWith('run-1', CUSTOMER_FALLBACK_REPLY, 0, 0);
+    expect(mcp.closeSessions).toHaveBeenCalled();
+    expect(messageSender.send).not.toHaveBeenCalled();
+  });
+
+  it('pede uma resposta direta quando as ferramentas não geram texto', async () => {
+    toolRegistry.toOpenAiTools.mockReturnValue([
+      { type: 'function', function: { name: 'get_datetime', description: 'agora', parameters: {} } },
+    ]);
+    llm.complete
+      .mockResolvedValueOnce({
+        content: null,
+        toolCalls: [{ id: 'call-1', type: 'function', function: { name: 'get_datetime', arguments: '{}' } }],
+        finishReason: 'tool_calls',
+      })
+      .mockResolvedValueOnce({ content: '   ', toolCalls: [], finishReason: 'stop' })
+      .mockResolvedValueOnce({ content: 'Agora são 10h', toolCalls: [], finishReason: 'stop' });
+    toolExecutor.execute.mockResolvedValue([{ tool_call_id: 'call-1', content: '{"now":"10h"}' }]);
+
+    const text = await service.complete(turn());
+
+    expect(text).toBe('Agora são 10h');
+    expect(llm.complete).toHaveBeenCalledTimes(3);
+    expect(llm.complete.mock.calls[2][0].tools).toBeUndefined();
+  });
+
+  it('entrega a frase simples quando o modelo falha no atendimento', async () => {
+    conversationRepo.findRecentMessages.mockResolvedValue([]);
+    llm.complete.mockRejectedValue(new Error('timeout'));
+
+    await service.run(inbound(), conversation(), agent());
+
+    expect(messageSender.send).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: 'playground:session' }),
+      { type: 'text', text: expect.stringContaining(CUSTOMER_FALLBACK_REPLY) },
+    );
+    expect(conversationRepo.addMessage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: CUSTOMER_FALLBACK_REPLY }),
+    );
+  });
 });
+
+function turn() {
+  return {
+    agent: agent(),
+    conversation: conversation(),
+    history: [] as never[],
+    userMessage: 'Que horas são?',
+    sender: {
+      senderName: 'Ana',
+      senderPhone: 'playground',
+      chatId: 'playground:session',
+      isGroup: false,
+    },
+  };
+}
+
+function inbound(): NormalizedAgentPrompt {
+  return {
+    userMessage: 'Oi',
+    triggerText: 'Oi',
+    originalMessageType: MessageType.TEXT,
+    context: {
+      webhookEventId: 'evt-1',
+      companyId: 'company-1',
+      agentId: 'agent-1',
+      senderPhone: '5511999999999',
+      senderName: 'Ana',
+      chatId: 'playground:session',
+      instanceName: 'whatsapp-1',
+      timestamp: 1,
+      isGroup: false,
+    },
+  };
+}

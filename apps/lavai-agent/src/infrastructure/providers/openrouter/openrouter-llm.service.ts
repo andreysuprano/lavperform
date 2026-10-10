@@ -7,6 +7,17 @@ import type {
   LlmToolCall,
 } from '../../../application/agent-runner/ports/llm-provider.port';
 
+export function isRetryableLlmError(error: unknown): boolean {
+  const status =
+    typeof error === 'object' && error !== null && 'status' in error
+      ? Number((error as { status?: unknown }).status)
+      : undefined;
+  if (status === 408 || status === 409 || status === 429) return true;
+  if (status !== undefined && Number.isFinite(status) && status >= 500) return true;
+  if (status !== undefined && Number.isFinite(status)) return false;
+  return true;
+}
+
 export interface OpenRouterModel {
   /** Slug usado como modelName (ex: "openai/gpt-4o") */
   id: string;
@@ -51,22 +62,47 @@ export class OpenRouterLlmService implements LlmProviderPort {
   }
 
   async complete(request: LlmCompletionRequest): Promise<LlmCompletionResponse> {
+    const maxAttempts = this.llmAttempts();
+    let lastError: unknown;
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        return await this.completeOnce(request);
+      } catch (error) {
+        lastError = error;
+        if (attempt >= maxAttempts || !isRetryableLlmError(error)) throw error;
+        const waitMs = 300 * attempt;
+        const reason = error instanceof Error ? error.message : String(error);
+        this.logger.warn(
+          `[LLM] Tentativa ${attempt}/${maxAttempts} falhou (${reason}). Nova tentativa em ${waitMs}ms.`,
+        );
+        await this.wait(waitMs);
+      }
+    }
+
+    throw lastError instanceof Error ? lastError : new Error(String(lastError));
+  }
+
+  private async completeOnce(request: LlmCompletionRequest): Promise<LlmCompletionResponse> {
     this.logger.log(
       `[LLM] Chamando OpenRouter | model=${request.model} | messages=${request.messages.length} | tools=${request.tools?.length ?? 0}`,
     );
 
-    const response = await this.client.chat.completions.create({
-      model: request.model,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      messages: request.messages as any,
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      tools: request.tools as any,
-      temperature: request.temperature,
-      max_tokens: request.maxTokens,
-      top_p: request.topP,
-      frequency_penalty: request.frequencyPenalty,
-      presence_penalty: request.presencePenalty,
-    });
+    const response = await this.client.chat.completions.create(
+      {
+        model: request.model,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        messages: request.messages as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        tools: request.tools as any,
+        temperature: request.temperature,
+        max_tokens: request.maxTokens,
+        top_p: request.topP,
+        frequency_penalty: request.frequencyPenalty,
+        presence_penalty: request.presencePenalty,
+      },
+      { timeout: this.llmTimeoutMs(), maxRetries: 0 },
+    );
 
     const choice = response.choices[0];
     const message = choice?.message;
@@ -110,6 +146,20 @@ export class OpenRouterLlmService implements LlmProviderPort {
       toolCalls,
       finishReason: choice?.finish_reason ?? 'stop',
     };
+  }
+
+  private llmAttempts(): number {
+    const value = Number(process.env.AGENT_LLM_ATTEMPTS ?? 3);
+    return Number.isFinite(value) && value >= 1 ? Math.floor(value) : 3;
+  }
+
+  private llmTimeoutMs(): number {
+    const value = Number(process.env.AGENT_LLM_TIMEOUT_MS ?? 20_000);
+    return Number.isFinite(value) && value > 0 ? value : 20_000;
+  }
+
+  private wait(ms: number): Promise<void> {
+    return new Promise((resolve) => setTimeout(resolve, ms));
   }
 
   /**

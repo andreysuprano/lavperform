@@ -31,6 +31,7 @@ import type {
 import { client } from '@/services/client'
 
 import { takeSseEvents } from './configurator-stream'
+import { customerFacingAgentError } from './customer-agent-error'
 
 export const aiAgentService = {
   async listAgents(companyId: string) {
@@ -368,7 +369,7 @@ export const aiAgentService = {
     )
     if (!response.ok || !response.body) {
       const data = (await response.json().catch(() => null)) as { message?: string } | null
-      throw new Error(data?.message || 'A resposta falhou.')
+      throw new Error(customerFacingAgentError(data?.message))
     }
 
     const reader = response.body.getReader()
@@ -401,7 +402,7 @@ export const aiAgentService = {
       }
       if (row.type === 'error') {
         finished = true
-        handlers.onError(row.message || 'A resposta falhou.')
+        handlers.onError(customerFacingAgentError(row.message))
       }
     }
 
@@ -417,7 +418,7 @@ export const aiAgentService = {
       const parsed = takeSseEvents(`${buffer}\n\n`)
       parsed.events.forEach(handle)
     }
-    if (!finished) handlers.onError('A resposta falhou.')
+    if (!finished) handlers.onError(customerFacingAgentError(undefined))
   },
 
   async acceptConfiguratorProposal(
