@@ -33,6 +33,8 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import type { NormalizedAgentPrompt } from '../../webhook/types/normalized-agent-prompt.types';
 import { AGENT_RUN_TRACKER_PORT } from '../../agent-trace/ports/agent-run-tracker.port';
 import type { AgentRunTrackerPort } from '../../agent-trace/ports/agent-run-tracker.port';
+import { CUSTOMER_FALLBACK_REPLY } from '../customer-reply';
+import type { McpSession } from '../tools/mcp/mcp-tool-loader.service';
 
 export interface CompleteAgentTurnInput {
   agent: AgentWithConfigsData;
@@ -101,23 +103,28 @@ export class AgentRunnerService implements OnModuleInit {
 
     try {
       await this.executeLoop({ ...input, runId, progress });
-      await this.tracker.completeRun(
-        runId,
-        progress.assistantText,
-        progress.iterations,
-        progress.totalToolCalls,
-      );
-      return progress.assistantText;
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      await this.tracker.addStep(runId, {
-        stepType: 'ERROR',
-        errorMessage,
-        iteration: progress.iterations,
-      });
-      await this.tracker.failRun(runId, errorMessage);
-      throw err;
+      this.logger.error(
+        `[Runner] Turno falhou | conv=${input.conversation.id} | erro=${errorMessage}`,
+      );
+      await this.recordLoopError(runId, errorMessage, progress.iterations);
+      if (!progress.assistantText.trim()) {
+        progress.assistantText = CUSTOMER_FALLBACK_REPLY;
+      }
     }
+
+    if (!progress.assistantText.trim()) {
+      progress.assistantText = CUSTOMER_FALLBACK_REPLY;
+    }
+
+    await this.tracker.completeRun(
+      runId,
+      progress.assistantText,
+      progress.iterations,
+      progress.totalToolCalls,
+    );
+    return progress.assistantText;
   }
 
   async run(
@@ -166,41 +173,48 @@ export class AgentRunnerService implements OnModuleInit {
         },
         progress,
       });
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      this.logger.error(`[Runner] Execução falhou | conv=${conversation.id} | erro=${errorMessage}`, err);
+      await this.recordLoopError(runId, errorMessage, progress.iterations);
+      if (!progress.assistantText.trim()) {
+        progress.assistantText = CUSTOMER_FALLBACK_REPLY;
+      }
+    }
 
-      const assistantText = progress.assistantText;
+    if (!progress.assistantText.trim()) {
+      this.logger.warn(`[Runner] Resposta vazia do LLM | conv=${conversation.id}`);
+      progress.assistantText = CUSTOMER_FALLBACK_REPLY;
+    }
 
+    const assistantText = progress.assistantText;
+
+    try {
       await this.conversationRepo.addMessage({
         conversationId: conversation.id,
         role: MessageRole.ASSISTANT,
         content: assistantText,
       });
 
-      if (assistantText.trim()) {
-        const signature = agent.persona?.messageSignature?.trim() ?? '';
-        const sendCtx: SendContext = {
-          instanceName: conversation.instanceName,
-          instanceToken: conversation.instanceToken,
-          chatId: conversation.chatId,
-        };
+      const signature = agent.persona?.messageSignature?.trim() ?? '';
+      const sendCtx: SendContext = {
+        instanceName: conversation.instanceName,
+        instanceToken: conversation.instanceToken,
+        chatId: conversation.chatId,
+      };
 
-        const chunks = this.splitIntoChunks(assistantText, signature);
+      const chunks = this.splitIntoChunks(assistantText, signature);
 
-        for (let i = 0; i < chunks.length; i++) {
-          await this.messageSender.send(sendCtx, { type: 'text', text: chunks[i] });
-          // Pequena pausa entre partes para garantir a ordem de entrega
-          if (i < chunks.length - 1) {
-            await new Promise<void>((resolve) => setTimeout(resolve, 500));
-          }
+      for (let i = 0; i < chunks.length; i++) {
+        await this.messageSender.send(sendCtx, { type: 'text', text: chunks[i] });
+        if (i < chunks.length - 1) {
+          await new Promise<void>((resolve) => setTimeout(resolve, 500));
         }
-
-        this.logger.log(
-          `[Runner] Resposta enviada | conv=${conversation.id} | chars=${assistantText.length} | partes=${chunks.length}`,
-        );
-      } else {
-        this.logger.warn(
-          `[Runner] Resposta vazia do LLM | conv=${conversation.id}`,
-        );
       }
+
+      this.logger.log(
+        `[Runner] Resposta enviada | conv=${conversation.id} | chars=${assistantText.length} | partes=${chunks.length}`,
+      );
 
       await this.tracker.completeRun(
         runId,
@@ -210,16 +224,24 @@ export class AgentRunnerService implements OnModuleInit {
       );
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
-      this.logger.error(`[Runner] Execução falhou | conv=${conversation.id} | erro=${errorMessage}`, err);
+      this.logger.error(
+        `[Runner] Não foi possível entregar a resposta | conv=${conversation.id} | erro=${errorMessage}`,
+        err,
+      );
+      await this.tracker.failRun(runId, errorMessage);
+      throw err;
+    }
+  }
 
+  private async recordLoopError(runId: string, errorMessage: string, iteration: number): Promise<void> {
+    try {
       await this.tracker.addStep(runId, {
         stepType: 'ERROR',
         errorMessage,
-        iteration: progress.iterations,
+        iteration,
       });
-      await this.tracker.failRun(runId, errorMessage);
-
-      throw err;
+    } catch (stepError) {
+      this.logger.warn(`[Runner] Falha ao registrar o erro do turno: ${String(stepError)}`);
     }
   }
 
@@ -257,64 +279,68 @@ export class AgentRunnerService implements OnModuleInit {
     );
     this.logger.log(`[Runner] Prompt montado | ${messages.length} mensagem(s) para o LLM`);
 
-    const mcpSessions = await this.mcpToolLoader.openSessionsForAgent(agent.id);
-    const mcpTools = mcpSessions.flatMap((session) => session.tools);
-    if (mcpTools.length > 0) {
-      this.logger.log(`[Runner] MCP: ${mcpTools.length} tool(s) carregada(s) de ${mcpSessions.length} servidor(es)`);
-    }
-
-    const mcpToolNames = new Set(mcpTools.map((tool) => tool.name));
-    let builtinTools = this.toolRegistry.toOpenAiTools();
-    if (!agent.journeyConfig?.enabled) {
-      builtinTools = builtinTools.filter((tool) => tool.function.name !== 'request_human_help');
-    }
-    const tools = [
-      ...builtinTools,
-      ...mcpTools.map((tool) => ({
-        type: 'function' as const,
-        function: {
-          name: tool.name,
-          description: tool.description,
-          parameters: tool.inputSchema,
-        },
-      })),
-    ];
-    const toolContext = {
-      companyId: conversation.companyId,
-      agentId: agent.id,
-      senderPhone: conversation.userPhone,
-      conversationId: conversation.id,
-    };
-
-    const ask = () =>
-      this.llm.complete({
-        model,
-        messages,
-        tools: tools.length > 0 ? tools : undefined,
-        temperature: modelConfig?.temperature,
-        maxTokens: modelConfig?.maxTokens,
-        topP: modelConfig?.topP,
-        frequencyPenalty: modelConfig?.frequencyPenalty,
-        presencePenalty: modelConfig?.presencePenalty,
-      });
-
-    this.logger.log(`[Runner] Iniciando chamada ao LLM (iteração 1)`);
-    const llmStart = Date.now();
-    let response: LlmCompletionResponse = await ask();
-    await this.tracker.addStep(runId, {
-      stepType: 'LLM_CALL',
-      toolName: model,
-      input: { messageCount: messages.length, toolCount: tools.length },
-      output: {
-        finishReason: response.finishReason,
-        toolCallCount: response.toolCalls.length,
-        contentLength: (response.content ?? '').length,
-      },
-      durationMs: Date.now() - llmStart,
-      iteration: 0,
-    });
-
+    let mcpSessions: McpSession[] = [];
     try {
+      mcpSessions = await this.mcpToolLoader.openSessionsForAgent(agent.id);
+      const mcpTools = mcpSessions.flatMap((session) => session.tools);
+      if (mcpTools.length > 0) {
+        this.logger.log(`[Runner] MCP: ${mcpTools.length} tool(s) carregada(s) de ${mcpSessions.length} servidor(es)`);
+      }
+
+      const mcpToolNames = new Set(mcpTools.map((tool) => tool.name));
+      let builtinTools = this.toolRegistry.toOpenAiTools();
+      if (!agent.journeyConfig?.enabled) {
+        builtinTools = builtinTools.filter((tool) => tool.function.name !== 'request_human_help');
+      }
+      const tools = [
+        ...builtinTools,
+        ...mcpTools.map((tool) => ({
+          type: 'function' as const,
+          function: {
+            name: tool.name,
+            description: tool.description,
+            parameters: tool.inputSchema,
+          },
+        })),
+      ];
+      const toolContext = {
+        companyId: conversation.companyId,
+        agentId: agent.id,
+        senderPhone: conversation.userPhone,
+        conversationId: conversation.id,
+      };
+
+      const ask = (allowTools: boolean) =>
+        this.llm.complete({
+          model,
+          messages,
+          tools: allowTools && tools.length > 0 ? tools : undefined,
+          temperature: modelConfig?.temperature,
+          maxTokens: modelConfig?.maxTokens,
+          topP: modelConfig?.topP,
+          frequencyPenalty: modelConfig?.frequencyPenalty,
+          presencePenalty: modelConfig?.presencePenalty,
+        });
+
+      const recordLlm = (response: LlmCompletionResponse, startedAt: number, iteration: number) =>
+        this.tracker.addStep(runId, {
+          stepType: 'LLM_CALL',
+          toolName: model,
+          input: { messageCount: messages.length, toolCount: tools.length },
+          output: {
+            finishReason: response.finishReason,
+            toolCallCount: response.toolCalls.length,
+            contentLength: (response.content ?? '').length,
+          },
+          durationMs: Date.now() - startedAt,
+          iteration,
+        });
+
+      this.logger.log(`[Runner] Iniciando chamada ao LLM (iteração 1)`);
+      const llmStart = Date.now();
+      let response = await ask(true);
+      await recordLlm(response, llmStart, 0);
+
       while (
         response.finishReason === 'tool_calls' &&
         response.toolCalls.length > 0 &&
@@ -355,35 +381,40 @@ export class AgentRunnerService implements OnModuleInit {
 
         this.logger.log(`[Runner] Reinvocando LLM com resultados das tools (iteração ${progress.iterations + 2})`);
         const llmIterStart = Date.now();
-        response = await ask();
-        await this.tracker.addStep(runId, {
-          stepType: 'LLM_CALL',
-          toolName: model,
-          input: { messageCount: messages.length, toolCount: tools.length },
-          output: {
-            finishReason: response.finishReason,
-            toolCallCount: response.toolCalls.length,
-            contentLength: (response.content ?? '').length,
-          },
-          durationMs: Date.now() - llmIterStart,
-          iteration: progress.iterations + 1,
-        });
+        response = await ask(true);
+        await recordLlm(response, llmIterStart, progress.iterations + 1);
         progress.iterations++;
       }
+
+      if (progress.iterations >= this.maxToolIterations) {
+        this.logger.warn(
+          `[Runner] Limite de ${this.maxToolIterations} iterações de tool calls atingido | conv=${conversation.id}`,
+        );
+      }
+
+      let text = response.content?.trim() ?? '';
+      if (!text) {
+        this.logger.warn(
+          `[Runner] Resposta vazia após as ferramentas | conv=${conversation.id}. Pedindo uma resposta direta.`,
+        );
+        const recoveredStart = Date.now();
+        const recovered = await ask(false);
+        await recordLlm(recovered, recoveredStart, progress.iterations + 1);
+        text = recovered.content?.trim() ?? '';
+      }
+
+      progress.assistantText = text || CUSTOMER_FALLBACK_REPLY;
+      this.logger.log(
+        `[Runner] Loop LLM concluído | iterações=${progress.iterations} | finishReason=${response.finishReason} | resposta=${progress.assistantText.length} chars`,
+      );
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      this.logger.error(`[Runner] Loop do modelo falhou | conv=${conversation.id} | erro=${errorMessage}`);
+      await this.recordLoopError(runId, errorMessage, progress.iterations);
+      progress.assistantText = CUSTOMER_FALLBACK_REPLY;
     } finally {
       await this.mcpToolLoader.closeSessions(mcpSessions);
     }
-
-    if (progress.iterations >= this.maxToolIterations) {
-      this.logger.warn(
-        `[Runner] Limite de ${this.maxToolIterations} iterações de tool calls atingido | conv=${conversation.id}`,
-      );
-    }
-
-    progress.assistantText = response.content ?? '';
-    this.logger.log(
-      `[Runner] Loop LLM concluído | iterações=${progress.iterations} | finishReason=${response.finishReason} | resposta=${progress.assistantText.length} chars`,
-    );
   }
 
   /**

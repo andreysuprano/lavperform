@@ -89,7 +89,10 @@ describe('AIAgentPlaygroundPage', () => {
 
   it('mostra a falha e permite escrever de novo', async () => {
     const error = new AxiosError('fail')
-    error.response = { status: 502, data: { message: 'A resposta falhou.' } } as AxiosError['response']
+    error.response = {
+      status: 500,
+      data: { message: 'Falha na integração com LavAI Agent (sem resposta): timeout' },
+    } as AxiosError['response']
     sendPlaygroundTurn.mockRejectedValue(error)
     renderPage()
 
@@ -98,7 +101,9 @@ describe('AIAgentPlaygroundPage', () => {
     })
     fireEvent.click(screen.getByRole('button', { name: 'Enviar' }))
 
-    expect(await screen.findByText('A resposta falhou.')).toBeInTheDocument()
+    expect(
+      await screen.findByText('Desculpe, não consegui concluir agora. Pode enviar sua mensagem de novo?'),
+    ).toBeInTheDocument()
     expect(screen.getByText('Oi')).toBeInTheDocument()
     expect(screen.getByPlaceholderText('Escreva uma mensagem...')).toBeEnabled()
   })

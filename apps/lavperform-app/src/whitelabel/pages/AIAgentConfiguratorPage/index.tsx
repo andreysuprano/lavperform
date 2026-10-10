@@ -8,9 +8,9 @@ import { useAuth } from '@/context/AuthContext'
 import { SafeMarkdown } from '@/whitelabel/components/ai-agent/SafeMarkdown/SafeMarkdown'
 import { AIAgentPlaygroundPage } from '@/whitelabel/pages/AIAgentPlaygroundPage'
 import { aiAgentService } from '@/whitelabel/services'
+import { customerFacingAgentError } from '@/whitelabel/services/customer-agent-error'
 import type { ConfiguratorBlock, ConfiguratorTurnMessage } from '@/whitelabel/types'
 
-const FAILED = 'A resposta falhou.'
 const UNAVAILABLE = 'O configurador não está disponível.'
 
 type LiveActivity = { id: string; label: string; status: 'running' | 'done' }
@@ -100,14 +100,14 @@ function AIAgentConfiguratorPageBase() {
         },
         onError: (message) => {
           if (message === UNAVAILABLE) setUnavailable(true)
-          else setNotice(message || FAILED)
+          else setNotice(customerFacingAgentError(message))
         },
       })
     } catch (error) {
       if (controller.signal.aborted) return
-      const message = error instanceof Error ? error.message : FAILED
+      const message = error instanceof Error ? error.message : ''
       if (message === UNAVAILABLE) setUnavailable(true)
-      else setNotice(message || FAILED)
+      else setNotice(customerFacingAgentError(message))
     } finally {
       if (!controller.signal.aborted) {
         setLive(null)
@@ -154,7 +154,7 @@ function AIAgentConfiguratorPageBase() {
         ])
       }
     } catch {
-      setNotice(FAILED)
+      setNotice(customerFacingAgentError(undefined))
     } finally {
       setBusy(false)
     }

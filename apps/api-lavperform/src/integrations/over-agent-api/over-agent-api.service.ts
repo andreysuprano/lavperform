@@ -14,6 +14,10 @@ import { AxiosError } from 'axios';
 import type { IncomingMessage } from 'http';
 import type { Response } from 'express';
 
+const CUSTOMER_TURN_TIMEOUT_MS = 180_000;
+const CUSTOMER_TURN_FALLBACK =
+  'Desculpe, não consegui concluir agora. Pode enviar sua mensagem de novo?';
+
 @Injectable()
 export class LavaiAgentApiService {
   private readonly logger = new Logger(LavaiAgentApiService.name);
@@ -32,31 +36,45 @@ export class LavaiAgentApiService {
     method: 'get' | 'post' | 'patch' | 'delete' | 'put',
     path: string,
     data?: unknown,
-    options?: { preserve502?: boolean },
+    options?: { preserve502?: boolean; timeout?: number; customerMessage?: string },
   ): Promise<T> {
     const url = `${this.baseUrl}${path}`;
+    const config = options?.timeout ? { timeout: options.timeout } : undefined;
     try {
-      const response = await firstValueFrom(
-        method === 'get'
-          ? this.httpService.get<T>(url)
-          : method === 'delete'
-            ? this.httpService.delete<T>(url)
-            : method === 'patch'
-              ? this.httpService.patch<T>(url, data)
-              : method === 'put'
-                ? this.httpService.put<T>(url, data)
-                : this.httpService.post<T>(url, data),
-      );
-      return response.data;
+      const response = await firstValueFrom(this.dispatch<T>(method, url, data, config));
+      return response.data as T;
     } catch (err) {
       this.handleHttpError(err, path, options);
     }
   }
 
+  private dispatch<T>(
+    method: 'get' | 'post' | 'patch' | 'delete' | 'put',
+    url: string,
+    data?: unknown,
+    config?: { timeout: number },
+  ) {
+    if (method === 'get') {
+      return config ? this.httpService.get<T>(url, config) : this.httpService.get<T>(url);
+    }
+    if (method === 'delete') {
+      return config ? this.httpService.delete<T>(url, config) : this.httpService.delete<T>(url);
+    }
+    if (method === 'patch') {
+      return config
+        ? this.httpService.patch<T>(url, data, config)
+        : this.httpService.patch<T>(url, data);
+    }
+    if (method === 'put') {
+      return config ? this.httpService.put<T>(url, data, config) : this.httpService.put<T>(url, data);
+    }
+    return config ? this.httpService.post<T>(url, data, config) : this.httpService.post<T>(url, data);
+  }
+
   private handleHttpError(
     err: unknown,
     path: string,
-    options?: { preserve502?: boolean },
+    options?: { preserve502?: boolean; customerMessage?: string },
   ): never {
     const axiosError = err as AxiosError<{ message?: string | string[]; error?: string }>;
     const status = axiosError.response?.status;
@@ -87,6 +105,13 @@ export class LavaiAgentApiService {
     }
 
     this.logger.error(`lavai-agent error [${status ?? 'NO_RESPONSE'}] ${url}: ${detail}`);
+
+    if (
+      options?.customerMessage &&
+      (status === undefined || status === 408 || status === 429 || status >= 500)
+    ) {
+      throw new BadGatewayException(options.customerMessage);
+    }
 
     if (status === 404) throw new NotFoundException(detail);
     if (status === 409) throw new ConflictException(detail);
@@ -341,7 +366,7 @@ export class LavaiAgentApiService {
       'post',
       `/platform-agents/${agentId}/turns`,
       dto,
-      { preserve502: true },
+      { preserve502: true, timeout: CUSTOMER_TURN_TIMEOUT_MS, customerMessage: CUSTOMER_TURN_FALLBACK },
     );
   }
 
@@ -389,7 +414,7 @@ export class LavaiAgentApiService {
       'post',
       '/agent-configurator/turns',
       dto,
-      { preserve502: true },
+      { preserve502: true, timeout: CUSTOMER_TURN_TIMEOUT_MS, customerMessage: CUSTOMER_TURN_FALLBACK },
     );
   }
 
@@ -398,11 +423,14 @@ export class LavaiAgentApiService {
     const response = await firstValueFrom(
       this.httpService.post<IncomingMessage>(`${this.baseUrl}${path}`, dto, {
         responseType: 'stream',
-        timeout: 120_000,
+        timeout: CUSTOMER_TURN_TIMEOUT_MS,
         headers: { Accept: 'text/event-stream' },
       }),
     ).catch((err: unknown) => {
-      this.handleHttpError(err, path, { preserve502: true });
+      this.handleHttpError(err, path, {
+        preserve502: true,
+        customerMessage: CUSTOMER_TURN_FALLBACK,
+      });
     });
 
     res.setHeader('Content-Type', 'text/event-stream; charset=utf-8');
@@ -475,6 +503,8 @@ export class LavaiAgentApiService {
   }) {
     return this.request<{ content: string }>('post', '/agent-playground/turns', body, {
       preserve502: true,
+      timeout: CUSTOMER_TURN_TIMEOUT_MS,
+      customerMessage: CUSTOMER_TURN_FALLBACK,
     });
   }
 }

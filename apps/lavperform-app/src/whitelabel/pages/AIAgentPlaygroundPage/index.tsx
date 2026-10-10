@@ -7,8 +7,8 @@ import { useNavigate, useParams } from 'react-router-dom'
 import { useAuth } from '@/context/AuthContext'
 import { SafeMarkdown } from '@/whitelabel/components/ai-agent/SafeMarkdown/SafeMarkdown'
 import { aiAgentService } from '@/whitelabel/services'
+import { customerFacingAgentError } from '@/whitelabel/services/customer-agent-error'
 
-const FAILED = 'A resposta falhou.'
 const UNAVAILABLE = 'O teste não está disponível.'
 
 type ChatMessage = { id: string; role: 'user' | 'assistant'; content: string }
@@ -63,7 +63,7 @@ function AIAgentPlaygroundPageBase({ embedded = false }: { embedded?: boolean })
         setUnavailable(true)
         return
       }
-      setNotice(typeof message === 'string' && message.trim() ? message : FAILED)
+      setNotice(customerFacingAgentError(typeof message === 'string' ? message : undefined))
     } finally {
       if (!controller.signal.aborted) setBusy(false)
     }
