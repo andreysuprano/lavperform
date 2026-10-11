@@ -15,7 +15,7 @@ interface SearchInput {
 export class SearchKnowledgeTool implements AgentTool {
   readonly name = 'search_knowledge';
   readonly description =
-    'Busca informações relevantes na base de conhecimento da empresa. Use quando precisar de informações específicas do negócio.';
+    'Busca informações da empresa na base de conhecimento. Use antes de informar preço, prazo, horário ou regra. Se não houver resultado, diga que a unidade não informou. Não invente.';
   readonly inputSchema = {
     type: 'object',
     properties: {
@@ -50,7 +50,10 @@ export class SearchKnowledgeTool implements AgentTool {
     );
 
     if (chunks.length === 0) {
-      return { results: [], message: 'Nenhuma informação relevante encontrada.' };
+      return {
+        results: [],
+        message: 'A unidade não informou isso. Não invente. Diga que não sabe e ofereça um atendente.',
+      };
     }
 
     return {
