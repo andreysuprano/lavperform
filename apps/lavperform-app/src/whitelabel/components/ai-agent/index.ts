@@ -1,4 +1,5 @@
 export { AIAgentEditDrawer } from './AIAgentEditDrawer'
+export { AIAgentAdvancedConfigDrawer } from './AIAgentAdvancedConfigDrawer'
 export { AIAgentStatusCard } from './AIAgentStatusCard'
 export { AIAgentPersonalityCard } from './AIAgentPersonalityCard'
 export { AIAgentKnowledgeBaseCard } from './AIAgentKnowledgeBaseCard'
