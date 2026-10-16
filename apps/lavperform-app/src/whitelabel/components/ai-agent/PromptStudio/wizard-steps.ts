@@ -105,6 +105,31 @@ function stepEmpty(key: string, progress: WizardAnswers): boolean {
   return !filled(progress.answers[key])
 }
 
+export function wizardStepFilled(key: string, progress: WizardAnswers): boolean {
+  return !stepEmpty(key, progress)
+}
+
+function storeSummary(answers: Record<string, string>): string {
+  const identity = ['name', 'phone', 'address']
+    .map((key) => answers[key]?.trim() ?? '')
+    .filter((value) => value !== '')
+  const hours = CADASTRO_KEYS.filter((key) => key.startsWith('hours_'))
+    .map((key) => answers[key]?.trim() ?? '')
+    .filter((value) => value !== '')
+  const unique = [...new Set(hours)]
+  const hourLine = unique.length === 0 ? '' : unique.length === 1 ? unique[0] : 'Horário diferente por dia'
+  return [...identity, hourLine].filter((value) => value !== '').join('\n')
+}
+
+export function wizardShownAnswer(key: string, model: ServiceModel, progress: WizardAnswers): string {
+  if (key === 'agentName') return progress.agentName.trim()
+  if (key === LAUNDRY_TYPE_KEY) {
+    return LAUNDRY_TYPE_OPTIONS.find((option) => option.id === model)?.label ?? ''
+  }
+  if (key === STORE_KEY) return storeSummary(progress.answers)
+  return (progress.answers[key] ?? '').trim()
+}
+
 export function wizardChoice(
   key: string,
   _model: ServiceModel,
