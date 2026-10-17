@@ -204,7 +204,7 @@ describe('AgentRunnerService.complete', () => {
     expect(messageSender.send).not.toHaveBeenCalled();
   });
 
-  it('pede uma resposta direta quando as ferramentas não geram texto', async () => {
+  it('não completa uma resposta vazia com uma frase sem ferramenta', async () => {
     toolRegistry.toOpenAiTools.mockReturnValue([
       { type: 'function', function: { name: 'get_datetime', description: 'agora', parameters: {} } },
     ]);
@@ -214,15 +214,23 @@ describe('AgentRunnerService.complete', () => {
         toolCalls: [{ id: 'call-1', type: 'function', function: { name: 'get_datetime', arguments: '{}' } }],
         finishReason: 'tool_calls',
       })
-      .mockResolvedValueOnce({ content: '   ', toolCalls: [], finishReason: 'stop' })
-      .mockResolvedValueOnce({ content: 'Agora são 10h', toolCalls: [], finishReason: 'stop' });
+      .mockResolvedValueOnce({ content: '   ', toolCalls: [], finishReason: 'stop' });
     toolExecutor.execute.mockResolvedValue([{ tool_call_id: 'call-1', content: '{"now":"10h"}' }]);
 
     const text = await service.complete(turn());
 
-    expect(text).toBe('Agora são 10h');
-    expect(llm.complete).toHaveBeenCalledTimes(3);
-    expect(llm.complete.mock.calls[2][0].tools).toBeUndefined();
+    expect(text).toBe(CUSTOMER_FALLBACK_REPLY);
+    expect(llm.complete).toHaveBeenCalledTimes(2);
+  });
+
+  it('limita a temperatura para o atendimento não inventar', async () => {
+    const configured = agent();
+    configured.modelConfig = { ...configured.modelConfig, temperature: 0.7 };
+    llm.complete.mockResolvedValue({ content: 'Olá', toolCalls: [], finishReason: 'stop' });
+
+    await service.complete({ ...turn(), agent: configured });
+
+    expect(llm.complete.mock.calls[0][0].temperature).toBe(0.3);
   });
 
   it('entrega a frase simples quando o modelo falha no atendimento', async () => {

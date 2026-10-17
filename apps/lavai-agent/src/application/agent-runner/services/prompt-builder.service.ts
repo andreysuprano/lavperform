@@ -18,6 +18,14 @@ export interface PlatformSessionContext {
   companyName: string;
 }
 
+const FACTS_RULE = [
+  '## O que pode afirmar',
+  'Converse com naturalidade.',
+  'Preço, prazo, horário, endereço e regra da loja só valem se estiverem neste prompt, na base de conhecimento ou no resultado de uma ferramenta.',
+  'Se não estiver, diga que a unidade não informou isso e ofereça um atendente.',
+  'Não chute um valor parecido.',
+].join('\n');
+
 /**
  * Monta o array de messages para o LLM:
  *  [system] persona + guidelines + guardrails + context + RAG chunks
@@ -85,9 +93,11 @@ export class PromptBuilderService {
         .map((c, i) => `[${i + 1}] ${c.content}`)
         .join('\n\n');
       systemParts.push(
-        `\n## Base de Conhecimento (contexto relevante)\n${ragText}`,
+        `\n## Base de conhecimento\nEstes trechos podem não responder à pergunta. Use só o que responder. Ignore o resto.\n\n${ragText}`,
       );
     }
+
+    systemParts.push(`\n${FACTS_RULE}`);
 
     const messages: LlmMessage[] = [
       {
