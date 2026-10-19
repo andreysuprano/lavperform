@@ -60,6 +60,26 @@ describe('PromptBuilderService', () => {
     expect(system).not.toContain('Chat ID');
   });
 
+  it('inclui os campos de personalização já salvos na persona', () => {
+    const source = agent();
+    source.persona = {
+      ...source.persona!,
+      personaName: 'Bia',
+      personaDescription: 'Atendente da unidade',
+      voiceTone: 'FRIENDLY' as never,
+      communicationStyle: 'CONCISE' as never,
+      language: 'PT_BR' as never,
+      behaviorGuidelines: 'Envie o link combinado.',
+    };
+    const system = builder.build(source, [], [], 'Oi')[0].content ?? '';
+    expect(system).toContain('Bia');
+    expect(system).toContain('Atendente da unidade');
+    expect(system).toContain('amigável');
+    expect(system).toContain('conciso');
+    expect(system).toContain('português do Brasil');
+    expect(system).toContain('Envie o link combinado.');
+  });
+
   it('mantém telefone e chat no caminho do WhatsApp', () => {
     const messages = builder.build(agent(), [], [], 'Oi', {
       senderName: 'Cliente',

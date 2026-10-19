@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import type { AgentPersonaData, AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
 import type { ConversationMessageData } from '../../webhook/ports/conversation.repository.port';
 import type { KnowledgeChunkWithScore } from '../../knowledge/ports/knowledge-chunk.repository.port';
 import type { LlmMessage } from '../ports/llm-provider.port';
@@ -44,6 +44,11 @@ export class PromptBuilderService {
     const maxTokens = agent.modelConfig?.maxTokens ?? 1024;
 
     const systemParts: string[] = [];
+
+    const personalization = personaLines(persona);
+    if (personalization) {
+      systemParts.push(personalization);
+    }
 
     if (persona?.systemPrompt) {
       systemParts.push(persona.systemPrompt);
@@ -133,4 +138,46 @@ export class PromptBuilderService {
 
     return result;
   }
+}
+
+const VOICE_TONE: Record<string, string> = {
+  FORMAL: 'formal',
+  INFORMAL: 'informal',
+  FRIENDLY: 'amigável',
+  PROFESSIONAL: 'profissional',
+  EMPATHETIC: 'empático',
+  ASSERTIVE: 'assertivo',
+};
+
+const COMMUNICATION_STYLE: Record<string, string> = {
+  CONCISE: 'conciso',
+  DETAILED: 'detalhado',
+  TECHNICAL: 'técnico',
+  SIMPLIFIED: 'simplificado',
+  BALANCED: 'equilibrado',
+};
+
+const LANGUAGE: Record<string, string> = {
+  PT_BR: 'português do Brasil',
+  EN_US: 'inglês',
+  ES_ES: 'espanhol',
+};
+
+function personaLines(persona: AgentPersonaData | null | undefined): string {
+  if (!persona) return '';
+  const lines = [
+    labeled('Nome', persona.personaName),
+    labeled('Descrição', persona.personaDescription),
+    labeled('Tom de voz', VOICE_TONE[persona.voiceTone] ?? persona.voiceTone),
+    labeled('Estilo de comunicação', COMMUNICATION_STYLE[persona.communicationStyle] ?? persona.communicationStyle),
+    labeled('Idioma', LANGUAGE[persona.language] ?? persona.language),
+  ].filter((line) => line !== '');
+  if (lines.length === 0) return '';
+  return `## Personalização\n${lines.join('\n')}`;
+}
+
+function labeled(label: string, value: string | null | undefined): string {
+  const text = value?.trim() ?? '';
+  if (text === '') return '';
+  return `- ${label}: ${text}`;
 }
