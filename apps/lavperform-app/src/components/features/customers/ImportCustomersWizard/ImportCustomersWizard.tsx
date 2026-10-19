@@ -114,8 +114,9 @@ export function ImportCustomersWizard() {
         },
       }
 
-      // Inicia o parsing do arquivo
-      Papa.parse(await file.text(), config)
+      // Inicia o parsing do arquivo. Remove o BOM do Excel para o cabeçalho bater com a importação.
+      const fileText = (await file.text()).replace(/^\uFEFF/, '')
+      Papa.parse(fileText, config)
     } catch (error) {
       logger.error('Erro ao processar arquivo:', error)
       setImportStatus('error')

@@ -6,6 +6,7 @@ import {
   CreateCustomerForm,
   CustomerDetailsDrawer,
   CustomTable,
+  ExportCustomersButton,
   ImportCustomersWizard,
 } from '@/components'
 import { useAuth } from '@/context/AuthContext'
@@ -106,6 +107,7 @@ export function CustomerList() {
           value={searchQuery}
         />
         <ImportCustomersWizard />
+        <ExportCustomersButton />
         <CreateCustomerForm />
       </Flex>
       <Alert.Root

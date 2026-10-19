@@ -30,6 +30,7 @@ import {
   AppContentLayout,
   CreateCustomerForm,
   CustomTable,
+  ExportCustomersButton,
   ImportCustomersWizard,
   ImportWhatsAppCustomersModal,
 } from '@/components'
@@ -461,6 +462,7 @@ export function CustomerTableSection({
           </Button>
         </Tooltip>
         <ImportCustomersWizard />
+        <ExportCustomersButton />
         <CreateCustomerForm />
       </Flex>
 

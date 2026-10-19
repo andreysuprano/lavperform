@@ -26,6 +26,7 @@ import {
   parseCampaignEndDate,
   parseCampaignStartDate,
 } from '../../common/utils/date.utils';
+import { customersToImportCsv } from './customer-import-csv';
 
 @Injectable()
 export class CustomersService {
@@ -136,6 +137,11 @@ export class CustomersService {
         totalPages: Math.ceil(total / limit),
       },
     };
+  }
+
+  async exportCustomersCsv(companyId: string): Promise<string> {
+    const customers = await this.customerRepository.findAllByCompany(companyId);
+    return customersToImportCsv(customers);
   }
 
   async findTopBuyers(
