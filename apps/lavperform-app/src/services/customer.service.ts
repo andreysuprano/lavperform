@@ -173,6 +173,12 @@ export const customerService = {
     )
   },
 
+  async exportCustomers(companyId: string) {
+    return await client.get<Blob>(`/companies/${companyId}/customers/export`, {
+      responseType: 'blob',
+    })
+  },
+
   async listCustomers(
     companyId: string,
     params?: {

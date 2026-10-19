@@ -380,6 +380,35 @@ export class CustomerPrismaRepository implements ICustomerRepository {
         };
     }
 
+    async findAllByCompany(companyId: string): Promise<Customer[]> {
+        const batchSize = 500;
+        const customers: Customer[] = [];
+        let cursorId: string | undefined;
+
+        for (;;) {
+            const rows = await this.prisma.customer.findMany({
+                where: { companyId },
+                include: { address: true },
+                orderBy: { id: 'asc' },
+                take: batchSize,
+                ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
+            });
+
+            if (rows.length === 0) {
+                break;
+            }
+
+            customers.push(...(await this.mapCustomersWithOrderStats(rows)));
+            cursorId = rows[rows.length - 1].id;
+
+            if (rows.length < batchSize) {
+                break;
+            }
+        }
+
+        return customers;
+    }
+
     private async mapCustomersWithOrderStats(
         items: Array<Parameters<typeof CustomerMapper.toDomain>[0]>,
     ): Promise<Customer[]> {

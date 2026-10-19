@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Inject, Header, StreamableFile } from '@nestjs/common';
 import { CustomersService } from '../application/customers.service';
 import { CreateCustomerDto } from '../application/dto/create-customer.dto';
 import { UpdateCustomerDto } from '../application/dto/update-customer.dto';
@@ -150,6 +150,16 @@ export class CustomersController {
     @Query() query: TopBuyersQueryDto,
   ) {
     return this.customersService.getTopBuyers(companyId, query);
+  }
+
+  @Get('export')
+  @Header('Content-Type', 'text/csv; charset=utf-8')
+  @Header('Content-Disposition', 'attachment; filename="clientes.csv"')
+  @ApiOperation({ summary: 'Exportar a base de clientes em CSV no formato de importação' })
+  @ApiResponse({ status: 200, description: 'Arquivo CSV da base de clientes' })
+  async exportCustomers(@Param('companyId') companyId: string) {
+    const csv = await this.customersService.exportCustomersCsv(companyId);
+    return new StreamableFile(Buffer.from(csv, 'utf-8'));
   }
 
   @Get(':id')
