@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
+import { ExportCustomersButton } from "@/features/customers/export-customers-button"
 import { CompaniesFilters } from "@/features/companies/components/companies-filters"
 import { CompaniesTable } from "@/features/companies/components/companies-table"
 import { DeleteCompanyDialog } from "@/features/companies/components/delete-company-dialog"
@@ -113,10 +114,13 @@ export default function CompaniesPage() {
             Gerencie todas as empresas da plataforma.
           </p>
         </div>
-        <Button nativeButton={false} render={<Link href="/companies/new" />}>
-          <PlusIcon />
-          Nova empresa
-        </Button>
+        <div className="flex flex-col gap-2 sm:flex-row">
+          <ExportCustomersButton />
+          <Button nativeButton={false} render={<Link href="/companies/new" />}>
+            <PlusIcon />
+            Nova empresa
+          </Button>
+        </div>
       </div>
 
       <CompaniesFilters
