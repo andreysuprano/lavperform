@@ -63,6 +63,32 @@ describe('HelpEscalationService', () => {
     messageSender.send.mockResolvedValue(undefined);
   });
 
+  it('não envia WhatsApp quando o chat é o teste do agente', async () => {
+    const agent = {
+      ...baseAgent,
+      journeyConfig: {
+        followUpSteps: [],
+        helpAckMessage: 'Aguarde um atendente',
+      },
+      notificationConfig: {
+        helpNotificationEnabled: true,
+        helpNotificationPhone: '5511999999999',
+      },
+    } as unknown as AgentWithConfigsData;
+
+    await service.escalate({
+      agent,
+      conversation: {
+        ...conversation,
+        chatId: 'playground:550e8400-e29b-41d4-a716-446655440000',
+      } as never,
+      lastMessage: 'quero atendente',
+    });
+
+    expect(messageSender.send).not.toHaveBeenCalled();
+    expect(helpRequestRepo.create).toHaveBeenCalled();
+  });
+
   it('não envia alerta ao staff sem notificationConfig', async () => {
     await service.escalate({
       agent: baseAgent,
