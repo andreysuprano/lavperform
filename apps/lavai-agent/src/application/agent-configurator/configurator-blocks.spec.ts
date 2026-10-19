@@ -2,6 +2,7 @@ import {
   ConfiguratorReplyError,
   decideProposal,
   finalizeConfiguratorReply,
+  instructionsWithSummary,
   parseConfiguratorReply,
   STALE_MESSAGE,
   toClientBlocks,
@@ -104,6 +105,21 @@ describe('finalizeConfiguratorReply', () => {
     expect(() => finalizeConfiguratorReply('{"blocks":[]}', null, 't1')).toThrow(
       'O modelo devolveu um formato inválido.',
     );
+  });
+});
+
+describe('instructionsWithSummary', () => {
+  it('grava o resumo aceito nas regras de comportamento que a IA já lê', () => {
+    const next = instructionsWithSummary(document, 'Encaminhe para https://wa.me/5516999932179.');
+    expect(next.behaviorGuidelines).toContain('diretrizes');
+    expect(next.behaviorGuidelines).toContain('https://wa.me/5516999932179');
+    expect(next.systemPrompt).toBe(document.systemPrompt);
+  });
+
+  it('não repete o resumo quando ele já está nas regras', () => {
+    const summary = 'Encaminhe para o link combinado.';
+    const once = instructionsWithSummary(document, summary);
+    expect(instructionsWithSummary(once, summary).behaviorGuidelines).toBe(once.behaviorGuidelines);
   });
 });
 

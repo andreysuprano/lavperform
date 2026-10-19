@@ -160,6 +160,17 @@ function jsonCandidate(text: string): string | null {
   return body.startsWith('{') ? body : null;
 }
 
+export function instructionsWithSummary(document: PromptDocument, summary: string): PromptDocument {
+  const text = summary.trim();
+  if (text === '') return document;
+  const current = document.behaviorGuidelines.trim();
+  if (current === text || current.includes(text)) return document;
+  return {
+    ...document,
+    behaviorGuidelines: current === '' ? text : `${current}\n\n${text}`,
+  };
+}
+
 export function decideProposal(input: {
   status: ProposalStatus | null;
   baseUpdatedAt: string;
