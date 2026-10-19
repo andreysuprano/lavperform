@@ -1,7 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Readable } from 'stream';
 import { PrismaService } from '../../prisma/prisma.service';
+import { buildXlsx } from '../../common/spreadsheet/rows-to-xlsx';
 import {
+  ADMIN_CUSTOMERS_CSV_HEADER,
+  adminCustomerCells,
   adminCustomersCsvHeader,
   formatAdminCustomersCsvChunk,
 } from './admin-customers-csv';
@@ -16,9 +19,25 @@ export class AdminCustomersService {
     return Readable.from(this.iterateCsvChunks());
   }
 
+  async createXlsx(): Promise<Buffer> {
+    const rows = [ADMIN_CUSTOMERS_CSV_HEADER.split(',')];
+
+    for await (const batch of this.iterateBatches()) {
+      rows.push(...batch.map((customer) => adminCustomerCells(customer)));
+    }
+
+    return buildXlsx(rows);
+  }
+
   private async *iterateCsvChunks(): AsyncGenerator<string> {
     yield adminCustomersCsvHeader();
 
+    for await (const batch of this.iterateBatches()) {
+      yield formatAdminCustomersCsvChunk(batch);
+    }
+  }
+
+  private async *iterateBatches() {
     let cursorId: string | undefined;
 
     for (;;) {
@@ -34,7 +53,7 @@ export class AdminCustomersService {
 
       if (rows.length === 0) break;
 
-      yield formatAdminCustomersCsvChunk(rows);
+      yield rows;
       cursorId = rows[rows.length - 1].id;
 
       if (rows.length < BATCH_SIZE) break;
