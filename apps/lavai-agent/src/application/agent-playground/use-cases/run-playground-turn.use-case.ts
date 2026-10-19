@@ -85,7 +85,8 @@ export class RunPlaygroundTurnUseCase {
       message: content,
     });
     if (journey.skipLlm) {
-      return { content: PLAYGROUND_HANDOFF };
+      const ack = agent.journeyConfig?.helpAckMessage?.trim();
+      return { content: ack || PLAYGROUND_HANDOFF };
     }
 
     const windowSize = agent.memoryConfig?.windowSize ?? 10;
