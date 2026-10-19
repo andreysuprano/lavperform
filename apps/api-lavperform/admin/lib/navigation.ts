@@ -8,6 +8,7 @@ import {
   MessageCircleIcon,
   PlugIcon,
   ShieldIcon,
+  UsersIcon,
 } from "lucide-react"
 
 export type NavItem = {
@@ -19,6 +20,7 @@ export type NavItem = {
 const baseNavMainItems: NavItem[] = [
   { title: "Início", url: "/", icon: LayoutDashboardIcon },
   { title: "Empresas", url: "/companies", icon: Building2Icon },
+  { title: "Clientes", url: "/customers", icon: UsersIcon },
   { title: "WhatsApp", url: "/whatsapp", icon: MessageCircleIcon },
   { title: "Campanhas", url: "/campaigns", icon: MegaphoneIcon },
   { title: "Integrações", url: "/integration-partners", icon: PlugIcon },
@@ -62,6 +64,7 @@ const pageTitles: Record<string, string> = {
   "/": "Início",
   "/dashboard": "Dashboard",
   "/companies": "Empresas",
+  "/customers": "Clientes",
   "/companies/new": "Nova empresa",
   "/administrators": "Administradores",
   "/administrators/new": "Novo administrador",
