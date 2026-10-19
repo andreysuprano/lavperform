@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Inject, Header, StreamableFile } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Inject, StreamableFile } from '@nestjs/common';
 import { CustomersService } from '../application/customers.service';
 import { CreateCustomerDto } from '../application/dto/create-customer.dto';
 import { UpdateCustomerDto } from '../application/dto/update-customer.dto';
@@ -11,6 +11,7 @@ import { Company } from '../../common/decorators/company.decorator';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
+import { normalizeExportFormat } from '../../common/spreadsheet/rows-to-xlsx';
 
 @ApiTags('Customers')
 @Controller('companies/:companyId/customers')
@@ -153,13 +154,21 @@ export class CustomersController {
   }
 
   @Get('export')
-  @Header('Content-Type', 'text/csv; charset=utf-8')
-  @Header('Content-Disposition', 'attachment; filename="clientes.csv"')
-  @ApiOperation({ summary: 'Exportar a base de clientes em CSV no formato de importação' })
-  @ApiResponse({ status: 200, description: 'Arquivo CSV da base de clientes' })
-  async exportCustomers(@Param('companyId') companyId: string) {
-    const csv = await this.customersService.exportCustomersCsv(companyId);
-    return new StreamableFile(Buffer.from(csv, 'utf-8'));
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'xls', 'xlsx'] })
+  @ApiOperation({ summary: 'Exportar a base de clientes em CSV ou Excel' })
+  @ApiResponse({ status: 200, description: 'Arquivo da base de clientes' })
+  async exportCustomers(
+    @Param('companyId') companyId: string,
+    @Query('format') format?: string,
+  ) {
+    const file = await this.customersService.exportCustomersFile(
+      companyId,
+      normalizeExportFormat(format),
+    );
+    return new StreamableFile(file.body, {
+      type: file.type,
+      disposition: `attachment; filename="${file.filename}"`,
+    });
   }
 
   @Get(':id')

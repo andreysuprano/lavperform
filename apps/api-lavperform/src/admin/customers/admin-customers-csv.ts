@@ -33,44 +33,50 @@ export interface AdminCustomerCsvSource {
   } | null;
 }
 
+export function adminCustomerCells(customer: AdminCustomerCsvSource): string[] {
+  return [
+    text(customer.company?.name),
+    text(customer.name),
+    text(customer.phone),
+    text(customer.email),
+    text(customer.cpf),
+    formatDate(customer.birthDate),
+    text(customer.gender),
+    formatYesNo(customer.whatsappOptin),
+    formatYesNo(customer.whatsappVerified),
+    text(customer.rfvClassification),
+    formatTicket(customer.averageTicket),
+    formatDate(customer.firstOrderDate),
+    formatDate(customer.lastOrderDate),
+    text(customer.address?.city),
+    text(customer.address?.state),
+    text(customer.address?.neighborhood),
+    text(customer.address?.zipCode),
+    text(customer.address?.street),
+    text(customer.address?.number),
+    text(customer.address?.complement),
+    text(customer.observations),
+  ];
+}
+
 export function formatAdminCustomersCsvChunk(
   customers: AdminCustomerCsvSource[],
 ): string {
   if (customers.length === 0) return '';
 
-  return `${customers.map(toCsvLine).join('\n')}\n`;
+  return `${customers.map((customer) => toCsvLine(adminCustomerCells(customer))).join('\n')}\n`;
 }
 
 export function adminCustomersCsvHeader(): string {
   return `\uFEFF${ADMIN_CUSTOMERS_CSV_HEADER}\n`;
 }
 
-function toCsvLine(customer: AdminCustomerCsvSource): string {
-  return [
-    customer.company?.name,
-    customer.name,
-    customer.phone,
-    customer.email,
-    customer.cpf,
-    formatDate(customer.birthDate),
-    customer.gender,
-    formatYesNo(customer.whatsappOptin),
-    formatYesNo(customer.whatsappVerified),
-    customer.rfvClassification,
-    formatTicket(customer.averageTicket),
-    formatDate(customer.firstOrderDate),
-    formatDate(customer.lastOrderDate),
-    customer.address?.city,
-    customer.address?.state,
-    customer.address?.neighborhood,
-    customer.address?.zipCode,
-    customer.address?.street,
-    customer.address?.number,
-    customer.address?.complement,
-    customer.observations,
-  ]
-    .map(escapeCsvCell)
-    .join(',');
+function text(value: string | null | undefined): string {
+  return value ?? '';
+}
+
+function toCsvLine(values: string[]): string {
+  return values.map(escapeCsvCell).join(',');
 }
 
 function formatDate(value: Date | string | null | undefined): string {

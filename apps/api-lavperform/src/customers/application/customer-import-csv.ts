@@ -25,37 +25,45 @@ export interface CustomerImportCsvSource {
   } | null;
 }
 
-export function customersToImportCsv(customers: CustomerImportCsvSource[]): string {
+export function customersToImportTable(
+  customers: CustomerImportCsvSource[],
+): string[][] {
   const rows = [...customers].sort((left, right) =>
     (left.name ?? '').localeCompare(right.name ?? '', 'pt-BR', {
       sensitivity: 'base',
     }),
   );
 
-  const lines = [
-    CUSTOMER_IMPORT_CSV_HEADER,
-    ...rows.map((customer) =>
-      toCsvLine([
-        customer.name,
-        customer.phone,
-        customer.email,
-        formatImportDate(customer.birthDate),
-        formatImportDate(customer.firstOrderDate),
-        customer.gender,
-        customer.observations,
-        formatTicket(customer.averageTicket),
-        customer.address?.street,
-        customer.address?.number,
-        customer.address?.complement,
-        customer.address?.neighborhood,
-        customer.address?.city,
-        customer.address?.state,
-        customer.address?.zipCode,
-      ]),
-    ),
+  return [
+    CUSTOMER_IMPORT_CSV_HEADER.split(','),
+    ...rows.map((customer) => [
+      text(customer.name),
+      text(customer.phone),
+      text(customer.email),
+      formatImportDate(customer.birthDate),
+      formatImportDate(customer.firstOrderDate),
+      text(customer.gender),
+      text(customer.observations),
+      formatTicket(customer.averageTicket),
+      text(customer.address?.street),
+      text(customer.address?.number),
+      text(customer.address?.complement),
+      text(customer.address?.neighborhood),
+      text(customer.address?.city),
+      text(customer.address?.state),
+      text(customer.address?.zipCode),
+    ]),
   ];
+}
 
+export function customersToImportCsv(customers: CustomerImportCsvSource[]): string {
+  const lines = customersToImportTable(customers).map((row) => toCsvLine(row));
   return `\uFEFF${lines.join('\n')}\n`;
+}
+
+function text(value: string | number | null | undefined): string {
+  if (value === null || value === undefined) return '';
+  return String(value);
 }
 
 function formatImportDate(value: Date | string | null | undefined): string {
@@ -72,7 +80,7 @@ function formatTicket(value: number | null | undefined): string {
   return String(value);
 }
 
-function toCsvLine(values: Array<string | number | null | undefined>): string {
+function toCsvLine(values: string[]): string {
   return values.map(escapeCsvCell).join(',');
 }
 
