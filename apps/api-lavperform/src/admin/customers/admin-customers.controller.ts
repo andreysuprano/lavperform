@@ -20,14 +20,15 @@ export class AdminCustomersController {
   async exportCustomers(@Query('format') format?: string) {
     const normalized = normalizeExportFormat(format);
     const meta = exportFileMeta(normalized);
-    const body =
-      normalized === 'xlsx'
-        ? await this.customersService.createXlsx()
-        : this.customersService.createExportStream();
-
-    return new StreamableFile(body, {
+    const options = {
       type: meta.type,
       disposition: `attachment; filename="${meta.filename}"`,
-    });
+    };
+
+    if (normalized === 'xlsx') {
+      return new StreamableFile(await this.customersService.createXlsx(), options);
+    }
+
+    return new StreamableFile(this.customersService.createExportStream(), options);
   }
 }
