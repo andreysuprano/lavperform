@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { AGENT_REPOSITORY } from '../../application/agent/ports/agent.repository.port';
 import {
   CUSTOMER_JOURNEY_REPOSITORY,
@@ -13,10 +13,11 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
 import { PrismaConversationRepository } from '../../infrastructure/persistence/repositories/prisma-conversation.repository';
 import { PrismaCustomerJourneyRepository } from '../../infrastructure/persistence/repositories/prisma-customer-journey.repository';
 import { PrismaHelpRequestRepository } from '../../infrastructure/persistence/repositories/prisma-help-request.repository';
+import { CustomerJourneyModule } from '../customer-journey/customer-journey.module';
 import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
-  imports: [MessagingModule],
+  imports: [MessagingModule, forwardRef(() => CustomerJourneyModule)],
   providers: [
     WaitingAckService,
     HumanTakeoverService,

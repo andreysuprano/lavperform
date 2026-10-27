@@ -8,6 +8,7 @@ import type {
   VideoIncomingMessage,
 } from '../types/incoming-message.types';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
 import { HumanReleaseService } from './human-release.service';
 import { HumanTakeoverService } from './human-takeover.service';
 import { matchesReleaseKeyword } from './release-keyword';
@@ -43,6 +44,7 @@ export class MessageFilterService {
   constructor(
     private readonly humanTakeover: HumanTakeoverService,
     private readonly humanRelease: HumanReleaseService,
+    private readonly idleClose: IdleCloseSchedulerService,
   ) {}
 
   /**
@@ -65,6 +67,7 @@ export class MessageFilterService {
           );
           return { allowed: false, reason: 'Atendimento humano liberado' };
         }
+        await this.idleClose.cancelChat(agent.id, message.chatId);
         // Atendente digitou manualmente no dispositivo → ativa período de espera
         await this.humanTakeover.setTakeover(agent.id, message.chatId);
         this.logger.log(

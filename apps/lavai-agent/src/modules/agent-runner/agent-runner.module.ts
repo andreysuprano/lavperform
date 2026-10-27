@@ -30,7 +30,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     AgentTraceModule,
     forwardRef(() => AgentModule),
     forwardRef(() => CustomerJourneyModule),
-    AttendanceModule,
+    forwardRef(() => AttendanceModule),
   ],
   providers: [
     PrismaConversationRepository,

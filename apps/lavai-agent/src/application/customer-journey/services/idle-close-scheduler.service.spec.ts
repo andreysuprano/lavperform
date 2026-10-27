@@ -87,4 +87,21 @@ describe('IdleCloseSchedulerService', () => {
 
     expect(queue.add).not.toHaveBeenCalled();
   });
+
+  it('cancelChat cancela o prazo de cada conversa do agente e do chat', async () => {
+    const conversations = {
+      findByAgentAndChat: jest.fn().mockResolvedValue([{ id: 'conv-1' }, { id: 'conv-2' }]),
+    };
+    const scoped = new IdleCloseSchedulerService(queue as never, conversations as never);
+    const remove = jest.fn().mockResolvedValue(undefined);
+    queue.getJob.mockResolvedValue({ remove });
+
+    await scoped.cancelChat('agent-1', 'chat-1');
+
+    expect(conversations.findByAgentAndChat).toHaveBeenCalledWith('agent-1', 'chat-1');
+    expect(queue.getJob).toHaveBeenCalledWith('idle-close:conv-1');
+    expect(queue.getJob).toHaveBeenCalledWith('idle-close:conv-2');
+    expect(remove).toHaveBeenCalledTimes(2);
+    expect(queue.add).not.toHaveBeenCalled();
+  });
 });

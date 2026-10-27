@@ -11,6 +11,7 @@ import type {
 import type { ConversationData } from '../../webhook/ports/conversation.repository.port';
 import { HumanTakeoverService } from '../../webhook/services/human-takeover.service';
 import { FollowUpSchedulerService } from './follow-up-scheduler.service';
+import { IdleCloseSchedulerService } from './idle-close-scheduler.service';
 import { AttendantGateway } from '../../../infrastructure/attendant/attendant.gateway';
 import { MESSAGE_SENDER_PORT } from '../../agent-runner/ports/message-sender.port';
 import type { MessageSenderPort } from '../../agent-runner/ports/message-sender.port';
@@ -36,6 +37,7 @@ export class HelpEscalationService {
     private readonly attendantGateway: AttendantGateway,
     @Inject(MESSAGE_SENDER_PORT)
     private readonly messageSender: MessageSenderPort,
+    private readonly idleClose: IdleCloseSchedulerService,
   ) {}
 
   async escalate(input: EscalateInput): Promise<{ helpRequestId: string; alreadyEscalated: boolean }> {
@@ -74,6 +76,7 @@ export class HelpEscalationService {
       });
       const stepIds = (agent.journeyConfig?.followUpSteps ?? []).map((s) => s.id);
       await this.followUpScheduler.cancelForJourney(journey.id, stepIds);
+      await this.idleClose.cancel(conversation.id);
     }
 
     await this.humanTakeover.setTakeover(agent.id, conversation.chatId);

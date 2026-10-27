@@ -84,6 +84,8 @@ describe('AgentRunnerService.complete', () => {
     failRun: jest.fn(),
   };
   const waitingAck = { clear: jest.fn(), maybeSend: jest.fn() };
+  const idleClose = { schedule: jest.fn(), cancel: jest.fn(), cancelChat: jest.fn() };
+  const journeys = { findByConversationId: jest.fn() };
 
   const service = new AgentRunnerService(
     conversationRepo as never,
@@ -101,11 +103,14 @@ describe('AgentRunnerService.complete', () => {
     mcp as never,
     tracker as never,
     waitingAck as never,
+    idleClose as never,
+    journeys as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
     tracker.startRun.mockResolvedValue('run-1');
+    conversationRepo.addMessage.mockResolvedValue({ id: 'reply-1' });
     mcp.openSessionsForAgent.mockResolvedValue([]);
     toolRegistry.toOpenAiTools.mockReturnValue([]);
     embedding.embed.mockResolvedValue([0.1]);
@@ -245,7 +250,108 @@ describe('AgentRunnerService.complete', () => {
     expect(waitingAck.clear).toHaveBeenCalledWith('agent-1', 'playground:session');
     expect(waitingAck.maybeSend).not.toHaveBeenCalled();
   });
+
+  it('agenda o prazo depois da resposta quando a jornada está ACTIVE', async () => {
+    prepareReply();
+    journeys.findByConversationId.mockResolvedValue({ id: 'journey-1', status: 'ACTIVE' });
+
+    await service.run(inbound(), conversation(), idleAgent());
+
+    expect(idleClose.schedule).toHaveBeenCalledWith({
+      conversationId: 'conv-1',
+      agentId: 'agent-1',
+      anchorMessageId: 'reply-1',
+      delayMs: 60 * 60 * 1000,
+    });
+    expect(waitingAck.clear.mock.invocationCallOrder[0]).toBeLessThan(
+      idleClose.schedule.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('não agenda o prazo quando a jornada não existe', async () => {
+    prepareReply();
+    journeys.findByConversationId.mockResolvedValue(null);
+
+    await service.run(inbound(), conversation(), idleAgent());
+
+    expect(idleClose.schedule).not.toHaveBeenCalled();
+  });
+
+  it('não agenda o prazo quando a jornada não está ACTIVE', async () => {
+    prepareReply();
+    journeys.findByConversationId.mockResolvedValue({ id: 'journey-1', status: 'CLOSED' });
+
+    await service.run(inbound(), conversation(), idleAgent());
+
+    expect(idleClose.schedule).not.toHaveBeenCalled();
+  });
+
+  it('não agenda o prazo quando a jornada geral está desligada', async () => {
+    prepareReply();
+    journeys.findByConversationId.mockResolvedValue({ id: 'journey-1', status: 'ACTIVE' });
+
+    await service.run(inbound(), conversation(), idleAgent({ enabled: false }));
+
+    expect(idleClose.schedule).not.toHaveBeenCalled();
+  });
+
+  it('não agenda o prazo quando o encerramento está desligado', async () => {
+    prepareReply();
+    journeys.findByConversationId.mockResolvedValue({ id: 'journey-1', status: 'ACTIVE' });
+
+    await service.run(inbound(), conversation(), idleAgent({ idleCloseEnabled: false }));
+
+    expect(idleClose.schedule).not.toHaveBeenCalled();
+  });
+
+  it('não agenda o prazo quando o texto de encerramento está vazio', async () => {
+    prepareReply();
+    journeys.findByConversationId.mockResolvedValue({ id: 'journey-1', status: 'ACTIVE' });
+
+    await service.run(inbound(), conversation(), idleAgent({ idleCloseMessage: '   ' }));
+
+    expect(idleClose.schedule).not.toHaveBeenCalled();
+  });
+
+  it('complete não agenda o prazo de silêncio', async () => {
+    journeys.findByConversationId.mockResolvedValue({ id: 'journey-1', status: 'ACTIVE' });
+    llm.complete.mockResolvedValue({ content: 'Custa R$ 20', toolCalls: [], finishReason: 'stop' });
+
+    await service.complete({
+      ...turn(),
+      agent: idleAgent(),
+    });
+
+    expect(idleClose.schedule).not.toHaveBeenCalled();
+  });
+
+  function prepareReply() {
+    conversationRepo.findRecentMessages.mockResolvedValue([]);
+    conversationRepo.addMessage.mockResolvedValue({ id: 'reply-1' });
+    llm.complete.mockResolvedValue({
+      content: 'Segue o preço',
+      toolCalls: [],
+      finishReason: 'stop',
+    });
+    messageSender.send.mockResolvedValue(undefined);
+    waitingAck.clear.mockResolvedValue(undefined);
+  }
 });
+
+function idleAgent(
+  overrides: Partial<NonNullable<AgentWithConfigsData['journeyConfig']>> = {},
+): AgentWithConfigsData {
+  return {
+    ...agent(),
+    journeyConfig: {
+      enabled: true,
+      idleCloseEnabled: true,
+      idleCloseMinutes: 60,
+      idleCloseMessage: 'Vou encerrar este atendimento.',
+      ...overrides,
+    } as AgentWithConfigsData['journeyConfig'],
+  };
+}
 
 function turn() {
   return {

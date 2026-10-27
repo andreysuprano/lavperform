@@ -19,12 +19,14 @@ describe('HumanReleaseService', () => {
     ]),
     updateStatus: jest.fn(),
   };
+  const idleClose = { cancelChat: jest.fn() };
 
   const service = new HumanReleaseService(
     takeover as never,
     conversations as never,
     journeys as never,
     helpRequests as never,
+    idleClose as never,
   );
 
   beforeEach(() => {
@@ -35,6 +37,10 @@ describe('HumanReleaseService', () => {
     await service.release('agent-1', 'chat-1');
 
     expect(takeover.clearTakeover).toHaveBeenCalledWith('agent-1', 'chat-1');
+    expect(idleClose.cancelChat).toHaveBeenCalledWith('agent-1', 'chat-1');
+    expect(takeover.clearTakeover.mock.invocationCallOrder[0]).toBeLessThan(
+      idleClose.cancelChat.mock.invocationCallOrder[0],
+    );
     expect(journeys.updateStatus).toHaveBeenCalledWith('journey-1', 'ACTIVE');
     expect(helpRequests.updateStatus).toHaveBeenCalledWith('help-1', 'RESOLVED', {
       resolvedAt: expect.any(Date),

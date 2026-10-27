@@ -1,6 +1,8 @@
 import { InjectQueue } from '@nestjs/bullmq';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { Queue } from 'bullmq';
+import { CONVERSATION_REPOSITORY } from '../../webhook/ports/conversation.repository.port';
+import type { ConversationRepositoryPort } from '../../webhook/ports/conversation.repository.port';
 import {
   buildIdleCloseJobId,
   IDLE_CLOSE_QUEUE_NAME,
@@ -14,6 +16,8 @@ export class IdleCloseSchedulerService {
   constructor(
     @InjectQueue(IDLE_CLOSE_QUEUE_NAME)
     private readonly queue: Queue<IdleCloseJobData>,
+    @Inject(CONVERSATION_REPOSITORY)
+    private readonly conversations: ConversationRepositoryPort,
   ) {}
 
   async schedule(input: {
@@ -57,5 +61,12 @@ export class IdleCloseSchedulerService {
 
     await existing.remove();
     this.logger.log(`[IdleClose] Cancelado | jobId=${jobId}`);
+  }
+
+  async cancelChat(agentId: string, chatId: string): Promise<void> {
+    const conversations = await this.conversations.findByAgentAndChat(agentId, chatId);
+    for (const conversation of conversations) {
+      await this.cancel(conversation.id);
+    }
   }
 }

@@ -10,6 +10,7 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import { CONVERSATION_REPOSITORY, MessageRole } from '../ports/conversation.repository.port';
 import type { ConversationRepositoryPort } from '../ports/conversation.repository.port';
 import { AgentRunnerService } from '../../agent-runner/services/agent-runner.service';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
 import { WaitingAckService } from '../services/waiting-ack.service';
 
 @Injectable()
@@ -23,6 +24,7 @@ export class AudioMessageHandler implements MessageHandlerPort {
     private readonly conversationRepository: ConversationRepositoryPort,
     private readonly agentRunner: AgentRunnerService,
     private readonly waitingAck: WaitingAckService,
+    private readonly idleClose: IdleCloseSchedulerService,
   ) {}
 
   async handle(message: IncomingMessage, agent: AgentWithConfigsData): Promise<void> {
@@ -83,6 +85,8 @@ export class AudioMessageHandler implements MessageHandlerPort {
     });
 
     this.logger.log(`[AUDIO] conversation=${conversation.id} | invocando LLM`);
+
+    await this.idleClose.cancel(conversation.id);
 
     const finalPrompt = { ...prompt, userMessage: finalUserMessage };
     await this.agentRunner.run(finalPrompt, conversation, agent);
