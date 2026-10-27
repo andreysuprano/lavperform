@@ -51,6 +51,28 @@ export class IdleCloseProcessor extends WorkerHost {
   }
 
   async process(job: Job<IdleCloseJobData>): Promise<void> {
+    if (job.data.closeTextSent) {
+      const storedText = job.data.closeText;
+      const storedJourneyId = job.data.journeyId;
+      if (storedText === undefined || storedJourneyId === undefined) {
+        throw new Error(
+          `[IdleClose] Marcador sem texto ou jornada | conv=${job.data.conversationId}`,
+        );
+      }
+
+      await this.conversationRepo.addMessage({
+        conversationId: job.data.conversationId,
+        role: MessageRole.ASSISTANT,
+        content: storedText,
+        originalType: 'IDLE_CLOSE',
+      });
+      await this.journeyRepo.updateStatus(storedJourneyId, 'CLOSED');
+      this.logger.log(
+        `[IdleClose] Jornada encerrada | journey=${storedJourneyId} | conv=${job.data.conversationId}`,
+      );
+      return;
+    }
+
     const { conversationId, agentId, anchorMessageId } = job.data;
 
     const journey = await this.journeyRepo.findByConversationId(conversationId);
@@ -145,7 +167,12 @@ export class IdleCloseProcessor extends WorkerHost {
           },
           { type: 'text', text: closeText },
         );
-        await job.updateData({ ...job.data, closeTextSent: true });
+        await job.updateData({
+          ...job.data,
+          closeTextSent: true,
+          closeText,
+          journeyId: journey.id,
+        });
       }
 
       await this.conversationRepo.addMessage({

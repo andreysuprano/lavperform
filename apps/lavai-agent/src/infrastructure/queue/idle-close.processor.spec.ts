@@ -371,6 +371,53 @@ describe('IdleCloseProcessor', () => {
     );
   });
 
+  it('fecha no retry com o texto gravado mesmo quando a jornada deixa de estar ACTIVE', async () => {
+    const {
+      processor,
+      sender,
+      journeyRepo,
+      conversationRepo,
+      followUpScheduler,
+      takeover,
+    } = createHarness();
+    journeyRepo.findByConversationId.mockResolvedValue(activeJourney);
+    conversationRepo.addMessage.mockRejectedValueOnce(
+      new Error('falha ao gravar'),
+    );
+
+    await expect(processor.process(job)).rejects.toThrow('falha ao gravar');
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(conversationRepo.addMessage).toHaveBeenCalledTimes(1);
+    expect(followUpScheduler.cancelForJourney).toHaveBeenCalledTimes(1);
+    expect(journeyRepo.updateStatus).not.toHaveBeenCalled();
+    expect(job.data.closeTextSent).toBe(true);
+    expect(job.data.closeText).toBe('Vou encerrar.');
+    expect(job.data.journeyId).toBe('journey-1');
+
+    journeyRepo.findByConversationId.mockResolvedValue({
+      ...activeJourney,
+      status: CustomerJourneyStatus.HELP_REQUESTED,
+    });
+    takeover.isInTakeover.mockResolvedValue(true);
+
+    await processor.process(job);
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(followUpScheduler.cancelForJourney).toHaveBeenCalledTimes(1);
+    expect(conversationRepo.addMessage).toHaveBeenLastCalledWith({
+      conversationId: 'conv-1',
+      role: MessageRole.ASSISTANT,
+      content: 'Vou encerrar.',
+      originalType: 'IDLE_CLOSE',
+    });
+    expect(journeyRepo.updateStatus).toHaveBeenCalledTimes(1);
+    expect(journeyRepo.updateStatus).toHaveBeenCalledWith(
+      'journey-1',
+      'CLOSED',
+    );
+  });
+
   it('não encerra em atendimento humano', async () => {
     await expectNoSendAndNoClose({
       takeover: true,

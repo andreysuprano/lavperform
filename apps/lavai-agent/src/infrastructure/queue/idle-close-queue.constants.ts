@@ -5,6 +5,8 @@ export interface IdleCloseJobData {
   agentId: string;
   anchorMessageId: string;
   closeTextSent?: boolean;
+  closeText?: string;
+  journeyId?: string;
 }
 
 export function buildIdleCloseJobId(conversationId: string): string {
