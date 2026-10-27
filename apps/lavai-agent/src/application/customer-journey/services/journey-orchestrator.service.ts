@@ -72,9 +72,13 @@ export class JourneyOrchestratorService {
       return { skipLlm: true, escalated: false };
     }
 
+    let reopenedStartedAt: Date | undefined;
+
     if (journey.status === CustomerJourneyStatus.CLOSED) {
       try {
-        journey = await this.reopenClosedJourney(agent, journey);
+        const reopened = await this.reopenClosedJourney(journey);
+        journey = reopened.journey;
+        reopenedStartedAt = reopened.startedAt;
       } catch (error: unknown) {
         const message = error instanceof Error ? error.message : String(error);
         this.logger.error(`[Journey] Falha ao reabrir | id=${journey.id}: ${message}`);
@@ -104,6 +108,16 @@ export class JourneyOrchestratorService {
         lastMessage: message,
       });
       return { skipLlm: true, escalated: !result.alreadyEscalated || result.helpRequestId !== '' };
+    }
+
+    if (reopenedStartedAt && config.followUpEnabled && config.followUpSteps.length > 0) {
+      await this.followUpScheduler.scheduleForJourney(
+        journey.id,
+        agent.id,
+        journey.conversationId,
+        config.followUpSteps,
+        reopenedStartedAt,
+      );
     }
 
     return { skipLlm: false, escalated: false };
@@ -164,25 +178,13 @@ export class JourneyOrchestratorService {
   }
 
   private async reopenClosedJourney(
-    agent: AgentWithConfigsData,
     journey: CustomerJourneyData,
-  ): Promise<CustomerJourneyData> {
+  ): Promise<{ journey: CustomerJourneyData; startedAt: Date }> {
     const startedAt = new Date();
     const reopened = await this.journeyRepo.updateStatus(journey.id, CustomerJourneyStatus.ACTIVE, {
       startedAt,
     });
 
-    const config = agent.journeyConfig;
-    if (config?.followUpEnabled && config.followUpSteps.length > 0) {
-      await this.followUpScheduler.scheduleForJourney(
-        reopened.id,
-        agent.id,
-        reopened.conversationId,
-        config.followUpSteps,
-        startedAt,
-      );
-    }
-
-    return reopened;
+    return { journey: reopened, startedAt };
   }
 }

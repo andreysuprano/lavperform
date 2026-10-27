@@ -135,6 +135,10 @@ describe('JourneyOrchestratorService', () => {
       agent.journeyConfig!.followUpSteps,
       startedAt,
     );
+    expect(followUpScheduler.cancelForJourney).toHaveBeenCalledWith('journey-1', ['step-1']);
+    expect(followUpScheduler.cancelForJourney.mock.invocationCallOrder[0]).toBeLessThan(
+      followUpScheduler.scheduleForJourney.mock.invocationCallOrder[0],
+    );
   });
 
   it('não reabre jornada PURCHASED', async () => {
