@@ -26,7 +26,7 @@
 | Prazo | 60 minutos. Mínimo 1, máximo 1440 |
 | Texto de encerramento | `Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.` |
 | Quem o silêncio encerra | Só o atendimento da IA. Com humano no chat, o prazo não fecha nada |
-| Depois do encerramento | A próxima mensagem do cliente abre outro atendimento: saudação, resposta e prazo novo |
+| Depois do encerramento | A próxima mensagem de texto abre outro atendimento: saudação, resposta e prazo novo |
 | Follow-up | Continua como lembrete. No encerramento, os lembretes pendentes são cancelados |
 | Jornada geral desligada | Saudação e termo continuam valendo. O silêncio não age, porque não há jornada para fechar e reabrir |
 | Chat de teste | Fora deste fluxo |
@@ -45,7 +45,7 @@ A migração grava esses padrões nas configurações de jornada que já existem
 | Saudação | Recepção do webhook e handler de áudio | Envia o texto cedo e deduplica a rajada |
 | Termo | `MessageFilterService` e `HumanTakeoverService` | Libera o chat sem renovar os 10 minutos |
 | Silêncio | Fila `idle-close` | Envia o encerramento e fecha a jornada |
-| Jornada | `JourneyOrchestratorService` | Reabre jornada `CLOSED` e passa a valer nos quatro tipos de mensagem |
+| Jornada | `JourneyOrchestratorService` | Reabre jornada `CLOSED` só no texto, onde a jornada já roda |
 | Prompt | `PromptBuilderService` | Deixa a saudação fora do contexto do modelo |
 | Telas | Abas Jornada dos dois painéis | Editam os campos no salvamento que já existe |
 
@@ -64,7 +64,7 @@ Campos novos em `AgentJourneyConfig`:
 
 ## Saudação de espera
 
-Texto, imagem e vídeo são decididos na recepção, com o mesmo parse já usado no processamento, antes do buffer de 3 segundos e antes da fila. Áudio segue para a fila como hoje. No handler, depois da transcrição e do gatilho, a jornada roda primeiro. Se ela for escalar, o áudio não recebe saudação. Se o modelo for chamado, a saudação sai e só então o modelo roda.
+Texto, imagem e vídeo são decididos na recepção, com o mesmo parse já usado no processamento, antes do buffer de 3 segundos e antes da fila. Áudio segue para a fila como hoje. A saudação do áudio sai no handler, depois da transcrição e do gatilho, e antes do modelo. Nenhum desses tipos passa a entrar na jornada por causa da saudação.
 
 A saudação sai quando tudo isto é verdade:
 
@@ -73,9 +73,9 @@ A saudação sai quando tudo isto é verdade:
 - a mensagem não é do próprio aparelho;
 - o chat não está em atendimento humano;
 - telefone, grupo e gatilho permitem a resposta;
-- o texto disponível não é palavra de ajuda com escalação automática ligada.
+- no texto, o conteúdo não é palavra de ajuda com escalação automática ligada.
 
-Palavra de ajuda continua com a mensagem de ajuda que já existe. Ela não ganha a saudação de espera.
+No texto, a palavra de ajuda continua com a mensagem de ajuda que já existe. Ela não ganha a saudação de espera. Áudio, imagem e vídeo não passam por essa regra, porque a jornada deles não muda.
 
 Uma rajada de texto usa a chave Redis `waiting-ack:{agentId}:{chatId}`. A primeira mensagem envia e grava a chave. As seguintes, enquanto a chave existe, não enviam outra. A chave é apagada quando a resposta de verdade sai. O TTL de segurança é de 2 minutos. Imagem, vídeo e áudio não usam essa chave: cada um que o bot vai responder gera a própria saudação.
 
@@ -99,9 +99,9 @@ Qualquer outro texto do atendente continua ativando ou renovando os 10 minutos e
 
 O prazo só existe com a jornada geral ligada, `idleCloseEnabled` ligado e texto de encerramento preenchido. Ele é um job BullMQ na fila `idle-close`, com id `idle-close:{conversationId}`, 3 tentativas e intervalo crescente de 5 segundos.
 
-O prazo começa de novo depois de cada resposta de verdade do modelo. Saudação, follow-up e a própria mensagem de encerramento não reiniciam o prazo. O job guarda o id da resposta âncora.
+O prazo começa de novo depois de cada resposta de verdade do modelo no atendimento em que já existe jornada `ACTIVE`. Saudação, follow-up e a própria mensagem de encerramento não reiniciam o prazo. O job guarda o id da resposta âncora.
 
-Na mensagem do cliente que o bot vai responder, o job daquela conversa é cancelado. A resposta seguinte agenda outro. Quando o atendente assume o chat, os jobs de silêncio daquele chat são cancelados.
+Mensagem de texto que o bot vai responder cancela o job daquela conversa. A resposta seguinte agenda outro. Áudio, imagem e vídeo não entram na jornada: não mudam status, não disparam palavra de ajuda e não reabrem follow-up. Se o bot for responder um desses tipos e já existir jornada `ACTIVE`, o job é cancelado e a resposta do modelo agenda o prazo de novo. Isso só registra que o cliente interagiu. Quando o atendente assume o chat, os jobs de silêncio daquele chat são cancelados.
 
 No disparo, o job encerra só se:
 
@@ -114,9 +114,7 @@ No disparo, o job encerra só se:
 
 Aí, nesta ordem, cancela os follow-ups pendentes, confere de novo que a jornada está `ACTIVE`, envia o texto, grava `IDLE_CLOSE`, marca a jornada como `CLOSED`. O follow-up também confere `ACTIVE` imediatamente antes de enviar. Um lembrete que já entrou em envio pode chegar junto com o encerramento.
 
-Áudio, imagem e vídeo passam pela jornada antes do modelo, com o texto já normalizado. A reabertura e a palavra de ajuda passam a valer nesses tipos também.
-
-Jornada `CLOSED` reabre na próxima mensagem que o bot vai responder, inclusive quando o fechamento veio do prazo de 10 minutos do atendimento humano. Ela volta para `ACTIVE`, `startedAt` vira agora e o follow-up é agendado de novo quando estiver ligado. Jornada `PURCHASED` permanece como hoje: a IA responde e não reabre o ciclo.
+Jornada `CLOSED` reabre na próxima mensagem de texto que o bot vai responder, inclusive quando o fechamento veio do prazo de 10 minutos do atendimento humano. Ela volta para `ACTIVE`, `startedAt` vira agora e o follow-up é agendado de novo quando estiver ligado. Áudio, imagem e vídeo não reabrem a jornada. Jornada `PURCHASED` permanece como hoje: a IA responde e não reabre o ciclo.
 
 ## Falhas
 
@@ -144,9 +142,10 @@ No `lavai-agent`:
 - prazo vencido com jornada `ACTIVE` cancela follow-up, envia, grava e encerra;
 - não encerra com humano no controle, jornada fora de `ACTIVE`, agente inativo ou resposta mais nova;
 - repetição do job não envia o texto de novo;
-- a mensagem seguinte reabre a jornada e agenda o follow-up;
+- a mensagem de texto seguinte reabre a jornada e agenda o follow-up;
+- áudio, imagem e vídeo não mudam status da jornada, não disparam palavra de ajuda e não reabrem follow-up;
 - o chat de teste não envia a saudação de espera.
 
 ## Fora de escopo
 
-Apagar a mensagem do termo no WhatsApp. Alterar o prazo padrão de 10 minutos. Usar `welcomeMessage`. Mudar o chat de teste. Encerrar por silêncio com a jornada geral desligada.
+Apagar a mensagem do termo no WhatsApp. Alterar o prazo padrão de 10 minutos. Usar `welcomeMessage`. Mudar o chat de teste. Encerrar por silêncio com a jornada geral desligada. Fazer áudio, imagem ou vídeo entrarem na jornada.
