@@ -239,10 +239,54 @@ describe('WaitingAckService', () => {
     expect(redis.del).toHaveBeenCalledWith('waiting-ack:agent-1:chat-1');
   });
 
+  it('não apaga a chave de outro texto quando o envio de mídia falha', async () => {
+    sender.send.mockRejectedValue(new Error('whatsapp fora'));
+    const image: ImageIncomingMessage = {
+      ...textMessage(),
+      type: MessageType.IMAGE,
+      mediaUrl: 'https://cdn.example/foto.jpg',
+      mimeType: 'image/jpeg',
+      caption: 'foto',
+    };
+
+    await expect(
+      service.maybeSend(image, publicAgent(), { dedupe: false }),
+    ).resolves.toBeUndefined();
+
+    expect(conversations.upsert).not.toHaveBeenCalled();
+    expect(conversations.addMessage).not.toHaveBeenCalled();
+    expect(redis.del).not.toHaveBeenCalled();
+  });
+
   it('apaga a chave da saudação', async () => {
     await service.clear('agent-1', 'chat-1');
 
     expect(redis.del).toHaveBeenCalledWith('waiting-ack:agent-1:chat-1');
+  });
+
+  it('repete o DEL uma vez quando o clear falha na primeira tentativa', async () => {
+    redis.del
+      .mockRejectedValueOnce(new Error('redis indisponível'))
+      .mockResolvedValueOnce(1);
+
+    await expect(service.clear('agent-1', 'chat-1')).resolves.toBeUndefined();
+
+    expect(redis.del).toHaveBeenCalledTimes(2);
+  });
+
+  it('repete o DEL e resolve quando o envio de texto falha e o primeiro DEL falha', async () => {
+    sender.send.mockRejectedValue(new Error('whatsapp fora'));
+    redis.del
+      .mockRejectedValueOnce(new Error('redis indisponível'))
+      .mockResolvedValueOnce(1);
+
+    await expect(
+      service.maybeSend(textMessage(), publicAgent(), { dedupe: true }),
+    ).resolves.toBeUndefined();
+
+    expect(redis.del).toHaveBeenCalledTimes(2);
+    expect(conversations.upsert).not.toHaveBeenCalled();
+    expect(conversations.addMessage).not.toHaveBeenCalled();
   });
 });
 

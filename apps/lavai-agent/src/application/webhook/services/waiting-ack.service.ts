@@ -89,6 +89,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
     if (this.isHelpEscalation(message, agent)) return;
 
     const key = this.buildKey(agent.id, message.chatId);
+    let storedKey = false;
     if (options?.dedupe) {
       const stored = await this.redis.set(
         key,
@@ -98,6 +99,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
         'NX',
       );
       if (stored !== 'OK') return;
+      storedKey = true;
     }
 
     try {
@@ -114,7 +116,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         `[WaitingAck] Falha ao enviar | agentId=${agent.id} | chatId=${message.chatId} | ${msg}`,
       );
-      await this.deleteKey(key);
+      if (storedKey) await this.deleteKey(key);
       return;
     }
 
@@ -146,7 +148,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
   }
 
   async clear(agentId: string, chatId: string): Promise<void> {
-    await this.redis.del(this.buildKey(agentId, chatId));
+    await this.deleteKey(this.buildKey(agentId, chatId));
   }
 
   private isIgnoredNotificationPhone(
@@ -223,6 +225,15 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
       this.logger.error(
         `[WaitingAck] Falha ao apagar chave | key=${key} | ${msg}`,
       );
+      try {
+        await this.redis.del(key);
+      } catch (retryError) {
+        const retryMsg =
+          retryError instanceof Error ? retryError.message : String(retryError);
+        this.logger.error(
+          `[WaitingAck] Falha ao apagar chave | key=${key} | ${retryMsg}`,
+        );
+      }
     }
   }
 }
