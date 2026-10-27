@@ -49,7 +49,12 @@ export interface CustomerJourneyRepositoryPort {
   updateStatus(
     id: string,
     status: string,
-    extra?: { purchaseAt?: Date; helpRequestedAt?: Date; metadata?: Record<string, unknown> },
+    extra?: {
+      purchaseAt?: Date;
+      helpRequestedAt?: Date;
+      metadata?: Record<string, unknown>;
+      startedAt?: Date;
+    },
   ): Promise<CustomerJourneyData>;
 }
 

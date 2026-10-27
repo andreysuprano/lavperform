@@ -66,16 +66,23 @@ export class JourneyOrchestratorService {
 
     if (this.isEscalatedStatus(journey.status)) {
       if (this.isJourneyEscalationExpired(journey)) {
-        journey = await this.resetExpiredJourney(agent, journey);
-      } else {
-        return { skipLlm: true, escalated: false };
+        await this.resetExpiredJourney(agent, journey);
+        return { skipLlm: false, escalated: false };
+      }
+      return { skipLlm: true, escalated: false };
+    }
+
+    if (journey.status === CustomerJourneyStatus.CLOSED) {
+      try {
+        journey = await this.reopenClosedJourney(agent, journey);
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`[Journey] Falha ao reabrir | id=${journey.id}: ${message}`);
+        return { skipLlm: false, escalated: false };
       }
     }
 
-    if (
-      journey.status === CustomerJourneyStatus.PURCHASED ||
-      journey.status === CustomerJourneyStatus.CLOSED
-    ) {
+    if (journey.status === CustomerJourneyStatus.PURCHASED) {
       return { skipLlm: false, escalated: false };
     }
 
@@ -154,5 +161,28 @@ export class JourneyOrchestratorService {
     }
 
     return journey;
+  }
+
+  private async reopenClosedJourney(
+    agent: AgentWithConfigsData,
+    journey: CustomerJourneyData,
+  ): Promise<CustomerJourneyData> {
+    const startedAt = new Date();
+    const reopened = await this.journeyRepo.updateStatus(journey.id, CustomerJourneyStatus.ACTIVE, {
+      startedAt,
+    });
+
+    const config = agent.journeyConfig;
+    if (config?.followUpEnabled && config.followUpSteps.length > 0) {
+      await this.followUpScheduler.scheduleForJourney(
+        reopened.id,
+        agent.id,
+        reopened.conversationId,
+        config.followUpSteps,
+        startedAt,
+      );
+    }
+
+    return reopened;
   }
 }
