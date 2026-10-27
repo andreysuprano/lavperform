@@ -8,6 +8,7 @@ import type {
   VideoIncomingMessage,
 } from '../types/incoming-message.types';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import { HumanReleaseService } from './human-release.service';
 import { HumanTakeoverService } from './human-takeover.service';
 import { matchesReleaseKeyword } from './release-keyword';
 import { whatsappPhonesMatch } from '../../customer-journey/services/journey-template.service';
@@ -39,7 +40,10 @@ export interface FilterResult {
 export class MessageFilterService {
   private readonly logger = new Logger(MessageFilterService.name);
 
-  constructor(private readonly humanTakeover: HumanTakeoverService) {}
+  constructor(
+    private readonly humanTakeover: HumanTakeoverService,
+    private readonly humanRelease: HumanReleaseService,
+  ) {}
 
   /**
    * Verifica os filtros de acesso (sem necessidade de texto normalizado).
@@ -55,7 +59,7 @@ export class MessageFilterService {
             agent.journeyConfig?.humanReleaseKeyword,
           )
         ) {
-          await this.humanTakeover.clearTakeover(agent.id, message.chatId);
+          await this.humanRelease.release(agent.id, message.chatId);
           this.logger.log(
             `[Filter] Atendimento humano liberado | agentId=${agent.id} | chatId=${message.chatId}`,
           );

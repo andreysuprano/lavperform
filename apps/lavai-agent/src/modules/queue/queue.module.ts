@@ -19,6 +19,7 @@ import { MEDIA_PROCESSOR_PORT } from '../../application/webhook/ports/media-proc
 import { ProcessWebhookJobUseCase } from '../../application/webhook/use-cases/process-webhook-job.use-case';
 import { MessageNormalizerService } from '../../application/webhook/services/message-normalizer.service';
 import { MessageFilterService } from '../../application/webhook/services/message-filter.service';
+import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
 import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/conversation.repository.port';
 import { PrismaConversationRepository } from '../../infrastructure/persistence/repositories/prisma-conversation.repository';
@@ -73,6 +74,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
 
     MessageNormalizerService,
     HumanTakeoverService,
+    HumanReleaseService,
     MessageFilterService,
 
     PrismaConversationRepository,

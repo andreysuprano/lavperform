@@ -94,6 +94,8 @@ export interface ConversationRepositoryPort {
     userId: string,
   ): Promise<ConversationData | null>;
 
+  findByAgentAndChat(agentId: string, chatId: string): Promise<ConversationData[]>;
+
   /**
    * Token da conversa real mais recente do agente.
    * Conversa real é aquela cujo chatId não começa com `playground:`.

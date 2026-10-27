@@ -64,6 +64,13 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
     return row ? this.map(row) : null;
   }
 
+  async findByAgentAndChat(agentId: string, chatId: string): Promise<ConversationData[]> {
+    const rows = await this.prisma.conversation.findMany({
+      where: { agentId, chatId },
+    });
+    return rows.map((row) => this.map(row));
+  }
+
   async findRecentMessages(
     conversationId: string,
     limit: number,

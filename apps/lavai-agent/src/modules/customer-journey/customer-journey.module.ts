@@ -30,6 +30,7 @@ import { MessagingModule } from '../messaging/messaging.module';
 import { AgentModule } from '../agent/agent.module';
 import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/conversation.repository.port';
 import { PrismaConversationRepository } from '../../infrastructure/persistence/repositories/prisma-conversation.repository';
+import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
 
 @Module({
@@ -52,6 +53,7 @@ import { HumanTakeoverService } from '../../application/webhook/services/human-t
     HelpEscalationService,
     JourneyOrchestratorService,
     HumanTakeoverService,
+    HumanReleaseService,
 
     PrismaCustomerJourneyRepository,
     { provide: CUSTOMER_JOURNEY_REPOSITORY, useExisting: PrismaCustomerJourneyRepository },
@@ -75,6 +77,7 @@ import { HumanTakeoverService } from '../../application/webhook/services/human-t
     JourneyOrchestratorService,
     HelpEscalationService,
     AttendantGateway,
+    HumanReleaseService,
     CUSTOMER_JOURNEY_REPOSITORY,
     HELP_REQUEST_REPOSITORY,
   ],

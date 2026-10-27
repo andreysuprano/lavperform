@@ -9,8 +9,9 @@ describe('MessageFilterService', () => {
     setTakeover: jest.fn(),
     clearTakeover: jest.fn(),
   };
+  const humanRelease = { release: jest.fn() };
 
-  const service = new MessageFilterService(humanTakeover as never);
+  const service = new MessageFilterService(humanTakeover as never, humanRelease as never);
 
   const baseMessage = {
     webhookEventId: 'evt-1',
@@ -90,8 +91,9 @@ describe('MessageFilterService', () => {
     );
 
     expect(result.allowed).toBe(false);
-    expect(humanTakeover.clearTakeover).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(humanRelease.release).toHaveBeenCalledWith('agent-1', '5511999999999');
     expect(humanTakeover.setTakeover).not.toHaveBeenCalled();
+    expect(humanTakeover.clearTakeover).not.toHaveBeenCalled();
   });
 
   it('renova os 10 minutos quando o atendente escreve outra coisa', async () => {

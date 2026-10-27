@@ -70,6 +70,7 @@ export interface HelpRequestRepositoryPort {
   ): Promise<HelpRequestData | null>;
   findById(id: string): Promise<HelpRequestData | null>;
   findByAgentAndStatus(agentId: string, status: string): Promise<HelpRequestData[]>;
+  findOpenByAgentAndChat(agentId: string, chatId: string): Promise<HelpRequestData[]>;
   updateStatus(
     id: string,
     status: string,
