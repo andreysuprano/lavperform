@@ -3,12 +3,12 @@ import { Job } from 'bull';
 import { Logger } from '@nestjs/common';
 import { QUEUE_NAMES } from '../../../../common/queue/queue.constants';
 import { WindelSalesService } from '../../application/windel-sales.service';
-import { WindelMfaRequiredError } from '../../api/windel.service';
+import { WindelLoginRejectedError, WindelMfaRequiredError } from '../../api/windel.service';
+import { windelReplayRange } from '../../windel-lookback';
 import {
   isSalesImportLastAttempt,
   SalesImportAlertService,
 } from '../../../sales-import/sales-import-alert.service';
-import { weeklyReplayRange } from '../../../sales-import/sales-import-schedule';
 
 interface WindelSalesJobData {
   companyId: string;
@@ -16,12 +16,16 @@ interface WindelSalesJobData {
   backfill90?: boolean;
 }
 
-function isWindelMfaError(error: unknown): boolean {
+function isWindelAuthStop(error: unknown): boolean {
+  const name =
+    typeof error === 'object' && error !== null
+      ? (error as { name?: string }).name
+      : undefined;
   return (
     error instanceof WindelMfaRequiredError ||
-    (typeof error === 'object' &&
-      error !== null &&
-      (error as { name?: string }).name === 'WindelMfaRequiredError')
+    error instanceof WindelLoginRejectedError ||
+    name === 'WindelMfaRequiredError' ||
+    name === 'WindelLoginRejectedError'
   );
 }
 
@@ -41,16 +45,16 @@ export class WindelSalesProcessor {
     try {
       if (backfill90) {
         this.logger.log(
-          `Processando reexecução de 7 dias Windel para empresa ${companyId}`,
+          `Processando reexecução de 30 dias Windel para empresa ${companyId}`,
         );
 
         const result = await this.windelSalesService.importHistoricalSales(
           companyId,
-          weeklyReplayRange(),
+          windelReplayRange(),
         );
 
         this.logger.log(
-          `Reexecução de 7 dias concluída para empresa ${companyId}: ${result.jobsCreated} jobs`,
+          `Reexecução de 30 dias concluída para empresa ${companyId}: ${result.jobsCreated} jobs`,
         );
 
         return result;
@@ -77,7 +81,11 @@ export class WindelSalesProcessor {
         error.message,
       );
 
-      if (isWindelMfaError(error)) {
+      if (isWindelAuthStop(error)) {
+        await this.windelSalesService.blockAuth(
+          companyId,
+          error instanceof Error ? error.name : 'WindelAuthStop',
+        );
         await job.discard();
         await this.alert.notify({
           partner: 'windel',

@@ -33,7 +33,13 @@ function buildOrder(
 }
 
 describe('WindelSalesService', () => {
+  const session = {
+    listAttendedOrders: jest.fn(),
+    getOrder: jest.fn(),
+    getPerson: jest.fn(),
+  };
   const windelService = {
+    openSession: jest.fn(),
     listAttendedOrders: jest.fn(),
     getOrder: jest.fn(),
     getPerson: jest.fn(),
@@ -41,7 +47,7 @@ describe('WindelSalesService', () => {
   const prisma = {
     partner: { findUnique: jest.fn() },
     company: { findUnique: jest.fn() },
-    order: { findFirst: jest.fn() },
+    order: { findFirst: jest.fn(), findMany: jest.fn() },
   };
   const repository = { findByCompanyAndPartner: jest.fn() };
   const customerIdentityService = { resolveForSale: jest.fn() };
@@ -60,6 +66,8 @@ describe('WindelSalesService', () => {
     warnSpy = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation(() => undefined);
     prisma.partner.findUnique.mockResolvedValue({ id: 'partner-windel' });
+    prisma.order.findMany.mockResolvedValue([]);
+    windelService.openSession.mockResolvedValue(session);
     customerIdentityService.resolveForSale.mockResolvedValue({ id: 'customer-1' });
     orderService.create.mockResolvedValue({ id: 'order-1' });
     saleProcessQueue.add.mockResolvedValue({ id: 'job-1' });
@@ -114,7 +122,7 @@ describe('WindelSalesService', () => {
       'company-1',
       'partner-windel',
     );
-    expect(windelService.listAttendedOrders).not.toHaveBeenCalled();
+    expect(windelService.openSession).not.toHaveBeenCalled();
   });
 
   it('enfileira só a ordem Atendido depois de buscar detalhe e pessoa', async () => {
@@ -130,44 +138,46 @@ describe('WindelSalesService', () => {
       email: 'a@b.co',
       cpfCnpj: '999',
     };
-    windelService.listAttendedOrders.mockResolvedValue([
+    windelService.openSession.mockResolvedValue(session);
+    session.listAttendedOrders.mockResolvedValue([
       { id: 11, situacao: 'Atendido', pessoa: { id: 99 } },
       { id: 22, situacao: 'Parcial' },
     ]);
-    windelService.getOrder.mockResolvedValue(detail);
-    windelService.getPerson.mockResolvedValue(person);
+    session.getOrder.mockResolvedValue(detail);
+    session.getPerson.mockResolvedValue(person);
 
     const pending = service.processDailySales('company-1', '2026-10-20');
     for (let i = 0; i < 20; i += 1) {
       await Promise.resolve();
     }
-    expect(windelService.getOrder).not.toHaveBeenCalled();
+    expect(session.getOrder).not.toHaveBeenCalled();
 
     await jest.advanceTimersByTimeAsync(400);
-    expect(windelService.getOrder).toHaveBeenCalledTimes(1);
-    expect(windelService.getOrder).toHaveBeenCalledWith(
-      { email: 'loja@example.com', password: 'secret' },
-      11,
-    );
-    expect(windelService.getPerson).not.toHaveBeenCalled();
+    expect(session.getOrder).toHaveBeenCalledTimes(1);
+    expect(session.getOrder).toHaveBeenCalledWith(11);
+    expect(session.getPerson).not.toHaveBeenCalled();
 
     await jest.advanceTimersByTimeAsync(400);
     await pending;
 
-    expect(windelService.listAttendedOrders).toHaveBeenCalledWith(
-      { email: 'loja@example.com', password: 'secret' },
-      '2026-10-20',
-    );
-    expect(windelService.getPerson).toHaveBeenCalledTimes(1);
-    expect(windelService.getPerson).toHaveBeenCalledWith(
-      { email: 'loja@example.com', password: 'secret' },
-      9,
-    );
+    expect(windelService.openSession).toHaveBeenCalledWith({
+      email: 'loja@example.com',
+      password: 'secret',
+    });
+    expect(session.listAttendedOrders).toHaveBeenCalledWith('2026-10-20');
+    expect(session.getPerson).toHaveBeenCalledTimes(1);
+    expect(session.getPerson).toHaveBeenCalledWith(9);
     expect(saleProcessQueue.add).toHaveBeenCalledTimes(1);
     expect(saleProcessQueue.add).toHaveBeenCalledWith(
       'windel-sale-process',
       { companyId: 'company-1', order: detail, person },
-      { attempts: 3, backoff: { type: 'exponential', delay: 2000 } },
+      {
+        jobId: 'windel-sale:company-1:11',
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: true,
+      },
     );
     const messages = logSpy.mock.calls.map((args) => args.map(String).join(' '));
     expect(
@@ -201,6 +211,7 @@ describe('WindelSalesService', () => {
 
   it('grava cliente e pedido e ignora conflito único de integratorOrderId', async () => {
     prisma.order.findFirst.mockResolvedValue(null);
+    prisma.order.findMany = jest.fn().mockResolvedValue([]);
     const order = buildOrder();
     const person = {
       nome: 'Ana Pessoa',

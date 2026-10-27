@@ -1,5 +1,6 @@
 import { of, throwError } from 'rxjs';
 import {
+  WindelLoginRejectedError,
   WindelMfaRequiredError,
   WindelService,
 } from 'src/integrations/windel/api/windel.service';
@@ -122,5 +123,19 @@ describe('WindelService', () => {
     await jest.advanceTimersByTimeAsync(1000);
     await assertion;
     expect(http.get).toHaveBeenCalledTimes(2);
+  });
+
+  it('não repete a senha quando o login responde 401', async () => {
+    const http = httpDouble();
+    const denied: any = new Error('unauthorized');
+    denied.response = { status: 401 };
+    http.post.mockReturnValue(throwError(() => denied));
+    const service = new WindelService(http as any);
+
+    await expect(
+      service.listAttendedOrders(credentials, '2026-10-20'),
+    ).rejects.toBeInstanceOf(WindelLoginRejectedError);
+    expect(http.post).toHaveBeenCalledTimes(1);
+    expect(http.get).not.toHaveBeenCalled();
   });
 });

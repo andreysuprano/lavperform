@@ -16,6 +16,7 @@ import { OrderModule } from '../../orders/order.module';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { workerProviders } from '../../common/queue/worker-runtime.config';
 import { SalesImportModule } from '../sales-import/sales-import.module';
+import { RedisModule } from '../../common/redis/redis.module';
 
 @Module({
   imports: [
@@ -25,6 +26,7 @@ import { SalesImportModule } from '../sales-import/sales-import.module';
     PartnersModule,
     CustomersModule,
     OrderModule,
+    RedisModule,
     BullModule.registerQueue(
       {
         name: QUEUE_NAMES.WINDEL_SALES_IMPORT,

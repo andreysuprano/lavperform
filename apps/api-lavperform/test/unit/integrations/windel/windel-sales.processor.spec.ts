@@ -1,8 +1,8 @@
 import { Job } from 'bull';
 import { WindelSalesProcessor } from 'src/integrations/windel/infrastructure/jobs/windel-sales.processor';
 import { WindelSaleProcessor } from 'src/integrations/windel/infrastructure/jobs/windel-sale.processor';
-import { WindelMfaRequiredError } from 'src/integrations/windel/api/windel.service';
-import { weeklyReplayRange } from 'src/integrations/sales-import/sales-import-schedule';
+import { WindelMfaRequiredError, WindelLoginRejectedError } from 'src/integrations/windel/api/windel.service';
+import { windelReplayRange } from 'src/integrations/windel/windel-lookback';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 
 const PROCESS_METADATA = 'bull:module_queue_process';
@@ -77,7 +77,7 @@ describe('WindelSalesProcessor', () => {
 
     expect(windelSalesService.importHistoricalSales).toHaveBeenCalledWith(
       'company-1',
-      weeklyReplayRange(),
+      windelReplayRange(),
     );
     expect(windelSalesService.processDailySales).not.toHaveBeenCalled();
   });
@@ -167,6 +167,7 @@ describe('WindelSalesProcessor', () => {
     const windelSalesService = {
       processDailySales: jest.fn().mockRejectedValue(error),
       importHistoricalSales: jest.fn(),
+      blockAuth: jest.fn().mockResolvedValue(undefined),
     };
     const alert = { notify: jest.fn().mockResolvedValue(undefined) };
     const processor = new WindelSalesProcessor(
@@ -179,6 +180,10 @@ describe('WindelSalesProcessor', () => {
     await expect(processor.processSalesImport(job)).rejects.toBe(error);
 
     expect(job.discard).toHaveBeenCalled();
+    expect(windelSalesService.blockAuth).toHaveBeenCalledWith(
+      'company-1',
+      'WindelMfaRequiredError',
+    );
     expect(alert.notify).toHaveBeenCalledWith(
       expect.objectContaining({
         partner: 'windel',
@@ -189,6 +194,30 @@ describe('WindelSalesProcessor', () => {
         error,
       }),
     );
+  });
+
+  it('descarta o job quando o login é recusado', async () => {
+    const error = new WindelLoginRejectedError();
+    const windelSalesService = {
+      processDailySales: jest.fn().mockRejectedValue(error),
+      blockAuth: jest.fn().mockResolvedValue(undefined),
+    };
+    const alert = { notify: jest.fn().mockResolvedValue(undefined) };
+    const processor = new WindelSalesProcessor(
+      windelSalesService as any,
+      alert as any,
+    );
+    const job = salesJob({ companyId: 'company-1', date: '2026-10-20' }, 0);
+    job.discard = jest.fn();
+
+    await expect(processor.processSalesImport(job)).rejects.toBe(error);
+
+    expect(job.discard).toHaveBeenCalled();
+    expect(windelSalesService.blockAuth).toHaveBeenCalledWith(
+      'company-1',
+      'WindelLoginRejectedError',
+    );
+    expect(alert.notify).toHaveBeenCalled();
   });
 });
 

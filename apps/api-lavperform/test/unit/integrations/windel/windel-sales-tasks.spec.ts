@@ -3,6 +3,7 @@ import { getQueueToken } from '@nestjs/bull';
 const SCHEDULE_CRON_OPTIONS = 'SCHEDULE_CRON_OPTIONS';
 import { WindelSalesTasks } from 'src/integrations/windel/crons/windel-sales-tasks';
 import { PrismaService } from 'src/prisma/prisma.service';
+import { RedisService } from 'src/common/redis/redis.service';
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { getOpeningHoursTimezone } from 'src/common/utils/date.utils';
 import {
@@ -10,6 +11,10 @@ import {
   salesBackfill90JobId,
   salesCatchupJobId,
 } from 'src/integrations/sales-import/sales-import-schedule';
+import {
+  WINDEL_LOOKBACK_DAYS,
+  windelLookbackJobId,
+} from 'src/integrations/windel/windel-lookback';
 
 const NOW = new Date('2026-10-02T14:10:00.000Z');
 
@@ -20,6 +25,10 @@ describe('WindelSalesTasks', () => {
     company: {
       findMany: jest.fn(),
     },
+  };
+
+  const mockRedis = {
+    getJson: jest.fn(),
   };
 
   const mockQueue = {
@@ -41,11 +50,13 @@ describe('WindelSalesTasks', () => {
           provide: getQueueToken(QUEUE_NAMES.WINDEL_SALES_IMPORT),
           useValue: mockQueue,
         },
+        { provide: RedisService, useValue: mockRedis },
       ],
     }).compile();
 
     tasks = module.get(WindelSalesTasks);
     jest.clearAllMocks();
+    mockRedis.getJson.mockResolvedValue(null);
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
   });
@@ -175,6 +186,49 @@ describe('WindelSalesTasks', () => {
     expect(cronOptions).toEqual(
       expect.objectContaining({
         cronTime: '0 3 * * 1',
+        timeZone: getOpeningHoursTimezone(),
+      }),
+    );
+  });
+
+  it('relê os últimos 30 dias uma vez por dia', async () => {
+    mockPrisma.company.findMany.mockResolvedValue(companies);
+    mockQueue.add.mockResolvedValue({ id: 'job-lookback' });
+
+    await tasks.handleLookback();
+
+    expect(mockQueue.add).toHaveBeenCalledTimes(companies.length * WINDEL_LOOKBACK_DAYS);
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      QUEUE_NAMES.WINDEL_SALES_IMPORT,
+      { companyId: 'company-1', date: '2026-09-03' },
+      expect.objectContaining({
+        jobId: windelLookbackJobId('company-1', '2026-09-03', NOW),
+      }),
+    );
+  });
+
+  it('não enfileira a empresa com login bloqueado', async () => {
+    mockPrisma.company.findMany.mockResolvedValue(companies);
+    mockRedis.getJson.mockImplementation(async (key: string) =>
+      key.endsWith('company-1') ? { reason: 'WindelMfaRequiredError' } : null,
+    );
+
+    await tasks.handleDailySalesImport();
+
+    const companyIds = mockQueue.add.mock.calls.map((call) => call[1].companyId);
+    expect(companyIds).not.toContain('company-1');
+    expect(companyIds).toContain('company-2');
+  });
+
+  it('executa a releitura às 4h15 no fuso de funcionamento', () => {
+    const cronOptions = Reflect.getMetadata(
+      SCHEDULE_CRON_OPTIONS,
+      WindelSalesTasks.prototype.handleLookback,
+    );
+
+    expect(cronOptions).toEqual(
+      expect.objectContaining({
+        cronTime: '15 4 * * *',
         timeZone: getOpeningHoursTimezone(),
       }),
     );

@@ -1,7 +1,7 @@
-import { Injectable, Logger, Inject, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, Logger, Inject, NotFoundException, Optional } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
-import { WindelService } from '../api/windel.service';
+import { WindelApiSession, WindelService, WINDEL_ATTENDED } from '../api/windel.service';
 import { PrismaService } from '../../../prisma/prisma.service';
 import {
   WindelPerson,
@@ -32,6 +32,11 @@ import {
   windelSaleToOrder,
 } from '../mappings/windel-sale-mapping';
 import { WindelImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
+import { RedisService } from '../../../common/redis/redis.service';
+import {
+  WINDEL_AUTH_BLOCK_TTL_SECONDS,
+  windelAuthBlockKey,
+} from '../windel-auth-block';
 
 function isIntegratorOrderIdUniqueConflict(error: unknown): boolean {
   const err = error as { code?: string; meta?: { target?: unknown } };
@@ -80,6 +85,7 @@ export class WindelSalesService {
     private readonly windelSalesQueue: Queue,
     @InjectQueue(QUEUE_NAMES.WINDEL_SALE_PROCESS)
     private readonly windelSaleProcessQueue: Queue,
+    @Optional() private readonly redis?: RedisService,
   ) {}
 
   /**
@@ -132,26 +138,43 @@ export class WindelSalesService {
         password: integration.apiKey,
       };
 
+      if (await this.authIsBlocked(companyId)) {
+        this.logger.warn(`Login Windel bloqueado para empresa ${companyId}`);
+        return;
+      }
+
       this.logger.log(`Integração encontrada. Buscando ordens na API Windel...`);
 
-      const summaries = await this.windelService.listAttendedOrders(
-        credentials,
-        date,
-      );
+      const session = await this.windelService.openSession(credentials);
+      const summaries = await session.listAttendedOrders(date);
 
       this.logger.log(
         `Encontradas ${summaries.length} ordens Windel para processar`,
       );
 
+      const attended = summaries.filter(
+        (summary) => summary.situacao === WINDEL_ATTENDED,
+      );
+      const known = await this.findImportedOrderIds(
+        companyId,
+        attended.map((summary) => windelIntegratorOrderId(summary.id)),
+      );
+
       for (const summary of summaries) {
-        if (summary.situacao !== 'Atendido') {
+        if (summary.situacao !== WINDEL_ATTENDED) {
           this.logger.log(
             `Ordem Windel ${summary.id} com situação ${summary.situacao} ignorada`,
           );
           continue;
         }
 
-        await this.enqueueAttendedOrder(companyId, credentials, summary);
+        const integratorOrderId = windelIntegratorOrderId(summary.id);
+        if (known.has(integratorOrderId)) {
+          this.logger.log(`Ordem Windel ${summary.id} já importada, ignorando`);
+          continue;
+        }
+
+        await this.enqueueAttendedOrder(companyId, session, summary);
       }
 
       this.logger.log(
@@ -285,6 +308,8 @@ export class WindelSalesService {
         `Iniciando importação histórica Windel para empresa ${companyId}`,
       );
 
+      await this.assertAuthOpen(companyId);
+
       let integration = existingIntegration;
 
       if (!integration) {
@@ -373,25 +398,73 @@ export class WindelSalesService {
 
   private async enqueueAttendedOrder(
     companyId: string,
-    credentials: { email: string; password: string },
+    session: WindelApiSession,
     summary: WindelServiceOrderSummary,
   ): Promise<void> {
     await sleep(DEFAULT_PARTNER_HTTP_DELAY_MS);
-    const order = await this.windelService.getOrder(credentials, summary.id);
+    const order = await session.getOrder(summary.id);
 
     let person: WindelPerson | null = null;
     if (order.pessoaId) {
       await sleep(DEFAULT_PARTNER_HTTP_DELAY_MS);
-      person = await this.windelService.getPerson(credentials, order.pessoaId);
+      person = await session.getPerson(order.pessoaId);
     }
 
-    await this.windelSaleProcessQueue.add(
+    await enqueueSalesImportJob(
+      this.windelSaleProcessQueue,
       QUEUE_NAMES.WINDEL_SALE_PROCESS,
       { companyId, order, person },
       {
+        jobId: `windel-sale:${companyId}:${windelIntegratorOrderId(order.id)}`,
         attempts: 3,
         backoff: { type: 'exponential', delay: 2000 },
+        removeOnComplete: true,
+        removeOnFail: true,
       },
+    );
+  }
+
+  private async findImportedOrderIds(
+    companyId: string,
+    integratorOrderIds: number[],
+  ): Promise<Set<number>> {
+    if (integratorOrderIds.length === 0) {
+      return new Set();
+    }
+    const existing = await this.prisma.order.findMany({
+      where: {
+        companyId,
+        salesChannel: 'WINDEL',
+        integratorOrderId: { in: integratorOrderIds },
+      },
+      select: { integratorOrderId: true },
+    });
+    return new Set(
+      existing
+        .map((order) => order.integratorOrderId)
+        .filter((id): id is number => id != null),
+    );
+  }
+
+  private async authIsBlocked(companyId: string): Promise<boolean> {
+    const blocked = await this.redis?.getJson(windelAuthBlockKey(companyId));
+    return Boolean(blocked);
+  }
+
+  private async assertAuthOpen(companyId: string): Promise<void> {
+    if (!(await this.authIsBlocked(companyId))) {
+      return;
+    }
+    throw new BadRequestException(
+      'Login Windel bloqueado após falha de autenticação. Atualize a senha ou aguarde 12 horas.',
+    );
+  }
+
+  async blockAuth(companyId: string, reason: string): Promise<void> {
+    await this.redis?.setJson(
+      windelAuthBlockKey(companyId),
+      { reason, at: new Date().toISOString() },
+      WINDEL_AUTH_BLOCK_TTL_SECONDS,
     );
   }
 }
