@@ -35,6 +35,7 @@ import { AGENT_RUN_TRACKER_PORT } from '../../agent-trace/ports/agent-run-tracke
 import type { AgentRunTrackerPort } from '../../agent-trace/ports/agent-run-tracker.port';
 import { CUSTOMER_FALLBACK_REPLY } from '../customer-reply';
 import type { McpSession } from '../tools/mcp/mcp-tool-loader.service';
+import { WaitingAckService } from '../../webhook/services/waiting-ack.service';
 
 export interface CompleteAgentTurnInput {
   agent: AgentWithConfigsData;
@@ -83,6 +84,7 @@ export class AgentRunnerService implements OnModuleInit {
     private readonly mcpToolLoader: McpToolLoaderService,
     @Inject(AGENT_RUN_TRACKER_PORT)
     private readonly tracker: AgentRunTrackerPort,
+    private readonly waitingAck: WaitingAckService,
   ) {}
 
   onModuleInit(): void {
@@ -210,6 +212,15 @@ export class AgentRunnerService implements OnModuleInit {
         if (i < chunks.length - 1) {
           await new Promise<void>((resolve) => setTimeout(resolve, 500));
         }
+      }
+
+      try {
+        await this.waitingAck.clear(agent.id, conversation.chatId);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Runner] Falha ao liberar a saudação de espera | conv=${conversation.id} | ${msg}`,
+        );
       }
 
       this.logger.log(

@@ -83,6 +83,7 @@ describe('AgentRunnerService.complete', () => {
     completeRun: jest.fn(),
     failRun: jest.fn(),
   };
+  const waitingAck = { clear: jest.fn(), maybeSend: jest.fn() };
 
   const service = new AgentRunnerService(
     conversationRepo as never,
@@ -99,6 +100,7 @@ describe('AgentRunnerService.complete', () => {
     {} as never,
     mcp as never,
     tracker as never,
+    waitingAck as never,
   );
 
   beforeEach(() => {
@@ -153,6 +155,8 @@ describe('AgentRunnerService.complete', () => {
     expect(messages.some((message) => message.content === 'Oi')).toBe(true);
     expect(conversationRepo.addMessage).not.toHaveBeenCalled();
     expect(messageSender.send).not.toHaveBeenCalled();
+    expect(waitingAck.clear).not.toHaveBeenCalled();
+    expect(waitingAck.maybeSend).not.toHaveBeenCalled();
     expect(conversationRepo.findRecentMessages).not.toHaveBeenCalled();
   });
 
@@ -238,6 +242,8 @@ describe('AgentRunnerService.complete', () => {
     expect(conversationRepo.addMessage).toHaveBeenCalledWith(
       expect.objectContaining({ content: CUSTOMER_FALLBACK_REPLY }),
     );
+    expect(waitingAck.clear).toHaveBeenCalledWith('agent-1', 'playground:session');
+    expect(waitingAck.maybeSend).not.toHaveBeenCalled();
   });
 });
 

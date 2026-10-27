@@ -31,6 +31,7 @@ import { OpenAiMediaService } from '../../infrastructure/providers/openai/openai
 import { BullSetupModule } from '../messaging/bull.setup.module';
 import { AgentModule } from '../agent/agent.module';
 import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
+import { AttendanceModule } from '../attendance/attendance.module';
 import { CustomerJourneyModule } from '../customer-journey/customer-journey.module';
 import { AGENT_REPOSITORY } from '../../application/agent/ports/agent.repository.port';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
@@ -55,6 +56,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     }),
     AgentModule,
     AgentRunnerModule,
+    AttendanceModule,
     CustomerJourneyModule,
   ],
   providers: [

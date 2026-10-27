@@ -1,5 +1,10 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { AudioIncomingMessage, IncomingMessage } from '../types/incoming-message.types';
+import {
+  MessageType,
+  type AudioIncomingMessage,
+  type IncomingMessage,
+  type TextIncomingMessage,
+} from '../types/incoming-message.types';
 import { MessageHandlerPort } from './message-handler.port';
 import { MessageNormalizerService } from '../services/message-normalizer.service';
 import { MessageFilterService } from '../services/message-filter.service';
@@ -7,6 +12,7 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import { CONVERSATION_REPOSITORY, MessageRole } from '../ports/conversation.repository.port';
 import type { ConversationRepositoryPort } from '../ports/conversation.repository.port';
 import { AgentRunnerService } from '../../agent-runner/services/agent-runner.service';
+import { WaitingAckService } from '../services/waiting-ack.service';
 
 @Injectable()
 export class AudioMessageHandler implements MessageHandlerPort {
@@ -18,6 +24,7 @@ export class AudioMessageHandler implements MessageHandlerPort {
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversationRepository: ConversationRepositoryPort,
     private readonly agentRunner: AgentRunnerService,
+    private readonly waitingAck: WaitingAckService,
   ) {}
 
   async handle(message: IncomingMessage, agent: AgentWithConfigsData): Promise<void> {
@@ -49,6 +56,26 @@ export class AudioMessageHandler implements MessageHandlerPort {
     this.logger.log(
       `[AUDIO] agent=${agent.id} | sender=${prompt.context.senderPhone} | transcrição="${finalUserMessage.slice(0, 80)}"`,
     );
+
+    const transcribed: TextIncomingMessage = {
+      webhookEventId: msg.webhookEventId,
+      companyId: msg.companyId,
+      messageId: msg.messageId,
+      chatId: msg.chatId,
+      senderId: msg.senderId,
+      senderName: msg.senderName,
+      senderPhone: msg.senderPhone,
+      isFromMe: msg.isFromMe,
+      wasSentByApi: msg.wasSentByApi,
+      isGroup: msg.isGroup,
+      groupName: msg.groupName,
+      timestamp: msg.timestamp,
+      instanceName: msg.instanceName,
+      instanceToken: msg.instanceToken,
+      type: MessageType.TEXT,
+      text: prompt.triggerText,
+    };
+    await this.waitingAck.maybeSend(transcribed, agent, { dedupe: false });
 
     // 4. Upsert da conversa
     const conversation = await this.conversationRepository.upsert({
