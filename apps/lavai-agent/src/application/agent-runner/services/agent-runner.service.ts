@@ -232,7 +232,14 @@ export class AgentRunnerService implements OnModuleInit {
         );
       }
 
-      await this.scheduleAfterReply(agent, conversation, saved.id);
+      try {
+        await this.scheduleAfterReply(agent, conversation, saved.id);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Runner] Falha ao agendar o prazo de silêncio | conv=${conversation.id} | ${msg}`,
+        );
+      }
 
       this.logger.log(
         `[Runner] Resposta enviada | conv=${conversation.id} | chars=${assistantText.length} | partes=${chunks.length}`,

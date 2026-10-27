@@ -268,6 +268,18 @@ describe('AgentRunnerService.complete', () => {
     );
   });
 
+  it('conclui o turno quando o agendamento do prazo falha depois do envio', async () => {
+    prepareReply();
+    journeys.findByConversationId.mockResolvedValue({ id: 'journey-1', status: 'ACTIVE' });
+    idleClose.schedule.mockRejectedValue(new Error('redis down'));
+
+    await expect(service.run(inbound(), conversation(), idleAgent())).resolves.toBeUndefined();
+
+    expect(messageSender.send).toHaveBeenCalled();
+    expect(tracker.failRun).not.toHaveBeenCalled();
+    expect(tracker.completeRun).toHaveBeenCalled();
+  });
+
   it('não agenda o prazo quando a jornada não existe', async () => {
     prepareReply();
     journeys.findByConversationId.mockResolvedValue(null);
