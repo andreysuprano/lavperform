@@ -2,6 +2,7 @@ export type SalesImportPartnerSlug =
   | 'vmlav'
   | 'agidez'
   | 'cicclo'
+  | 'windel'
   | 'maxlav'
   | 'l2automate';
 

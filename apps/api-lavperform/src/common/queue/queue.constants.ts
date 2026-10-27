@@ -13,6 +13,8 @@ export const QUEUE_NAMES = {
   VMLAV_SALE_PROCESS: 'vmlav-sale-process',
   CICCLO_SALES_IMPORT: 'cicclo-sales-import',
   CICCLO_SALE_PROCESS: 'cicclo-sale-process',
+  WINDEL_SALES_IMPORT: 'windel-sales-import',
+  WINDEL_SALE_PROCESS: 'windel-sale-process',
   L2AUTOMATE_SALES_IMPORT: 'l2automate-sales-import',
   L2AUTOMATE_SALE_PROCESS: 'l2automate-sale-process',
   RFV_CALCULATION: 'rfv-calculation',
