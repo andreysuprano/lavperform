@@ -91,5 +91,37 @@ describe('PromptBuilderService', () => {
     expect(system).toContain('Telefone: 5511999999999');
     expect(system).toContain('5511999999999@s.whatsapp.net');
     expect(system).not.toContain('## Sessão atual');
+    expect(system).toContain('diga que a unidade não informou isso');
+    expect(system).toContain('Não chute um valor parecido.');
+  });
+
+  it('não trata trecho parecido como fato confirmado', () => {
+    const messages = builder.build(
+      agent(),
+      [],
+      [
+        {
+          id: 'chunk-1',
+          knowledgeBaseId: 'kb',
+          companyId: 'company-1',
+          content: 'A lavagem custa R$ 20',
+          metadata: {},
+          embeddingModel: 'm',
+          createdAt: new Date(),
+          score: 0.71,
+        },
+      ],
+      'Qual o preço?',
+      {
+        senderName: 'Cliente',
+        senderPhone: '5511999999999',
+        chatId: '5511999999999@s.whatsapp.net',
+        isGroup: false,
+      },
+    );
+    const system = messages[0].content ?? '';
+    expect(system).toContain('Estes trechos podem não responder à pergunta.');
+    expect(system).toContain('A lavagem custa R$ 20');
+    expect(system).not.toContain('contexto relevante');
   });
 });
