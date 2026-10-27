@@ -82,6 +82,15 @@ export class FollowUpProcessor extends WorkerHost {
       telefone: conversation.userPhone,
     });
 
+    const latestJourney =
+      await this.journeyRepo.findByConversationId(conversationId);
+    if (latestJourney?.status !== 'ACTIVE') {
+      this.logger.debug(
+        `[FollowUp] Jornada não ACTIVE na releitura (${latestJourney?.status ?? 'ausente'}) | journey=${journeyId}`,
+      );
+      return;
+    }
+
     await this.messageSender.send(
       {
         instanceName: conversation.instanceName,

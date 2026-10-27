@@ -1,5 +1,7 @@
 import { AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import { MessageRole } from '../../webhook/ports/conversation.repository.port';
+import { IDLE_CLOSE_DEFAULT, WAITING_ACK_DEFAULT } from '../../agent/attendance-defaults';
 import { PromptBuilderService } from './prompt-builder.service';
 
 function agent(): AgentWithConfigsData {
@@ -91,5 +93,40 @@ describe('PromptBuilderService', () => {
     expect(system).toContain('Telefone: 5511999999999');
     expect(system).toContain('5511999999999@s.whatsapp.net');
     expect(system).not.toContain('## Sessão atual');
+  });
+
+  it('exclui saudação de espera do histórico enviado ao modelo', () => {
+    const history = [
+      {
+        id: 'm1',
+        conversationId: 'conv-1',
+        role: MessageRole.USER,
+        content: 'Oi',
+        originalType: 'TEXT',
+        createdAt: new Date(),
+      },
+      {
+        id: 'm2',
+        conversationId: 'conv-1',
+        role: MessageRole.ASSISTANT,
+        content: WAITING_ACK_DEFAULT,
+        originalType: 'WAITING_ACK',
+        createdAt: new Date(),
+      },
+      {
+        id: 'm3',
+        conversationId: 'conv-1',
+        role: MessageRole.ASSISTANT,
+        content: IDLE_CLOSE_DEFAULT,
+        originalType: 'IDLE_CLOSE',
+        createdAt: new Date(),
+      },
+    ];
+
+    const messages = builder.build(agent(), history, [], 'Nova mensagem');
+    const contents = messages.map((message) => message.content);
+
+    expect(contents).not.toContain(WAITING_ACK_DEFAULT);
+    expect(contents).toContain(IDLE_CLOSE_DEFAULT);
   });
 });

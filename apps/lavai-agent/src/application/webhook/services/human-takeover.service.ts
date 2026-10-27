@@ -11,8 +11,8 @@ import IORedis from 'ioredis';
  * por HUMAN_TAKEOVER_TIMEOUT_MS (padrão: 10 minutos) para aquele chatId.
  * Durante esse período todas as mensagens do cliente são ignoradas pelo bot.
  *
- * A expiração é gerenciada automaticamente pelo TTL do Redis —
- * não há necessidade de limpeza manual.
+ * A expiração é gerenciada pelo TTL do Redis. O termo de liberação
+ * também apaga a chave via clearTakeover.
  */
 @Injectable()
 export class HumanTakeoverService implements OnModuleInit, OnModuleDestroy {
@@ -60,6 +60,23 @@ export class HumanTakeoverService implements OnModuleInit, OnModuleDestroy {
     const key = this.buildKey(agentId, chatId);
     const result = await this.redis.exists(key);
     return result === 1;
+  }
+
+  /**
+   * Remove o bloqueio de atendimento humano para o par (agentId, chatId).
+   */
+  async clearTakeover(agentId: string, chatId: string): Promise<void> {
+    const key = this.buildKey(agentId, chatId);
+    try {
+      await this.redis.del(key);
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[Takeover] Falha ao limpar bloqueio | agentId=${agentId} | chatId=${chatId} | ${msg}`,
+      );
+      await this.redis.del(key);
+    }
+    this.logger.log(`[Takeover] Bloqueio liberado | agentId=${agentId} | chatId=${chatId}`);
   }
 
   private buildKey(agentId: string, chatId: string): string {

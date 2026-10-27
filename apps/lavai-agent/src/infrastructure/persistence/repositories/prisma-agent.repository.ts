@@ -28,6 +28,11 @@ import {
   UpdateAgentNotificationConfigInput,
   UpdateAgentPersonaInput,
 } from '../../../application/agent/ports/agent.repository.port';
+import {
+  IDLE_CLOSE_DEFAULT,
+  RELEASE_KEYWORD_DEFAULT,
+  WAITING_ACK_DEFAULT,
+} from '../../../application/agent/attendance-defaults';
 import { PrismaService } from '../prisma/prisma.service';
 
 const includeConfigs = {
@@ -231,6 +236,12 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
         helpAutoEscalate: input.helpAutoEscalate ?? true,
         helpAckMessage: input.helpAckMessage ?? null,
         purchaseWebhookEnabled: input.purchaseWebhookEnabled ?? true,
+        waitingAckEnabled: input.waitingAckEnabled ?? true,
+        waitingAckMessage: input.waitingAckMessage ?? WAITING_ACK_DEFAULT,
+        humanReleaseKeyword: input.humanReleaseKeyword ?? RELEASE_KEYWORD_DEFAULT,
+        idleCloseEnabled: input.idleCloseEnabled ?? true,
+        idleCloseMinutes: input.idleCloseMinutes ?? 60,
+        idleCloseMessage: input.idleCloseMessage ?? IDLE_CLOSE_DEFAULT,
       },
     });
     return this.mapJourneyConfig(row);
@@ -409,6 +420,12 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
     helpAutoEscalate: boolean;
     helpAckMessage: string | null;
     purchaseWebhookEnabled: boolean;
+    waitingAckEnabled: boolean;
+    waitingAckMessage: string;
+    humanReleaseKeyword: string;
+    idleCloseEnabled: boolean;
+    idleCloseMinutes: number;
+    idleCloseMessage: string;
     createdAt: Date;
     updatedAt: Date;
   }): AgentJourneyConfigData {
@@ -424,6 +441,12 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
       helpAutoEscalate: row.helpAutoEscalate,
       helpAckMessage: row.helpAckMessage,
       purchaseWebhookEnabled: row.purchaseWebhookEnabled,
+      waitingAckEnabled: row.waitingAckEnabled,
+      waitingAckMessage: row.waitingAckMessage,
+      humanReleaseKeyword: row.humanReleaseKeyword,
+      idleCloseEnabled: row.idleCloseEnabled,
+      idleCloseMinutes: row.idleCloseMinutes,
+      idleCloseMessage: row.idleCloseMessage,
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     };

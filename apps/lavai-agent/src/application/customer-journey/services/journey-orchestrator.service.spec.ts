@@ -86,10 +86,12 @@ describe('JourneyOrchestratorService', () => {
 
     expect(result).toEqual({ skipLlm: false, escalated: false });
     expect(followUpScheduler.cancelForJourney).toHaveBeenCalledWith('journey-1', ['step-1']);
+    expect(journeyRepo.updateStatus).toHaveBeenCalledTimes(1);
     expect(journeyRepo.updateStatus).toHaveBeenCalledWith(
       'journey-1',
       CustomerJourneyStatus.CLOSED,
     );
+    expect(followUpScheduler.scheduleForJourney).not.toHaveBeenCalled();
   });
 
   it('continua bloqueando a IA antes de 10 minutos em HELP_REQUESTED', async () => {
@@ -106,5 +108,51 @@ describe('JourneyOrchestratorService', () => {
 
     expect(result).toEqual({ skipLlm: true, escalated: false });
     expect(journeyRepo.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('reabre jornada CLOSED na mensagem de texto e agenda o follow-up', async () => {
+    const journey = buildJourney({
+      status: CustomerJourneyStatus.CLOSED,
+      helpRequestedAt: null,
+    });
+    const { service, journeyRepo, followUpScheduler } = createService(journey);
+
+    const result = await service.onInboundMessage({
+      agent,
+      conversation,
+      message: 'oi de novo',
+    });
+
+    expect(result).toEqual({ skipLlm: false, escalated: false });
+    expect(journeyRepo.updateStatus).toHaveBeenCalledWith('journey-1', CustomerJourneyStatus.ACTIVE, {
+      startedAt: expect.any(Date),
+    });
+    const startedAt = journeyRepo.updateStatus.mock.calls[0][2].startedAt as Date;
+    expect(followUpScheduler.scheduleForJourney).toHaveBeenCalledWith(
+      'journey-1',
+      'agent-1',
+      'conv-1',
+      agent.journeyConfig!.followUpSteps,
+      startedAt,
+    );
+    expect(followUpScheduler.cancelForJourney).toHaveBeenCalledWith('journey-1', ['step-1']);
+    expect(followUpScheduler.cancelForJourney.mock.invocationCallOrder[0]).toBeLessThan(
+      followUpScheduler.scheduleForJourney.mock.invocationCallOrder[0],
+    );
+  });
+
+  it('não reabre jornada PURCHASED', async () => {
+    const journey = buildJourney({ status: CustomerJourneyStatus.PURCHASED });
+    const { service, journeyRepo, followUpScheduler } = createService(journey);
+
+    const result = await service.onInboundMessage({
+      agent,
+      conversation,
+      message: 'oi',
+    });
+
+    expect(result).toEqual({ skipLlm: false, escalated: false });
+    expect(journeyRepo.updateStatus).not.toHaveBeenCalled();
+    expect(followUpScheduler.scheduleForJourney).not.toHaveBeenCalled();
   });
 });

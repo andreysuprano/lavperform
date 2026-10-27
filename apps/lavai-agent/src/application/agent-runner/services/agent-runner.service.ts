@@ -29,12 +29,19 @@ import { GetDatetimeTool } from '../tools/builtin/get-datetime.tool';
 import { EndConversationTool } from '../tools/builtin/end-conversation.tool';
 import { RequestHumanHelpTool } from '../tools/builtin/request-human-help.tool';
 import { McpToolLoaderService } from '../tools/mcp/mcp-tool-loader.service';
-import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import {
+  CustomerJourneyStatus,
+  type AgentWithConfigsData,
+} from '../../agent/ports/agent.repository.port';
 import type { NormalizedAgentPrompt } from '../../webhook/types/normalized-agent-prompt.types';
 import { AGENT_RUN_TRACKER_PORT } from '../../agent-trace/ports/agent-run-tracker.port';
 import type { AgentRunTrackerPort } from '../../agent-trace/ports/agent-run-tracker.port';
 import { CUSTOMER_FALLBACK_REPLY } from '../customer-reply';
 import type { McpSession } from '../tools/mcp/mcp-tool-loader.service';
+import { WaitingAckService } from '../../webhook/services/waiting-ack.service';
+import { CUSTOMER_JOURNEY_REPOSITORY } from '../../customer-journey/ports/customer-journey.repository.port';
+import type { CustomerJourneyRepositoryPort } from '../../customer-journey/ports/customer-journey.repository.port';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
 
 export interface CompleteAgentTurnInput {
   agent: AgentWithConfigsData;
@@ -83,6 +90,10 @@ export class AgentRunnerService implements OnModuleInit {
     private readonly mcpToolLoader: McpToolLoaderService,
     @Inject(AGENT_RUN_TRACKER_PORT)
     private readonly tracker: AgentRunTrackerPort,
+    private readonly waitingAck: WaitingAckService,
+    private readonly idleClose: IdleCloseSchedulerService,
+    @Inject(CUSTOMER_JOURNEY_REPOSITORY)
+    private readonly journeys: CustomerJourneyRepositoryPort,
   ) {}
 
   onModuleInit(): void {
@@ -190,7 +201,7 @@ export class AgentRunnerService implements OnModuleInit {
     const assistantText = progress.assistantText;
 
     try {
-      await this.conversationRepo.addMessage({
+      const saved = await this.conversationRepo.addMessage({
         conversationId: conversation.id,
         role: MessageRole.ASSISTANT,
         content: assistantText,
@@ -212,6 +223,24 @@ export class AgentRunnerService implements OnModuleInit {
         }
       }
 
+      try {
+        await this.waitingAck.clear(agent.id, conversation.chatId);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Runner] Falha ao liberar a saudação de espera | conv=${conversation.id} | ${msg}`,
+        );
+      }
+
+      try {
+        await this.scheduleAfterReply(agent, conversation, saved.id);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Runner] Falha ao agendar o prazo de silêncio | conv=${conversation.id} | ${msg}`,
+        );
+      }
+
       this.logger.log(
         `[Runner] Resposta enviada | conv=${conversation.id} | chars=${assistantText.length} | partes=${chunks.length}`,
       );
@@ -231,6 +260,28 @@ export class AgentRunnerService implements OnModuleInit {
       await this.tracker.failRun(runId, errorMessage);
       throw err;
     }
+  }
+
+  private async scheduleAfterReply(
+    agent: AgentWithConfigsData,
+    conversation: ConversationData,
+    anchorMessageId: string,
+  ): Promise<void> {
+    const config = agent.journeyConfig;
+    if (!config?.enabled || !config.idleCloseEnabled) return;
+
+    const closeText = config.idleCloseMessage?.trim() ?? '';
+    if (!closeText) return;
+
+    const journey = await this.journeys.findByConversationId(conversation.id);
+    if (!journey || journey.status !== CustomerJourneyStatus.ACTIVE) return;
+
+    await this.idleClose.schedule({
+      conversationId: conversation.id,
+      agentId: agent.id,
+      anchorMessageId,
+      delayMs: config.idleCloseMinutes * 60_000,
+    });
   }
 
   private async recordLoopError(runId: string, errorMessage: string, iteration: number): Promise<void> {

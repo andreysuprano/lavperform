@@ -8,6 +8,7 @@ import {
   HELP_REQUEST_REPOSITORY,
 } from '../../application/customer-journey/ports/customer-journey.repository.port';
 import { FollowUpSchedulerService } from '../../application/customer-journey/services/follow-up-scheduler.service';
+import { IdleCloseSchedulerService } from '../../application/customer-journey/services/idle-close-scheduler.service';
 import { HelpEscalationService } from '../../application/customer-journey/services/help-escalation.service';
 import { JourneyOrchestratorService } from '../../application/customer-journey/services/journey-orchestrator.service';
 import { JourneyTemplateService } from '../../application/customer-journey/services/journey-template.service';
@@ -25,19 +26,27 @@ import { PrismaHelpRequestRepository } from '../../infrastructure/persistence/re
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
 import { FOLLOW_UP_QUEUE_NAME } from '../../infrastructure/queue/follow-up-queue.constants';
 import { FollowUpProcessor } from '../../infrastructure/queue/follow-up.processor';
+import { IDLE_CLOSE_QUEUE_NAME } from '../../infrastructure/queue/idle-close-queue.constants';
+import { IdleCloseProcessor } from '../../infrastructure/queue/idle-close.processor';
 import { BullSetupModule } from '../messaging/bull.setup.module';
 import { MessagingModule } from '../messaging/messaging.module';
 import { AgentModule } from '../agent/agent.module';
 import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/conversation.repository.port';
 import { PrismaConversationRepository } from '../../infrastructure/persistence/repositories/prisma-conversation.repository';
+import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
 
 @Module({
   imports: [
     BullSetupModule,
     BullModule.registerQueue({ name: FOLLOW_UP_QUEUE_NAME }),
+    BullModule.registerQueue({ name: IDLE_CLOSE_QUEUE_NAME }),
     BullBoardModule.forFeature({
       name: FOLLOW_UP_QUEUE_NAME,
+      adapter: BullMQAdapter,
+    }),
+    BullBoardModule.forFeature({
+      name: IDLE_CLOSE_QUEUE_NAME,
       adapter: BullMQAdapter,
     }),
     MessagingModule,
@@ -49,9 +58,12 @@ import { HumanTakeoverService } from '../../application/webhook/services/human-t
     JourneyTemplateService,
     FollowUpSchedulerService,
     FollowUpProcessor,
+    IdleCloseSchedulerService,
+    IdleCloseProcessor,
     HelpEscalationService,
     JourneyOrchestratorService,
     HumanTakeoverService,
+    HumanReleaseService,
 
     PrismaCustomerJourneyRepository,
     { provide: CUSTOMER_JOURNEY_REPOSITORY, useExisting: PrismaCustomerJourneyRepository },
@@ -73,8 +85,10 @@ import { HumanTakeoverService } from '../../application/webhook/services/human-t
   ],
   exports: [
     JourneyOrchestratorService,
+    IdleCloseSchedulerService,
     HelpEscalationService,
     AttendantGateway,
+    HumanReleaseService,
     CUSTOMER_JOURNEY_REPOSITORY,
     HELP_REQUEST_REPOSITORY,
   ],

@@ -64,6 +64,13 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
     return row ? this.map(row) : null;
   }
 
+  async findByAgentAndChat(agentId: string, chatId: string): Promise<ConversationData[]> {
+    const rows = await this.prisma.conversation.findMany({
+      where: { agentId, chatId },
+    });
+    return rows.map((row) => this.map(row));
+  }
+
   async findRecentMessages(
     conversationId: string,
     limit: number,
@@ -74,6 +81,27 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
       take: limit,
     });
     return rows.reverse().map(this.mapMessage);
+  }
+
+  async findMessageById(id: string): Promise<ConversationMessageData | null> {
+    const row = await this.prisma.conversationMessage.findUnique({
+      where: { id },
+    });
+    return row ? this.mapMessage(row) : null;
+  }
+
+  async findMessagesAfter(
+    conversationId: string,
+    after: Date,
+  ): Promise<ConversationMessageData[]> {
+    const rows = await this.prisma.conversationMessage.findMany({
+      where: {
+        conversationId,
+        createdAt: { gt: after },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => this.mapMessage(row));
   }
 
   async addMessage(input: AddMessageInput): Promise<ConversationMessageData> {

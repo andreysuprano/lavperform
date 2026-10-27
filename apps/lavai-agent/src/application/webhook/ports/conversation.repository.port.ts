@@ -94,6 +94,8 @@ export interface ConversationRepositoryPort {
     userId: string,
   ): Promise<ConversationData | null>;
 
+  findByAgentAndChat(agentId: string, chatId: string): Promise<ConversationData[]>;
+
   /**
    * Token da conversa real mais recente do agente.
    * Conversa real é aquela cujo chatId não começa com `playground:`.
@@ -104,6 +106,17 @@ export interface ConversationRepositoryPort {
    * Retorna as últimas `limit` mensagens da conversa, em ordem cronológica.
    */
   findRecentMessages(conversationId: string, limit: number): Promise<ConversationMessageData[]>;
+
+  findMessageById(id: string): Promise<ConversationMessageData | null>;
+
+  /**
+   * Mensagens da conversa com `createdAt` estritamente posterior a `after`,
+   * em ordem cronológica.
+   */
+  findMessagesAfter(
+    conversationId: string,
+    after: Date,
+  ): Promise<ConversationMessageData[]>;
 
   addMessage(input: AddMessageInput): Promise<ConversationMessageData>;
 

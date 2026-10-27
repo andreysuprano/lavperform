@@ -7,6 +7,7 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import { CONVERSATION_REPOSITORY, MessageRole } from '../ports/conversation.repository.port';
 import type { ConversationRepositoryPort } from '../ports/conversation.repository.port';
 import { AgentRunnerService } from '../../agent-runner/services/agent-runner.service';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
 
 @Injectable()
 export class ImageMessageHandler implements MessageHandlerPort {
@@ -18,6 +19,7 @@ export class ImageMessageHandler implements MessageHandlerPort {
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversationRepository: ConversationRepositoryPort,
     private readonly agentRunner: AgentRunnerService,
+    private readonly idleClose: IdleCloseSchedulerService,
   ) {}
 
   async handle(message: IncomingMessage, agent: AgentWithConfigsData): Promise<void> {
@@ -69,6 +71,8 @@ export class ImageMessageHandler implements MessageHandlerPort {
     });
 
     this.logger.log(`[IMAGE] conversation=${conversation.id} | invocando LLM`);
+
+    await this.idleClose.cancel(conversation.id);
 
     await this.agentRunner.run(prompt, conversation, agent);
   }

@@ -7,9 +7,16 @@ describe('MessageFilterService', () => {
   const humanTakeover = {
     isInTakeover: jest.fn(),
     setTakeover: jest.fn(),
+    clearTakeover: jest.fn(),
   };
+  const humanRelease = { release: jest.fn() };
+  const idleClose = { cancelChat: jest.fn() };
 
-  const service = new MessageFilterService(humanTakeover as never);
+  const service = new MessageFilterService(
+    humanTakeover as never,
+    humanRelease as never,
+    idleClose as never,
+  );
 
   const baseMessage = {
     webhookEventId: 'evt-1',
@@ -73,4 +80,66 @@ describe('MessageFilterService', () => {
 
     expect(result.allowed).toBe(true);
   });
+
+  it('não renova o bloqueio quando a mensagem inteira é o termo', async () => {
+    humanTakeover.isInTakeover.mockResolvedValue(true);
+    const agent = {
+      id: 'agent-1',
+      filterConfig: null,
+      notificationConfig: null,
+      journeyConfig: { humanReleaseKeyword: '#ia' },
+    } as unknown as AgentWithConfigsData;
+
+    const result = await service.checkAccess(
+      { ...baseMessage, isFromMe: true, wasSentByApi: false, text: '#IA' },
+      agent,
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(humanRelease.release).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(idleClose.cancelChat).not.toHaveBeenCalled();
+    expect(humanTakeover.setTakeover).not.toHaveBeenCalled();
+    expect(humanTakeover.clearTakeover).not.toHaveBeenCalled();
+  });
+
+  it('renova os 10 minutos quando o atendente escreve outra coisa', async () => {
+    const agent = {
+      id: 'agent-1',
+      filterConfig: null,
+      notificationConfig: null,
+      journeyConfig: { humanReleaseKeyword: '#ia' },
+    } as unknown as AgentWithConfigsData;
+
+    await service.checkAccess(
+      { ...baseMessage, isFromMe: true, wasSentByApi: false, text: '#ia obrigado' },
+      agent,
+    );
+
+    expect(idleClose.cancelChat).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(humanTakeover.setTakeover).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(idleClose.cancelChat.mock.invocationCallOrder[0]).toBeLessThan(
+      humanTakeover.setTakeover.mock.invocationCallOrder[0],
+    );
+    expect(humanTakeover.clearTakeover).not.toHaveBeenCalled();
+    expect(humanRelease.release).not.toHaveBeenCalled();
+  });
+
+  it('não cancela o prazo quando a mensagem saiu pela API', async () => {
+    const agent = {
+      id: 'agent-1',
+      filterConfig: null,
+      notificationConfig: null,
+      journeyConfig: { humanReleaseKeyword: '#ia' },
+    } as unknown as AgentWithConfigsData;
+
+    await service.checkAccess(
+      { ...baseMessage, isFromMe: true, wasSentByApi: true, text: 'resposta do bot' },
+      agent,
+    );
+
+    expect(idleClose.cancelChat).not.toHaveBeenCalled();
+    expect(humanTakeover.setTakeover).not.toHaveBeenCalled();
+    expect(humanRelease.release).not.toHaveBeenCalled();
+  });
 });
+

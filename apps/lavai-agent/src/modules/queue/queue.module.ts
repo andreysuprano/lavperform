@@ -19,6 +19,7 @@ import { MEDIA_PROCESSOR_PORT } from '../../application/webhook/ports/media-proc
 import { ProcessWebhookJobUseCase } from '../../application/webhook/use-cases/process-webhook-job.use-case';
 import { MessageNormalizerService } from '../../application/webhook/services/message-normalizer.service';
 import { MessageFilterService } from '../../application/webhook/services/message-filter.service';
+import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
 import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/conversation.repository.port';
 import { PrismaConversationRepository } from '../../infrastructure/persistence/repositories/prisma-conversation.repository';
@@ -30,6 +31,7 @@ import { OpenAiMediaService } from '../../infrastructure/providers/openai/openai
 import { BullSetupModule } from '../messaging/bull.setup.module';
 import { AgentModule } from '../agent/agent.module';
 import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
+import { AttendanceModule } from '../attendance/attendance.module';
 import { CustomerJourneyModule } from '../customer-journey/customer-journey.module';
 import { AGENT_REPOSITORY } from '../../application/agent/ports/agent.repository.port';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
@@ -54,6 +56,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     }),
     AgentModule,
     AgentRunnerModule,
+    AttendanceModule,
     CustomerJourneyModule,
   ],
   providers: [
@@ -73,6 +76,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
 
     MessageNormalizerService,
     HumanTakeoverService,
+    HumanReleaseService,
     MessageFilterService,
 
     PrismaConversationRepository,

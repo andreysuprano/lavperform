@@ -162,6 +162,12 @@ export interface AgentJourneyConfigData {
   helpAutoEscalate: boolean;
   helpAckMessage: string | null;
   purchaseWebhookEnabled: boolean;
+  waitingAckEnabled: boolean;
+  waitingAckMessage: string;
+  humanReleaseKeyword: string;
+  idleCloseEnabled: boolean;
+  idleCloseMinutes: number;
+  idleCloseMessage: string;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -264,6 +270,12 @@ export interface UpdateAgentJourneyConfigInput {
   helpAutoEscalate?: boolean;
   helpAckMessage?: string | null;
   purchaseWebhookEnabled?: boolean;
+  waitingAckEnabled?: boolean;
+  waitingAckMessage?: string;
+  humanReleaseKeyword?: string;
+  idleCloseEnabled?: boolean;
+  idleCloseMinutes?: number;
+  idleCloseMessage?: string;
 }
 
 export interface UpdateAgentNotificationConfigInput {
