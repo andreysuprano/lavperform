@@ -9,6 +9,7 @@ import type {
 } from '../types/incoming-message.types';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
 import { HumanTakeoverService } from './human-takeover.service';
+import { matchesReleaseKeyword } from './release-keyword';
 import { whatsappPhonesMatch } from '../../customer-journey/services/journey-template.service';
 
 export interface FilterResult {
@@ -48,6 +49,18 @@ export class MessageFilterService {
     // Mensagens enviadas pela própria instância (bot ou atendente)
     if (message.isFromMe) {
       if (!message.wasSentByApi) {
+        if (
+          matchesReleaseKeyword(
+            this.attendantText(message),
+            agent.journeyConfig?.humanReleaseKeyword,
+          )
+        ) {
+          await this.humanTakeover.clearTakeover(agent.id, message.chatId);
+          this.logger.log(
+            `[Filter] Atendimento humano liberado | agentId=${agent.id} | chatId=${message.chatId}`,
+          );
+          return { allowed: false, reason: 'Atendimento humano liberado' };
+        }
         // Atendente digitou manualmente no dispositivo → ativa período de espera
         await this.humanTakeover.setTakeover(agent.id, message.chatId);
         this.logger.log(
@@ -195,6 +208,12 @@ export class MessageFilterService {
       default:
         return '';
     }
+  }
+
+  private attendantText(message: IncomingMessage): string {
+    if (message.type === MessageType.TEXT) return (message as TextIncomingMessage).text ?? '';
+    if ('caption' in message && typeof message.caption === 'string') return message.caption;
+    return '';
   }
 
   private normalizePhone(phone: string): string {
