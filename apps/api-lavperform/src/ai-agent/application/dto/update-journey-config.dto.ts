@@ -105,4 +105,39 @@ export class UpdateJourneyConfigDto {
   @IsBoolean()
   @IsOptional()
   purchaseWebhookEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  waitingAckEnabled?: boolean;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  waitingAckMessage?: string;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @MaxLength(80)
+  humanReleaseKeyword?: string;
+
+  @ApiPropertyOptional()
+  @IsBoolean()
+  @IsOptional()
+  idleCloseEnabled?: boolean;
+
+  @ApiPropertyOptional({ minimum: 1, maximum: 1440 })
+  @IsInt()
+  @Min(1)
+  @Max(1440)
+  @IsOptional()
+  idleCloseMinutes?: number;
+
+  @ApiPropertyOptional()
+  @IsString()
+  @IsOptional()
+  @MaxLength(500)
+  idleCloseMessage?: string;
 }
