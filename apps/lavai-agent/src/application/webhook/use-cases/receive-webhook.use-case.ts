@@ -9,7 +9,13 @@ import { WEBHOOK_QUEUE_PORT } from '../ports/webhook-queue.port';
 import type { WebhookQueuePort } from '../ports/webhook-queue.port';
 import { MessageBufferService } from '../services/message-buffer.service';
 import { WaitingAckService } from '../services/waiting-ack.service';
-import { MessageType } from '../types/incoming-message.types';
+import {
+  MessageType,
+  type IncomingMessage,
+} from '../types/incoming-message.types';
+
+/** Só a saudação deste webhook espera no máximo isto. O envio UAZAPI em si não ganha timeout. */
+const WAITING_ACK_WEBHOOK_TIMEOUT_MS = 5000;
 
 @Injectable()
 export class ReceiveWebhookUseCase {
@@ -38,74 +44,132 @@ export class ReceiveWebhookUseCase {
     const { id: webhookEventId } = await this.repository.save(rawPayload, companyId, agentId);
     this.logger.log(`[ReceiveWebhook] Evento salvo no banco | webhookEventId=${webhookEventId}`);
 
-    await this.sendWaitingAck(rawPayload, webhookEventId, companyId, agentId);
-
+    const message = this.parseIncoming(rawPayload, webhookEventId, companyId, agentId);
     const { bufferText, chatId } = this.parseMinimal(rawPayload);
 
-    let jobId: string;
     if (bufferText && chatId) {
-      // Texto do cliente ou do aparelho humano entra no buffer.
-      // Eco da API (wasSentByApi) segue direto para a fila.
-      jobId = await this.messageBuffer.addToBuffer(webhookEventId, agentId, chatId);
+      // Texto do cliente: a saudação dispara sem ser aguardada. O buffer de 3s
+      // mantém a frase na frente da resposta do modelo, e um provedor lento não segura o webhook.
+      void this.sendWaitingAck(message, agentId).catch((error: unknown) => {
+        this.logWaitingAckError(agentId, error);
+      });
+      const jobId = await this.messageBuffer.addToBuffer(webhookEventId, agentId, chatId);
       this.logger.log(
         `[ReceiveWebhook] Evento adicionado ao buffer | webhookEventId=${webhookEventId} | chatId=${chatId}`,
       );
-    } else {
-      // Áudio, imagem, vídeo, eco da API e tipos desconhecidos são processados imediatamente
-      jobId = await this.queue.enqueue(webhookEventId, agentId);
-      this.logger.log(
-        `[ReceiveWebhook] Job enfileirado diretamente | jobId=${jobId} | webhookEventId=${webhookEventId}`,
-      );
+      return { jobId, webhookEventId };
     }
+
+    if (
+      message &&
+      (message.type === MessageType.IMAGE || message.type === MessageType.VIDEO)
+    ) {
+      await this.sendWaitingAckWithinTimeout(message, agentId);
+    }
+
+    // Áudio, eco da API, texto do aparelho e tipos desconhecidos seguem direto.
+    // Áudio espera a transcrição no handler — não é saudado aqui.
+    const jobId = await this.queue.enqueue(webhookEventId, agentId);
+    this.logger.log(
+      `[ReceiveWebhook] Job enfileirado diretamente | jobId=${jobId} | webhookEventId=${webhookEventId}`,
+    );
 
     return { jobId, webhookEventId };
   }
 
   /**
-   * Saudação imediata para texto, imagem e vídeo.
-   * Áudio espera a transcrição. Falha aqui não impede o buffer nem a fila.
+   * Interpreta o payload antes de buscar o agente.
+   * Falha aqui não rejeita o webhook: a mensagem segue para o buffer ou a fila.
    */
-  private async sendWaitingAck(
+  private parseIncoming(
     rawPayload: string,
     webhookEventId: string,
     companyId: string,
     agentId: string,
-  ): Promise<void> {
+  ): IncomingMessage | undefined {
     try {
-      const agent = await this.agents.findById(agentId);
-      if (!agent) return;
-
-      const message = this.provider.parse(rawPayload, webhookEventId, companyId);
-      if (
-        message.type !== MessageType.TEXT &&
-        message.type !== MessageType.IMAGE &&
-        message.type !== MessageType.VIDEO
-      ) {
-        return;
-      }
-
-      await this.waitingAck.maybeSend(message, agent, {
-        dedupe: message.type === MessageType.TEXT,
-      });
+      return this.provider.parse(rawPayload, webhookEventId, companyId);
     } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      this.logger.error(
-        `[ReceiveWebhook] Saudação de espera ignorada | agentId=${agentId} | ${msg}`,
-      );
+      this.logWaitingAckError(agentId, error);
+      return undefined;
     }
   }
 
   /**
+   * Saudação para texto, imagem e vídeo do cliente.
+   * fromMe, eco da API e os demais tipos (áudio inclusive) não buscam o agente nem enviam.
+   */
+  private async sendWaitingAck(
+    message: IncomingMessage | undefined,
+    agentId: string,
+  ): Promise<void> {
+    if (
+      !message ||
+      message.isFromMe ||
+      message.wasSentByApi ||
+      (message.type !== MessageType.TEXT &&
+        message.type !== MessageType.IMAGE &&
+        message.type !== MessageType.VIDEO)
+    ) {
+      return;
+    }
+
+    const agent = await this.agents.findById(agentId);
+    if (!agent) return;
+
+    await this.waitingAck.maybeSend(message, agent, {
+      dedupe: message.type === MessageType.TEXT,
+    });
+  }
+
+  /**
+   * Imagem e vídeo esperam a saudação, no máximo 5s, para ela sair antes do job.
+   * Timeout ou falha apenas registram o log e deixam o enfileiramento seguir.
+   */
+  private async sendWaitingAckWithinTimeout(
+    message: IncomingMessage,
+    agentId: string,
+  ): Promise<void> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const timeout = new Promise<void>((resolve) => {
+      timer = setTimeout(() => {
+        this.logger.error(
+          `[ReceiveWebhook] Saudação de espera excedeu 5s | agentId=${agentId}`,
+        );
+        resolve();
+      }, WAITING_ACK_WEBHOOK_TIMEOUT_MS);
+    });
+
+    const ack = this.sendWaitingAck(message, agentId).catch((error: unknown) => {
+      this.logWaitingAckError(agentId, error);
+    });
+
+    try {
+      await Promise.race([ack, timeout]);
+    } finally {
+      if (timer) clearTimeout(timer);
+    }
+  }
+
+  private logWaitingAckError(agentId: string, error: unknown): void {
+    const msg = error instanceof Error ? error.message : String(error);
+    this.logger.error(
+      `[ReceiveWebhook] Saudação de espera ignorada | agentId=${agentId} | ${msg}`,
+    );
+  }
+
+  /**
    * Extrai o que decide o buffer sem acoplar esta camada a um provider.
-   * Texto com wasSentByApi não entra no lote: a fila deixa o filtro descartar o eco.
+   * Texto do aparelho (fromMe) e eco da API (wasSentByApi) não entram no lote.
    */
   private parseMinimal(rawPayload: string): { bufferText: boolean; chatId: string } {
     try {
       const body = JSON.parse(rawPayload) as Record<string, unknown>;
       const message = body.message as Record<string, unknown> | undefined;
       const sentByApi = message?.wasSentByApi === true;
+      const fromMe = message?.fromMe === true;
       return {
-        bufferText: message?.type === 'text' && !sentByApi,
+        bufferText: message?.type === 'text' && !sentByApi && !fromMe,
         chatId: (message?.chatid as string | undefined) ?? '',
       };
     } catch {
