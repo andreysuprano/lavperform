@@ -17,6 +17,7 @@ import {
   FormField,
   FormItem,
   FormLabel,
+  FormMessage,
 } from '@/components/ui/form';
 import { Switch } from '@/components/ui/switch';
 import { Input } from '@/components/ui/input';
@@ -41,6 +42,10 @@ const followUpStepSchema = z.object({
 });
 
 const DEFAULT_HELP_KEYWORDS = ['problema', 'ajuda', 'atendente', 'humano'];
+const DEFAULT_WAITING_ACK_MESSAGE = 'Olá, já estou te atendendo, um momento.';
+const DEFAULT_HUMAN_RELEASE_KEYWORD = '#ia';
+const DEFAULT_IDLE_CLOSE_MESSAGE =
+  'Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.';
 
 const journeySchema = z.object({
   enabled: z.boolean(),
@@ -52,6 +57,12 @@ const journeySchema = z.object({
   helpAutoEscalate: z.boolean(),
   helpAckMessage: z.string().max(500).optional().nullable(),
   purchaseWebhookEnabled: z.boolean(),
+  waitingAckEnabled: z.boolean(),
+  waitingAckMessage: z.string().max(500),
+  humanReleaseKeyword: z.string().max(80),
+  idleCloseEnabled: z.boolean(),
+  idleCloseMinutes: z.number().min(1).max(1440),
+  idleCloseMessage: z.string().max(500),
   helpNotificationPhone: z.string(),
   helpNotificationIgnoreReplies: z.boolean(),
 });
@@ -165,6 +176,12 @@ export function JourneyTab({
       helpAutoEscalate: journeyConfig?.helpAutoEscalate ?? true,
       helpAckMessage: journeyConfig?.helpAckMessage ?? 'Aguarde, vou chamar alguém para te ajudar!',
       purchaseWebhookEnabled: journeyConfig?.purchaseWebhookEnabled ?? true,
+      waitingAckEnabled: journeyConfig?.waitingAckEnabled ?? true,
+      waitingAckMessage: journeyConfig?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE,
+      humanReleaseKeyword: journeyConfig?.humanReleaseKeyword ?? DEFAULT_HUMAN_RELEASE_KEYWORD,
+      idleCloseEnabled: journeyConfig?.idleCloseEnabled ?? true,
+      idleCloseMinutes: journeyConfig?.idleCloseMinutes ?? 60,
+      idleCloseMessage: journeyConfig?.idleCloseMessage ?? DEFAULT_IDLE_CLOSE_MESSAGE,
       helpNotificationPhone: notificationConfig?.helpNotificationPhone ?? '',
       helpNotificationIgnoreReplies:
         notificationConfig?.helpNotificationIgnoreReplies ?? true,
@@ -201,6 +218,12 @@ export function JourneyTab({
         helpAutoEscalate: data.helpAutoEscalate,
         helpAckMessage: data.helpAckMessage,
         purchaseWebhookEnabled: data.purchaseWebhookEnabled,
+        waitingAckEnabled: data.waitingAckEnabled,
+        waitingAckMessage: data.waitingAckMessage,
+        humanReleaseKeyword: data.humanReleaseKeyword,
+        idleCloseEnabled: data.idleCloseEnabled,
+        idleCloseMinutes: data.idleCloseMinutes,
+        idleCloseMessage: data.idleCloseMessage,
       });
     },
     onSuccess: () => {
@@ -254,6 +277,36 @@ export function JourneyTab({
           <div className="flex justify-between py-2 border-b border-border">
             <span className="text-muted-foreground">Steps de follow-up</span>
             <span>{journeyConfig?.followUpSteps?.filter((s) => s.active).length ?? 0}</span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-border">
+            <span className="text-muted-foreground">Saudação de espera</span>
+            <span>{(journeyConfig?.waitingAckEnabled ?? true) ? 'Sim' : 'Não'}</span>
+          </div>
+          <div className="flex justify-between gap-4 py-2 border-b border-border">
+            <span className="text-muted-foreground shrink-0">Texto da saudação</span>
+            <span className="text-right">
+              {journeyConfig?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE}
+            </span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-border">
+            <span className="text-muted-foreground">Termo para devolver à IA</span>
+            <span>
+              {(journeyConfig?.humanReleaseKeyword ?? DEFAULT_HUMAN_RELEASE_KEYWORD) || '—'}
+            </span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-border">
+            <span className="text-muted-foreground">Encerrar por silêncio</span>
+            <span>{(journeyConfig?.idleCloseEnabled ?? true) ? 'Sim' : 'Não'}</span>
+          </div>
+          <div className="flex justify-between py-2 border-b border-border">
+            <span className="text-muted-foreground">Minutos de silêncio</span>
+            <span>{journeyConfig?.idleCloseMinutes ?? 60}</span>
+          </div>
+          <div className="flex justify-between gap-4 py-2 border-b border-border">
+            <span className="text-muted-foreground shrink-0">Texto de encerramento</span>
+            <span className="text-right">
+              {journeyConfig?.idleCloseMessage ?? DEFAULT_IDLE_CLOSE_MESSAGE}
+            </span>
           </div>
         </div>
 
@@ -549,6 +602,90 @@ export function JourneyTab({
             <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
               <FormLabel>Escalação automática por keyword</FormLabel>
               <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="waitingAckEnabled"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
+              <FormLabel>Saudação de espera</FormLabel>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="waitingAckMessage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Texto da saudação</FormLabel>
+              <FormControl>
+                <Textarea rows={2} maxLength={500} {...field} />
+              </FormControl>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="humanReleaseKeyword"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Termo para devolver à IA</FormLabel>
+              <FormControl>
+                <Input maxLength={80} {...field} />
+              </FormControl>
+              <FormDescription>
+                A mensagem inteira do atendente, visível para o cliente.
+              </FormDescription>
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="idleCloseEnabled"
+          render={({ field }) => (
+            <FormItem className="flex items-center justify-between rounded-lg border border-border p-3">
+              <FormLabel>Encerrar por silêncio</FormLabel>
+              <Switch checked={field.value} onCheckedChange={field.onChange} />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="idleCloseMinutes"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Minutos de silêncio</FormLabel>
+              <FormControl>
+                <Input
+                  type="number"
+                  min={1}
+                  max={1440}
+                  {...field}
+                  onChange={(e) => field.onChange(+e.target.value)}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
+          name="idleCloseMessage"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Texto de encerramento</FormLabel>
+              <FormControl>
+                <Textarea rows={2} maxLength={500} {...field} />
+              </FormControl>
             </FormItem>
           )}
         />

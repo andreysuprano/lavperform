@@ -46,6 +46,11 @@ const delayFromItems = [
   { value: 'PREVIOUS_STEP', label: 'Step anterior' },
 ]
 
+const DEFAULT_WAITING_ACK_MESSAGE = 'Olá, já estou te atendendo, um momento.'
+const DEFAULT_HUMAN_RELEASE_KEYWORD = '#ia'
+const DEFAULT_IDLE_CLOSE_MESSAGE =
+  'Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.'
+
 interface JourneyFormData {
   enabled: boolean
   journeyTrigger: JourneyTrigger
@@ -56,8 +61,20 @@ interface JourneyFormData {
   helpAutoEscalate: boolean
   helpAckMessage: string
   purchaseWebhookEnabled: boolean
+  waitingAckEnabled: boolean
+  waitingAckMessage: string
+  humanReleaseKeyword: string
+  idleCloseEnabled: boolean
+  idleCloseMinutes: number
+  idleCloseMessage: string
   helpNotificationPhone: string
   helpNotificationIgnoreReplies: boolean
+}
+
+function clampIdleMinutes(value: number): number {
+  const minutes = Number(value)
+  if (!Number.isFinite(minutes)) return 60
+  return Math.min(1440, Math.max(1, Math.trunc(minutes)))
 }
 
 function defaultSteps(): FollowUpStep[] {
@@ -89,6 +106,12 @@ function buildJourneyForm(agent: AIAgent): JourneyFormData {
     helpAckMessage:
       jc?.helpAckMessage ?? 'Aguarde, vou chamar alguém para te ajudar!',
     purchaseWebhookEnabled: jc?.purchaseWebhookEnabled ?? true,
+    waitingAckEnabled: jc?.waitingAckEnabled ?? true,
+    waitingAckMessage: jc?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE,
+    humanReleaseKeyword: jc?.humanReleaseKeyword ?? DEFAULT_HUMAN_RELEASE_KEYWORD,
+    idleCloseEnabled: jc?.idleCloseEnabled ?? true,
+    idleCloseMinutes: jc?.idleCloseMinutes ?? 60,
+    idleCloseMessage: jc?.idleCloseMessage ?? DEFAULT_IDLE_CLOSE_MESSAGE,
     helpNotificationPhone: nc?.helpNotificationPhone
       ? formatTelefone(nc.helpNotificationPhone)
       : '',
@@ -182,6 +205,12 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
     field: { value: purchaseWebhookEnabled, onChange: setPurchaseWebhookEnabled },
   } = useController({ control: form.control, name: 'purchaseWebhookEnabled' })
   const {
+    field: { value: waitingAckEnabled, onChange: setWaitingAckEnabled },
+  } = useController({ control: form.control, name: 'waitingAckEnabled' })
+  const {
+    field: { value: idleCloseEnabled, onChange: setIdleCloseEnabled },
+  } = useController({ control: form.control, name: 'idleCloseEnabled' })
+  const {
     field: {
       value: helpNotificationIgnoreReplies,
       onChange: setHelpNotificationIgnoreReplies,
@@ -237,6 +266,12 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
         helpAutoEscalate: values.helpAutoEscalate,
         helpAckMessage: values.helpAckMessage || null,
         purchaseWebhookEnabled: values.purchaseWebhookEnabled,
+        waitingAckEnabled: values.waitingAckEnabled,
+        waitingAckMessage: values.waitingAckMessage,
+        humanReleaseKeyword: values.humanReleaseKeyword,
+        idleCloseEnabled: values.idleCloseEnabled,
+        idleCloseMinutes: clampIdleMinutes(values.idleCloseMinutes),
+        idleCloseMessage: values.idleCloseMessage,
       },
     })
   }
@@ -446,6 +481,55 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
               label="Escalação automática por palavra-chave"
               checked={!!helpAutoEscalate}
               onChange={setHelpAutoEscalate}
+            />
+
+            <SwitchRow
+              label="Saudação de espera"
+              checked={!!waitingAckEnabled}
+              onChange={setWaitingAckEnabled}
+            />
+
+            <Textarea
+              control={form.control}
+              name="waitingAckMessage"
+              label="Texto da saudação"
+              rows={2}
+              maxLength={500}
+            />
+
+            <Stack gap={1}>
+              <Input
+                control={form.control}
+                name="humanReleaseKeyword"
+                label="Termo para devolver à IA"
+                maxLength={80}
+              />
+              <Text fontSize="xs" color="fg.muted">
+                A mensagem inteira do atendente, visível para o cliente.
+              </Text>
+            </Stack>
+
+            <SwitchRow
+              label="Encerrar por silêncio"
+              checked={!!idleCloseEnabled}
+              onChange={setIdleCloseEnabled}
+            />
+
+            <Input
+              control={form.control}
+              name="idleCloseMinutes"
+              label="Minutos de silêncio"
+              type="number"
+              min={1}
+              max={1440}
+            />
+
+            <Textarea
+              control={form.control}
+              name="idleCloseMessage"
+              label="Texto de encerramento"
+              rows={2}
+              maxLength={500}
             />
 
             <SwitchRow
