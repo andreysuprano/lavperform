@@ -9,6 +9,7 @@ import {
 import { MessageRole } from '../ports/conversation.repository.port';
 import {
   MessageType,
+  type AudioIncomingMessage,
   type ImageIncomingMessage,
   type TextIncomingMessage,
 } from '../types/incoming-message.types';
@@ -162,6 +163,37 @@ describe('WaitingAckService', () => {
     );
 
     expect(sender.send).not.toHaveBeenCalled();
+    expect(redis.set).not.toHaveBeenCalled();
+  });
+
+  it('envia a saudação de um áudio cuja transcrição é palavra de ajuda', async () => {
+    const { text: _text, ...base } = textMessage();
+    const audio: AudioIncomingMessage = {
+      ...base,
+      type: MessageType.AUDIO,
+      mediaUrl: 'https://cdn.example/voz.ogg',
+      mimeType: 'audio/ogg',
+    };
+
+    await service.maybeSend(
+      audio,
+      publicAgent({
+        enabled: true,
+        helpAutoEscalate: true,
+        helpKeywords: ['ajuda'],
+        filterConfig: filterConfig({
+          triggerEnabled: true,
+          triggerWords: ['ajuda'],
+        }),
+      }),
+      { dedupe: false, triggerText: 'preciso de ajuda' },
+    );
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(sender.send).toHaveBeenCalledWith(
+      expect.objectContaining({ chatId: 'chat-1' }),
+      { type: 'text', text: WAITING_ACK_DEFAULT },
+    );
     expect(redis.set).not.toHaveBeenCalled();
   });
 

@@ -1,9 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import {
-  MessageType,
   type AudioIncomingMessage,
   type IncomingMessage,
-  type TextIncomingMessage,
 } from '../types/incoming-message.types';
 import { MessageHandlerPort } from './message-handler.port';
 import { MessageNormalizerService } from '../services/message-normalizer.service';
@@ -57,25 +55,10 @@ export class AudioMessageHandler implements MessageHandlerPort {
       `[AUDIO] agent=${agent.id} | sender=${prompt.context.senderPhone} | transcrição="${finalUserMessage.slice(0, 80)}"`,
     );
 
-    const transcribed: TextIncomingMessage = {
-      webhookEventId: msg.webhookEventId,
-      companyId: msg.companyId,
-      messageId: msg.messageId,
-      chatId: msg.chatId,
-      senderId: msg.senderId,
-      senderName: msg.senderName,
-      senderPhone: msg.senderPhone,
-      isFromMe: msg.isFromMe,
-      wasSentByApi: msg.wasSentByApi,
-      isGroup: msg.isGroup,
-      groupName: msg.groupName,
-      timestamp: msg.timestamp,
-      instanceName: msg.instanceName,
-      instanceToken: msg.instanceToken,
-      type: MessageType.TEXT,
-      text: prompt.triggerText,
-    };
-    await this.waitingAck.maybeSend(transcribed, agent, { dedupe: false });
+    await this.waitingAck.maybeSend(msg, agent, {
+      dedupe: false,
+      triggerText: prompt.triggerText,
+    });
 
     // 4. Upsert da conversa
     const conversation = await this.conversationRepository.upsert({

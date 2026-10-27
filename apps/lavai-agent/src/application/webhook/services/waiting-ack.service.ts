@@ -69,7 +69,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
   async maybeSend(
     message: IncomingMessage,
     agent: AgentWithConfigsData,
-    options?: { dedupe: boolean },
+    options?: { dedupe: boolean; triggerText?: string },
   ): Promise<void> {
     if (message.chatId.startsWith(PLAYGROUND_CHAT_PREFIX)) return;
     if (!agent.active || agent.kind !== AgentKind.PUBLIC) return;
@@ -81,7 +81,10 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
     if (this.isIgnoredNotificationPhone(message, agent)) return;
     if (!this.passesAudience(message, agent)) return;
 
-    const trigger = this.filter.checkTrigger(this.triggerText(message), agent);
+    const trigger = this.filter.checkTrigger(
+      options?.triggerText ?? this.triggerText(message),
+      agent,
+    );
     if (!trigger.allowed) return;
     if (this.isHelpEscalation(message, agent)) return;
 
@@ -186,6 +189,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
     message: IncomingMessage,
     agent: AgentWithConfigsData,
   ): boolean {
+    // Áudio, imagem e vídeo não usam a palavra de ajuda, mesmo com transcrição ou legenda.
     if (message.type !== MessageType.TEXT) return false;
     const journey = agent.journeyConfig;
     if (!journey?.enabled || !journey.helpAutoEscalate) return false;

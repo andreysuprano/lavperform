@@ -40,17 +40,18 @@ export class ReceiveWebhookUseCase {
 
     await this.sendWaitingAck(rawPayload, webhookEventId, companyId, agentId);
 
-    const { isText, chatId } = this.parseMinimal(rawPayload);
+    const { bufferText, chatId } = this.parseMinimal(rawPayload);
 
     let jobId: string;
-    if (isText && chatId) {
-      // Mensagens de texto passam pelo buffer para agrupar envios rápidos consecutivos
+    if (bufferText && chatId) {
+      // Texto do cliente ou do aparelho humano entra no buffer.
+      // Eco da API (wasSentByApi) segue direto para a fila.
       jobId = await this.messageBuffer.addToBuffer(webhookEventId, agentId, chatId);
       this.logger.log(
         `[ReceiveWebhook] Evento adicionado ao buffer | webhookEventId=${webhookEventId} | chatId=${chatId}`,
       );
     } else {
-      // Áudio, imagem, vídeo e tipos desconhecidos são processados imediatamente
+      // Áudio, imagem, vídeo, eco da API e tipos desconhecidos são processados imediatamente
       jobId = await this.queue.enqueue(webhookEventId, agentId);
       this.logger.log(
         `[ReceiveWebhook] Job enfileirado diretamente | jobId=${jobId} | webhookEventId=${webhookEventId}`,
@@ -95,19 +96,20 @@ export class ReceiveWebhookUseCase {
   }
 
   /**
-   * Extrai apenas o tipo e o chatId do payload bruto.
-   * Evita acoplamento com um WebhookProviderPort específico nesta camada.
+   * Extrai o que decide o buffer sem acoplar esta camada a um provider.
+   * Texto com wasSentByApi não entra no lote: a fila deixa o filtro descartar o eco.
    */
-  private parseMinimal(rawPayload: string): { isText: boolean; chatId: string } {
+  private parseMinimal(rawPayload: string): { bufferText: boolean; chatId: string } {
     try {
       const body = JSON.parse(rawPayload) as Record<string, unknown>;
       const message = body.message as Record<string, unknown> | undefined;
+      const sentByApi = message?.wasSentByApi === true;
       return {
-        isText: message?.type === 'text',
+        bufferText: message?.type === 'text' && !sentByApi,
         chatId: (message?.chatid as string | undefined) ?? '',
       };
     } catch {
-      return { isText: false, chatId: '' };
+      return { bufferText: false, chatId: '' };
     }
   }
 }
