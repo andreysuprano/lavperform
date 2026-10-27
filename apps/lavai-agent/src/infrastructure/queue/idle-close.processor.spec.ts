@@ -71,7 +71,18 @@ describe('IdleCloseProcessor', () => {
       agentId: 'agent-1',
       anchorMessageId: 'anchor-1',
     },
+    async updateData(data: IdleCloseJobData) {
+      this.data = data;
+    },
   } as Job<IdleCloseJobData>;
+
+  beforeEach(() => {
+    job.data = {
+      conversationId: 'conv-1',
+      agentId: 'agent-1',
+      anchorMessageId: 'anchor-1',
+    };
+  });
 
   function buildAgent(
     journeyOverrides: Partial<AgentJourneyConfigData> = {},
@@ -333,6 +344,31 @@ describe('IdleCloseProcessor', () => {
 
     expect(conversationRepo.addMessage).not.toHaveBeenCalled();
     expect(journeyRepo.updateStatus).not.toHaveBeenCalled();
+  });
+
+  it('não reenvia quando addMessage falha depois do send e fecha no retry', async () => {
+    const { processor, sender, journeyRepo, conversationRepo } = createHarness();
+    journeyRepo.findByConversationId.mockResolvedValue(activeJourney);
+    conversationRepo.addMessage.mockRejectedValueOnce(
+      new Error('falha ao gravar'),
+    );
+
+    await expect(processor.process(job)).rejects.toThrow('falha ao gravar');
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(conversationRepo.addMessage).toHaveBeenCalledTimes(1);
+    expect(journeyRepo.updateStatus).not.toHaveBeenCalled();
+    expect(job.data.closeTextSent).toBe(true);
+
+    await processor.process(job);
+
+    expect(sender.send).toHaveBeenCalledTimes(1);
+    expect(conversationRepo.addMessage).toHaveBeenCalledTimes(2);
+    expect(journeyRepo.updateStatus).toHaveBeenCalledTimes(1);
+    expect(journeyRepo.updateStatus).toHaveBeenCalledWith(
+      'journey-1',
+      'CLOSED',
+    );
   });
 
   it('não encerra em atendimento humano', async () => {

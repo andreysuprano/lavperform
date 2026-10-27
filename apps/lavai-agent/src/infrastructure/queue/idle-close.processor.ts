@@ -136,14 +136,17 @@ export class IdleCloseProcessor extends WorkerHost {
         return;
       }
 
-      await this.messageSender.send(
-        {
-          instanceName: conversation.instanceName,
-          instanceToken: conversation.instanceToken,
-          chatId: conversation.chatId,
-        },
-        { type: 'text', text: closeText },
-      );
+      if (!job.data.closeTextSent) {
+        await this.messageSender.send(
+          {
+            instanceName: conversation.instanceName,
+            instanceToken: conversation.instanceToken,
+            chatId: conversation.chatId,
+          },
+          { type: 'text', text: closeText },
+        );
+        await job.updateData({ ...job.data, closeTextSent: true });
+      }
 
       await this.conversationRepo.addMessage({
         conversationId,

@@ -4,6 +4,7 @@ export interface IdleCloseJobData {
   conversationId: string;
   agentId: string;
   anchorMessageId: string;
+  closeTextSent?: boolean;
 }
 
 export function buildIdleCloseJobId(conversationId: string): string {
