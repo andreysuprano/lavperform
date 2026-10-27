@@ -83,6 +83,27 @@ export class PrismaConversationRepository implements ConversationRepositoryPort 
     return rows.reverse().map(this.mapMessage);
   }
 
+  async findMessageById(id: string): Promise<ConversationMessageData | null> {
+    const row = await this.prisma.conversationMessage.findUnique({
+      where: { id },
+    });
+    return row ? this.mapMessage(row) : null;
+  }
+
+  async findMessagesAfter(
+    conversationId: string,
+    after: Date,
+  ): Promise<ConversationMessageData[]> {
+    const rows = await this.prisma.conversationMessage.findMany({
+      where: {
+        conversationId,
+        createdAt: { gt: after },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => this.mapMessage(row));
+  }
+
   async addMessage(input: AddMessageInput): Promise<ConversationMessageData> {
     const row = await this.prisma.conversationMessage.create({
       data: {

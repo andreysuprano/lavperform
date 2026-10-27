@@ -107,6 +107,17 @@ export interface ConversationRepositoryPort {
    */
   findRecentMessages(conversationId: string, limit: number): Promise<ConversationMessageData[]>;
 
+  findMessageById(id: string): Promise<ConversationMessageData | null>;
+
+  /**
+   * Mensagens da conversa com `createdAt` estritamente posterior a `after`,
+   * em ordem cronológica.
+   */
+  findMessagesAfter(
+    conversationId: string,
+    after: Date,
+  ): Promise<ConversationMessageData[]>;
+
   addMessage(input: AddMessageInput): Promise<ConversationMessageData>;
 
   /**
