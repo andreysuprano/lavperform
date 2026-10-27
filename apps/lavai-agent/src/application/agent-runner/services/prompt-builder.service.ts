@@ -103,8 +103,12 @@ export class PromptBuilderService {
       },
     ];
 
+    const visibleHistory = history.filter(
+      (message) => message.originalType !== 'WAITING_ACK',
+    );
+
     const tokenBudget = Math.floor(maxTokens * 0.75);
-    const trimmedHistory = this.trimHistory(history, tokenBudget);
+    const trimmedHistory = this.trimHistory(visibleHistory, tokenBudget);
 
     for (const msg of trimmedHistory) {
       const role =
