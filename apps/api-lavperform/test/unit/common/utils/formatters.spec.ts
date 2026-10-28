@@ -5,6 +5,11 @@ describe('formatPhoneNumber', () => {
     expect(formatPhoneNumber('5511999999999')).toBe('5511999999999');
   });
 
+  it('trata 55 inicial de 10 ou 11 dígitos como DDD, não como país', () => {
+    expect(formatPhoneNumber('(55) 99987-2474')).toBe('5555999872474');
+    expect(formatPhoneNumber('(55) 3226-7227')).toBe('5555932267227');
+  });
+
   it('adds country code and preserves leading 9 for 11 digit numbers', () => {
     expect(formatPhoneNumber('(11) 99999-8888')).toBe('5511999998888');
   });

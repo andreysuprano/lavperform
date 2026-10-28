@@ -23,6 +23,13 @@ export function windelReplayRange(now: Date = new Date()): {
   };
 }
 
+export function windelCustomersJobId(
+  companyId: string,
+  now: Date = new Date(),
+): string {
+  return `windel-customers:${companyId}:${utcDateOnly(now)}`;
+}
+
 export function windelLookbackJobId(
   companyId: string,
   date: string,

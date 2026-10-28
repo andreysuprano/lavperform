@@ -13,6 +13,7 @@ import { IDigitalMenuIntegrationRepository } from '../../../partners/domain/digi
 import { CustomerIdentityService } from '../../../customers/application/customer-identity.service';
 import { OrderService } from '../../../orders/application/order.service';
 import { toDateOnlyString } from '../../../common/utils/date.utils';
+import { safeFormatPhoneNumber } from '../../../common/utils/formatters';
 import {
   buildUtcDateOnlyRange,
   resolveImportDateRange,
@@ -37,6 +38,7 @@ import {
   WINDEL_AUTH_BLOCK_TTL_SECONDS,
   windelAuthBlockKey,
 } from '../windel-auth-block';
+import { windelCustomersJobId } from '../windel-lookback';
 
 function isIntegratorOrderIdUniqueConflict(error: unknown): boolean {
   const err = error as { code?: string; meta?: { target?: unknown } };
@@ -68,6 +70,50 @@ function firstFilled(
     }
   }
   return undefined;
+}
+
+function firstValidPhone(
+  ...values: Array<string | null | undefined>
+): string | undefined {
+  for (const value of values) {
+    const text = filled(value);
+    if (text && safeFormatPhoneNumber(text)) {
+      return text;
+    }
+  }
+  return undefined;
+}
+
+function windelClientIncoming(person: WindelPerson): {
+  name: string;
+  phone?: string;
+  cpf?: string;
+  email?: string;
+} | null {
+  const phone = firstValidPhone(person.telefoneContato, person.telefone);
+  const cpf = filled(person.cpfCnpj);
+  if (!phone && !cpf) {
+    return null;
+  }
+  const incoming: {
+    name: string;
+    phone?: string;
+    cpf?: string;
+    email?: string;
+  } = {
+    name: firstFilled(person.nome, person.fantasia) ?? 'Cliente',
+  };
+  if (phone) {
+    incoming.phone = phone;
+  }
+  if (cpf) {
+    incoming.cpf = cpf;
+  }
+  const email = filled(person.email);
+  if (email) {
+    incoming.email = email;
+  }
+  return incoming;
 }
 
 @Injectable()
@@ -290,6 +336,62 @@ export class WindelSalesService {
   }
 
   /**
+   * Grava o cadastro de clientes da Windel. A lista já traz telefone e CPF;
+   * pessoa sem os dois não vira cliente.
+   */
+  async syncCustomers(companyId: string): Promise<void> {
+    const partner = await this.prisma.partner.findUnique({
+      where: { partnerSlug: 'WINDEL' },
+    });
+    if (!partner) {
+      throw new Error('Partner WINDEL não encontrado no sistema');
+    }
+
+    const integration =
+      await this.digitalMenuIntegrationRepository.findByCompanyAndPartner(
+        companyId,
+        partner.id,
+      );
+    if (!integration?.merchantId || !integration.apiKey) {
+      this.logger.warn(
+        `Integração Windel incompleta para sincronizar clientes da empresa ${companyId}`,
+      );
+      return;
+    }
+
+    if (await this.authIsBlocked(companyId)) {
+      this.logger.warn(`Login Windel bloqueado para empresa ${companyId}`);
+      return;
+    }
+
+    const session = await this.windelService.openSession({
+      email: integration.merchantId,
+      password: integration.apiKey,
+    });
+    const people = await session.listClients();
+    this.logger.log(
+      `${people.length} clientes Windel listados para empresa ${companyId}`,
+    );
+
+    let saved = 0;
+    for (const person of people) {
+      const incoming = windelClientIncoming(person);
+      if (!incoming) {
+        continue;
+      }
+      await this.customerIdentityService.resolveForSale({
+        companyId,
+        incoming,
+      });
+      saved += 1;
+    }
+
+    this.logger.log(
+      `${saved} clientes Windel gravados para empresa ${companyId}`,
+    );
+  }
+
+  /**
    * Importa ordens históricas retroativas (padrão: 90 dias).
    */
   async importHistoricalSales(
@@ -357,6 +459,15 @@ export class WindelSalesService {
       const dates = buildUtcDateOnlyRange(startDate, endDate);
 
       let jobsCreated = 0;
+      const customersJob = await enqueueSalesImportJob(
+        this.windelSalesQueue,
+        QUEUE_NAMES.WINDEL_SALES_IMPORT,
+        { companyId, syncCustomers: true },
+        buildSalesImportJobOptions(windelCustomersJobId(companyId)),
+      );
+      if (customersJob === 'queued') {
+        jobsCreated++;
+      }
       for (const date of dates) {
         const result = await enqueueSalesImportJob(
           this.windelSalesQueue,

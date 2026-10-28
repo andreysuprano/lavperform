@@ -8,7 +8,12 @@ import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 const PROCESS_METADATA = 'bull:module_queue_process';
 
 function salesJob(
-  data: { companyId: string; date?: string; backfill90?: boolean },
+  data: {
+    companyId: string;
+    date?: string;
+    backfill90?: boolean;
+    syncCustomers?: boolean;
+  },
   attemptsMade: number,
 ): Job {
   return {
@@ -80,6 +85,27 @@ describe('WindelSalesProcessor', () => {
       windelReplayRange(),
     );
     expect(windelSalesService.processDailySales).not.toHaveBeenCalled();
+  });
+
+  it('sincroniza o cadastro quando o job pede clientes', async () => {
+    const windelSalesService = {
+      processDailySales: jest.fn(),
+      importHistoricalSales: jest.fn(),
+      syncCustomers: jest.fn().mockResolvedValue(undefined),
+    };
+    const alert = { notify: jest.fn() };
+    const processor = new WindelSalesProcessor(
+      windelSalesService as any,
+      alert as any,
+    );
+
+    await processor.processSalesImport(
+      salesJob({ companyId: 'company-1', syncCustomers: true }, 0),
+    );
+
+    expect(windelSalesService.syncCustomers).toHaveBeenCalledWith('company-1');
+    expect(windelSalesService.processDailySales).not.toHaveBeenCalled();
+    expect(windelSalesService.importHistoricalSales).not.toHaveBeenCalled();
   });
 
   it('avisa o alerta na última falha do catch-up e relança o erro', async () => {

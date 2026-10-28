@@ -9,7 +9,9 @@ export interface WindelLoginResponse {
 }
 
 export interface WindelPerson {
+  id?: number;
   nome?: string;
+  fantasia?: string;
   telefone?: string;
   telefoneContato?: string;
   email?: string;
@@ -55,7 +57,7 @@ export interface WindelServiceOrderSummary {
   pessoa?: { id?: number } | null;
 }
 
-export interface WindelListResponse {
-  list: WindelServiceOrderSummary[];
+export interface WindelListResponse<T = WindelServiceOrderSummary> {
+  list: T[];
   count: number;
 }

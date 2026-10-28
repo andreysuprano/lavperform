@@ -13,6 +13,7 @@ import {
 } from 'src/integrations/sales-import/sales-import-schedule';
 import {
   WINDEL_LOOKBACK_DAYS,
+  windelCustomersJobId,
   windelLookbackJobId,
 } from 'src/integrations/windel/windel-lookback';
 
@@ -197,7 +198,16 @@ describe('WindelSalesTasks', () => {
 
     await tasks.handleLookback();
 
-    expect(mockQueue.add).toHaveBeenCalledTimes(companies.length * WINDEL_LOOKBACK_DAYS);
+    expect(mockQueue.add).toHaveBeenCalledTimes(
+      companies.length * WINDEL_LOOKBACK_DAYS + companies.length,
+    );
+    expect(mockQueue.add).toHaveBeenCalledWith(
+      QUEUE_NAMES.WINDEL_SALES_IMPORT,
+      { companyId: 'company-1', syncCustomers: true },
+      expect.objectContaining({
+        jobId: windelCustomersJobId('company-1', NOW),
+      }),
+    );
     expect(mockQueue.add).toHaveBeenCalledWith(
       QUEUE_NAMES.WINDEL_SALES_IMPORT,
       { companyId: 'company-1', date: '2026-09-03' },

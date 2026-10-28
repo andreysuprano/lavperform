@@ -18,6 +18,7 @@ import { RedisService } from '../../../common/redis/redis.service';
 import { windelAuthBlockKey } from '../windel-auth-block';
 import {
   WINDEL_LOOKBACK_DAYS,
+  windelCustomersJobId,
   windelLookbackDates,
   windelLookbackJobId,
 } from '../windel-lookback';
@@ -114,6 +115,12 @@ export class WindelSalesTasks {
           );
           continue;
         }
+        await enqueueSalesImportJob(
+          this.windelSalesQueue,
+          QUEUE_NAMES.WINDEL_SALES_IMPORT,
+          { companyId: company.id, syncCustomers: true },
+          buildSalesImportJobOptions(windelCustomersJobId(company.id, now)),
+        );
         for (const date of dates) {
           await enqueueSalesImportJob(
             this.windelSalesQueue,

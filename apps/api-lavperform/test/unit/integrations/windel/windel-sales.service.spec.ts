@@ -1,5 +1,7 @@
 import { Logger } from '@nestjs/common';
+import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { WindelSalesService } from 'src/integrations/windel/application/windel-sales.service';
+import { windelCustomersJobId } from 'src/integrations/windel/windel-lookback';
 import { WindelServiceOrderDetail } from 'src/integrations/windel/api/windel.types';
 import { windelIntegratorOrderId, windelSaleToOrder } from 'src/integrations/windel/mappings/windel-sale-mapping';
 
@@ -35,6 +37,7 @@ function buildOrder(
 describe('WindelSalesService', () => {
   const session = {
     listAttendedOrders: jest.fn(),
+    listClients: jest.fn(),
     getOrder: jest.fn(),
     getPerson: jest.fn(),
   };
@@ -321,5 +324,64 @@ describe('WindelSalesService', () => {
     });
     orderService.create.mockRejectedValueOnce(missingTarget);
     await expect(service.processSale('company-1', order, person)).rejects.toBe(missingTarget);
+  });
+
+  it('grava o cadastro de clientes e ignora quem não tem telefone nem CPF', async () => {
+    repository.findByCompanyAndPartner.mockResolvedValue({
+      merchantId: 'loja@example.com',
+      apiKey: 'secret',
+    });
+    session.listClients.mockResolvedValue([
+      {
+        nome: 'Ana',
+        telefone: '(55) 3226-7227',
+        telefoneContato: '(55) 99987-2474',
+        email: 'ana@example.com',
+        cpfCnpj: '810.772.890-49',
+      },
+      { nome: 'Sem contato', fantasia: 'Loja' },
+      { fantasia: 'Só fantasia', cpfCnpj: '123' },
+    ]);
+
+    await service.syncCustomers('company-1');
+
+    expect(session.listClients).toHaveBeenCalledTimes(1);
+    expect(customerIdentityService.resolveForSale).toHaveBeenCalledTimes(2);
+    expect(customerIdentityService.resolveForSale).toHaveBeenNthCalledWith(1, {
+      companyId: 'company-1',
+      incoming: {
+        name: 'Ana',
+        phone: '(55) 99987-2474',
+        cpf: '810.772.890-49',
+        email: 'ana@example.com',
+      },
+    });
+    expect(customerIdentityService.resolveForSale).toHaveBeenNthCalledWith(2, {
+      companyId: 'company-1',
+      incoming: { name: 'Só fantasia', cpf: '123' },
+    });
+  });
+
+  it('enfileira a carga de clientes junto com os dias do histórico', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-02T14:10:00.000Z'));
+    salesImportQueue.add.mockResolvedValue({ id: 'job-1', timestamp: 1 });
+    salesImportQueue.getJob.mockResolvedValue(null);
+
+    const result = await service.importHistoricalSales(
+      'company-1',
+      { startDate: '2026-10-02', endDate: '2026-10-02' },
+      { merchantId: 'loja@example.com', apiKey: 'secret' } as any,
+    );
+
+    expect(salesImportQueue.add).toHaveBeenCalledWith(
+      QUEUE_NAMES.WINDEL_SALES_IMPORT,
+      { companyId: 'company-1', syncCustomers: true },
+      expect.objectContaining({
+        jobId: windelCustomersJobId('company-1', new Date('2026-10-02T14:10:00.000Z')),
+      }),
+    );
+    expect(result.jobsCreated).toBe(2);
+    expect(result.totalDays).toBe(1);
   });
 });

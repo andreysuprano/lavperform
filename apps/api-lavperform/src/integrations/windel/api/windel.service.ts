@@ -17,8 +17,10 @@ import {
 
 const DEFAULT_BASE_URL = 'https://new-winback-prod.windel.com.br/api';
 export const WINDEL_DOC_PATH = 'v1/docs/service-order';
+export const WINDEL_PEOPLE_PATH = 'v1/people';
 export const WINDEL_ATTENDED = 'Atendido';
 const PAGE_SIZE = 25;
+const PEOPLE_PAGE_SIZE = 100;
 
 export class WindelMfaRequiredError extends Error {
   constructor() {
@@ -36,6 +38,7 @@ export class WindelLoginRejectedError extends Error {
 
 export interface WindelApiSession {
   listAttendedOrders(date: string): Promise<WindelServiceOrderSummary[]>;
+  listClients(): Promise<WindelPerson[]>;
   getOrder(id: number): Promise<WindelServiceOrderDetail>;
   getPerson(pessoaId: number): Promise<WindelPerson>;
 }
@@ -59,6 +62,7 @@ export class WindelService {
     return {
       listAttendedOrders: (date) =>
         run((token) => this.listWithToken(token, date)),
+      listClients: () => run((token) => this.listClientsWithToken(token)),
       getOrder: (id) =>
         run((token) =>
           this.get<WindelServiceOrderDetail>(token, `/${WINDEL_DOC_PATH}/${id}`),
@@ -74,6 +78,12 @@ export class WindelService {
   ): Promise<WindelServiceOrderSummary[]> {
     return this.withSession(credentials, (token) =>
       this.listWithToken(token, date),
+    );
+  }
+
+  async listClients(credentials: WindelCredentials): Promise<WindelPerson[]> {
+    return this.withSession(credentials, (token) =>
+      this.listClientsWithToken(token),
     );
   }
 
@@ -111,6 +121,38 @@ export class WindelService {
       );
     }
     return orders;
+  }
+
+  private async listClientsWithToken(token: string): Promise<WindelPerson[]> {
+    const people: WindelPerson[] = [];
+    let page = 1;
+    let count = 0;
+    do {
+      const response = await this.get<WindelListResponse<WindelPerson>>(
+        token,
+        `/${WINDEL_PEOPLE_PATH}`,
+        {
+          cliente: 'true',
+          sort: 'id',
+          sortOrder: 'asc',
+          page,
+          pageSize: PEOPLE_PAGE_SIZE,
+        },
+      );
+      count = response.count ?? 0;
+      const list = response.list ?? [];
+      people.push(...list);
+      page += 1;
+      if (list.length >= PEOPLE_PAGE_SIZE && people.length < count) {
+        await sleep(DEFAULT_PARTNER_HTTP_DELAY_MS);
+      }
+    } while (people.length < count && page < 1000);
+    if (page >= 1000 && people.length < count) {
+      this.logger.warn(
+        `Listagem de clientes Windel parou em 1000 páginas com ${people.length} de ${count}`,
+      );
+    }
+    return people;
   }
 
   async getOrder(

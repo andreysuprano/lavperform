@@ -5,8 +5,13 @@ export const formatPhoneNumber = (phone: string): string => {
 
   const onlyNumbers = phone.replace(/\D/g, '');
 
-  // Se o número já começar com 55, mantém
-  if (onlyNumbers.startsWith('55')) {
+  // País 55 + DDD + número tem 12 (fixo) ou 13 (móvel) dígitos.
+  // 10 ou 11 dígitos começando com 55 são o DDD 55, como em Santa Maria.
+  const alreadyHasCountryCode =
+    onlyNumbers.startsWith('55') &&
+    (onlyNumbers.length === 12 || onlyNumbers.length === 13 || onlyNumbers.length > 13);
+
+  if (alreadyHasCountryCode) {
     return onlyNumbers;
   }
 

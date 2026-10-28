@@ -69,6 +69,49 @@ describe('WindelService', () => {
     );
   });
 
+  it('lista o cadastro de clientes com cliente=true e pagina até o count', async () => {
+    jest.useFakeTimers();
+    const http = httpDouble();
+    http.post.mockReturnValue(of({ data: { token: 'tok-1' } }));
+    const page = Array.from({ length: 100 }, (_, index) => ({
+      id: index + 1,
+      nome: 'Ana',
+      telefone: '11999999999',
+    }));
+    http.get
+      .mockReturnValueOnce(of({ data: { list: page, count: 101 } }))
+      .mockReturnValueOnce(
+        of({ data: { list: [{ id: 101, nome: 'Bia', telefoneContato: '11888888888' }], count: 101 } }),
+      );
+    const service = new WindelService(http as any);
+
+    const pending = service.listClients(credentials);
+    const assertion = expect(pending).resolves.toHaveLength(101);
+    await jest.advanceTimersByTimeAsync(400);
+    await assertion;
+
+    expect(http.get).toHaveBeenNthCalledWith(
+      1,
+      'https://windel.example/api/v1/people',
+      expect.objectContaining({
+        params: expect.objectContaining({
+          cliente: 'true',
+          sort: 'id',
+          sortOrder: 'asc',
+          page: 1,
+          pageSize: 100,
+        }),
+      }),
+    );
+    expect(http.get).toHaveBeenNthCalledWith(
+      2,
+      'https://windel.example/api/v1/people',
+      expect.objectContaining({
+        params: expect.objectContaining({ page: 2, pageSize: 100 }),
+      }),
+    );
+  });
+
   it('falha sem repetir a senha quando o login pede segundo fator', async () => {
     const http = httpDouble();
     http.post.mockReturnValue(of({ data: { mfaObrigatorio: true } }));
