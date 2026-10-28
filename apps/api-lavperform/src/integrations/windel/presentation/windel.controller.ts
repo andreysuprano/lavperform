@@ -22,7 +22,7 @@ export class WindelController {
   @ApiOperation({
     summary: 'Importar vendas históricas da Windel',
     description:
-      'Importa ordens de serviço atendidas retroativas (padrão: últimos 90 dias) para processamento. Ideal para onboarding de novos clientes.',
+      'Importa o cadastro de clientes da Windel e as ordens de serviço atendidas do período (padrão: últimos 90 dias).',
   })
   @ApiParam({
     name: 'companyId',

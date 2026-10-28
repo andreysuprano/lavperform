@@ -14,6 +14,7 @@ interface WindelSalesJobData {
   companyId: string;
   date?: string;
   backfill90?: boolean;
+  syncCustomers?: boolean;
 }
 
 function isWindelAuthStop(error: unknown): boolean {
@@ -40,9 +41,17 @@ export class WindelSalesProcessor {
 
   @Process({ name: QUEUE_NAMES.WINDEL_SALES_IMPORT, concurrency: 1 })
   async processSalesImport(job: Job<WindelSalesJobData>) {
-    const { companyId, date, backfill90 } = job.data;
+    const { companyId, date, backfill90, syncCustomers } = job.data;
 
     try {
+      if (syncCustomers) {
+        this.logger.log(
+          `Sincronizando clientes Windel da empresa ${companyId}`,
+        );
+        await this.windelSalesService.syncCustomers(companyId);
+        return;
+      }
+
       if (backfill90) {
         this.logger.log(
           `Processando reexecução de 30 dias Windel para empresa ${companyId}`,
