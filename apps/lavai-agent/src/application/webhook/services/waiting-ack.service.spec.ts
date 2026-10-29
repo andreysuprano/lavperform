@@ -1,6 +1,5 @@
 import { WaitingAckService } from './waiting-ack.service';
 import { MessageFilterService } from './message-filter.service';
-import { WAITING_ACK_DEFAULT } from '../../agent/attendance-defaults';
 import {
   AgentKind,
   type AgentFilterConfigData,
@@ -13,6 +12,8 @@ import {
   type ImageIncomingMessage,
   type TextIncomingMessage,
 } from '../types/incoming-message.types';
+
+const CONFIGURED_ACK = 'Um momento.';
 
 describe('WaitingAckService', () => {
   const redis = {
@@ -49,13 +50,24 @@ describe('WaitingAckService', () => {
     takeover.isInTakeover.mockResolvedValue(false);
   });
 
+  it('não envia quando a saudação está vazia', async () => {
+    await service.maybeSend(
+      textMessage(),
+      publicAgent({ waitingAckMessage: '' }),
+      { dedupe: true },
+    );
+
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(conversations.addMessage).not.toHaveBeenCalled();
+  });
+
   it('envia a saudação, grava WAITING_ACK e reserva a chave por 120s', async () => {
     await service.maybeSend(textMessage(), publicAgent(), { dedupe: true });
 
     expect(sender.send).toHaveBeenCalledTimes(1);
     expect(sender.send).toHaveBeenCalledWith(
       { instanceName: 'inst-1', instanceToken: 'tok-1', chatId: 'chat-1' },
-      { type: 'text', text: WAITING_ACK_DEFAULT },
+      { type: 'text', text: CONFIGURED_ACK },
     );
     expect(redis.set).toHaveBeenCalledWith(
       'waiting-ack:agent-1:chat-1',
@@ -80,7 +92,7 @@ describe('WaitingAckService', () => {
     expect(conversations.addMessage).toHaveBeenCalledWith({
       conversationId: 'conv-1',
       role: MessageRole.ASSISTANT,
-      content: WAITING_ACK_DEFAULT,
+      content: CONFIGURED_ACK,
       originalType: 'WAITING_ACK',
     });
   });
@@ -192,7 +204,7 @@ describe('WaitingAckService', () => {
     expect(sender.send).toHaveBeenCalledTimes(1);
     expect(sender.send).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: 'chat-1' }),
-      { type: 'text', text: WAITING_ACK_DEFAULT },
+      { type: 'text', text: CONFIGURED_ACK },
     );
     expect(redis.set).not.toHaveBeenCalled();
   });
@@ -219,7 +231,7 @@ describe('WaitingAckService', () => {
     expect(sender.send).toHaveBeenCalledTimes(1);
     expect(sender.send).toHaveBeenCalledWith(
       expect.objectContaining({ chatId: 'chat-1' }),
-      { type: 'text', text: WAITING_ACK_DEFAULT },
+      { type: 'text', text: CONFIGURED_ACK },
     );
     expect(redis.set).not.toHaveBeenCalled();
     expect(conversations.addMessage).toHaveBeenCalledWith(
@@ -356,7 +368,7 @@ function publicAgent(
       helpAckMessage: null,
       purchaseWebhookEnabled: false,
       waitingAckEnabled: overrides.waitingAckEnabled ?? true,
-      waitingAckMessage: overrides.waitingAckMessage ?? WAITING_ACK_DEFAULT,
+      waitingAckMessage: overrides.waitingAckMessage ?? CONFIGURED_ACK,
       humanReleaseKeyword: '#ia',
       idleCloseEnabled: false,
       idleCloseMinutes: 30,
