@@ -34,10 +34,13 @@ export interface BaseIncomingMessage {
   isFromMe: boolean;
   /**
    * A mensagem foi enviada via API (pelo próprio bot/automação)?
-   * Quando false e isFromMe é true, significa que foi o atendente
-   * humano quem digitou manualmente no dispositivo.
+   * Quando false e isFromMe é true, pode ser o atendente no aparelho.
    */
   wasSentByApi: boolean;
+  /**
+   * Fluxo, agente ou outra automação da conta. Não é uma pessoa digitando.
+   */
+  sentByAutomation?: boolean;
   /** A mensagem veio de um grupo? */
   isGroup: boolean;
   /** Nome do grupo (preenchido apenas quando isGroup = true). */
