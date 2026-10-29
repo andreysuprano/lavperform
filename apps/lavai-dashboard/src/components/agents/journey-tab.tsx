@@ -42,7 +42,7 @@ const followUpStepSchema = z.object({
 });
 
 const DEFAULT_HELP_KEYWORDS = ['problema', 'ajuda', 'atendente', 'humano'];
-const DEFAULT_WAITING_ACK_MESSAGE = 'Olá, já estou te atendendo, um momento.';
+const DEFAULT_WAITING_ACK_MESSAGE = '';
 const DEFAULT_HUMAN_RELEASE_KEYWORD = '#ia';
 const DEFAULT_IDLE_CLOSE_MESSAGE =
   'Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.';
@@ -176,7 +176,7 @@ export function JourneyTab({
       helpAutoEscalate: journeyConfig?.helpAutoEscalate ?? true,
       helpAckMessage: journeyConfig?.helpAckMessage ?? 'Aguarde, vou chamar alguém para te ajudar!',
       purchaseWebhookEnabled: journeyConfig?.purchaseWebhookEnabled ?? true,
-      waitingAckEnabled: journeyConfig?.waitingAckEnabled ?? true,
+      waitingAckEnabled: journeyConfig?.waitingAckEnabled ?? false,
       waitingAckMessage: journeyConfig?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE,
       humanReleaseKeyword: journeyConfig?.humanReleaseKeyword ?? DEFAULT_HUMAN_RELEASE_KEYWORD,
       idleCloseEnabled: journeyConfig?.idleCloseEnabled ?? true,
@@ -280,12 +280,12 @@ export function JourneyTab({
           </div>
           <div className="flex justify-between py-2 border-b border-border">
             <span className="text-muted-foreground">Saudação de espera</span>
-            <span>{(journeyConfig?.waitingAckEnabled ?? true) ? 'Sim' : 'Não'}</span>
+            <span>{(journeyConfig?.waitingAckEnabled ?? false) ? 'Sim' : 'Não'}</span>
           </div>
           <div className="flex justify-between gap-4 py-2 border-b border-border">
             <span className="text-muted-foreground shrink-0">Texto da saudação</span>
             <span className="text-right">
-              {journeyConfig?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE}
+              {journeyConfig?.waitingAckMessage?.trim() || '—'}
             </span>
           </div>
           <div className="flex justify-between py-2 border-b border-border">
@@ -626,6 +626,9 @@ export function JourneyTab({
               <FormControl>
                 <Textarea rows={2} maxLength={500} {...field} />
               </FormControl>
+              <FormDescription>
+                Em branco, nada é enviado. A frase só sai se estiver preenchida aqui.
+              </FormDescription>
             </FormItem>
           )}
         />

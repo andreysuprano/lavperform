@@ -1,7 +1,7 @@
 import { AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
 import { MessageRole } from '../../webhook/ports/conversation.repository.port';
-import { IDLE_CLOSE_DEFAULT, WAITING_ACK_DEFAULT } from '../../agent/attendance-defaults';
+import { IDLE_CLOSE_DEFAULT } from '../../agent/attendance-defaults';
 import { PromptBuilderService } from './prompt-builder.service';
 
 function agent(): AgentWithConfigsData {
@@ -109,7 +109,7 @@ describe('PromptBuilderService', () => {
         id: 'm2',
         conversationId: 'conv-1',
         role: MessageRole.ASSISTANT,
-        content: WAITING_ACK_DEFAULT,
+        content: 'Um momento.',
         originalType: 'WAITING_ACK',
         createdAt: new Date(),
       },
@@ -126,7 +126,7 @@ describe('PromptBuilderService', () => {
     const messages = builder.build(agent(), history, [], 'Nova mensagem');
     const contents = messages.map((message) => message.content);
 
-    expect(contents).not.toContain(WAITING_ACK_DEFAULT);
+    expect(contents).not.toContain('Um momento.');
     expect(contents).toContain(IDLE_CLOSE_DEFAULT);
   });
 });

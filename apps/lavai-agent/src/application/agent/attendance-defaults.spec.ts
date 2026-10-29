@@ -9,7 +9,7 @@ import {
 
 describe('attendance defaults', () => {
   it('guarda os textos aprovados', () => {
-    expect(WAITING_ACK_DEFAULT).toBe('Olá, já estou te atendendo, um momento.');
+    expect(WAITING_ACK_DEFAULT).toBe('');
     expect(RELEASE_KEYWORD_DEFAULT).toBe('#ia');
     expect(IDLE_CLOSE_DEFAULT).toBe(
       'Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.',

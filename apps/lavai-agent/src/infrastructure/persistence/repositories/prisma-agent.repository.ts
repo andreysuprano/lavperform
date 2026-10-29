@@ -236,7 +236,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
         helpAutoEscalate: input.helpAutoEscalate ?? true,
         helpAckMessage: input.helpAckMessage ?? null,
         purchaseWebhookEnabled: input.purchaseWebhookEnabled ?? true,
-        waitingAckEnabled: input.waitingAckEnabled ?? true,
+        waitingAckEnabled: input.waitingAckEnabled ?? false,
         waitingAckMessage: input.waitingAckMessage ?? WAITING_ACK_DEFAULT,
         humanReleaseKeyword: input.humanReleaseKeyword ?? RELEASE_KEYWORD_DEFAULT,
         idleCloseEnabled: input.idleCloseEnabled ?? true,

@@ -46,7 +46,7 @@ const delayFromItems = [
   { value: 'PREVIOUS_STEP', label: 'Step anterior' },
 ]
 
-const DEFAULT_WAITING_ACK_MESSAGE = 'Olá, já estou te atendendo, um momento.'
+const DEFAULT_WAITING_ACK_MESSAGE = ''
 const DEFAULT_HUMAN_RELEASE_KEYWORD = '#ia'
 const DEFAULT_IDLE_CLOSE_MESSAGE =
   'Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.'
@@ -106,7 +106,7 @@ function buildJourneyForm(agent: AIAgent): JourneyFormData {
     helpAckMessage:
       jc?.helpAckMessage ?? 'Aguarde, vou chamar alguém para te ajudar!',
     purchaseWebhookEnabled: jc?.purchaseWebhookEnabled ?? true,
-    waitingAckEnabled: jc?.waitingAckEnabled ?? true,
+    waitingAckEnabled: jc?.waitingAckEnabled ?? false,
     waitingAckMessage: jc?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE,
     humanReleaseKeyword: jc?.humanReleaseKeyword ?? DEFAULT_HUMAN_RELEASE_KEYWORD,
     idleCloseEnabled: jc?.idleCloseEnabled ?? true,
@@ -489,13 +489,18 @@ function JourneyTabBase({ agent }: JourneyTabProps) {
               onChange={setWaitingAckEnabled}
             />
 
-            <Textarea
-              control={form.control}
-              name="waitingAckMessage"
-              label="Texto da saudação"
-              rows={2}
-              maxLength={500}
-            />
+            <Stack gap={1}>
+              <Textarea
+                control={form.control}
+                name="waitingAckMessage"
+                label="Texto da saudação"
+                rows={2}
+                maxLength={500}
+              />
+              <Text fontSize="xs" color="fg.muted">
+                Em branco, nada é enviado. A frase só sai se estiver preenchida aqui.
+              </Text>
+            </Stack>
 
             <Stack gap={1}>
               <Input
