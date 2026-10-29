@@ -50,7 +50,12 @@ export class UazapiWebhookAdapter implements WebhookProviderPort {
       senderName: message.senderName,
       senderPhone: this.normalizePhone(message.sender_pn ?? message.sender),
       isFromMe: message.fromMe,
-      wasSentByApi: message.wasSentByApi,
+      wasSentByApi: message.wasSentByApi === true,
+      sentByAutomation: Boolean(
+        message.sendFunction ||
+          message.ai_metadata?.agent_id ||
+          message.ai_metadata?.flow_id,
+      ),
       isGroup: message.isGroup,
       groupName: message.groupName,
       timestamp: message.messageTimestamp,

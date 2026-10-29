@@ -124,6 +124,62 @@ describe('MessageFilterService', () => {
     expect(humanRelease.release).not.toHaveBeenCalled();
   });
 
+  it('responde o cliente mesmo com espera de atendente ativa', async () => {
+    humanTakeover.isInTakeover.mockResolvedValue(true);
+    const agent = {
+      id: 'agent-1',
+      filterConfig: null,
+      notificationConfig: null,
+    } as unknown as AgentWithConfigsData;
+
+    const result = await service.checkAccess(
+      { ...baseMessage, isFromMe: false, text: 'como funciona?' },
+      agent,
+    );
+
+    expect(result.allowed).toBe(true);
+  });
+
+  it('não coloca o chat em espera quando a conta manda o cartão de saudação', async () => {
+    const agent = {
+      id: 'agent-1',
+      filterConfig: null,
+      notificationConfig: null,
+      journeyConfig: { humanReleaseKeyword: '#ia' },
+    } as unknown as AgentWithConfigsData;
+    const card = 'Seja bem vindo(a). '.repeat(12);
+
+    const result = await service.checkAccess(
+      { ...baseMessage, isFromMe: true, wasSentByApi: false, text: card },
+      agent,
+    );
+
+    expect(result.allowed).toBe(false);
+    expect(humanTakeover.setTakeover).not.toHaveBeenCalled();
+    expect(idleClose.cancelChat).not.toHaveBeenCalled();
+  });
+
+  it('não coloca o chat em espera quando a mensagem é de um fluxo', async () => {
+    const agent = {
+      id: 'agent-1',
+      filterConfig: null,
+      notificationConfig: null,
+    } as unknown as AgentWithConfigsData;
+
+    await service.checkAccess(
+      {
+        ...baseMessage,
+        isFromMe: true,
+        wasSentByApi: false,
+        sentByAutomation: true,
+        text: 'Olá',
+      },
+      agent,
+    );
+
+    expect(humanTakeover.setTakeover).not.toHaveBeenCalled();
+  });
+
   it('não cancela o prazo quando a mensagem saiu pela API', async () => {
     const agent = {
       id: 'agent-1',
