@@ -73,7 +73,7 @@ interface JourneyFormData {
 
 function clampIdleMinutes(value: number): number {
   const minutes = Number(value)
-  if (!Number.isFinite(minutes)) return 60
+  if (!Number.isFinite(minutes)) return 20
   return Math.min(1440, Math.max(1, Math.trunc(minutes)))
 }
 
@@ -110,7 +110,7 @@ function buildJourneyForm(agent: AIAgent): JourneyFormData {
     waitingAckMessage: jc?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE,
     humanReleaseKeyword: jc?.humanReleaseKeyword ?? DEFAULT_HUMAN_RELEASE_KEYWORD,
     idleCloseEnabled: jc?.idleCloseEnabled ?? true,
-    idleCloseMinutes: jc?.idleCloseMinutes ?? 60,
+    idleCloseMinutes: jc?.idleCloseMinutes ?? 20,
     idleCloseMessage: jc?.idleCloseMessage ?? DEFAULT_IDLE_CLOSE_MESSAGE,
     helpNotificationPhone: nc?.helpNotificationPhone
       ? formatTelefone(nc.helpNotificationPhone)

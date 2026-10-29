@@ -3,6 +3,7 @@ import { plainToInstance } from 'class-transformer';
 import { UpdateAgentJourneyConfigDto } from './dtos/update-agent-journey-config.dto';
 import {
   IDLE_CLOSE_DEFAULT,
+  IDLE_CLOSE_MINUTES_DEFAULT,
   RELEASE_KEYWORD_DEFAULT,
   WAITING_ACK_DEFAULT,
 } from './attendance-defaults';
@@ -11,6 +12,7 @@ describe('attendance defaults', () => {
   it('guarda os textos aprovados', () => {
     expect(WAITING_ACK_DEFAULT).toBe('');
     expect(RELEASE_KEYWORD_DEFAULT).toBe('#ia');
+    expect(IDLE_CLOSE_MINUTES_DEFAULT).toBe(20);
     expect(IDLE_CLOSE_DEFAULT).toBe(
       'Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.',
     );

@@ -30,6 +30,7 @@ import {
 } from '../../../application/agent/ports/agent.repository.port';
 import {
   IDLE_CLOSE_DEFAULT,
+  IDLE_CLOSE_MINUTES_DEFAULT,
   RELEASE_KEYWORD_DEFAULT,
   WAITING_ACK_DEFAULT,
 } from '../../../application/agent/attendance-defaults';
@@ -240,7 +241,7 @@ export class PrismaAgentRepository implements AgentRepositoryPort {
         waitingAckMessage: input.waitingAckMessage ?? WAITING_ACK_DEFAULT,
         humanReleaseKeyword: input.humanReleaseKeyword ?? RELEASE_KEYWORD_DEFAULT,
         idleCloseEnabled: input.idleCloseEnabled ?? true,
-        idleCloseMinutes: input.idleCloseMinutes ?? 60,
+        idleCloseMinutes: input.idleCloseMinutes ?? IDLE_CLOSE_MINUTES_DEFAULT,
         idleCloseMessage: input.idleCloseMessage ?? IDLE_CLOSE_DEFAULT,
       },
     });
