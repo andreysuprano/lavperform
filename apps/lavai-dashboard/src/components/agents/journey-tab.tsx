@@ -180,7 +180,7 @@ export function JourneyTab({
       waitingAckMessage: journeyConfig?.waitingAckMessage ?? DEFAULT_WAITING_ACK_MESSAGE,
       humanReleaseKeyword: journeyConfig?.humanReleaseKeyword ?? DEFAULT_HUMAN_RELEASE_KEYWORD,
       idleCloseEnabled: journeyConfig?.idleCloseEnabled ?? true,
-      idleCloseMinutes: journeyConfig?.idleCloseMinutes ?? 60,
+      idleCloseMinutes: journeyConfig?.idleCloseMinutes ?? 20,
       idleCloseMessage: journeyConfig?.idleCloseMessage ?? DEFAULT_IDLE_CLOSE_MESSAGE,
       helpNotificationPhone: notificationConfig?.helpNotificationPhone ?? '',
       helpNotificationIgnoreReplies:
@@ -300,7 +300,7 @@ export function JourneyTab({
           </div>
           <div className="flex justify-between py-2 border-b border-border">
             <span className="text-muted-foreground">Minutos de silêncio</span>
-            <span>{journeyConfig?.idleCloseMinutes ?? 60}</span>
+            <span>{journeyConfig?.idleCloseMinutes ?? 20}</span>
           </div>
           <div className="flex justify-between gap-4 py-2 border-b border-border">
             <span className="text-muted-foreground shrink-0">Texto de encerramento</span>

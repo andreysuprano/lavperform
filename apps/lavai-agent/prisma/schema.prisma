@@ -337,7 +337,7 @@ model AgentJourneyConfig {
   waitingAckMessage      String         @default("") @map("waiting_ack_message")
   humanReleaseKeyword    String         @default("#ia") @map("human_release_keyword")
   idleCloseEnabled       Boolean        @default(true) @map("idle_close_enabled")
-  idleCloseMinutes       Int            @default(60) @map("idle_close_minutes")
+  idleCloseMinutes       Int            @default(20) @map("idle_close_minutes")
   idleCloseMessage       String         @default("Vou encerrar este atendimento por falta de retorno. Quando precisar, é só enviar uma nova mensagem.") @map("idle_close_message")
   createdAt              DateTime       @default(now()) @map("created_at")
   updatedAt              DateTime       @updatedAt @map("updated_at")
