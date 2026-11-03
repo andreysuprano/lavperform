@@ -10,6 +10,17 @@ import { LinkPageDto } from '../application/dto/link-page-dto';
 export class LinkPageController {
   constructor(private readonly linkPageService: LinkPageService) { }
 
+  @Get('/:companySlug/page/:pageSlug')
+  @ApiOperation({ summary: 'Obter uma página pública específica' })
+  @ApiParam({ name: 'companySlug', description: 'Slug da empresa' })
+  @ApiParam({ name: 'pageSlug', description: 'Slug da página' })
+  getLinkPageByPage(
+    @Param('companySlug') companySlug: string,
+    @Param('pageSlug') pageSlug: string,
+  ) {
+    return this.linkPageService.getLinkPageByPage(companySlug, pageSlug);
+  }
+
   @Get('/:slug')
   @ApiOperation({ summary: 'Obter dados da Página de Links' })
   @ApiParam({ name: 'slug', description: 'Slug da empresa' })

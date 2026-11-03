@@ -1,10 +1,15 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, Suspense, useEffect, type ReactNode } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 
 import { AppLayout, LoadingState } from '@/components'
+import { useAuth } from '@/context/AuthContext'
 import { DetailClientsPage } from '@/pages/customers/DetailClientsPage'
 import { RfvAttributionWindowPage } from '@/pages/customers/RfvAttributionWindowPage'
 import { RequireAdmin } from '@/routes/RequireAdmin'
+import {
+  trafficHomePath,
+  trafficRouteRedirect,
+} from '@/utils/tracking/traffic-access'
 import { RequireDefaultTheme } from '@/routes/RequireDefaultTheme'
 import { WhitelabelRoutes } from '@/whitelabel/routes/whitelabel.routes'
 
@@ -179,11 +184,54 @@ const FoodAdsOverviewPage = lazy(() =>
     default: module.FoodAdsOverviewPage,
   }))
 )
+const TrafficReportPage = lazy(() =>
+  import('@/pages/traffic/TrafficReportPage').then((module) => ({
+    default: module.TrafficReportPage,
+  }))
+)
+const PixelPage = lazy(() =>
+  import('@/pages/traffic/PixelPage').then((module) => ({
+    default: module.PixelPage,
+  }))
+)
+const TagManagerPage = lazy(() =>
+  import('@/pages/traffic/TagManagerPage').then((module) => ({
+    default: module.TagManagerPage,
+  }))
+)
 const FoodAdsCampaignsPage = lazy(() =>
   import('@/pages/foodads/FoodAdsCampaignsPage').then((module) => ({
     default: module.FoodAdsCampaignsPage,
   }))
 )
+
+function HomeRedirect() {
+  const { selectedCompany } = useAuth()
+  return (
+    <Navigate
+      replace
+      to={trafficHomePath(selectedCompany?.permissions)}
+    />
+  )
+}
+
+function TrafficScreen({ children }: { children: ReactNode }) {
+  const { selectedCompany } = useAuth()
+  const location = useLocation()
+  const redirect = trafficRouteRedirect(
+    selectedCompany?.permissions,
+    location.pathname
+  )
+  if (redirect) {
+    return (
+      <Navigate
+        replace
+        to={redirect}
+      />
+    )
+  }
+  return children
+}
 
 function LayoutWrapper() {
   const location = useLocation()
@@ -206,13 +254,40 @@ export function PrivateRoutes() {
     <Routes>
       <Route element={<LayoutWrapper />}>
         <Route
-          element={
-            <Navigate
-              replace
-              to="/dashboard"
-            />
-          }
+          element={<HomeRedirect />}
           path="/"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <TrafficReportPage />
+            </TrafficScreen>
+          }
+          path="/trafego"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <TrafficReportPage />
+            </TrafficScreen>
+          }
+          path="/trafego/conexao"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <PixelPage />
+            </TrafficScreen>
+          }
+          path="/trafego/pixel"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <TagManagerPage />
+            </TrafficScreen>
+          }
+          path="/trafego/gtm"
         />
         <Route
           element={<Home />}
@@ -421,6 +496,10 @@ export function PrivateRoutes() {
           path="/whitelabel/*"
         />
       </Route>
+      <Route
+        element={<ClientPage />}
+        path="/p/:slug/:pageSlug"
+      />
       <Route
         element={<ClientPage />}
         path="/p/:slug"

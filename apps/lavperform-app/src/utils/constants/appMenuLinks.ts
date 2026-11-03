@@ -1,15 +1,19 @@
 import { GrCycle, GrGraphQl, GrTarget } from 'react-icons/gr'
 import {
+  LuActivity,
   LuBrain,
   LuCalendarSync,
+  LuChartColumn,
   LuChartColumnBig,
   LuClock,
   LuCoins,
   LuDollarSign,
   LuLayoutTemplate,
   LuList,
+  LuMegaphone,
   LuPlug,
   LuRadio,
+  LuTag,
   LuTimer,
   LuUserRound,
   LuWallet,
@@ -36,6 +40,31 @@ export const MENU_ITEMS = [
     icon: RiDashboardLine,
     href: '/dashboard',
     isNew: false,
+  },
+  {
+    label: 'Meta ADS',
+    icon: LuMegaphone,
+    href: '/trafego',
+    isNew: false,
+    links: [
+      {
+        label: 'Relatório de tráfego',
+        href: '/trafego',
+        icon: LuChartColumn,
+      },
+      {
+        label: 'Pixel',
+        href: '/trafego/pixel',
+        icon: LuActivity,
+        badge: 'Em breve',
+      },
+      {
+        label: 'Tag Manager',
+        href: '/trafego/gtm',
+        icon: LuTag,
+        badge: 'Em breve',
+      },
+    ],
   },
   {
     label: 'Fidelização e Recorrência',

@@ -1,4 +1,4 @@
-import { Circle, HStack, Icon, Text, VStack } from '@chakra-ui/react'
+import { Badge, Circle, HStack, Icon, Text, VStack } from '@chakra-ui/react'
 import { memo } from 'react'
 import { NavLink } from 'react-router-dom'
 
@@ -98,6 +98,14 @@ function AppSubMenuBase({ currentMenuItem, location }: PropsSubmenu) {
                 >
                   {link.label}
                 </Text>
+                {link.badge && (
+                  <Badge
+                    colorPalette="gray"
+                    variant="subtle"
+                  >
+                    {link.badge}
+                  </Badge>
+                )}
               </NavLink>
             </HStack>
           ))}

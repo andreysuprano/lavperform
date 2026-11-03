@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Circle,
@@ -253,6 +254,14 @@ const MobileMenu = memo(
                                   >
                                     {link.label}
                                   </Text>
+                                  {'badge' in link && link.badge && (
+                                    <Badge
+                                      colorPalette="gray"
+                                      variant="subtle"
+                                    >
+                                      {link.badge}
+                                    </Badge>
+                                  )}
                                 </NavLink>
                               </HStack>
                             ))

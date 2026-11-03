@@ -332,6 +332,11 @@ export const queryKeys = {
         ] as const,
     },
   },
+
+  traffic: {
+    pixel: (companyId: string) => ['traffic', 'pixel', companyId] as const,
+    gtm: (companyId: string) => ['traffic', 'gtm', companyId] as const,
+  },
 }
 
 export const invalidateQueries = {
