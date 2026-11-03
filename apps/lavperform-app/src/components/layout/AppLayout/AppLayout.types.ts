@@ -6,7 +6,9 @@ export type PropsSubmenu = {
   currentMenuItem: {
     label: string
     icon: any
-    links: { label: string; href: string; icon: any }[] | undefined
+    links:
+      | { label: string; href: string; icon: any; badge?: string }[]
+      | undefined
     href: string
   }
   open: boolean

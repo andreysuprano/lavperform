@@ -29,5 +29,7 @@ export * from './whatsapp'
 // Company Page
 export * from './company-page'
 
+export * from './traffic'
+
 // Channels
 export * from './channels'

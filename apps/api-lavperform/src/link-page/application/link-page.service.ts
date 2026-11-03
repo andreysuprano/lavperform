@@ -4,6 +4,7 @@ import { ILinkPageRepository } from '../domain/link-page.repository.interface';
 import { ILinkRepository } from '../domain/link.repository.interface';
 import { IGalleryRepository } from '../domain/gallery.repository.interface';
 import { ICompanyRepository } from '../../companies/domain/company.repository.interface';
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class LinkPageService {
@@ -18,6 +19,7 @@ export class LinkPageService {
     private readonly galleryRepository: IGalleryRepository,
     @Inject('ICompanyRepository')
     private readonly companyRepository: ICompanyRepository,
+    private readonly prisma: PrismaService,
   ) {
     this.logger = new Logger(LinkPageService.name);
   }
@@ -29,7 +31,24 @@ export class LinkPageService {
       throw new NotFoundException('Empresa não encontrada');
     }
 
-    return company;
+    return this.withPublicTracking(company);
+  }
+
+  async getLinkPageByPage(companySlug: string, _pageSlug: string) {
+    return this.getLinkPage(companySlug);
+  }
+
+  private async withPublicTracking(company: { id: string }) {
+    const [pixel, gtm] = await Promise.all([
+      this.prisma.companyMetaPixel.findUnique({ where: { companyId: company.id } }),
+      this.prisma.companyGtmContainer.findUnique({ where: { companyId: company.id } }),
+    ]);
+
+    return {
+      ...company,
+      metaPixelId: pixel?.enabled ? pixel.pixelId : null,
+      gtmContainerId: gtm?.enabled ? gtm.containerId : null,
+    };
   }
 
   async updateLinkPage(slug: string, linkPageDto: LinkPageDto) {

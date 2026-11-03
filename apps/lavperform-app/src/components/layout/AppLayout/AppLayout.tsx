@@ -26,6 +26,7 @@ import {
   MENU_ITEMS,
 } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
+import { withoutTrafficMenu } from '@/utils/tracking/traffic-access'
 import { WHITELABEL_MENU_ITEMS } from '@/whitelabel/constants'
 
 import { Header } from './AppHeader'
@@ -75,8 +76,8 @@ function getMenuItemMatchScore(item: MenuItemLike, pathname: string) {
   return -1
 }
 
-function getActiveMenuItem(items: MenuItemLike[], pathname: string) {
-  let best: MenuItemLike | undefined
+function getActiveMenuItem<T extends MenuItemLike>(items: T[], pathname: string) {
+  let best: T | undefined
   let bestScore = -1
 
   for (const item of items) {
@@ -152,8 +153,14 @@ function AppLayoutBase({ children }: Props) {
       metaAvailability?.available === true
     )
 
-    return items
-  }, [hasLandingPage, isAdmin, isWhitelabelActive, metaAvailability?.available])
+    return withoutTrafficMenu(items, selectedCompany?.permissions)
+  }, [
+    hasLandingPage,
+    isAdmin,
+    isWhitelabelActive,
+    metaAvailability?.available,
+    selectedCompany?.permissions,
+  ])
 
   const handleLogout = useCallback(() => {
     signOut()

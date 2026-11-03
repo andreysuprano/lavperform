@@ -10,6 +10,17 @@ export const organizationPageService = {
       throw error
     }
   },
+  async getByPageSlug(companySlug: string, pageSlug: string) {
+    try {
+      const response = await client.get(
+        `/link-page/${companySlug}/page/${pageSlug}`
+      )
+      return response.data
+    } catch (error) {
+      console.error('❌ Erro no linkPageService.getByPageSlug:', error)
+      throw error
+    }
+  },
   async createOrUpdate(payload: any) {
     try {
       const slug = payload.slug
