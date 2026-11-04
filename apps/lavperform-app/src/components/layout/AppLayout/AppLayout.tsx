@@ -108,11 +108,11 @@ function AppLayoutBase({ children }: Props) {
       } else {
         items.push(...whitelabelItems)
       }
-    } else {
-      const ajustesIndex = items.findIndex((item) => item.href === '/settings')
-      const insertAt = ajustesIndex === -1 ? items.length : ajustesIndex + 1
-      items.splice(insertAt, 0, ...FOODCRM_MENU_ITEMS)
     }
+
+    const ajustesIndex = items.findIndex((item) => item.href === '/settings')
+    const myPageAt = ajustesIndex === -1 ? items.length : ajustesIndex + 1
+    items.splice(myPageAt, 0, ...FOODCRM_MENU_ITEMS)
     
     if (isAdmin) {
       items.push(...ADMIN_MENU_ITEM)

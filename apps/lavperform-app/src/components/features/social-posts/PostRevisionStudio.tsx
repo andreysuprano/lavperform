@@ -19,6 +19,7 @@ import {
   LuRefreshCw,
   LuSend,
   LuSparkles,
+  LuTriangleAlert,
   LuUndo2,
 } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
@@ -209,12 +210,14 @@ export function PostRevisionStudio({
             position="relative"
             w="full"
           >
-            <PostArtwork
-              brand={brand}
-              format={draft.format}
-              slide={selected.slides[0]}
-              testId="revision-preview"
-            />
+            <Box opacity={pending ? 0 : 1}>
+              <PostArtwork
+                brand={brand}
+                format={draft.format}
+                slide={selected.slides[0]}
+                testId="revision-preview"
+              />
+            </Box>
             {viewingPast && (
               <Button
                 bottom={3}
@@ -231,7 +234,7 @@ export function PostRevisionStudio({
             {pending && (
               <Flex
                 align="center"
-                bg="whiteAlpha.900"
+                bg="white"
                 borderRadius="xl"
                 data-testid="revision-pending"
                 direction="column"
@@ -278,7 +281,8 @@ export function PostRevisionStudio({
                 color="#5B6B78"
                 fontSize="xs"
               >
-                {versions.length} versões
+                {versions.length}{' '}
+                {versions.length === 1 ? 'versão' : 'versões'}
               </Text>
             </Stack>
             {versions.map((version) => {
@@ -292,16 +296,16 @@ export function PostRevisionStudio({
                     borderColor={current ? '#7BC9F1' : '#E4E7EB'}
                     borderWidth={current ? '2px' : '1px'}
                     data-testid={`version-${version.number}`}
-                    h="60px"
+                    h="90px"
                     onClick={() => onSelectVersion(variation.id, version.id)}
                     overflow="hidden"
                     p={0}
                     variant="outline"
-                    w="48px"
+                    w="72px"
                   >
                     <Box
                       pointerEvents="none"
-                      w="48px"
+                      w="72px"
                     >
                       <PostArtwork
                         brand={brand}
@@ -434,14 +438,25 @@ export function PostRevisionStudio({
                 p={3}
                 role="alert"
               >
-                <Text
-                  color="#8E2A20"
-                  fontSize="sm"
-                  fontWeight="medium"
+                <HStack
+                  align="flex-start"
+                  gap={2}
                 >
-                  Não consegui gerar a nova versão. A V{latest?.number} continua
-                  intacta.
-                </Text>
+                  <Box
+                    color="#C2410C"
+                    mt="0.5"
+                  >
+                    <LuTriangleAlert />
+                  </Box>
+                  <Text
+                    color="#8E2A20"
+                    fontSize="sm"
+                    fontWeight="medium"
+                  >
+                    Não consegui gerar a nova versão. A V{latest?.number}{' '}
+                    continua intacta.
+                  </Text>
+                </HStack>
                 <Button
                   mt={2}
                   onClick={onRetry}

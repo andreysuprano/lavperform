@@ -3,7 +3,10 @@
  * quando não há OPENROUTER_API_KEY real. Não é usado no deploy.
  */
 const TINY =
-  'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==';
+  'data:image/svg+xml;charset=utf-8,' +
+  encodeURIComponent(
+    '<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1350" viewBox="0 0 1080 1350"><defs><linearGradient id="sky" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#E8F6FD"/><stop offset="48%" stop-color="#9AD6F5"/><stop offset="100%" stop-color="#2D7FB0"/></linearGradient></defs><rect width="1080" height="1350" fill="url(#sky)"/><circle cx="220" cy="280" r="120" fill="none" stroke="rgba(255,255,255,0.65)" stroke-width="8"/><circle cx="860" cy="360" r="78" fill="none" stroke="rgba(255,255,255,0.55)" stroke-width="8"/><circle cx="760" cy="980" r="150" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="8"/><rect x="360" y="420" width="360" height="460" rx="72" fill="rgba(255,255,255,0.82)"/></svg>',
+  );
 
 const headlines = [
   'Roupa limpa, sem esforço.',
@@ -58,7 +61,7 @@ global.fetch = async (url, init) => {
           content: JSON.stringify({
             variations: headlines.map((headline, index) => ({
               headline,
-              badgeText: index === 2 ? '20% OFF' : 'Sexta',
+              badgeText: '20% OFF · toda sexta',
               captionShort: 'Edredom com cheirinho de novo.',
               captionMedium:
                 'Edredom com cheirinho de novo, sem você sair de casa. Toda sexta de novembro a lavagem de edredons tem 20% OFF — e a coleta no Batel é por nossa conta.',

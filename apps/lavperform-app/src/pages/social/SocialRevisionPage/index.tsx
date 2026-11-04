@@ -53,6 +53,7 @@ export function SocialRevisionPage() {
   return (
     <AppContentLayout
       icon={<LuSparkles />}
+      iconBg="#E6F5FD"
       title="Revisar post"
     >
       {draft.isLoading || !draft.data ? (

@@ -108,14 +108,16 @@ export function PostBriefingForm({
                 const active = value.objective === objective.value
                 return (
                   <Button
+                    bg={active ? '#E6F5FD' : 'white'}
+                    borderColor={active ? '#7BC9F1' : '#E4E7EB'}
                     borderRadius="full"
-                    colorPalette={active ? 'blue' : 'gray'}
+                    color="#093A58"
                     key={objective.value}
                     onClick={() =>
                       onChange({ ...value, objective: objective.value })
                     }
                     size="sm"
-                    variant={active ? 'solid' : 'outline'}
+                    variant="outline"
                   >
                     {objective.label}
                   </Button>
@@ -238,6 +240,8 @@ export function PostBriefingForm({
               Ctrl + Enter para gerar
             </Text>
             <Button
+              bg="#7BC9F1"
+              color="#093A58"
               data-testid="briefing-generate"
               disabled={!canGenerate}
               loading={generating}

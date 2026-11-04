@@ -124,21 +124,23 @@ function LayerView({
 }) {
   const outline = selected ? '2px solid #7BC9F1' : undefined
   if (layer.type === 'color-band') {
+    const tone = layer.color || '#093A58'
     return (
       <Box
-        bg={layer.color || '#093A58'}
-        h={`${layer.height ?? 44}%`}
+        bg={`linear-gradient(to top, ${tone} 0%, transparent 100%)`}
+        h={`${layer.height ?? 58}%`}
         left={`${layer.x ?? 0}%`}
         onClick={onSelect}
-        opacity={layer.opacity ?? 0.7}
         outline={outline}
         position="absolute"
-        top={`${layer.y ?? 0}%`}
+        top={`${layer.y ?? 42}%`}
         w={`${layer.width ?? 100}%`}
       />
     )
   }
 
+  const anchorLeft = (layer.x ?? 50) < 20
+  const anchorRight = layer.type === 'logo' && (layer.x ?? 50) > 70
   const shared = {
     cursor: interactive && !layer.locked ? 'grab' : 'default',
     left: `${layer.x ?? 50}%`,
@@ -150,15 +152,21 @@ function LayerView({
     outline,
     position: 'absolute' as const,
     top: `${layer.y ?? 50}%`,
-    transform: 'translate(-50%, 0)',
+    transform: anchorRight
+      ? 'translate(-100%, 0)'
+      : anchorLeft
+        ? undefined
+        : 'translate(-50%, 0)',
   }
 
   if (layer.type === 'logo') {
+    const src = logoSrc(brand, layer.logoVariant)
+    if (!src) return null
     return (
       <Image
         alt="Logo da marca"
         maxW="46%"
-        src={logoSrc(brand, layer.logoVariant)}
+        src={src}
         w={`${layer.width ?? 28}%`}
         {...shared}
       />
@@ -176,6 +184,7 @@ function LayerView({
         fontWeight="700"
         px="3"
         py="1"
+        textAlign={anchorLeft ? 'left' : 'center'}
         {...shared}
       >
         {layer.text}
@@ -190,7 +199,7 @@ function LayerView({
       fontSize={`${((layer.fontSize ?? 46) / 1080) * 100}cqw`}
       fontWeight="800"
       lineHeight="1.05"
-      textAlign="center"
+      textAlign={anchorLeft ? 'left' : 'center'}
       w={`${layer.width ?? 86}%`}
       {...shared}
     >

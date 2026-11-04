@@ -9,8 +9,28 @@ async function main() {
   const email = 'marina.e2e@lavperform.local';
   const passwordHash = await bcrypt.hash('Lavperform123!', 10);
 
-  const existing = await prisma.user.findUnique({ where: { email } });
+  const existing = await prisma.user.findUnique({
+    where: { email },
+    include: { userCompanies: true },
+  });
   if (existing) {
+    const companyId = existing.userCompanies[0]?.companyId;
+    if (companyId) {
+      const brand = await prisma.brandIdentity.findUnique({ where: { companyId } });
+      if (!brand) {
+        await prisma.brandIdentity.create({
+          data: {
+            companyId,
+            logoLightUrl: '/samples/bolha-azul-logo.svg',
+          },
+        });
+      } else if (!brand.logoLightUrl) {
+        await prisma.brandIdentity.update({
+          where: { companyId },
+          data: { logoLightUrl: '/samples/bolha-azul-logo.svg' },
+        });
+      }
+    }
     console.log(`seed já existe: ${email}`);
     await prisma.$disconnect();
     await pool.end();
@@ -35,6 +55,13 @@ async function main() {
       phone: '41988887777',
       password: passwordHash,
       userCompanies: { create: { companyId: company.id } },
+    },
+  });
+
+  await prisma.brandIdentity.create({
+    data: {
+      companyId: company.id,
+      logoLightUrl: '/samples/bolha-azul-logo.svg',
     },
   });
 
