@@ -103,6 +103,28 @@ export const socialPostsService = {
       payload
     )
   },
+
+  async addReference(companyId: string, dataUrl: string) {
+    return client.post<{ id: string; dataUrl: string }>(
+      '/social-posts/references',
+      { companyId, dataUrl }
+    )
+  },
+
+  async removeReference(referenceId: string) {
+    return client.delete(`/social-posts/references/${referenceId}`)
+  },
+
+  async reorderReferences(companyId: string, ids: string[]) {
+    return client.patch('/social-posts/references/order', { companyId, ids })
+  },
+
+  async attachReferences(draftId: string, referenceIds: string[]) {
+    return client.post<SocialPostDraft>(
+      `/social-posts/drafts/item/${draftId}/references`,
+      { referenceIds }
+    )
+  },
 }
 
 export function apiErrorMessage(error: unknown, fallback: string) {

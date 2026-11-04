@@ -40,7 +40,7 @@ export class CreateSocialDraftDto {
   @Type(() => Number)
   @IsInt()
   @Min(1)
-  @Max(8)
+  @Max(10)
   slideCount?: number;
 
   @IsIn(ART_STYLES)
@@ -132,7 +132,7 @@ export class UpdateVariationDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @Max(7)
+  @Max(9)
   slideIndex?: number;
 
   @IsOptional()
@@ -181,7 +181,7 @@ export class RegenerateBackgroundDto {
   @Type(() => Number)
   @IsInt()
   @Min(0)
-  @Max(7)
+  @Max(9)
   slideIndex?: number;
 }
 
@@ -199,4 +199,28 @@ export class RevisePostDto {
 export class SelectVersionDto {
   @IsUUID()
   versionId: string;
+}
+
+export class CreateReferenceDto {
+  @IsUUID()
+  companyId: string;
+
+  @IsString()
+  @MaxLength(14_000_000)
+  dataUrl: string;
+}
+
+export class ReorderReferencesDto {
+  @IsUUID()
+  companyId: string;
+
+  @IsArray()
+  @IsUUID('4', { each: true })
+  ids: string[];
+}
+
+export class AttachReferencesDto {
+  @IsArray()
+  @IsUUID('4', { each: true })
+  referenceIds: string[];
 }

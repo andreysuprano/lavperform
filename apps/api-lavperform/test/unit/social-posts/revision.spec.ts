@@ -1,6 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 import {
   applyRevisionToSlides,
+  describeRevision,
   isUselessPrompt,
   parseRevisionPlan,
 } from 'src/social-posts/domain/revision';
@@ -12,6 +13,31 @@ const NEXT =
   'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=';
 
 describe('revisão de post', () => {
+  it('descreve a revisão pelo que mudou, não pela frase do modelo', () => {
+    expect(
+      describeRevision({
+        backgroundChanged: false,
+        headlineBefore: 'Título antigo',
+        headlineAfter: 'Título antigo',
+        captionBefore: 'Uma legenda bem mais longa do que a nova.',
+        captionAfter: 'Legenda curta.',
+        badgeBefore: '20% OFF',
+        badgeAfter: '20% OFF',
+      }),
+    ).toBe('Encurtei a legenda.');
+    expect(
+      describeRevision({
+        backgroundChanged: true,
+        headlineBefore: 'Título',
+        headlineAfter: 'Título novo',
+        captionBefore: 'igual',
+        captionAfter: 'igual',
+        badgeBefore: null,
+        badgeAfter: null,
+      }),
+    ).toBe('Mudei o fundo. Atualizei o título.');
+  });
+
   it('recusa pedido vazio ou sem sentido óbvio antes de chamar o modelo', () => {
     expect(isUselessPrompt('')).toBe(true);
     expect(isUselessPrompt('??')).toBe(true);
@@ -187,7 +213,7 @@ describe('revisão de post', () => {
         nonsense: false,
         regenerateBackground: true,
         backgroundInstruction: 'lighter laundry room',
-        reply: 'Mudei o fundo.',
+        reply: 'Atualizei o título.',
       }),
     );
     const background = await service.revise('user-1', variationId, 'fundo mais claro');
@@ -196,6 +222,9 @@ describe('revisão de post', () => {
     expect(background.variations[0].versions).toHaveLength(3);
     expect(background.variations[0].slides[0].backgroundImage).toBe(NEXT);
     expect(background.variations[0].versions[0].id).toBe('ver-1');
+    expect(background.variations[0].versions[2].assistantReply).toBe(
+      'Mudei o fundo.',
+    );
 
     await expect(service.revise('user-1', variationId, '???')).rejects.toBeInstanceOf(
       BadRequestException,

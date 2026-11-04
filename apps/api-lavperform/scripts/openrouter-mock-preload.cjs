@@ -32,21 +32,32 @@ global.fetch = async (url, init) => {
 
   const user = (body.messages || []).find((item) => item.role === 'user')?.content || '';
   if (String(user).includes('Pedido:')) {
-    const pedido = String(user);
+    const pedido = String(user).split('Pedido:').slice(1).join('Pedido:').trim();
     const title = /título|titulo/i.test(pedido);
     const background = /fundo/i.test(pedido);
+    const shorter = /curta|encurt|menor/i.test(pedido);
+    const caption = /legenda/i.test(pedido) || shorter;
     return Response.json({
       choices: [
         {
           message: {
             content: JSON.stringify({
               nonsense: false,
-              regenerateBackground: background && !title,
+              regenerateBackground: background,
               backgroundInstruction: 'lighter laundry room without text',
               headline: title ? 'Promoção de Verão' : null,
-              reply: title
-                ? 'Atualizei o título.'
-                : 'Mudei o fundo. Texto, logo e cores mantidos.',
+              captionShort: caption ? (shorter ? 'Oferta de sexta.' : 'Nova legenda curta da casa.') : null,
+              captionMedium: caption
+                ? shorter
+                  ? 'Toda sexta, 20% OFF na lavagem.'
+                  : 'Nova legenda média, no tom da marca, com a oferta da sexta.'
+                : null,
+              captionLong: caption
+                ? shorter
+                  ? 'Toda sexta, 20% OFF na lavagem de edredons.'
+                  : 'Nova legenda longa, no tom da marca, com a oferta da sexta e a coleta.'
+                : null,
+              reply: 'Atualizei o título.',
             }),
           },
         },

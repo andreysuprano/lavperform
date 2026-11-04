@@ -3,6 +3,7 @@ import {
   Button,
   Flex,
   HStack,
+  Image,
   Menu,
   Portal,
   Stack,
@@ -194,12 +195,14 @@ export function PostRevisionStudio({
                   borderColor={active ? '#7BC9F1' : '#E4E7EB'}
                   borderRadius="full"
                   color="#093A58"
+                  h="32px"
                   key={item.id}
                   onClick={() => onSelectVariation(item.id)}
-                  size="xs"
+                  px={3}
+                  size="sm"
                   variant="outline"
                 >
-                  {item.position + 1}
+                  Variação {item.position + 1}
                 </Button>
               )
             })}
@@ -265,6 +268,33 @@ export function PostRevisionStudio({
               </Flex>
             )}
           </Box>
+          {(selected.references?.length || draft.references?.length) ? (
+            <Stack gap={1}>
+              <Text
+                color="#5B6B78"
+                fontSize="xs"
+                fontWeight="semibold"
+              >
+                Referências
+              </Text>
+              <HStack>
+                {(selected.references?.length
+                  ? selected.references
+                  : draft.references
+                )?.map((item) => (
+                  <Image
+                    alt="Referência"
+                    borderRadius="md"
+                    h="36px"
+                    key={item.id}
+                    objectFit="cover"
+                    src={item.dataUrl}
+                    w="36px"
+                  />
+                ))}
+              </HStack>
+            </Stack>
+          ) : null}
           <HStack
             align="end"
             data-testid="version-strip"
@@ -334,7 +364,8 @@ export function PostRevisionStudio({
           borderRadius="xl"
           borderWidth="1px"
           flex="1"
-          minH="520px"
+          minH="0"
+          maxH="calc(100vh - 200px)"
           overflow="hidden"
         >
           <HStack
@@ -529,9 +560,13 @@ export function PostRevisionStudio({
           </Stack>
           <Flex
             bg="#F5F5F6"
+            bottom="0"
+            flexShrink={0}
             gap={3}
             opacity={pending ? 0.45 : 1}
             p={4}
+            position="sticky"
+            zIndex={2}
           >
             <Button
               bg="#7BC9F1"

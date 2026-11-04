@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   Param,
@@ -16,7 +17,10 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UpdateBrandIdentityDto } from './dto/brand-identity.dto';
 import {
   CreateSocialDraftDto,
+  AttachReferencesDto,
+  CreateReferenceDto,
   RegenerateBackgroundDto,
+  ReorderReferencesDto,
   RewriteCaptionDto,
   RevisePostDto,
   SelectVariationDto,
@@ -183,6 +187,54 @@ export class SocialPostsController {
       req.user.userId,
       variationId,
       dto,
+    );
+  }
+
+  @Post('references')
+  addReference(@Req() req: AuthRequest, @Body() dto: CreateReferenceDto) {
+    return this.socialPostsService.addReference(
+      req.user.userId,
+      dto.companyId,
+      dto.dataUrl,
+    );
+  }
+
+  @Patch('references/order')
+  reorderReferences(@Req() req: AuthRequest, @Body() dto: ReorderReferencesDto) {
+    return this.socialPostsService.reorderReferences(
+      req.user.userId,
+      dto.companyId,
+      dto.ids,
+    );
+  }
+
+  @Get('references/:referenceId')
+  getReference(
+    @Req() req: AuthRequest,
+    @Param('referenceId', ParseUUIDPipe) referenceId: string,
+  ) {
+    return this.socialPostsService.getReference(req.user.userId, referenceId);
+  }
+
+  @Delete('references/:referenceId')
+  removeReference(
+    @Req() req: AuthRequest,
+    @Param('referenceId', ParseUUIDPipe) referenceId: string,
+  ) {
+    return this.socialPostsService.removeReference(req.user.userId, referenceId);
+  }
+
+  @Post('drafts/item/:draftId/references')
+  @HttpCode(200)
+  attachReferences(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: AttachReferencesDto,
+  ) {
+    return this.socialPostsService.attachReferences(
+      req.user.userId,
+      draftId,
+      dto.referenceIds,
     );
   }
 

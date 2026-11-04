@@ -68,6 +68,15 @@ describe('OpenRouter client', () => {
     expect(calls[0].body.model).toBe('google/gemini-2.5-flash');
     expect(calls[1].body.model).toBe('google/gemini-2.5-flash-image');
     expect(calls[1].body.modalities).toEqual(['image', 'text']);
+    expect(calls[1].body.messages[0].content).toBe('fundo sem texto');
+
+    await client.generateImage('fundo sem texto', [TINY]);
+    const withReference = calls[2].body.messages[0].content;
+    expect(Array.isArray(withReference)).toBe(true);
+    expect(withReference[1]).toEqual({
+      type: 'image_url',
+      image_url: { url: TINY },
+    });
   });
 
   it('mostra falha HTTP e timeout da OpenRouter', async () => {

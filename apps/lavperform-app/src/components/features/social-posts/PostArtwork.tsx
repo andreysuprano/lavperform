@@ -180,11 +180,13 @@ function LayerView({
         borderRadius="full"
         color={layer.color || '#093A58'}
         fontFamily={layer.fontFamily || brand.titleFont}
-        fontSize={`${((layer.fontSize ?? 18) / 1080) * 100}cqw`}
+        fontSize={`clamp(13px, ${((layer.fontSize ?? 34) / 1080) * 100}cqw, 22px)`}
         fontWeight="700"
+        lineHeight="1.2"
         px="3"
-        py="1"
+        py="1.5"
         textAlign={anchorLeft ? 'left' : 'center'}
+        whiteSpace="nowrap"
         {...shared}
       >
         {layer.text}
@@ -196,11 +198,12 @@ function LayerView({
     <Text
       color={layer.color || 'white'}
       fontFamily={layer.fontFamily || brand.titleFont}
-      fontSize={`${((layer.fontSize ?? 46) / 1080) * 100}cqw`}
+      fontSize={`clamp(20px, ${((layer.fontSize ?? 64) / 1080) * 100}cqw, 44px)`}
       fontWeight="800"
       lineHeight="1.05"
+      maxW={anchorLeft ? '8.5em' : undefined}
       textAlign={anchorLeft ? 'left' : 'center'}
-      w={`${layer.width ?? 86}%`}
+      w={anchorLeft ? '8.5em' : `${layer.width ?? 86}%`}
       {...shared}
     >
       {layer.text}

@@ -70,6 +70,17 @@ export function PostVariationsView({
 
   return (
     <Stack gap={4}>
+      {draft.referenceWarning && (
+        <Box
+          bg="orange.50"
+          borderRadius="lg"
+          color="orange.800"
+          px={3}
+          py={2}
+        >
+          <Text fontSize="sm">{draft.referenceWarning}</Text>
+        </Box>
+      )}
       <Flex
         gap={3}
         justify="space-between"
@@ -191,16 +202,17 @@ export function PostVariationsView({
                   ] as const
                 ).map(([length, label]) => (
                   <Button
-                    colorPalette={
-                      selected.activeCaption === length ? 'blue' : 'gray'
-                    }
-                    key={length}
-                    onClick={() => onCaptionLength(selected.id, length)}
-                    size="xs"
-                    variant={
-                      selected.activeCaption === length ? 'solid' : 'outline'
-                    }
-                  >
+                  bg={selected.activeCaption === length ? '#E6F5FD' : 'white'}
+                  borderColor={
+                    selected.activeCaption === length ? '#7BC9F1' : '#E4E7EB'
+                  }
+                  borderRadius="full"
+                  color="#093A58"
+                  key={length}
+                  onClick={() => onCaptionLength(selected.id, length)}
+                  size="xs"
+                  variant="outline"
+                >
                     {label}
                   </Button>
                 ))}

@@ -10,11 +10,13 @@ import {
   HStack,
   Image,
   Input,
-  NativeSelect,
+  Portal,
+  Select,
   Stack,
   Tabs,
   Text,
   Textarea,
+  createListCollection,
 } from '@chakra-ui/react'
 import { useState } from 'react'
 import { LuCheck, LuImagePlus, LuUpload } from 'react-icons/lu'
@@ -204,7 +206,7 @@ export function BrandIdentityForm({
                       dark
                       label="Fundo escuro"
                       onFile={(file) => upload(file, 'logoDarkUrl')}
-                      src={value.logoDarkUrl}
+                      src={value.logoDarkUrl || value.logoLightUrl}
                       testId="logo-dark"
                     />
                     <LabelDrop
@@ -583,64 +585,85 @@ function LabelDrop({ onFile }: { onFile: (file: File | undefined) => void }) {
   )
 }
 
-function WeightSelect({
+function OptionSelect({
   label,
   value,
+  options,
   onChange,
+  minW,
 }: {
   label: string
   value: string
+  options: string[]
   onChange: (value: string) => void
+  minW?: string
 }) {
+  const collection = createListCollection({
+    items: options.map((option) => ({ label: option, value: option })),
+  })
   return (
-    <Field.Root minW="40">
-      <Field.Label>{label}</Field.Label>
-      <NativeSelect.Root>
-        <NativeSelect.Field
-          onChange={(event) => onChange(event.target.value)}
-          value={value}
-        >
-          {['Regular', 'Medium', 'Bold', 'ExtraBold'].map((weight) => (
-            <option
-              key={weight}
-              value={weight}
-            >
-              {weight}
-            </option>
-          ))}
-        </NativeSelect.Field>
-      </NativeSelect.Root>
+    <Field.Root minW={minW}>
+      <Select.Root
+        collection={collection}
+        onValueChange={(details) => {
+          const next = details.value[0]
+          if (next) onChange(next)
+        }}
+        value={[value]}
+      >
+        <Select.HiddenSelect />
+        <Select.Label>{label}</Select.Label>
+        <Select.Control>
+          <Select.Trigger>
+            <Select.ValueText placeholder={label} />
+            <Select.IndicatorGroup>
+              <Select.Indicator />
+            </Select.IndicatorGroup>
+          </Select.Trigger>
+        </Select.Control>
+        <Portal>
+          <Select.Positioner>
+            <Select.Content>
+              {collection.items.map((item) => (
+                <Select.Item
+                  item={item}
+                  key={item.value}
+                >
+                  {item.label}
+                  <Select.ItemIndicator />
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Positioner>
+        </Portal>
+      </Select.Root>
     </Field.Root>
   )
 }
 
-function FontSelect({
-  label,
-  value,
-  onChange,
-}: {
+function WeightSelect(props: {
   label: string
   value: string
   onChange: (value: string) => void
 }) {
   return (
-    <Field.Root>
-      <Field.Label>{label}</Field.Label>
-      <NativeSelect.Root>
-        <NativeSelect.Field
-          onChange={(event) => onChange(event.target.value)}
-          value={value}
-        >
-          {FONT_OPTIONS.map((font) => (
-            <option
-              key={font}
-              value={font}
-            >
-              {font}
-            </option>
-          ))}
-        </NativeSelect.Field>
-      </NativeSelect.Root>
-    </Field.Root>
+    <OptionSelect
+      {...props}
+      minW="40"
+      options={['Regular', 'Medium', 'Bold', 'ExtraBold']}
+    />
+  )
+}
+
+function FontSelect(props: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <OptionSelect
+      {...props}
+      options={[...FONT_OPTIONS]}
+    />
   )
 }

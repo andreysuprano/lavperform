@@ -49,6 +49,35 @@ export function parseRevisionPlan(raw: string): RevisionPlan {
   };
 }
 
+export function describeRevision(input: {
+  backgroundChanged: boolean;
+  headlineBefore: string;
+  headlineAfter: string;
+  captionBefore: string;
+  captionAfter: string;
+  badgeBefore: string | null;
+  badgeAfter: string | null;
+}): string {
+  const sentences: string[] = [];
+  if (input.backgroundChanged) sentences.push('Mudei o fundo.');
+  if (input.headlineAfter.trim() !== input.headlineBefore.trim()) {
+    sentences.push('Atualizei o título.');
+  }
+  const before = input.captionBefore.trim();
+  const after = input.captionAfter.trim();
+  if (after !== before) {
+    sentences.push(
+      after.length < before.length
+        ? 'Encurtei a legenda.'
+        : 'Atualizei a legenda.',
+    );
+  }
+  if ((input.badgeAfter ?? '').trim() !== (input.badgeBefore ?? '').trim()) {
+    sentences.push('Atualizei o selo.');
+  }
+  return sentences.length ? sentences.join(' ') : 'Mantive o post como estava.';
+}
+
 export function applyRevisionToSlides(
   slides: PostSlide[],
   plan: Pick<RevisionPlan, 'headline' | 'badgeText'>,

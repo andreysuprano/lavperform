@@ -95,6 +95,7 @@ export interface PostVersion {
   activeCaption: CaptionLength | string
   hashtags: string[]
   slides: PostSlide[]
+  references?: { id: string; dataUrl: string }[]
   createdAt?: string
 }
 
@@ -125,6 +126,8 @@ export interface SocialPostDraft {
   selectedVariationId: string | null
   createdAt: string
   updatedAt: string
+  references?: { id: string; dataUrl: string }[]
+  referenceWarning?: string | null
   variations: PostVariation[]
 }
 
@@ -197,5 +200,5 @@ export function formatAspect(format: string): number {
 export function formatLabel(format: string, slideCount: number) {
   if (format === 'story') return 'Story'
   if (format === 'carousel') return `Carrossel · ${slideCount} slides`
-  return 'Feed'
+  return 'Post'
 }
