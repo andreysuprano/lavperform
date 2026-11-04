@@ -1,3 +1,4 @@
+import { WhatsappFloat } from "@/components/whatsapp-float"
 import { LaundryData } from "@/types/laundry"
 import { DefaultTemplate } from "./default"
 import { ModernTemplate } from "./modern"
@@ -30,7 +31,12 @@ export function TemplateRenderer({ data }: TemplateRendererProps) {
   const Template = TEMPLATES[templateName] || TEMPLATES.default
   
   // Renderiza o template com os dados
-  return <Template data={data} />
+  return (
+    <>
+      <Template data={data} />
+      <WhatsappFloat cta={data.cta} />
+    </>
+  )
 }
 
 /**

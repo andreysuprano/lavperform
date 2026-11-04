@@ -149,11 +149,11 @@ describe('parseGoogleTagManagerCode', () => {
   })
 })
 
-describe('menu Meta ADS', () => {
-  const meta = MENU_ITEMS.find((item) => item.label === 'Meta ADS')
+describe('menu Tráfego', () => {
+  const meta = MENU_ITEMS.find((item) => item.label === 'Tráfego')
 
   it('mostra o grupo e o selo só em Pixel e Tag Manager', () => {
-    expect(meta).toMatchObject({ label: 'Meta ADS', href: '/trafego' })
+    expect(meta).toMatchObject({ label: 'Tráfego', href: '/trafego' })
     expect(meta?.links?.map((link) => link.label)).toEqual([
       'Relatório de tráfego',
       'Pixel',
