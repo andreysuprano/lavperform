@@ -158,6 +158,7 @@ describe('sidebar no formato do Figma', () => {
       ativo: contrast('#18181B', '#7BC9F1'),
       subitem: contrast('#7BC9F1', '#28343D'),
       academy: contrast('#A1A1AA', '#18181B'),
+      badge: contrast('#FFFFFF', '#C2410C'),
     }
     for (const ratio of Object.values(ratios)) {
       expect(ratio).toBeGreaterThanOrEqual(4.5)

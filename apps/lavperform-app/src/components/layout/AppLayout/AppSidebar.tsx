@@ -164,7 +164,7 @@ const Sidebar = memo(
                       )}
                       {open && item.isNew && (
                         <Badge
-                          bg="#EA580C"
+                          bg="#C2410C"
                           borderRadius="4px"
                           color="white"
                           data-testid={`nav-badge-${item.href}`}
@@ -223,7 +223,7 @@ const Sidebar = memo(
                           </Text>
                           {link.badge && (
                             <Badge
-                              bg="#EA580C"
+                              bg="#C2410C"
                               borderRadius="4px"
                               color="white"
                               fontSize="10px"
