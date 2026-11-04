@@ -23,22 +23,34 @@ global.fetch = async (url, init) => {
     return originalFetch(url, init);
   }
 
-  if (target.includes('/api/v1/models')) {
+  if (target.includes('/models')) {
     return Response.json({
       data: [
         {
+          id: 'google/gemini-2.5-flash',
+          name: 'Gemini 2.5 Flash',
+          architecture: { output_modalities: ['text'] },
+        },
+        {
           id: 'google/gemini-2.5-flash-image',
+          name: 'Gemini 2.5 Flash Image',
           architecture: {
             input_modalities: ['text'],
-            output_modalities: ['image'],
+            output_modalities: ['image', 'text'],
           },
         },
         {
           id: 'google/gemini-2.5-pro-image',
+          name: 'Gemini 2.5 Pro Image',
           architecture: {
             input_modalities: ['text', 'image'],
             output_modalities: ['image', 'text'],
           },
+        },
+        {
+          id: 'anthropic/claude-sonnet-4',
+          name: 'Claude Sonnet 4',
+          architecture: { modality: 'text->text' },
         },
       ],
     });

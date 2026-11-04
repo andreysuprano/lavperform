@@ -967,7 +967,7 @@ export class SocialPostsService {
       ? await this.openRouter.referenceCapability(model)
       : { accepts: true, suggestion: null };
     return {
-      model: model?.trim() || this.openRouter.imageModel(),
+      model: model?.trim() || (await this.openRouter.imageModel()),
       acceptsImages: capability.accepts,
       suggestion: capability.suggestion,
     };
