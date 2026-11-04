@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/require-await */
 import { buildDefaultLayers } from 'src/social-posts/domain/post-layers';
 import {
   buildImagePrompt,
@@ -104,7 +105,10 @@ describe('geração de posts', () => {
       socialPostVersion: {
         create: jest.fn(async ({ data }) => {
           const row = variations.find((item) => item.id === data.variationId);
-          const version = { ...data, id: `ver-${data.variationId}-${data.number}` };
+          const version = {
+            ...data,
+            id: `ver-${data.variationId}-${data.number}`,
+          };
           row.versions.push(version);
           return version;
         }),

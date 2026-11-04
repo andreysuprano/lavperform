@@ -588,21 +588,38 @@ export class SocialPostsService {
       plan,
       newBackground,
     );
+    const headlineAfter = plan.headline ?? current.headline;
+    const captionShort = plan.captionShort ?? current.captionShort;
+    const captionMedium = plan.captionMedium ?? current.captionMedium;
+    const captionLong = plan.captionLong ?? current.captionLong;
+    const badgeAfter = plan.badgeText ?? current.badgeText;
+    const hashtagsAfter = plan.hashtags ?? current.hashtags;
     const assistantReply = describeRevision({
       backgroundChanged: Boolean(newBackground),
       headlineBefore: current.headline,
-      headlineAfter: plan.headline ?? current.headline,
-      captionBefore: [current.captionShort, current.captionMedium, current.captionLong].join(
-        '\n',
-      ),
-      captionAfter: [
-        plan.captionShort ?? current.captionShort,
-        plan.captionMedium ?? current.captionMedium,
-        plan.captionLong ?? current.captionLong,
+      headlineAfter,
+      captionBefore: [
+        current.captionShort,
+        current.captionMedium,
+        current.captionLong,
       ].join('\n'),
+      captionAfter: [captionShort, captionMedium, captionLong].join('\n'),
       badgeBefore: current.badgeText,
-      badgeAfter: plan.badgeText ?? current.badgeText,
+      badgeAfter,
+      hashtagsBefore: current.hashtags,
+      hashtagsAfter,
     });
+    const unchanged =
+      !newBackground &&
+      headlineAfter.trim() === current.headline.trim() &&
+      captionShort === current.captionShort &&
+      captionMedium === current.captionMedium &&
+      captionLong === current.captionLong &&
+      (badgeAfter ?? '') === (current.badgeText ?? '') &&
+      hashtagsAfter.join('\n') === current.hashtags.join('\n');
+    if (unchanged) {
+      return this.getDraft(userId, variation.draftId);
+    }
     await this.appendVersion(variation, {
       source: 'revision',
       prompt,
@@ -743,8 +760,9 @@ export class SocialPostsService {
     variation: Awaited<ReturnType<SocialPostsService['loadVariation']>>,
   ) {
     const selected =
-      variation.versions.find((item) => item.id === variation.selectedVersionId) ??
-      variation.versions[variation.versions.length - 1];
+      variation.versions.find(
+        (item) => item.id === variation.selectedVersionId,
+      ) ?? variation.versions[variation.versions.length - 1];
     if (!selected) {
       return {
         headline: variation.headline,
@@ -811,23 +829,8 @@ export class SocialPostsService {
 
   private presentVariation(
     variation: {
-    id: string;
-    position: number;
-    headline: string;
-    badgeText: string | null;
-    captionShort: string;
-    captionMedium: string;
-    captionLong: string;
-    activeCaption: string;
-    hashtags: string[];
-    slides: Prisma.JsonValue;
-    selectedVersionId?: string | null;
-    versions?: Array<{
       id: string;
-      number: number;
-      source: string;
-      prompt: string | null;
-      assistantReply: string | null;
+      position: number;
       headline: string;
       badgeText: string | null;
       captionShort: string;
@@ -836,10 +839,25 @@ export class SocialPostsService {
       activeCaption: string;
       hashtags: string[];
       slides: Prisma.JsonValue;
-      referenceIds?: string[];
-      createdAt: Date;
-    }>;
-  },
+      selectedVersionId?: string | null;
+      versions?: Array<{
+        id: string;
+        number: number;
+        source: string;
+        prompt: string | null;
+        assistantReply: string | null;
+        headline: string;
+        badgeText: string | null;
+        captionShort: string;
+        captionMedium: string;
+        captionLong: string;
+        activeCaption: string;
+        hashtags: string[];
+        slides: Prisma.JsonValue;
+        referenceIds?: string[];
+        createdAt: Date;
+      }>;
+    },
     referenceUrls: Map<string, string> = new Map(),
   ) {
     const versions = [...(variation.versions ?? [])].sort(
@@ -997,7 +1015,8 @@ export class SocialPostsService {
     const row = await this.prisma.socialPostReference.findUnique({
       where: { id: referenceId },
     });
-    if (!row || row.removedAt) throw new NotFoundException('Imagem não encontrada');
+    if (!row || row.removedAt)
+      throw new NotFoundException('Imagem não encontrada');
     try {
       await this.ensureCompanyAccess(userId, row.companyId);
     } catch {
@@ -1063,7 +1082,8 @@ export class SocialPostsService {
     const row = await this.prisma.socialPostReference.findUnique({
       where: { id: referenceId },
     });
-    if (!row || row.removedAt) throw new NotFoundException('Imagem não encontrada');
+    if (!row || row.removedAt)
+      throw new NotFoundException('Imagem não encontrada');
     try {
       await this.ensureCompanyAccess(userId, row.companyId);
     } catch {

@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Card,
+  createListCollection,
   Field,
   Flex,
   Grid,
@@ -16,7 +17,6 @@ import {
   Tabs,
   Text,
   Textarea,
-  createListCollection,
 } from '@chakra-ui/react'
 import { useState } from 'react'
 import { LuCheck, LuImagePlus, LuUpload } from 'react-icons/lu'

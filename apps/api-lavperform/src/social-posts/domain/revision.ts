@@ -41,7 +41,9 @@ export function parseRevisionPlan(raw: string): RevisionPlan {
     captionMedium: optionalText(parsed.captionMedium),
     captionLong: optionalText(parsed.captionLong),
     hashtags: Array.isArray(parsed.hashtags)
-      ? parsed.hashtags.map((tag) => String(tag)).filter((tag) => tag.startsWith('#'))
+      ? parsed.hashtags
+          .map((tag) => String(tag))
+          .filter((tag) => tag.startsWith('#'))
       : null,
     reply:
       optionalText(parsed.reply) ??
@@ -57,6 +59,8 @@ export function describeRevision(input: {
   captionAfter: string;
   badgeBefore: string | null;
   badgeAfter: string | null;
+  hashtagsBefore?: string[];
+  hashtagsAfter?: string[];
 }): string {
   const sentences: string[] = [];
   if (input.backgroundChanged) sentences.push('Mudei o fundo.');
@@ -74,6 +78,12 @@ export function describeRevision(input: {
   }
   if ((input.badgeAfter ?? '').trim() !== (input.badgeBefore ?? '').trim()) {
     sentences.push('Atualizei o selo.');
+  }
+  if (
+    (input.hashtagsBefore ?? []).join('\n') !==
+    (input.hashtagsAfter ?? input.hashtagsBefore ?? []).join('\n')
+  ) {
+    sentences.push('Atualizei as hashtags.');
   }
   return sentences.length ? sentences.join(' ') : 'Mantive o post como estava.';
 }

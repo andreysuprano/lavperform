@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/require-await */
 import { OpenRouterClient } from 'src/integrations/openrouter/openrouter.client';
 import {
   extractImageDataUrl,
@@ -119,9 +120,14 @@ describe('OpenRouter client', () => {
       accepts: false,
       suggestion: 'google/gemini-2.5-flash-image',
     });
-    await client.generateImage('fundo', [TINY], 'google/gemini-2.5-flash-image');
+    await client.generateImage(
+      'fundo',
+      [TINY],
+      'google/gemini-2.5-flash-image',
+    );
     const body = JSON.parse(
-      ((global.fetch as jest.Mock).mock.calls.at(-1)[1] as { body: string }).body,
+      ((global.fetch as jest.Mock).mock.calls.at(-1)[1] as { body: string })
+        .body,
     );
     expect(body.model).toBe('google/gemini-2.5-flash-image');
     expect(body.messages[0].content[1].image_url.url).toBe(TINY);
@@ -143,7 +149,7 @@ describe('OpenRouter client', () => {
       const error = new Error('aborted');
       error.name = 'AbortError';
       throw error;
-    }) as unknown as typeof fetch;
+    });
     await expect(
       client.completeText([{ role: 'user', content: 'oi' }]),
     ).rejects.toThrow(/demorou demais/);

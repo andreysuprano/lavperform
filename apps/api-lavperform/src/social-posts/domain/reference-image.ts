@@ -1,8 +1,7 @@
 import { BadRequestException } from '@nestjs/common';
 
 const MAX_BYTES = 10 * 1024 * 1024;
-const DATA_URL =
-  /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)$/;
+const DATA_URL = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/=\s]+)$/;
 
 export function parseReferenceDataUrl(value: string): {
   mimeType: string;

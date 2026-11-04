@@ -103,15 +103,6 @@ const Sidebar = memo(
                     positioning={{ placement: 'right' }}
                   >
                     <Box
-                      css={
-                        isActive
-                          ? undefined
-                          : {
-                              '&:hover': {
-                                backgroundColor: '#F4F4F5 !important',
-                              },
-                            }
-                      }
                       _hover={
                         isActive
                           ? undefined
@@ -122,6 +113,15 @@ const Sidebar = memo(
                       bg={isActive ? '#7BC9F1' : 'transparent'}
                       borderRadius="8px"
                       color={isActive ? '#18181B' : '#3F3F46'}
+                      css={
+                        isActive
+                          ? undefined
+                          : {
+                              '&:hover': {
+                                backgroundColor: '#F4F4F5 !important',
+                              },
+                            }
+                      }
                       display="flex"
                       fontSize="14px"
                       fontWeight="medium"
@@ -169,17 +169,17 @@ const Sidebar = memo(
                       const subActive = activeLink?.href === link.href
                       return (
                         <Box
-                          css={{
-                            '&:hover': {
-                              backgroundColor: '#F4F4F5 !important',
-                            },
-                          }}
                           _hover={{ bg: 'gray.100', textDecoration: 'none' }}
                           alignItems="center"
                           as={NavLink}
                           bg={subActive ? '#E8F6FD' : 'transparent'}
                           borderRadius="8px"
                           color={subActive ? '#093A58' : '#52525B'}
+                          css={{
+                            '&:hover': {
+                              backgroundColor: '#F4F4F5 !important',
+                            },
+                          }}
                           display="flex"
                           fontSize="13px"
                           fontWeight={subActive ? 'semibold' : 'normal'}

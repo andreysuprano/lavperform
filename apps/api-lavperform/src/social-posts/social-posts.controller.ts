@@ -205,7 +205,10 @@ export class SocialPostsController {
   }
 
   @Patch('references/order')
-  reorderReferences(@Req() req: AuthRequest, @Body() dto: ReorderReferencesDto) {
+  reorderReferences(
+    @Req() req: AuthRequest,
+    @Body() dto: ReorderReferencesDto,
+  ) {
     return this.socialPostsService.reorderReferences(
       req.user.userId,
       dto.companyId,
@@ -226,7 +229,10 @@ export class SocialPostsController {
     @Req() req: AuthRequest,
     @Param('referenceId', ParseUUIDPipe) referenceId: string,
   ) {
-    return this.socialPostsService.removeReference(req.user.userId, referenceId);
+    return this.socialPostsService.removeReference(
+      req.user.userId,
+      referenceId,
+    );
   }
 
   @Post('drafts/item/:draftId/references')

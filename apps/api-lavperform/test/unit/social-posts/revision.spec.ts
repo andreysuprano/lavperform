@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/require-await */
 import { BadRequestException } from '@nestjs/common';
 import {
   applyRevisionToSlides,
@@ -202,11 +203,20 @@ describe('revisão de post', () => {
         reply: 'Atualizei o título.',
       }),
     );
-    const titled = await service.revise('user-1', variationId, 'troca o título');
+    const titled = await service.revise(
+      'user-1',
+      variationId,
+      'troca o título',
+    );
     expect(openRouter.generateImage).not.toHaveBeenCalled();
     expect(titled.variations[0].versions).toHaveLength(2);
     expect(titled.variations[0].slides[0].backgroundImage).toBe(TINY);
-    expect(titled.variations[0].slides[0].layers[0].text).toBe('Coleta grátis hoje');
+    expect(titled.variations[0].slides[0].layers[0].text).toBe(
+      'Coleta grátis hoje',
+    );
+    expect(titled.variations[0].versions[1].assistantReply).toBe(
+      'Atualizei o título.',
+    );
 
     openRouter.completeText.mockResolvedValueOnce(
       JSON.stringify({
@@ -216,9 +226,15 @@ describe('revisão de post', () => {
         reply: 'Atualizei o título.',
       }),
     );
-    const background = await service.revise('user-1', variationId, 'fundo mais claro');
+    const background = await service.revise(
+      'user-1',
+      variationId,
+      'fundo mais claro',
+    );
     expect(openRouter.generateImage).toHaveBeenCalledTimes(1);
-    expect(String(openRouter.generateImage.mock.calls[0][0])).toMatch(/no text/i);
+    expect(String(openRouter.generateImage.mock.calls[0][0])).toMatch(
+      /no text/i,
+    );
     expect(background.variations[0].versions).toHaveLength(3);
     expect(background.variations[0].slides[0].backgroundImage).toBe(NEXT);
     expect(background.variations[0].versions[0].id).toBe('ver-1');
@@ -226,34 +242,71 @@ describe('revisão de post', () => {
       'Mudei o fundo.',
     );
 
-    await expect(service.revise('user-1', variationId, '???')).rejects.toBeInstanceOf(
-      BadRequestException,
-    );
+    await expect(
+      service.revise('user-1', variationId, '???'),
+    ).rejects.toBeInstanceOf(BadRequestException);
     expect(versions).toHaveLength(3);
 
-    openRouter.completeText.mockImplementation(async (messages: Array<{ role: string; content: string }>) => {
-      const user = messages.find((item) => item.role === 'user')?.content ?? '';
-      await new Promise((resolve) => setTimeout(resolve, 15));
-      if (/fundo/i.test(user)) {
+    openRouter.completeText.mockImplementation(
+      async (messages: Array<{ role: string; content: string }>) => {
+        const user =
+          messages.find((item) => item.role === 'user')?.content ?? '';
+        await new Promise((resolve) => setTimeout(resolve, 15));
+        if (/fundo/i.test(user)) {
+          return JSON.stringify({
+            nonsense: false,
+            regenerateBackground: true,
+            backgroundInstruction: 'lighter',
+            reply: 'Mudei o fundo.',
+          });
+        }
         return JSON.stringify({
           nonsense: false,
-          regenerateBackground: true,
-          backgroundInstruction: 'lighter',
-          reply: 'Mudei o fundo.',
+          regenerateBackground: false,
+          headline: 'Outro título',
+          reply: 'Atualizei o título.',
         });
-      }
-      return JSON.stringify({
-        nonsense: false,
-        regenerateBackground: false,
-        headline: 'Outro título',
-        reply: 'Atualizei o título.',
-      });
-    });
+      },
+    );
     await Promise.all([
       service.revise('user-1', variationId, 'fundo mais claro outra vez'),
       service.revise('user-1', variationId, 'troca o título outra vez'),
     ]);
     expect(versions.map((item) => item.number)).toEqual([1, 2, 3, 4, 5]);
     expect(versions[0].slides[0].backgroundImage).toBe(TINY);
+
+    openRouter.completeText.mockResolvedValueOnce(
+      JSON.stringify({
+        nonsense: false,
+        regenerateBackground: false,
+        reply: 'Mantive o post como estava.',
+      }),
+    );
+    const kept = versions.length;
+    const unchanged = await service.revise(
+      'user-1',
+      variationId,
+      'mais promocional',
+    );
+    expect(versions).toHaveLength(kept);
+    expect(unchanged.variations[0].versions).toHaveLength(kept);
+
+    openRouter.completeText.mockResolvedValueOnce(
+      JSON.stringify({
+        nonsense: false,
+        regenerateBackground: false,
+        headline: 'Oferta de sexta',
+        reply: 'Mantive o post como estava.',
+      }),
+    );
+    const changed = await service.revise(
+      'user-1',
+      variationId,
+      'mais promocional de verdade',
+    );
+    expect(changed.variations[0].versions).toHaveLength(kept + 1);
+    expect(changed.variations[0].versions.at(-1)?.assistantReply).toBe(
+      'Atualizei o título.',
+    );
   });
 });

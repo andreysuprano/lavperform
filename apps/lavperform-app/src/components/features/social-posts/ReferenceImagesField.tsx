@@ -34,6 +34,8 @@ export function ReferenceImagesField({
   const [dragOver, setDragOver] = useState(false)
   const [unsupported, setUnsupported] = useState<string | null>(null)
   const ready = slots.filter((slot) => slot.id)
+  const sending = slots.filter((slot) => !slot.id && !slot.error).length
+  const counted = Math.min(LIMIT, ready.length + sending)
   const full = ready.length >= LIMIT
 
   const publish = (next: Slot[]) => {
@@ -151,7 +153,8 @@ export function ReferenceImagesField({
           data-testid="reference-count"
           fontSize="xs"
         >
-          {ready.length}/5
+          {counted}/5
+          {sending > 0 ? ' · enviando' : ''}
         </Text>
       </Flex>
       <Text
@@ -170,11 +173,11 @@ export function ReferenceImagesField({
         borderRadius="lg"
         gap={2}
         minH="88px"
+        onDragLeave={() => setDragOver(false)}
         onDragOver={(event) => {
           event.preventDefault()
           if (!full) setDragOver(true)
         }}
-        onDragLeave={() => setDragOver(false)}
         onDrop={(event) => {
           event.preventDefault()
           setDragOver(false)
@@ -182,8 +185,8 @@ export function ReferenceImagesField({
           void addFiles([...event.dataTransfer.files])
         }}
         opacity={full ? 0.55 : 1}
-        pointerEvents={full ? 'none' : 'auto'}
         p={2}
+        pointerEvents={full ? 'none' : 'auto'}
         wrap="wrap"
       >
         {slots.map((slot) => (
@@ -194,10 +197,10 @@ export function ReferenceImagesField({
             draggable={!slot.error}
             h="72px"
             key={slot.key}
+            onDragOver={(event) => event.preventDefault()}
             onDragStart={(event) =>
               event.dataTransfer.setData('text/plain', slot.key)
             }
-            onDragOver={(event) => event.preventDefault()}
             onDrop={(event) => {
               event.preventDefault()
               event.stopPropagation()

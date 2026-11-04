@@ -417,8 +417,8 @@ export function PostRevisionStudio({
           borderRadius="xl"
           borderWidth="1px"
           flex="1"
-          minH="0"
           maxH="calc(100vh - 200px)"
+          minH="0"
           overflow="hidden"
         >
           <HStack

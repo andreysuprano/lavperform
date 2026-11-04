@@ -183,6 +183,7 @@ function LayerView({
         fontSize={`clamp(13px, ${((layer.fontSize ?? 34) / 1080) * 100}cqw, 22px)`}
         fontWeight="700"
         lineHeight="1.2"
+        mt="6px"
         px="3"
         py="1.5"
         textAlign={anchorLeft ? 'left' : 'center'}

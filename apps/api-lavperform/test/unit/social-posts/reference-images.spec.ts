@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/require-await */
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import {
   parseReferenceDataUrl,
@@ -13,9 +14,9 @@ describe('imagens de referência', () => {
     expect(() => parseReferenceDataUrl('data:text/plain;base64,YQ==')).toThrow(
       BadRequestException,
     );
-    expect(() => parseReferenceDataUrl('data:image/gif;base64,R0lGOD0=')).toThrow(
-      /JPG, PNG ou WEBP/,
-    );
+    expect(() =>
+      parseReferenceDataUrl('data:image/gif;base64,R0lGOD0='),
+    ).toThrow(/JPG, PNG ou WEBP/);
     expect(() => parseReferenceDataUrl('data:image/png;base64,Y')).toThrow(
       /não conseguimos ler/i,
     );
@@ -43,14 +44,21 @@ describe('imagens de referência', () => {
         ),
       },
       socialPostReference: {
-        count: jest.fn(async () => rows.filter((item) => !item.removedAt).length),
+        count: jest.fn(
+          async () => rows.filter((item) => !item.removedAt).length,
+        ),
         create: jest.fn(async ({ data }) => {
-          const row = { ...data, id: `ref-${rows.length + 1}`, removedAt: null };
+          const row = {
+            ...data,
+            id: `ref-${rows.length + 1}`,
+            removedAt: null,
+          };
           rows.push(row);
           return row;
         }),
-        findUnique: jest.fn(async ({ where }) =>
-          rows.find((item) => item.id === where.id) ?? null,
+        findUnique: jest.fn(
+          async ({ where }) =>
+            rows.find((item) => item.id === where.id) ?? null,
         ),
         findMany: jest.fn(async () => rows),
         update: jest.fn(),
@@ -62,17 +70,19 @@ describe('imagens de referência', () => {
     } as any);
 
     const saved = await service.addReference('user-a', companyA, TINY);
-    await expect(service.getReference('user-b', saved.id)).rejects.toBeInstanceOf(
-      NotFoundException,
-    );
-    await expect(service.getReference('user-a', saved.id)).resolves.toMatchObject({
+    await expect(
+      service.getReference('user-b', saved.id),
+    ).rejects.toBeInstanceOf(NotFoundException);
+    await expect(
+      service.getReference('user-a', saved.id),
+    ).resolves.toMatchObject({
       id: saved.id,
     });
 
     prisma.socialPostReference.count.mockResolvedValue(5);
-    await expect(service.addReference('user-a', companyA, TINY)).rejects.toThrow(
-      /Limite de 5 imagens/,
-    );
+    await expect(
+      service.addReference('user-a', companyA, TINY),
+    ).rejects.toThrow(/Limite de 5 imagens/);
   });
 
   it('troca o modelo só do rascunho quando o ativo não aceita imagem', async () => {
@@ -108,7 +118,10 @@ describe('imagens de referência', () => {
       company: { findUnique: jest.fn().mockResolvedValue({ name: 'Bolha' }) },
       brandIdentity: { findUnique: jest.fn().mockResolvedValue(null) },
       socialPostDraft: {
-        findUnique: jest.fn(async () => ({ ...draft, variations: draft.variations })),
+        findUnique: jest.fn(async () => ({
+          ...draft,
+          variations: draft.variations,
+        })),
         update: jest.fn(async ({ data }) => Object.assign(draft, data)),
       },
       socialPostReference: {
@@ -123,7 +136,9 @@ describe('imagens de referência', () => {
           draft.variations.push(row);
           return row;
         }),
-        update: jest.fn(async ({ data }) => Object.assign(draft.variations[0], data)),
+        update: jest.fn(async ({ data }) =>
+          Object.assign(draft.variations[0], data),
+        ),
       },
       socialPostVersion: {
         create: jest.fn(async ({ data }) => {

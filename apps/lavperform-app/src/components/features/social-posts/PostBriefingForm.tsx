@@ -560,12 +560,12 @@ function StepThumb({ kind }: { kind: 'idea' | 'art' | 'brand' }) {
   return (
     <Flex
       align="center"
-      bg={kind === 'art' ? 'transparent' : '#E8F6FD'}
       backgroundImage={
         kind === 'idea' ? undefined : 'url(/samples/post-background.svg)'
       }
       backgroundPosition="center"
       backgroundSize="cover"
+      bg={kind === 'art' ? 'transparent' : '#E8F6FD'}
       borderRadius="md"
       color="#093A58"
       flexShrink={0}
