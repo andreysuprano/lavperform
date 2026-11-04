@@ -346,14 +346,22 @@ export function PostRevisionStudio({
                     w="72px"
                   >
                     <Box
+                      h="90px"
+                      overflow="hidden"
                       pointerEvents="none"
                       w="72px"
                     >
-                      <PostArtwork
-                        brand={brand}
-                        format={draft.format}
-                        slide={version.slides[0]}
-                      />
+                      <Box
+                        transform="scale(0.22)"
+                        transformOrigin="top left"
+                        w="328px"
+                      >
+                        <PostArtwork
+                          brand={brand}
+                          format={draft.format}
+                          slide={version.slides[0]}
+                        />
+                      </Box>
                     </Box>
                   </Button>
                   <Text
@@ -386,6 +394,15 @@ export function PostRevisionStudio({
                             w="16px"
                           />
                         ))}
+                        {version.references.length > 3 && (
+                          <Text
+                            color="#52525B"
+                            fontSize="10px"
+                            fontWeight="semibold"
+                          >
+                            +{version.references.length - 3}
+                          </Text>
+                        )}
                       </HStack>
                     </Stack>
                   ) : null}

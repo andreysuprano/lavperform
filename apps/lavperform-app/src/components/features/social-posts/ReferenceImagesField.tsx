@@ -1,4 +1,4 @@
-import { Box, Button, Flex, Image, Progress, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Image, Text } from '@chakra-ui/react'
 import { useRef, useState } from 'react'
 import { LuImagePlus, LuX } from 'react-icons/lu'
 
@@ -63,13 +63,13 @@ export function ReferenceImagesField({
         const dataUrl = await prepareReferenceImage(file, (progress) => {
           setSlots((current) =>
             current.map((slot) =>
-              slot.key === key ? { ...slot, progress } : slot
+              slot.key === key ? { ...slot, progress: Math.min(progress, 60) } : slot
             )
           )
         })
         setSlots((current) =>
           current.map((slot) =>
-            slot.key === key ? { ...slot, progress: 80 } : slot
+            slot.key === key ? { ...slot, dataUrl, progress: 70 } : slot
           )
         )
         const saved = await socialPostsService.addReference(companyId, dataUrl)
@@ -208,14 +208,40 @@ export function ReferenceImagesField({
             w="72px"
           >
             {slot.dataUrl ? (
-              <Image
-                alt=""
-                borderRadius="md"
+              <Box
                 h="72px"
-                objectFit="cover"
-                src={slot.dataUrl}
+                position="relative"
                 w="72px"
-              />
+              >
+                <Image
+                  alt=""
+                  borderRadius="md"
+                  h="72px"
+                  objectFit="cover"
+                  src={slot.dataUrl}
+                  w="72px"
+                />
+                {slot.progress < 100 && (
+                  <Box
+                    bg="#E4E7EB"
+                    borderBottomRadius="md"
+                    bottom="0"
+                    h="4px"
+                    left="0"
+                    overflow="hidden"
+                    position="absolute"
+                    right="0"
+                    zIndex={1}
+                  >
+                    <Box
+                      bg="#7BC9F1"
+                      data-testid="reference-progress"
+                      h="3px"
+                      w={`${slot.progress}%`}
+                    />
+                  </Box>
+                )}
+              </Box>
             ) : (
               <Flex
                 align="center"
@@ -224,6 +250,7 @@ export function ReferenceImagesField({
                 direction="column"
                 h="72px"
                 justify="center"
+                position="relative"
                 px={1}
               >
                 {slot.error ? (
@@ -235,14 +262,23 @@ export function ReferenceImagesField({
                     {slot.error}
                   </Text>
                 ) : (
-                  <Progress.Root
-                    value={slot.progress}
-                    w="full"
+                  <Box
+                    bg="#E4E7EB"
+                    borderRadius="full"
+                    bottom="2"
+                    h="3px"
+                    left="2"
+                    overflow="hidden"
+                    position="absolute"
+                    right="2"
                   >
-                    <Progress.Track>
-                      <Progress.Range />
-                    </Progress.Track>
-                  </Progress.Root>
+                    <Box
+                      bg="#7BC9F1"
+                      data-testid="reference-progress"
+                      h="3px"
+                      w={`${slot.progress}%`}
+                    />
+                  </Box>
                 )}
               </Flex>
             )}

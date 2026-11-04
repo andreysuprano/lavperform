@@ -103,6 +103,15 @@ const Sidebar = memo(
                     positioning={{ placement: 'right' }}
                   >
                     <Box
+                      css={
+                        isActive
+                          ? undefined
+                          : {
+                              '&:hover': {
+                                backgroundColor: '#F4F4F5 !important',
+                              },
+                            }
+                      }
                       _hover={
                         isActive
                           ? undefined
@@ -160,6 +169,11 @@ const Sidebar = memo(
                       const subActive = activeLink?.href === link.href
                       return (
                         <Box
+                          css={{
+                            '&:hover': {
+                              backgroundColor: '#F4F4F5 !important',
+                            },
+                          }}
                           _hover={{ bg: 'gray.100', textDecoration: 'none' }}
                           alignItems="center"
                           as={NavLink}
