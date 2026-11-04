@@ -35,6 +35,7 @@ import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/convers
 import { PrismaConversationRepository } from '../../infrastructure/persistence/repositories/prisma-conversation.repository';
 import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
+import { HumanTypingPauseService } from '../../application/webhook/services/human-typing-pause.service';
 
 @Module({
   imports: [
@@ -63,6 +64,7 @@ import { HumanTakeoverService } from '../../application/webhook/services/human-t
     HelpEscalationService,
     JourneyOrchestratorService,
     HumanTakeoverService,
+    HumanTypingPauseService,
     HumanReleaseService,
 
     PrismaCustomerJourneyRepository,

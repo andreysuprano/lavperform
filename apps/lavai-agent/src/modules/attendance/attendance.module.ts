@@ -7,6 +7,7 @@ import {
 import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/conversation.repository.port';
 import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
+import { HumanTypingPauseService } from '../../application/webhook/services/human-typing-pause.service';
 import { MessageFilterService } from '../../application/webhook/services/message-filter.service';
 import { WaitingAckService } from '../../application/webhook/services/waiting-ack.service';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
@@ -21,6 +22,7 @@ import { MessagingModule } from '../messaging/messaging.module';
   providers: [
     WaitingAckService,
     HumanTakeoverService,
+    HumanTypingPauseService,
     HumanReleaseService,
     MessageFilterService,
     PrismaAgentRepository,
@@ -41,6 +43,6 @@ import { MessagingModule } from '../messaging/messaging.module';
       useExisting: PrismaHelpRequestRepository,
     },
   ],
-  exports: [WaitingAckService],
+  exports: [WaitingAckService, HumanTypingPauseService],
 })
 export class AttendanceModule {}
