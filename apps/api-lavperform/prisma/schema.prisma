@@ -98,6 +98,7 @@ model Company {
   gtmContainer              CompanyGtmContainer?
   brandIdentity             BrandIdentity?
   socialPostDrafts          SocialPostDraft[]
+  socialPostReferences      SocialPostReference[]
 
   @@index([businessPartnerId])
   @@index([deletedAt])
@@ -1606,10 +1607,12 @@ model SocialPostDraft {
   slideCount          Int                   @default(1)
   artStyle            String
   includeCaption      Boolean               @default(true)
+  imageModel          String?
   selectedVariationId String?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   variations          SocialPostVariation[]
+  references          SocialPostReference[]
 
   @@index([companyId])
   @@map("social_post_drafts")
@@ -1653,11 +1656,30 @@ model SocialPostVersion {
   activeCaption   String              @default("medium")
   hashtags        String[]            @default([])
   slides          Json
+  referenceIds    String[]            @default([])
   createdAt       DateTime            @default(now())
 
   @@unique([variationId, number])
   @@index([variationId])
   @@map("social_post_versions")
+}
+
+model SocialPostReference {
+  id        String    @id @default(uuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String
+  draftId   String?
+  draft     SocialPostDraft? @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  position  Int
+  mimeType  String
+  dataUrl   String    @db.Text
+  removedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([companyId, userId])
+  @@index([draftId])
+  @@map("social_post_references")
 }
 
 /// Escolha global dos modelos OpenRouter. Uma linha (id = default).

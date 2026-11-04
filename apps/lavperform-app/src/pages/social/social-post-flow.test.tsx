@@ -478,8 +478,18 @@ describe('fluxo de post com IA', () => {
   it('avisa identidade incompleta e falha da OpenRouter', async () => {
     renderFlow('/social/generator')
     expect(await screen.findByTestId('brand-incomplete-notice')).toHaveTextContent(
-      /identidade da marca ainda não foi salva/i
+      /cara da sua lavanderia/i
     )
+    expect(screen.getByTestId('configure-brand')).toHaveAttribute(
+      'href',
+      '/settings/brand-identity'
+    )
+    expect(screen.queryByText('Ctrl + Enter para gerar')).not.toBeInTheDocument()
+    expect(screen.getByText('Post')).toBeInTheDocument()
+    expect(screen.getByText('1080×1080')).toBeInTheDocument()
+    expect(screen.queryByText('Como a IA monta o post')).not.toBeInTheDocument()
+    expect(screen.queryByText('1. Você descreve a ideia')).not.toBeInTheDocument()
+    expect(screen.getByText('Legenda e hashtags no seu tom de voz.')).toBeInTheDocument()
 
     fireEvent.change(screen.getByTestId('briefing-theme'), {
       target: { value: '20% de desconto na lavagem de edredons no Batel' },
