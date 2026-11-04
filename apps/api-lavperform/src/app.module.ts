@@ -51,6 +51,7 @@ import { AudiencesModule } from './audiences/audiences.module';
 import { CustomSendListsModule } from './custom-send-lists/custom-send-lists.module';
 import { CompanyApiKeysModule } from './api-keys/company-api-keys.module';
 import { TrafficModule } from './traffic/traffic.module';
+import { SocialPostsModule } from './social-posts/social-posts.module';
 
 @Module({
   imports: [
@@ -110,6 +111,7 @@ import { TrafficModule } from './traffic/traffic.module';
     DeduplicationModule,
     RenitencyModule,
     TrafficModule,
+    SocialPostsModule,
     PublicApiOrderWorkerModule,
     CompanyApiKeysModule,
     ...(process.env.ENVIRONMENT === 'production'

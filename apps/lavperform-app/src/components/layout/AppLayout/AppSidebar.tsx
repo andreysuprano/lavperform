@@ -1,26 +1,26 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Center,
-  Circle,
-  HStack,
-  Icon,
-  Separator,
-  Stack,
-  Text,
-} from '@chakra-ui/react'
-import { memo } from 'react'
-import { NavLink } from 'react-router-dom'
-import { useLocation } from 'react-router-dom'
-import { Link } from 'react-router-dom'
+import { Badge, Box, Button, Center, Icon, Stack, Text } from '@chakra-ui/react'
+import { type ElementType,memo } from 'react'
+import { Link, NavLink, useLocation } from 'react-router-dom'
 
 import { ThemeImage, Tooltip } from '@/components'
-import { useWhiteLabel } from '@/config'
-import { ACADEMY_MENU_ITEM, MENU_ITEMS } from '@/utils/constants/appMenuLinks'
+import { ACADEMY_MENU_ITEM } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
 
-type MenuItemLike = { href: string; links?: { href: string }[] }
+type MenuLink = {
+  label: string
+  href: string
+  icon?: ElementType
+  badge?: string
+  badgeColorPalette?: string
+}
+
+type MenuItemLike = {
+  label: string
+  href: string
+  icon: ElementType
+  isNew?: boolean
+  links?: MenuLink[]
+}
 
 function getMenuItemMatchScore(item: MenuItemLike, pathname: string) {
   const linkMatch = getLongestPrefixLinkMatch(item.links, pathname)
@@ -44,18 +44,17 @@ function getActiveHref(items: MenuItemLike[], pathname: string) {
   return bestHref
 }
 
-// Componente de Sidebar separado e memoizado
 const Sidebar = memo(
-  ({ open, menuItems }: { open: boolean; menuItems: typeof MENU_ITEMS }) => {
-    const { colors, colorPalette } = useWhiteLabel()
-
+  ({ open, menuItems }: { open: boolean; menuItems: MenuItemLike[] }) => {
     const location = useLocation()
     const activeHref = getActiveHref(menuItems, location.pathname)
 
     return (
       <Box
-        bg="bg"
-        borderRightWidth={1}
+        bg="white"
+        borderColor="#E4E4E7"
+        borderRightWidth="1px"
+        data-testid="app-sidebar"
         height="100vh"
         left="0"
         overflowX="hidden"
@@ -63,15 +62,16 @@ const Sidebar = memo(
         position="fixed"
         top="0"
         transition="width 0.3s ease"
-        w={open ? 260 : 16}
-        whiteSpace={'nowrap'}
+        w={open ? '260px' : '64px'}
       >
         <Center
-          bg="bg"
-          borderBottomWidth={1}
-          h={16}
-          position={'sticky'}
+          bg="white"
+          borderBottomColor="#E4E4E7"
+          borderBottomWidth="1px"
+          h="64px"
+          position="sticky"
           top={0}
+          zIndex={1}
         >
           <Link to="/">
             <ThemeImage
@@ -82,118 +82,147 @@ const Sidebar = memo(
           </Link>
         </Center>
         <Stack
-          flexDirection={'column'}
-          gap={4}
-          justifyContent={'space-between'}
-          px={2}
-          py={4}
+          gap={1}
+          h="calc(100vh - 64px)"
+          justify="space-between"
+          px="8px"
+          py="16px"
         >
-          <Stack gap={1}>
-            {menuItems.map(({ label, icon, href, isNew, links }) => (
-              <HStack
-                _hover={{
-                  layerStyle: 'fill.subtle',
-                  bg: colors.primary,
-                  textDecor: 'none',
-                  color: { base: 'fg.primary', _dark: 'gray.900' },
-                }}
-                bg={
-                  activeHref === href
-                    ? colors.primary
-                    : 'transparent'
-                }
-                borderRadius={'lg'}
-                color={
-                  activeHref === href ? 'gray.900' : 'inherit'
-                }
-                justifyContent={open ? 'flex-start' : 'center'}
-                key={href}
-                w={'full'}
-              >
-                <Tooltip
-                  content={label}
-                  disabled={open}
-                  positioning={{ placement: 'right' }}
-                >
-                  <NavLink
-                    style={{
-                      display: 'flex',
-                      alignItems: 'center',
-                      gap: '0.5rem',
-                      height: '2.5rem',
-                      justifyContent: open ? 'flex-start' : 'center',
-                      padding: '0 0.5rem',
-                      width: '100%',
-                      textDecoration: 'none',
-                    }}
-                    to={href}
+          <Stack gap="4px">
+            {menuItems.map((item) => {
+              const isActive = activeHref === item.href
+              const activeLink = isActive
+                ? getLongestPrefixLinkMatch(item.links, location.pathname)
+                : undefined
+
+              return (
+                <Box key={item.href}>
+                  <Tooltip
+                    content={item.label}
+                    disabled={open}
+                    positioning={{ placement: 'right' }}
                   >
-                    <Circle
-                      boxSize={10}
-                      size={6}
+                    <Box
+                      _hover={
+                        isActive
+                          ? undefined
+                          : { bg: 'gray.100', textDecoration: 'none' }
+                      }
+                      alignItems="center"
+                      as={NavLink}
+                      bg={isActive ? '#7BC9F1' : 'transparent'}
+                      borderRadius="8px"
+                      color={isActive ? '#18181B' : '#3F3F46'}
+                      display="flex"
+                      fontSize="14px"
+                      fontWeight="medium"
+                      gap="8px"
+                      h="40px"
+                      justifyContent={open ? 'flex-start' : 'center'}
+                      px="12px"
+                      textDecoration="none"
+                      to={item.href}
+                      w="full"
                     >
-                      <Icon as={icon} />
-                    </Circle>
-                    {open && (
-                      <>
+                      <Icon
+                        as={item.icon}
+                        boxSize="18px"
+                      />
+                      {open && (
                         <Text
-                          fontSize={'sm'}
-                          fontWeight={'medium'}
+                          flex="1"
+                          fontSize="14px"
+                          fontWeight="medium"
+                          truncate
                         >
-                          {label}
+                          {item.label}
                         </Text>
-                        {isNew && (
-                          <Badge
-                            colorPalette={'orange'}
-                            variant={'solid'}
+                      )}
+                      {open && item.isNew && (
+                        <Badge
+                          bg="#EA580C"
+                          borderRadius="4px"
+                          color="white"
+                          data-testid={`nav-badge-${item.href}`}
+                          fontSize="11px"
+                          fontWeight="semibold"
+                          px="6px"
+                          py="2px"
+                        >
+                          Novidade
+                        </Badge>
+                      )}
+                    </Box>
+                  </Tooltip>
+                  {open &&
+                    isActive &&
+                    item.links?.map((link) => {
+                      const subActive = activeLink?.href === link.href
+                      return (
+                        <Box
+                          _hover={{ bg: 'gray.100', textDecoration: 'none' }}
+                          alignItems="center"
+                          as={NavLink}
+                          bg={subActive ? '#E8F6FD' : 'transparent'}
+                          borderRadius="8px"
+                          color={subActive ? '#093A58' : '#52525B'}
+                          display="flex"
+                          fontSize="13px"
+                          fontWeight={subActive ? 'semibold' : 'normal'}
+                          h="34px"
+                          key={link.href}
+                          pl="44px"
+                          pr="12px"
+                          textDecoration="none"
+                          to={link.href}
+                        >
+                          <Text
+                            flex="1"
+                            fontSize="13px"
+                            fontWeight={subActive ? 'semibold' : 'normal'}
+                            truncate
                           >
-                            Novidade
-                          </Badge>
-                        )}
-                      </>
-                    )}
-                  </NavLink>
-                </Tooltip>
-              </HStack>
-            ))}
-            {}
+                            {link.label}
+                          </Text>
+                          {link.badge && (
+                            <Badge
+                              bg="#EA580C"
+                              borderRadius="4px"
+                              color="white"
+                              fontSize="10px"
+                              fontWeight="semibold"
+                              px="6px"
+                              py="2px"
+                            >
+                              {link.badge}
+                            </Badge>
+                          )}
+                        </Box>
+                      )
+                    })}
+                </Box>
+              )
+            })}
           </Stack>
           {ACADEMY_MENU_ITEM && (
-            <>
-              <Separator />
-              <Link to={ACADEMY_MENU_ITEM.href}>
-                <Button
-                  borderColor={{
-                    base: `${colorPalette}.600`,
-                    _dark: `${colorPalette}.200`,
-                  }}
-                  color={{
-                    base: `${colorPalette}.800`,
-                    _dark: `${colorPalette}.300`,
-                  }}
-                  colorPalette={colorPalette}
-                  size="xl"
-                  variant="outline"
-                  w="full"
-                >
-                  <Icon as={ACADEMY_MENU_ITEM.icon} />
-                  {open && ACADEMY_MENU_ITEM.label}
-                </Button>
-              </Link>
-            </>
+            <Link to={ACADEMY_MENU_ITEM.href}>
+              <Button
+                bg="white"
+                borderColor="#D4D4D8"
+                color="#27272A"
+                fontWeight="semibold"
+                h="40px"
+                variant="outline"
+                w="full"
+              >
+                <Icon
+                  as={ACADEMY_MENU_ITEM.icon}
+                  boxSize="16px"
+                />
+                {open && ACADEMY_MENU_ITEM.label}
+              </Button>
+            </Link>
           )}
-          {/* 
-          // Removed Promotion Card 
-          {open && (
-            <>
-              <Separator />
-              <PromotionCard
-                href="https://foodcrm.com.br"
-                image={FundoLogin}
-                title="Conheça nossa nova integração com o iFood. Clique para saber mais!"
-              />
-            </>
-          )} */}
         </Stack>
       </Box>
     )

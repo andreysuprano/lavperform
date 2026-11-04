@@ -140,7 +140,7 @@ const MobileMenu = memo(
                   gap={1}
                   w="full"
                 >
-                  {menuItems.map(({ label, icon, href, links }) => (
+                  {menuItems.map(({ label, icon, href, links, isNew }) => (
                     <Box
                       key={href}
                       w="full"
@@ -186,6 +186,14 @@ const MobileMenu = memo(
                           >
                             {label}
                           </Text>
+                          {isNew && (
+                            <Badge
+                              colorPalette="orange"
+                              variant="solid"
+                            >
+                              Novidade
+                            </Badge>
+                          )}
                           {links && (
                             <Icon
                               as={
@@ -256,8 +264,18 @@ const MobileMenu = memo(
                                   </Text>
                                   {'badge' in link && link.badge && (
                                     <Badge
-                                      colorPalette="gray"
-                                      variant="subtle"
+                                      colorPalette={
+                                        'badgeColorPalette' in link &&
+                                        link.badgeColorPalette
+                                          ? link.badgeColorPalette
+                                          : 'gray'
+                                      }
+                                      variant={
+                                        'badgeColorPalette' in link &&
+                                        link.badgeColorPalette
+                                          ? 'solid'
+                                          : 'subtle'
+                                      }
                                     >
                                       {link.badge}
                                     </Badge>

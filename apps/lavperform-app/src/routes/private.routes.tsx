@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, type ReactNode } from 'react'
+import { lazy, type ReactNode,Suspense, useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 
 import { AppLayout, LoadingState } from '@/components'
@@ -6,11 +6,11 @@ import { useAuth } from '@/context/AuthContext'
 import { DetailClientsPage } from '@/pages/customers/DetailClientsPage'
 import { RfvAttributionWindowPage } from '@/pages/customers/RfvAttributionWindowPage'
 import { RequireAdmin } from '@/routes/RequireAdmin'
+import { RequireDefaultTheme } from '@/routes/RequireDefaultTheme'
 import {
   trafficHomePath,
   trafficRouteRedirect,
 } from '@/utils/tracking/traffic-access'
-import { RequireDefaultTheme } from '@/routes/RequireDefaultTheme'
 import { WhitelabelRoutes } from '@/whitelabel/routes/whitelabel.routes'
 
 // Lazy loading das páginas
@@ -102,6 +102,26 @@ const WalletPage = lazy(() =>
 const RenitencyPage = lazy(() =>
   import('@/pages/settings/RenitencyPage').then((module) => ({
     default: module.RenitencyPage,
+  }))
+)
+const BrandIdentityPage = lazy(() =>
+  import('@/pages/settings/BrandIdentityPage').then((module) => ({
+    default: module.BrandIdentityPage,
+  }))
+)
+const SocialGeneratorPage = lazy(() =>
+  import('@/pages/social/SocialGeneratorPage').then((module) => ({
+    default: module.SocialGeneratorPage,
+  }))
+)
+const SocialVariationsPage = lazy(() =>
+  import('@/pages/social/SocialVariationsPage').then((module) => ({
+    default: module.SocialVariationsPage,
+  }))
+)
+const SocialEditorPage = lazy(() =>
+  import('@/pages/social/SocialEditorPage').then((module) => ({
+    default: module.SocialEditorPage,
   }))
 )
 const IntegrationPage = lazy(() =>
@@ -421,6 +441,26 @@ export function PrivateRoutes() {
         <Route
           element={<RenitencyPage />}
           path="/settings/renitency"
+        />
+        <Route
+          element={<BrandIdentityPage />}
+          path="/settings/brand-identity"
+        />
+        <Route
+          element={<Navigate replace to="/social/generator" />}
+          path="/social"
+        />
+        <Route
+          element={<SocialGeneratorPage />}
+          path="/social/generator"
+        />
+        <Route
+          element={<SocialVariationsPage />}
+          path="/social/generator/:draftId"
+        />
+        <Route
+          element={<SocialEditorPage />}
+          path="/social/editor/:draftId/:variationId"
         />
         <Route
           element={<MyPage />}

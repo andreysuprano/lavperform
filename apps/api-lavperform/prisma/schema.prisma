@@ -96,6 +96,8 @@ model Company {
   promptSheets              PromptSheet[]
   metaPixel                 CompanyMetaPixel?
   gtmContainer              CompanyGtmContainer?
+  brandIdentity             BrandIdentity?
+  socialPostDrafts          SocialPostDraft[]
 
   @@index([businessPartnerId])
   @@index([deletedAt])
@@ -1571,4 +1573,64 @@ model MetaMessageTemplate {
   @@index([companyId])
   @@index([metaTemplateId])
   @@map("meta_message_templates")
+}
+
+model BrandIdentity {
+  id            String   @id @default(uuid())
+  companyId     String   @unique
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  logoLightUrl  String?  @db.Text
+  logoDarkUrl   String?  @db.Text
+  primaryColor  String   @default("#7BC9F1")
+  deepColor     String   @default("#093A58")
+  accentColor   String   @default("#FFD23F")
+  neutralColor  String   @default("#FFFFFF")
+  titleFont     String   @default("Poppins")
+  bodyFont      String   @default("Inter")
+  tones         String[] @default(["Próximo"])
+  voiceNotes    String?  @db.Text
+  references    String?  @db.Text
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@map("brand_identities")
+}
+
+model SocialPostDraft {
+  id                  String                @id @default(uuid())
+  companyId           String
+  company             Company               @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  objective           String
+  theme               String                @db.Text
+  format              String
+  slideCount          Int                   @default(1)
+  artStyle            String
+  includeCaption      Boolean               @default(true)
+  selectedVariationId String?
+  createdAt           DateTime              @default(now())
+  updatedAt           DateTime              @updatedAt
+  variations          SocialPostVariation[]
+
+  @@index([companyId])
+  @@map("social_post_drafts")
+}
+
+model SocialPostVariation {
+  id            String          @id @default(uuid())
+  draftId       String
+  draft         SocialPostDraft @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  position      Int
+  headline      String
+  badgeText     String?
+  captionShort  String          @db.Text
+  captionMedium String          @db.Text
+  captionLong   String          @db.Text
+  activeCaption String          @default("medium")
+  hashtags      String[]        @default([])
+  slides        Json
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+
+  @@index([draftId])
+  @@map("social_post_variations")
 }

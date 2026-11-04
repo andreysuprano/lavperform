@@ -7,7 +7,13 @@ export type PropsSubmenu = {
     label: string
     icon: any
     links:
-      | { label: string; href: string; icon: any; badge?: string }[]
+      | {
+          label: string
+          href: string
+          icon: any
+          badge?: string
+          badgeColorPalette?: string
+        }[]
       | undefined
     href: string
   }
