@@ -4,6 +4,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 
 import { Provider } from '@/components'
 import { useColorMode } from '@/components/ui/color-mode'
+import { NAV_NEW_BADGE_COLOR } from '@/theme'
 import { FOODCRM_MENU_ITEMS, MENU_ITEMS } from '@/utils/constants/appMenuLinks'
 
 import { Sidebar } from './AppSidebar'
@@ -105,6 +106,10 @@ describe('sidebar no formato do Figma', () => {
   it('abre Identidade da marca em Ajustes e mantém rotas antigas no accordion', () => {
     renderSidebar('/settings/brand-identity')
     expect(screen.getByRole('link', { name: /Identidade da marca/ })).toHaveTextContent('Novo')
+    const novo = screen.getByTestId('nav-badge-/settings/brand-identity')
+    const novidade = screen.getByTestId('nav-badge-/social')
+    expect(novo).toHaveStyle({ background: 'var(--chakra-colors-nav-new-badge)' })
+    expect(novidade).toHaveStyle({ background: 'var(--chakra-colors-nav-new-badge)' })
     expect(screen.getByRole('link', { name: 'Carteira' })).toHaveAttribute('href', '/settings/wallet')
     expect(screen.getByRole('link', { name: 'Renitência' })).toHaveAttribute(
       'href',
@@ -137,12 +142,21 @@ describe('sidebar no formato do Figma', () => {
       </Provider>
     )
     const sidebar = () => screen.getByTestId('app-sidebar')
+    const expectSharedBadge = () => {
+      for (const testId of ['nav-badge-/settings/brand-identity', 'nav-badge-/social']) {
+        expect(screen.getByTestId(testId)).toHaveStyle({
+          background: 'var(--chakra-colors-nav-new-badge)',
+        })
+      }
+    }
     await waitFor(() => expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'white'))
+    expectSharedBadge()
     expect(sidebar()).toHaveAttribute('data-sidebar-hover', 'gray.100')
     expect(sidebar()).toHaveAttribute('data-sidebar-sub', '#E8F6FD')
 
     fireEvent.click(screen.getByRole('button', { name: 'modo escuro' }))
     await waitFor(() => expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'gray.900'))
+    expectSharedBadge()
     expect(sidebar()).toHaveAttribute('data-sidebar-hover', 'whiteAlpha.100')
     expect(sidebar()).toHaveAttribute('data-sidebar-sub', 'rgba(123,201,241,0.16)')
 
@@ -158,7 +172,7 @@ describe('sidebar no formato do Figma', () => {
       ativo: contrast('#18181B', '#7BC9F1'),
       subitem: contrast('#7BC9F1', '#28343D'),
       academy: contrast('#A1A1AA', '#18181B'),
-      badge: contrast('#FFFFFF', '#C2410C'),
+      badge: contrast('#FFFFFF', NAV_NEW_BADGE_COLOR),
     }
     for (const ratio of Object.values(ratios)) {
       expect(ratio).toBeGreaterThanOrEqual(4.5)

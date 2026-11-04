@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Center, Icon, Stack, Text } from '@chakra-ui/react'
+import { Box, Button, Center, Icon, Stack, Text } from '@chakra-ui/react'
 import { type ElementType, memo } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 
@@ -6,6 +6,8 @@ import { ThemeImage, Tooltip } from '@/components'
 import { useColorModeValue } from '@/components/ui/color-mode'
 import { ACADEMY_MENU_ITEM } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
+
+import { NavNewBadge } from './NavNewBadge'
 
 type MenuLink = {
   label: string
@@ -163,18 +165,9 @@ const Sidebar = memo(
                         </Text>
                       )}
                       {open && item.isNew && (
-                        <Badge
-                          bg="#C2410C"
-                          borderRadius="4px"
-                          color="white"
-                          data-testid={`nav-badge-${item.href}`}
-                          fontSize="11px"
-                          fontWeight="semibold"
-                          px="6px"
-                          py="2px"
-                        >
+                        <NavNewBadge testId={`nav-badge-${item.href}`}>
                           Novidade
-                        </Badge>
+                        </NavNewBadge>
                       )}
                     </Box>
                   </Tooltip>
@@ -222,17 +215,12 @@ const Sidebar = memo(
                             {link.label}
                           </Text>
                           {link.badge && (
-                            <Badge
-                              bg="#C2410C"
-                              borderRadius="4px"
-                              color="white"
+                            <NavNewBadge
                               fontSize="10px"
-                              fontWeight="semibold"
-                              px="6px"
-                              py="2px"
+                              testId={`nav-badge-${link.href}`}
                             >
                               {link.badge}
-                            </Badge>
+                            </NavNewBadge>
                           )}
                         </Box>
                       )

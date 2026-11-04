@@ -31,6 +31,8 @@ import type { UserCompany } from '@/types'
 import { MENU_ITEMS, MOBILE_ONLY_ITEMS } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
 
+import { NavNewBadge } from './NavNewBadge'
+
 type MenuItemLike = { href: string; links?: { href: string }[] }
 
 function getMenuItemMatchScore(item: MenuItemLike, pathname: string) {
@@ -186,14 +188,7 @@ const MobileMenu = memo(
                           >
                             {label}
                           </Text>
-                          {isNew && (
-                            <Badge
-                              colorPalette="orange"
-                              variant="solid"
-                            >
-                              Novidade
-                            </Badge>
-                          )}
+                          {isNew && <NavNewBadge>Novidade</NavNewBadge>}
                           {links && (
                             <Icon
                               as={
@@ -262,24 +257,21 @@ const MobileMenu = memo(
                                   >
                                     {link.label}
                                   </Text>
-                                  {'badge' in link && link.badge && (
-                                    <Badge
-                                      colorPalette={
-                                        'badgeColorPalette' in link &&
-                                        link.badgeColorPalette
-                                          ? link.badgeColorPalette
-                                          : 'gray'
-                                      }
-                                      variant={
-                                        'badgeColorPalette' in link &&
-                                        link.badgeColorPalette
-                                          ? 'solid'
-                                          : 'subtle'
-                                      }
-                                    >
-                                      {link.badge}
-                                    </Badge>
-                                  )}
+                                  {'badge' in link &&
+                                    link.badge &&
+                                    ('badgeColorPalette' in link &&
+                                    link.badgeColorPalette === 'orange' ? (
+                                      <NavNewBadge fontSize="10px">
+                                        {link.badge}
+                                      </NavNewBadge>
+                                    ) : (
+                                      <Badge
+                                        colorPalette="gray"
+                                        variant="subtle"
+                                      >
+                                        {link.badge}
+                                      </Badge>
+                                    ))}
                                 </NavLink>
                               </HStack>
                             ))
