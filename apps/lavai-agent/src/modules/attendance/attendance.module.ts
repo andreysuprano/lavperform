@@ -44,6 +44,6 @@ import { MessagingModule } from '../messaging/messaging.module';
       useExisting: PrismaHelpRequestRepository,
     },
   ],
-  exports: [WaitingAckService, HumanTypingPauseService],
+  exports: [WaitingAckService, HumanTakeoverService, HumanTypingPauseService],
 })
 export class AttendanceModule {}

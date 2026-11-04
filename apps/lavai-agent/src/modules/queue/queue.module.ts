@@ -21,6 +21,7 @@ import { MessageNormalizerService } from '../../application/webhook/services/mes
 import { MessageFilterService } from '../../application/webhook/services/message-filter.service';
 import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
+import { TypingResumeService } from '../../application/webhook/services/typing-resume.service';
 import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/conversation.repository.port';
 import { PrismaConversationRepository } from '../../infrastructure/persistence/repositories/prisma-conversation.repository';
 import { PrismaWebhookEventRepository } from '../../infrastructure/persistence/repositories/prisma-webhook-event.repository';
@@ -78,6 +79,7 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     HumanTakeoverService,
     HumanReleaseService,
     MessageFilterService,
+    TypingResumeService,
 
     PrismaConversationRepository,
     { provide: CONVERSATION_REPOSITORY, useExisting: PrismaConversationRepository },

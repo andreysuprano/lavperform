@@ -86,6 +86,15 @@ describe('AgentRunnerService.complete', () => {
   const waitingAck = { clear: jest.fn(), maybeSend: jest.fn() };
   const idleClose = { schedule: jest.fn(), cancel: jest.fn(), cancelChat: jest.fn() };
   const journeys = { findByConversationId: jest.fn() };
+  const typing = {
+    isPaused: jest.fn(),
+    remainingMs: jest.fn(),
+    pauseMs: 120000,
+    setPending: jest.fn(),
+    clearPending: jest.fn(),
+  };
+  const takeover = { isInTakeover: jest.fn() };
+  const buffer = { reschedule: jest.fn() };
 
   const service = new AgentRunnerService(
     conversationRepo as never,
@@ -105,10 +114,19 @@ describe('AgentRunnerService.complete', () => {
     waitingAck as never,
     idleClose as never,
     journeys as never,
+    typing as never,
+    takeover as never,
+    buffer as never,
   );
 
   beforeEach(() => {
     jest.clearAllMocks();
+    typing.isPaused.mockResolvedValue(false);
+    typing.remainingMs.mockResolvedValue(0);
+    typing.setPending.mockResolvedValue(undefined);
+    typing.clearPending.mockResolvedValue(undefined);
+    takeover.isInTakeover.mockResolvedValue(false);
+    buffer.reschedule.mockResolvedValue(undefined);
     tracker.startRun.mockResolvedValue('run-1');
     conversationRepo.addMessage.mockResolvedValue({ id: 'reply-1' });
     mcp.openSessionsForAgent.mockResolvedValue([]);
@@ -335,6 +353,78 @@ describe('AgentRunnerService.complete', () => {
     });
 
     expect(idleClose.schedule).not.toHaveBeenCalled();
+  });
+
+  it('segura o envio durante a pausa e guarda o marcador', async () => {
+    prepareReply();
+    typing.isPaused.mockResolvedValue(true);
+    typing.remainingMs.mockResolvedValue(45000);
+
+    await service.run(inbound(), conversation(), agent());
+
+    expect(messageSender.send).not.toHaveBeenCalled();
+    expect(conversationRepo.addMessage).not.toHaveBeenCalled();
+    expect(typing.setPending).toHaveBeenCalledWith('agent-1', 'playground:session', 'conv-1');
+    expect(buffer.reschedule).toHaveBeenCalledWith('agent-1', 'playground:session', 45000);
+    expect(typing.clearPending).not.toHaveBeenCalled();
+  });
+
+  it('usa o tempo cheio da pausa quando o restante é zero', async () => {
+    prepareReply();
+    typing.isPaused.mockResolvedValue(true);
+    typing.remainingMs.mockResolvedValue(0);
+
+    await service.run(inbound(), conversation(), agent());
+
+    expect(buffer.reschedule).toHaveBeenCalledWith('agent-1', 'playground:session', 120000);
+  });
+
+  it('descarta a resposta em takeover e apaga o marcador', async () => {
+    prepareReply();
+    takeover.isInTakeover.mockResolvedValue(true);
+
+    await service.run(inbound(), conversation(), agent());
+
+    expect(messageSender.send).not.toHaveBeenCalled();
+    expect(conversationRepo.addMessage).not.toHaveBeenCalled();
+    expect(typing.clearPending).toHaveBeenCalledWith('agent-1', 'playground:session');
+    expect(buffer.reschedule).not.toHaveBeenCalled();
+    expect(tracker.failRun).not.toHaveBeenCalled();
+    expect(tracker.completeRun).toHaveBeenCalled();
+  });
+
+  it('não envia e reagenda quando o Redis falha na conferência', async () => {
+    prepareReply();
+    typing.isPaused.mockRejectedValue(new Error('redis down'));
+
+    await service.run(inbound(), conversation(), agent());
+
+    expect(messageSender.send).not.toHaveBeenCalled();
+    expect(conversationRepo.addMessage).not.toHaveBeenCalled();
+    expect(typing.setPending).toHaveBeenCalledWith('agent-1', 'playground:session', 'conv-1');
+    expect(buffer.reschedule).toHaveBeenCalledWith('agent-1', 'playground:session', 120000);
+  });
+
+  it('não lança quando a gravação de recuperação também falha', async () => {
+    prepareReply();
+    typing.isPaused.mockRejectedValue(new Error('redis down'));
+    typing.setPending.mockRejectedValue(new Error('redis down'));
+
+    await expect(service.run(inbound(), conversation(), agent())).resolves.toBeUndefined();
+
+    expect(messageSender.send).not.toHaveBeenCalled();
+  });
+
+  it('apaga o marcador depois do envio bem-sucedido', async () => {
+    prepareReply();
+
+    await service.run(inbound(), conversation(), agent());
+
+    expect(messageSender.send).toHaveBeenCalled();
+    expect(typing.clearPending).toHaveBeenCalledWith('agent-1', 'playground:session');
+    expect(messageSender.send.mock.invocationCallOrder[0]).toBeLessThan(
+      typing.clearPending.mock.invocationCallOrder[0],
+    );
   });
 
   function prepareReply() {
