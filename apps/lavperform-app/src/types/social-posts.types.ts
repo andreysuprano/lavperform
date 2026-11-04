@@ -151,6 +151,7 @@ export interface CreateDraftPayload {
   slideCount?: number
   artStyle: string
   includeCaption?: boolean
+  imageModel?: string
 }
 
 export interface UpdateVariationPayload {

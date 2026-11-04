@@ -1,4 +1,4 @@
-import { Box, Flex, Image, Progress, Text } from '@chakra-ui/react'
+import { Box, Button, Flex, Image, Progress, Text } from '@chakra-ui/react'
 import { useRef, useState } from 'react'
 import { LuImagePlus, LuX } from 'react-icons/lu'
 
@@ -16,15 +16,23 @@ interface Slot {
 
 interface Props {
   companyId: string
+  imageModel?: string
   onChange: (ids: string[]) => void
+  onUseModel?: (model: string) => void
 }
 
 const LIMIT = 5
 
-export function ReferenceImagesField({ companyId, onChange }: Props) {
+export function ReferenceImagesField({
+  companyId,
+  imageModel,
+  onChange,
+  onUseModel,
+}: Props) {
   const input = useRef<HTMLInputElement>(null)
   const [slots, setSlots] = useState<Slot[]>([])
   const [dragOver, setDragOver] = useState(false)
+  const [unsupported, setUnsupported] = useState<string | null>(null)
   const ready = slots.filter((slot) => slot.id)
   const full = ready.length >= LIMIT
 
@@ -59,6 +67,11 @@ export function ReferenceImagesField({ companyId, onChange }: Props) {
             )
           )
         })
+        setSlots((current) =>
+          current.map((slot) =>
+            slot.key === key ? { ...slot, progress: 80 } : slot
+          )
+        )
         const saved = await socialPostsService.addReference(companyId, dataUrl)
         setSlots((current) => {
           const next = current.map((slot) =>
@@ -67,6 +80,14 @@ export function ReferenceImagesField({ companyId, onChange }: Props) {
               : slot
           )
           publish(next)
+          const attached = next.filter((slot) => slot.id)
+          if (attached.length === 1 && !imageModel) {
+            void socialPostsService.imageModel().then((status) => {
+              if (!status.data.acceptsImages && status.data.suggestion) {
+                setUnsupported(status.data.suggestion)
+              }
+            })
+          }
           return next
         })
       } catch (error) {
@@ -160,7 +181,8 @@ export function ReferenceImagesField({ companyId, onChange }: Props) {
           if (full) return
           void addFiles([...event.dataTransfer.files])
         }}
-        opacity={full ? 0.6 : 1}
+        opacity={full ? 0.55 : 1}
+        pointerEvents={full ? 'none' : 'auto'}
         p={2}
         wrap="wrap"
       >
@@ -300,13 +322,44 @@ export function ReferenceImagesField({ companyId, onChange }: Props) {
       </Flex>
       {full && (
         <Text
-          color="#8E2A20"
+          color="#52525B"
           data-testid="reference-limit"
-          fontSize="xs"
-          mt={1}
+          fontSize="sm"
+          mt={2}
         >
           Limite de 5 imagens
         </Text>
+      )}
+      {unsupported && !imageModel && (
+        <Box
+          bg="#FFF7ED"
+          borderColor="#F3C9A0"
+          borderRadius="md"
+          borderWidth="1px"
+          data-testid="reference-model-warning"
+          mt={2}
+          p={3}
+        >
+          <Text
+            color="#9A3412"
+            fontSize="sm"
+          >
+            Este modelo não usa imagens de referência
+          </Text>
+          <Button
+            bg="#7BC9F1"
+            color="#093A58"
+            data-testid="use-reference-model"
+            mt={2}
+            onClick={() => {
+              onUseModel?.(unsupported)
+              setUnsupported(null)
+            }}
+            size="sm"
+          >
+            Usar um modelo que aceita referências
+          </Button>
+        </Box>
       )}
     </Box>
   )

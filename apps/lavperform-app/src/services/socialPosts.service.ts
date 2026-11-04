@@ -104,6 +104,14 @@ export const socialPostsService = {
     )
   },
 
+  async imageModel() {
+    return client.get<{
+      model: string
+      acceptsImages: boolean
+      suggestion: string | null
+    }>('/social-posts/image-model')
+  },
+
   async addReference(companyId: string, dataUrl: string) {
     return client.post<{ id: string; dataUrl: string }>(
       '/social-posts/references',

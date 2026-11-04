@@ -32,6 +32,7 @@ interface Props {
   onChange: (value: CreateDraftPayload) => void
   onGenerate: () => void
   onReferences?: (ids: string[]) => void
+  onUseReferenceModel?: (model: string) => void
 }
 
 export function PostBriefingForm({
@@ -43,6 +44,7 @@ export function PostBriefingForm({
   onChange,
   onGenerate,
   onReferences,
+  onUseReferenceModel,
 }: Props) {
   const [neutralBrand, setNeutralBrand] = useState(false)
   const canGenerate = value.theme.trim().length >= 8 && !generating
@@ -148,7 +150,9 @@ export function PostBriefingForm({
           </Field.Root>
           <ReferenceImagesField
             companyId={value.companyId}
+            imageModel={value.imageModel}
             onChange={(ids) => onReferences?.(ids)}
+            onUseModel={onUseReferenceModel}
           />
           <Field.Root>
             <Field.Label>Formato</Field.Label>
@@ -291,13 +295,53 @@ export function PostBriefingForm({
                 gap={3}
               >
                 <Box
-                  bg="url(/samples/post-background.svg) center/cover"
                   borderRadius="md"
                   flexShrink={0}
-                  h="88px"
-                  opacity={0.45}
-                  w="72px"
-                />
+                  h="112px"
+                  opacity={0.55}
+                  overflow="hidden"
+                  position="relative"
+                  w="84px"
+                >
+                  <Box
+                    bg="url(/samples/post-background.svg) center/cover"
+                    inset={0}
+                    position="absolute"
+                  />
+                  <Box
+                    bg="linear-gradient(to top, #093A58, transparent)"
+                    bottom={0}
+                    h="55%"
+                    left={0}
+                    position="absolute"
+                    right={0}
+                  />
+                  <Text
+                    bottom="7"
+                    color="white"
+                    fontSize="10px"
+                    fontWeight="800"
+                    left="1.5"
+                    lineHeight="1.05"
+                    position="absolute"
+                    right="1.5"
+                  >
+                    Roupa limpa, sem esforço.
+                  </Text>
+                  <Text
+                    bg="#FFD23F"
+                    borderRadius="full"
+                    bottom="1.5"
+                    color="#093A58"
+                    fontSize="8px"
+                    fontWeight="700"
+                    left="1.5"
+                    position="absolute"
+                    px="1"
+                  >
+                    20% OFF
+                  </Text>
+                </Box>
                 <Stack gap={1}>
                   <Heading
                     color="#093A58"

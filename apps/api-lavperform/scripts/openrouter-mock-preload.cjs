@@ -23,6 +23,27 @@ global.fetch = async (url, init) => {
     return originalFetch(url, init);
   }
 
+  if (target.includes('/api/v1/models')) {
+    return Response.json({
+      data: [
+        {
+          id: 'google/gemini-2.5-flash-image',
+          architecture: {
+            input_modalities: ['text'],
+            output_modalities: ['image'],
+          },
+        },
+        {
+          id: 'google/gemini-2.5-pro-image',
+          architecture: {
+            input_modalities: ['text', 'image'],
+            output_modalities: ['image', 'text'],
+          },
+        },
+      ],
+    });
+  }
+
   const body = JSON.parse(init?.body || '{}');
   if (body.modalities) {
     return Response.json({

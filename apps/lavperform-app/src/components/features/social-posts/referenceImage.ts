@@ -40,6 +40,6 @@ export async function prepareReferenceImage(
       reject(new Error('Não conseguimos ler esta imagem. Tente outra.'))
     reader.readAsDataURL(blob)
   })
-  onProgress?.(100)
+  onProgress?.(70)
   return dataUrl
 }

@@ -180,7 +180,7 @@ function LayerView({
         borderRadius="full"
         color={layer.color || '#093A58'}
         fontFamily={layer.fontFamily || brand.titleFont}
-        fontSize={`clamp(13px, ${((layer.fontSize ?? 34) / 1080) * 100}cqw, 22px)`}
+        fontSize={`${((layer.fontSize ?? 34) / 1080) * 100}cqw`}
         fontWeight="700"
         lineHeight="1.2"
         px="3"
@@ -198,7 +198,7 @@ function LayerView({
     <Text
       color={layer.color || 'white'}
       fontFamily={layer.fontFamily || brand.titleFont}
-      fontSize={`clamp(20px, ${((layer.fontSize ?? 64) / 1080) * 100}cqw, 44px)`}
+      fontSize={`${((layer.fontSize ?? 64) / 1080) * 100}cqw`}
       fontWeight="800"
       lineHeight="1.05"
       maxW={anchorLeft ? '8.5em' : undefined}

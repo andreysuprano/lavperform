@@ -157,6 +157,7 @@ export class SocialPostsService {
         slideCount,
         artStyle: dto.artStyle,
         includeCaption: dto.includeCaption ?? true,
+        imageModel: dto.imageModel?.trim() || null,
       },
       include: { variations: true },
     });
@@ -915,20 +916,18 @@ export class SocialPostsService {
 
   private async generateBackground(draftId: string, prompt: string) {
     const refs = await this.listActiveReferences(draftId);
+    const model = await this.draftImageModel(draftId);
     let urls = refs.map((item) => item.dataUrl);
     if (urls.length && this.openRouter.referenceCapability) {
-      const capability = await this.openRouter.referenceCapability();
+      const capability = await this.openRouter.referenceCapability(model);
       if (!capability.accepts) {
         urls = [];
-        const suggestion = capability.suggestion
-          ? ` Sugestão: ${capability.suggestion}.`
-          : '';
-        this.referenceWarning = `Este modelo não usa imagens de referência.${suggestion}`;
+        this.referenceWarning = 'Este modelo não usa imagens de referência.';
       } else {
         this.referenceWarning = null;
       }
     }
-    return this.openRouter.generateImage(prompt, urls);
+    return this.openRouter.generateImage(prompt, urls, model);
   }
 
   private async refreshReferenceWarning(draftId: string) {
@@ -937,12 +936,31 @@ export class SocialPostsService {
       this.referenceWarning = null;
       return;
     }
-    const capability = await this.openRouter.referenceCapability();
+    const capability = await this.openRouter.referenceCapability(
+      await this.draftImageModel(draftId),
+    );
     this.referenceWarning = capability.accepts
       ? null
-      : `Este modelo não usa imagens de referência.${
-          capability.suggestion ? ` Sugestão: ${capability.suggestion}.` : ''
-        }`;
+      : 'Este modelo não usa imagens de referência.';
+  }
+
+  async imageModelStatus(model?: string) {
+    const capability = this.openRouter.referenceCapability
+      ? await this.openRouter.referenceCapability(model)
+      : { accepts: true, suggestion: null };
+    return {
+      model: model?.trim() || this.openRouter.imageModel(),
+      acceptsImages: capability.accepts,
+      suggestion: capability.suggestion,
+    };
+  }
+
+  private async draftImageModel(draftId: string) {
+    const row = await this.prisma.socialPostDraft.findUnique({
+      where: { id: draftId },
+      select: { imageModel: true },
+    });
+    return row?.imageModel?.trim() || undefined;
   }
 
   private async listActiveReferences(draftId: string) {

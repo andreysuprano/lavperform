@@ -162,6 +162,12 @@ export function PostVariationsView({
                   <Button
                     bg="#7BC9F1"
                     color="#093A58"
+                    css={{
+                      '&:hover': {
+                        background: '#093A58 !important',
+                        color: 'white !important',
+                      },
+                    }}
                     flex="1"
                     onClick={() => onEdit(variation.id)}
                     size="sm"

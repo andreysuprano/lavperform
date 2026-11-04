@@ -49,6 +49,11 @@ export class CreateSocialDraftDto {
   @IsOptional()
   @IsBoolean()
   includeCaption?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  imageModel?: string;
 }
 
 export class SelectVariationDto {

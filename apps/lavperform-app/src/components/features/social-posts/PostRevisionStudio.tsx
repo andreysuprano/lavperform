@@ -10,7 +10,7 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import {
   LuCopy,
   LuDownload,
@@ -85,9 +85,16 @@ export function PostRevisionStudio({
   const latest = versions[versions.length - 1]
   const viewingPast = Boolean(selected && latest && selected.id !== latest.id)
 
+  const chatEnd = useRef<HTMLDivElement>(null)
+
   useEffect(() => {
     if (!pending) setInflight(null)
   }, [pending])
+
+  useEffect(() => {
+    const node = chatEnd.current?.parentElement
+    if (node) node.scrollTop = node.scrollHeight
+  }, [versions.length, error, inflight, pending])
 
   if (!variation || !selected) return null
 
@@ -135,10 +142,13 @@ export function PostRevisionStudio({
                 <Menu.Content>
                   <Menu.Item
                     asChild
+                    color="#18181B"
                     value="manual"
                   >
                     <RouterLink
+                      color="#18181B"
                       data-testid="open-manual-editor"
+                      style={{ color: '#18181B' }}
                       to={`/social/editor/${draft.id}/${variation.id}`}
                     >
                       <LuPencil />
@@ -146,6 +156,7 @@ export function PostRevisionStudio({
                     </RouterLink>
                   </Menu.Item>
                   <Menu.Item
+                    color="#18181B"
                     onClick={() => onRestoreVersion(variation.id, selected.id)}
                     value="duplicate"
                   >
@@ -153,6 +164,7 @@ export function PostRevisionStudio({
                     Duplicar versão
                   </Menu.Item>
                   <Menu.Item
+                    color="#18181B"
                     onClick={() => setHistoryOpen(true)}
                     value="history"
                   >
@@ -353,6 +365,30 @@ export function PostRevisionStudio({
                     V{version.number}
                     {version.number === latest?.number ? ' · atual' : ''}
                   </Text>
+                  {version.references?.length ? (
+                    <Stack gap={0}>
+                      <Text
+                        color="#5B6B78"
+                        fontSize="10px"
+                        textAlign="center"
+                      >
+                        Referências
+                      </Text>
+                      <HStack justify="center">
+                        {version.references.slice(0, 3).map((item) => (
+                          <Image
+                            alt="Referência"
+                            borderRadius="sm"
+                            h="16px"
+                            key={item.id}
+                            objectFit="cover"
+                            src={item.dataUrl}
+                            w="16px"
+                          />
+                        ))}
+                      </HStack>
+                    </Stack>
+                  ) : null}
                 </Stack>
               )
             })}
@@ -499,6 +535,7 @@ export function PostRevisionStudio({
                 </Button>
               </Box>
             )}
+            <Box ref={chatEnd} />
           </Stack>
           <Stack
             gap={3}

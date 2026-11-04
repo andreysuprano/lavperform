@@ -1607,6 +1607,7 @@ model SocialPostDraft {
   slideCount          Int                   @default(1)
   artStyle            String
   includeCaption      Boolean               @default(true)
+  imageModel          String?
   selectedVariationId String?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt

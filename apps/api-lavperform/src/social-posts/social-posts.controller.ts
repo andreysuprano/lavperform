@@ -190,6 +190,11 @@ export class SocialPostsController {
     );
   }
 
+  @Get('image-model')
+  imageModel() {
+    return this.socialPostsService.imageModelStatus();
+  }
+
   @Post('references')
   addReference(@Req() req: AuthRequest, @Body() dto: CreateReferenceDto) {
     return this.socialPostsService.addReference(

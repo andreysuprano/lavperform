@@ -197,16 +197,17 @@ export function BrandIdentityForm({
                     templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }}
                   >
                     <LogoSlot
+                      contrast={!value.logoDarkUrl && Boolean(value.logoLightUrl)}
                       label="Fundo claro"
                       onFile={(file) => upload(file, 'logoLightUrl')}
-                      src={value.logoLightUrl}
+                      src={value.logoDarkUrl || value.logoLightUrl}
                       testId="logo-light"
                     />
                     <LogoSlot
                       dark
                       label="Fundo escuro"
                       onFile={(file) => upload(file, 'logoDarkUrl')}
-                      src={value.logoDarkUrl || value.logoLightUrl}
+                      src={value.logoLightUrl || value.logoDarkUrl}
                       testId="logo-dark"
                     />
                     <LabelDrop
@@ -494,12 +495,14 @@ function LogoSlot({
   label,
   src,
   dark,
+  contrast,
   onFile,
   testId,
 }: {
   label: string
   src: string | null
   dark?: boolean
+  contrast?: boolean
   onFile: (file: File | undefined) => void
   testId: string
 }) {
@@ -520,6 +523,7 @@ function LogoSlot({
         {src ? (
           <Image
             alt={label}
+            filter={contrast ? 'brightness(0)' : undefined}
             h="full"
             objectFit="contain"
             p={4}

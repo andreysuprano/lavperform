@@ -20,10 +20,10 @@ import {
  */
 @Injectable()
 export class OpenRouterClient {
-  private capabilityCache: {
-    at: number;
-    value: { accepts: boolean; suggestion: string | null };
-  } | null = null;
+  private capabilityCache = new Map<
+    string,
+    { at: number; value: { accepts: boolean; suggestion: string | null } }
+  >();
 
   textModel(): string {
     return process.env.OPENROUTER_TEXT_MODEL?.trim() || DEFAULT_TEXT_MODEL;
@@ -51,21 +51,22 @@ export class OpenRouterClient {
   async generateImage(
     prompt: string,
     referenceImages: string[] = [],
+    model?: string,
   ): Promise<string> {
     try {
-      return await this.requestImage(prompt, referenceImages);
+      return await this.requestImage(prompt, referenceImages, model);
     } catch {
-      return await this.requestImage(prompt, referenceImages);
+      return await this.requestImage(prompt, referenceImages, model);
     }
   }
 
-  async referenceCapability(): Promise<{
+  async referenceCapability(modelId?: string): Promise<{
     accepts: boolean;
     suggestion: string | null;
   }> {
-    if (this.capabilityCache && Date.now() - this.capabilityCache.at < 300_000) {
-      return this.capabilityCache.value;
-    }
+    const model = modelId?.trim() || this.imageModel();
+    const cached = this.capabilityCache.get(model);
+    if (cached && Date.now() - cached.at < 300_000) return cached.value;
     const apiKey = process.env.OPENROUTER_API_KEY?.trim();
     if (!apiKey) return { accepts: true, suggestion: null };
     try {
@@ -83,7 +84,7 @@ export class OpenRouterClient {
         }>;
       };
       const models = payload.data ?? [];
-      const current = models.find((item) => item.id === this.imageModel());
+      const current = models.find((item) => item.id === model);
       const accepts = current
         ? (current.architecture?.input_modalities ?? []).includes('image')
         : true;
@@ -91,12 +92,12 @@ export class OpenRouterClient {
         models.find(
           (item) =>
             item.id &&
-            item.id !== this.imageModel() &&
+            item.id !== model &&
             item.architecture?.input_modalities?.includes('image') &&
             item.architecture?.output_modalities?.includes('image'),
         )?.id ?? null;
       const value = { accepts, suggestion };
-      this.capabilityCache = { at: Date.now(), value };
+      this.capabilityCache.set(model, { at: Date.now(), value });
       return value;
     } catch {
       return { accepts: true, suggestion: null };
@@ -106,6 +107,7 @@ export class OpenRouterClient {
   private async requestImage(
     prompt: string,
     referenceImages: string[],
+    model?: string,
   ): Promise<string> {
     const content: OpenRouterContent = referenceImages.length
       ? [
@@ -120,7 +122,7 @@ export class OpenRouterClient {
         ]
       : prompt;
     const payload = await this.post({
-      model: this.imageModel(),
+      model: model?.trim() || this.imageModel(),
       messages: [{ role: 'user', content }],
       modalities: ['image', 'text'],
     });

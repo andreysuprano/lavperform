@@ -89,6 +89,9 @@ export function SocialGeneratorPage() {
         onReferences={(ids) => {
           referenceIds.current = ids
         }}
+        onUseReferenceModel={(model) =>
+          setForm((current) => ({ ...current, imageModel: model }))
+        }
         value={{ ...form, companyId }}
       />
       <Dialog.Root
