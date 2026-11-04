@@ -18,7 +18,10 @@ const BUFFER_KEY = `msg-buffer:${AGENT_ID}:${CHAT_ID}`;
 const JOB_ID = `buffer:${AGENT_ID}:${CHAT_ID}`;
 
 function createService() {
-  const existingJob = { remove: jest.fn().mockResolvedValue(undefined) };
+  const existingJob = {
+    remove: jest.fn().mockResolvedValue(undefined),
+    getState: jest.fn().mockResolvedValue('delayed'),
+  };
   const queue = {
     getJob: jest.fn().mockResolvedValue(existingJob),
     add: jest.fn().mockResolvedValue({ id: JOB_ID }),
@@ -94,16 +97,38 @@ describe('MessageBufferService', () => {
       );
       expect(mockRedis.del).not.toHaveBeenCalled();
     });
+
+    it('usa o jobId de hold e não remove o job canônico quando ele está ativo', async () => {
+      const { service, queue } = createService();
+      const activeJob = {
+        remove: jest.fn().mockRejectedValue(new Error('locked')),
+        getState: jest.fn().mockResolvedValue('active'),
+      };
+      queue.getJob.mockImplementation(async (id: string) =>
+        id === JOB_ID ? activeJob : undefined,
+      );
+
+      await service.reschedule(AGENT_ID, CHAT_ID, 45000);
+
+      expect(activeJob.remove).not.toHaveBeenCalled();
+      expect(queue.add).toHaveBeenCalledWith(
+        BUFFER_JOB_NAME,
+        { agentId: AGENT_ID, chatId: CHAT_ID, bufferKey: BUFFER_KEY },
+        expect.objectContaining({ jobId: `${JOB_ID}:hold`, delay: 45000 }),
+      );
+    });
   });
 
   describe('discard', () => {
-    it('faz del da lista e remove do job', async () => {
-      const { service, existingJob } = createService();
+    it('faz del da lista e remove os jobs canônico e de hold', async () => {
+      const { service, queue, existingJob } = createService();
 
       await service.discard(AGENT_ID, CHAT_ID);
 
       expect(mockRedis.del).toHaveBeenCalledWith(BUFFER_KEY);
-      expect(existingJob.remove).toHaveBeenCalled();
+      expect(queue.getJob).toHaveBeenCalledWith(JOB_ID);
+      expect(queue.getJob).toHaveBeenCalledWith(`${JOB_ID}:hold`);
+      expect(existingJob.remove).toHaveBeenCalledTimes(2);
     });
   });
 });

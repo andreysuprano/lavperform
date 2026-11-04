@@ -301,7 +301,14 @@ export class AgentRunnerService implements OnModuleInit {
   ): Promise<'send' | 'takeover' | 'held'> {
     try {
       if (await this.takeover.isInTakeover(agent.id, conversation.chatId)) {
-        await this.typing.clearPending(agent.id, conversation.chatId);
+        try {
+          await this.typing.clearPending(agent.id, conversation.chatId);
+        } catch (clearError) {
+          const clearMsg = clearError instanceof Error ? clearError.message : String(clearError);
+          this.logger.error(
+            `[Runner] Falha ao apagar o marcador após takeover | conv=${conversation.id} | ${clearMsg}`,
+          );
+        }
         return 'takeover';
       }
 

@@ -393,6 +393,18 @@ describe('AgentRunnerService.complete', () => {
     expect(tracker.completeRun).toHaveBeenCalled();
   });
 
+  it('mantém takeover sem reter quando clearPending falha', async () => {
+    prepareReply();
+    takeover.isInTakeover.mockResolvedValue(true);
+    typing.clearPending.mockRejectedValue(new Error('redis down'));
+
+    await service.run(inbound(), conversation(), agent());
+
+    expect(typing.setPending).not.toHaveBeenCalled();
+    expect(buffer.reschedule).not.toHaveBeenCalled();
+    expect(messageSender.send).not.toHaveBeenCalled();
+  });
+
   it('não envia e reagenda quando o Redis falha na conferência', async () => {
     prepareReply();
     typing.isPaused.mockRejectedValue(new Error('redis down'));

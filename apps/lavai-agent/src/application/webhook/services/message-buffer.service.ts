@@ -84,6 +84,7 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
   async discard(agentId: string, chatId: string): Promise<void> {
     await this.redis.del(this.buildBufferKey(agentId, chatId));
     await this.removeExistingJob(this.buildJobId(agentId, chatId));
+    await this.removeExistingJob(this.buildHoldJobId(agentId, chatId));
   }
 
   /**
@@ -104,9 +105,20 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
     delayMs: number,
   ): Promise<string> {
     const bufferKey = this.buildBufferKey(agentId, chatId);
-    const jobId = this.buildJobId(agentId, chatId);
+    const canonicalJobId = this.buildJobId(agentId, chatId);
+    const holdJobId = this.buildHoldJobId(agentId, chatId);
 
-    await this.removeExistingJob(jobId, chatId);
+    // Dentro do job ativo o id canônico está travado: remover falha e o add
+    // com o mesmo id seria ignorado. Nesse caso a continuação usa o id de hold.
+    const canonicalActive = await this.isJobActive(canonicalJobId);
+    let jobId = canonicalJobId;
+    if (canonicalActive) {
+      jobId = holdJobId;
+      await this.removeExistingJob(holdJobId, chatId);
+    } else {
+      await this.removeExistingJob(canonicalJobId, chatId);
+      await this.removeExistingJob(holdJobId);
+    }
 
     const job = await this.queue.add(
       BUFFER_JOB_NAME,
@@ -120,6 +132,15 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
     );
 
     return String(job.id);
+  }
+
+  private async isJobActive(jobId: string): Promise<boolean> {
+    try {
+      const job = await this.queue.getJob(jobId);
+      return job ? (await job.getState()) === 'active' : false;
+    } catch {
+      return false;
+    }
   }
 
   private async removeExistingJob(jobId: string, chatId?: string): Promise<void> {
@@ -142,5 +163,9 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
 
   private buildJobId(agentId: string, chatId: string): string {
     return `buffer:${agentId}:${chatId}`;
+  }
+
+  private buildHoldJobId(agentId: string, chatId: string): string {
+    return `${this.buildJobId(agentId, chatId)}:hold`;
   }
 }
