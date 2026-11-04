@@ -7,12 +7,20 @@ import { WEBHOOK_PROVIDER_PORT } from '../ports/webhook-provider.port';
 import type { WebhookProviderPort } from '../ports/webhook-provider.port';
 import { WEBHOOK_QUEUE_PORT } from '../ports/webhook-queue.port';
 import type { WebhookQueuePort } from '../ports/webhook-queue.port';
+import {
+  HumanTypingPauseService,
+  shouldPauseForPresence,
+} from '../services/human-typing-pause.service';
 import { MessageBufferService } from '../services/message-buffer.service';
 import { WaitingAckService } from '../services/waiting-ack.service';
 import {
   MessageType,
   type IncomingMessage,
 } from '../types/incoming-message.types';
+
+export type ReceiveWebhookResult =
+  | { kind: 'presence' }
+  | { kind: 'queued'; jobId: string; webhookEventId: string };
 
 /** Só a saudação deste webhook espera no máximo isto. O envio UAZAPI em si não ganha timeout. */
 const WAITING_ACK_WEBHOOK_TIMEOUT_MS = 5000;
@@ -32,13 +40,17 @@ export class ReceiveWebhookUseCase {
     @Inject(WEBHOOK_PROVIDER_PORT)
     private readonly provider: WebhookProviderPort,
     private readonly waitingAck: WaitingAckService,
+    private readonly typing: HumanTypingPauseService,
   ) {}
 
   async execute(
     rawPayload: string,
     companyId: string,
     agentId: string,
-  ): Promise<{ jobId: string; webhookEventId: string }> {
+  ): Promise<ReceiveWebhookResult> {
+    const presence = await this.handlePresence(rawPayload, agentId);
+    if (presence) return presence;
+
     this.logger.log(`[ReceiveWebhook] Persistindo evento | companyId=${companyId} | agentId=${agentId}`);
 
     const { id: webhookEventId } = await this.repository.save(rawPayload, companyId, agentId);
@@ -53,11 +65,15 @@ export class ReceiveWebhookUseCase {
       void this.sendWaitingAck(message, agentId).catch((error: unknown) => {
         this.logWaitingAckError(agentId, error);
       });
-      const jobId = await this.messageBuffer.addToBuffer(webhookEventId, agentId, chatId);
+      const remainingMs = await this.typing.remainingMs(agentId, chatId);
+      const jobId =
+        remainingMs > 0
+          ? await this.messageBuffer.addToBuffer(webhookEventId, agentId, chatId, remainingMs)
+          : await this.messageBuffer.addToBuffer(webhookEventId, agentId, chatId);
       this.logger.log(
         `[ReceiveWebhook] Evento adicionado ao buffer | webhookEventId=${webhookEventId} | chatId=${chatId}`,
       );
-      return { jobId, webhookEventId };
+      return { kind: 'queued', jobId, webhookEventId };
     }
 
     if (
@@ -74,7 +90,53 @@ export class ReceiveWebhookUseCase {
       `[ReceiveWebhook] Job enfileirado diretamente | jobId=${jobId} | webhookEventId=${webhookEventId}`,
     );
 
-    return { jobId, webhookEventId };
+    return { kind: 'queued', jobId, webhookEventId };
+  }
+
+  private async handlePresence(
+    rawPayload: string,
+    agentId: string,
+  ): Promise<{ kind: 'presence' } | undefined> {
+    let body: Record<string, unknown>;
+    try {
+      body = JSON.parse(rawPayload) as Record<string, unknown>;
+    } catch {
+      return undefined;
+    }
+
+    if (body.EventType !== 'presence') return undefined;
+
+    const event = (body.event ?? {}) as Record<string, unknown>;
+    const chatId =
+      (typeof event.chatid === 'string' && event.chatid) ||
+      (typeof event.Chat === 'string' && event.Chat) ||
+      '';
+
+    if (!chatId) {
+      this.logger.log(
+        `[ReceiveWebhook] Presença sem chat | agentId=${agentId}`,
+      );
+      return { kind: 'presence' };
+    }
+
+    if (
+      shouldPauseForPresence({
+        isFromMe: event.IsFromMe === true,
+        state: typeof event.State === 'string' ? event.State : null,
+        media: typeof event.Media === 'string' ? event.Media : null,
+      })
+    ) {
+      await this.typing.refresh(agentId, chatId);
+      const [hasItems, pending] = await Promise.all([
+        this.messageBuffer.hasItems(agentId, chatId),
+        this.typing.getPending(agentId, chatId),
+      ]);
+      if (hasItems || pending) {
+        await this.messageBuffer.reschedule(agentId, chatId, this.typing.pauseMs);
+      }
+    }
+
+    return { kind: 'presence' };
   }
 
   /**
