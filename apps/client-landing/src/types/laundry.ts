@@ -69,6 +69,7 @@ export interface LaundryData {
     description: string
     buttonText: string
     whatsappNumber: string
+    whatsappMessage?: string
   }
   footer: {
     description: string

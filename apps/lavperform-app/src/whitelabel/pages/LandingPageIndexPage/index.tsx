@@ -62,7 +62,7 @@ function LandingPageIndexPageBase() {
     { label: 'Localização', path: '/whitelabel/landing-page/location', description: 'Endereço e mapa' },
     { label: 'FAQ', path: '/whitelabel/landing-page/faq', description: 'Perguntas frequentes' },
     { label: 'Avaliações', path: '/whitelabel/landing-page/testimonials', description: 'Depoimentos de clientes' },
-    { label: 'CTA Final', path: '/whitelabel/landing-page/cta', description: 'Call-to-action final' },
+    { label: 'CTA e WhatsApp', path: '/whitelabel/landing-page/cta', description: 'Call-to-action e botão flutuante de WhatsApp' },
     { label: 'Rodapé', path: '/whitelabel/landing-page/footer', description: 'Informações do rodapé' },
   ]
 

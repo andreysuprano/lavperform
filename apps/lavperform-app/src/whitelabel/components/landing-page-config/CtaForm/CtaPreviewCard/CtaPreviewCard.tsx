@@ -63,6 +63,22 @@ function CtaPreviewCardBase({ data, branding }: Props) {
               </Text>
             </HStack>
           </Button>
+
+          <HStack
+            alignSelf="flex-end"
+            bg="#25D366"
+            borderRadius="full"
+            color="white"
+            gap={2}
+            px={3}
+            py={2}
+            maxW="full"
+          >
+            <Icon as={FaWhatsapp} boxSize={4} />
+            <Text fontSize="xs" lineClamp={2}>
+              {data.whatsappMessage || 'Mensagem do botão flutuante'}
+            </Text>
+          </HStack>
         </Stack>
       </Box>
     </Card.Root>

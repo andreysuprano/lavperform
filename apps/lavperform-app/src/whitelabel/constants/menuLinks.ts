@@ -56,7 +56,7 @@ export const WHITELABEL_MENU_ITEMS = [
         icon: LuStar,
       },
       {
-        label: 'CTA Final',
+        label: 'CTA e WhatsApp',
         href: '/whitelabel/landing-page/cta',
         icon: RiPagesLine,
       },
