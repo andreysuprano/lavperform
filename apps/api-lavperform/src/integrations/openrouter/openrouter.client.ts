@@ -1,8 +1,10 @@
 import {
   BadGatewayException,
   Injectable,
+  Optional,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { AiModelSettingsService } from './ai-model-settings.service';
 import {
   DEFAULT_IMAGE_MODEL,
   DEFAULT_TEXT_MODEL,
@@ -18,17 +20,27 @@ import {
  */
 @Injectable()
 export class OpenRouterClient {
-  textModel(): string {
+  constructor(
+    @Optional() private readonly modelSettings?: AiModelSettingsService,
+  ) {}
+
+  async textModel(): Promise<string> {
+    if (this.modelSettings) {
+      return (await this.modelSettings.resolveTextModel()).model;
+    }
     return process.env.OPENROUTER_TEXT_MODEL?.trim() || DEFAULT_TEXT_MODEL;
   }
 
-  imageModel(): string {
+  async imageModel(): Promise<string> {
+    if (this.modelSettings) {
+      return (await this.modelSettings.resolveImageModel()).model;
+    }
     return process.env.OPENROUTER_IMAGE_MODEL?.trim() || DEFAULT_IMAGE_MODEL;
   }
 
   async completeText(messages: OpenRouterMessage[]): Promise<string> {
     const payload = await this.post({
-      model: this.textModel(),
+      model: await this.textModel(),
       temperature: 0.7,
       messages,
     });
@@ -51,7 +63,7 @@ export class OpenRouterClient {
 
   private async requestImage(prompt: string): Promise<string> {
     const payload = await this.post({
-      model: this.imageModel(),
+      model: await this.imageModel(),
       messages: [{ role: 'user', content: prompt }],
       modalities: ['image', 'text'],
     });

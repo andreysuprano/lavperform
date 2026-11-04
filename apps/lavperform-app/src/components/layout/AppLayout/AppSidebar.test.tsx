@@ -42,7 +42,7 @@ describe('sidebar no formato do Figma', () => {
 
     expect(labels).toEqual([
       'Dashboard',
-      'Meta ADS',
+      'Tráfego',
       'Fidelização e Recorrência',
       'Clientes',
       'Canais de Comunicação',

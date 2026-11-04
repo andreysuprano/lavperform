@@ -19,6 +19,7 @@ import { AdminOverviewModule } from './overview/admin-overview.module';
 import { AdminDeduplicationModule } from './deduplication/admin-deduplication.module';
 import { AdminApiKeysModule } from './api-keys/admin-api-keys.module';
 import { AdminCustomersModule } from './customers/admin-customers.module';
+import { AdminAiModelsModule } from './ai-models/admin-ai-models.module';
 import { RedisModule } from '../common/redis/redis.module';
 import { QueueModule } from '../common/queue/queue.module';
 
@@ -53,6 +54,7 @@ import { QueueModule } from '../common/queue/queue.module';
     AdminDeduplicationModule,
     AdminApiKeysModule,
     AdminCustomersModule,
+    AdminAiModelsModule,
   ],
 })
 export class AdminModule {}
