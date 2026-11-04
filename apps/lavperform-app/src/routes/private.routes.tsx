@@ -124,6 +124,11 @@ const SocialEditorPage = lazy(() =>
     default: module.SocialEditorPage,
   }))
 )
+const SocialRevisionPage = lazy(() =>
+  import('@/pages/social/SocialRevisionPage').then((module) => ({
+    default: module.SocialRevisionPage,
+  }))
+)
 const IntegrationPage = lazy(() =>
   import('@/pages/settings/IntegrationPage').then((module) => ({
     default: module.IntegrationPage,
@@ -457,6 +462,10 @@ export function PrivateRoutes() {
         <Route
           element={<SocialVariationsPage />}
           path="/social/generator/:draftId"
+        />
+        <Route
+          element={<SocialRevisionPage />}
+          path="/social/revise/:draftId/:variationId"
         />
         <Route
           element={<SocialEditorPage />}

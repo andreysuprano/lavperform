@@ -151,7 +151,7 @@ export function PostVariationsView({
                     variant="outline"
                   >
                     <LuPencil />
-                    Editar
+                    Revisar
                   </Button>
                   <Button
                     aria-label="Novo fundo"

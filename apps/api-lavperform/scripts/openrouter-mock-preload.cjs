@@ -27,6 +27,30 @@ global.fetch = async (url, init) => {
     });
   }
 
+  const user = (body.messages || []).find((item) => item.role === 'user')?.content || '';
+  if (String(user).includes('Pedido:')) {
+    const pedido = String(user);
+    const title = /título|titulo/i.test(pedido);
+    const background = /fundo/i.test(pedido);
+    return Response.json({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({
+              nonsense: false,
+              regenerateBackground: background && !title,
+              backgroundInstruction: 'lighter laundry room without text',
+              headline: title ? 'Promoção de Verão' : null,
+              reply: title
+                ? 'Atualizei o título.'
+                : 'Mudei o fundo. Texto, logo e cores mantidos.',
+            }),
+          },
+        },
+      ],
+    });
+  }
+
   return Response.json({
     choices: [
       {

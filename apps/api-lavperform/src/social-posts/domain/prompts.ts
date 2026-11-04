@@ -106,6 +106,46 @@ export function buildRewriteMessages(input: {
   };
 }
 
+export function buildRevisionMessages(input: {
+  theme: string;
+  tones: string[];
+  headline: string;
+  captionMedium: string;
+  prompt: string;
+}) {
+  const tones = input.tones.length ? input.tones.join(', ') : 'Próximo';
+  return {
+    system: [
+      'Você revisa um post de lavanderia já gerado.',
+      'Responda apenas JSON válido, sem markdown:',
+      '{"nonsense":false,"regenerateBackground":false,"backgroundInstruction":"","headline":null,"badgeText":null,"captionShort":null,"captionMedium":null,"captionLong":null,"hashtags":null,"reply":""}',
+      'Se o pedido for só mudar o título, regenerateBackground=false e preencha headline. Não descreva imagem nova.',
+      'Se o pedido for só o fundo, regenerateBackground=true e backgroundInstruction descreve a cena sem texto, letras, números ou logo. headline e legendas ficam null. reply: "Mudei o fundo. Texto, logo e cores mantidos."',
+      `Se o pedido for a legenda, reescreva captionShort, captionMedium e captionLong no tom ${tones}. Não regenere o fundo.`,
+      'Pode combinar ações só se o pedido pedir mais de uma coisa.',
+      'reply é uma frase curta em português, como "Mudei o fundo" ou "Atualizei o título e a legenda".',
+      'Se o pedido for vazio, sem sentido ou não for sobre o post, nonsense=true.',
+    ].join('\n'),
+    user: [
+      `Tema: ${input.theme}`,
+      `Título atual: ${input.headline}`,
+      `Legenda atual: ${input.captionMedium}`,
+      `Pedido: ${input.prompt}`,
+    ].join('\n'),
+  };
+}
+
+export function buildRevisionImagePrompt(
+  basePrompt: string,
+  instruction: string,
+): string {
+  return [
+    basePrompt,
+    `Adjustment requested: ${instruction}.`,
+    'Change only the background scene. Still absolutely no text, letters, numbers, logo, watermark or typography.',
+  ].join(' ');
+}
+
 export function parseGenerationJson(
   raw: string,
   count: number,

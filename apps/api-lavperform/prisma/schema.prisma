@@ -1626,11 +1626,36 @@ model SocialPostVariation {
   captionMedium String          @db.Text
   captionLong   String          @db.Text
   activeCaption String          @default("medium")
-  hashtags      String[]        @default([])
-  slides        Json
-  createdAt     DateTime        @default(now())
-  updatedAt     DateTime        @updatedAt
+  hashtags          String[]             @default([])
+  slides            Json
+  selectedVersionId String?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+  versions          SocialPostVersion[]
 
   @@index([draftId])
   @@map("social_post_variations")
+}
+
+model SocialPostVersion {
+  id              String              @id @default(uuid())
+  variationId     String
+  variation       SocialPostVariation @relation(fields: [variationId], references: [id], onDelete: Cascade)
+  number          Int
+  source          String
+  prompt          String?             @db.Text
+  assistantReply  String?             @db.Text
+  headline        String
+  badgeText       String?
+  captionShort    String              @db.Text
+  captionMedium   String              @db.Text
+  captionLong     String              @db.Text
+  activeCaption   String              @default("medium")
+  hashtags        String[]            @default([])
+  slides          Json
+  createdAt       DateTime            @default(now())
+
+  @@unique([variationId, number])
+  @@index([variationId])
+  @@map("social_post_versions")
 }

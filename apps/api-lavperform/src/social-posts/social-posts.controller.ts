@@ -18,7 +18,9 @@ import {
   CreateSocialDraftDto,
   RegenerateBackgroundDto,
   RewriteCaptionDto,
+  RevisePostDto,
   SelectVariationDto,
+  SelectVersionDto,
   UpdateVariationDto,
 } from './dto/social-post.dto';
 import { SocialPostsService } from './social-posts.service';
@@ -126,6 +128,61 @@ export class SocialPostsController {
       req.user.userId,
       variationId,
       dto.slideIndex ?? 0,
+    );
+  }
+
+  @Post('variations/:variationId/revise')
+  @HttpCode(200)
+  revise(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: RevisePostDto,
+  ) {
+    return this.socialPostsService.revise(
+      req.user.userId,
+      variationId,
+      dto.prompt,
+    );
+  }
+
+  @Post('variations/:variationId/restore')
+  @HttpCode(200)
+  restoreVersion(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: SelectVersionDto,
+  ) {
+    return this.socialPostsService.restoreVersion(
+      req.user.userId,
+      variationId,
+      dto.versionId,
+    );
+  }
+
+  @Patch('variations/:variationId/version')
+  selectVersion(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: SelectVersionDto,
+  ) {
+    return this.socialPostsService.selectVersion(
+      req.user.userId,
+      variationId,
+      dto.versionId,
+    );
+  }
+
+  @Post('variations/:variationId/manual')
+  @HttpCode(200)
+  recordManualVersion(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: UpdateVariationDto,
+  ) {
+    return this.socialPostsService.recordManualVersion(
+      req.user.userId,
+      variationId,
+      dto,
     );
   }
 

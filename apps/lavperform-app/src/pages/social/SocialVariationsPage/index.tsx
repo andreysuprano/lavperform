@@ -74,7 +74,7 @@ export function SocialVariationsPage() {
           }
           onCopy={copy}
           onEdit={(variationId) =>
-            navigate(`/social/editor/${draftId}/${variationId}`)
+            navigate(`/social/revise/${draftId}/${variationId}`)
           }
           onMore={() => more.mutate()}
           onRegenerate={async (variationId) => {

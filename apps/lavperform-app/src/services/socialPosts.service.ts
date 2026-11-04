@@ -75,6 +75,34 @@ export const socialPostsService = {
       { length }
     )
   },
+
+  async revise(variationId: string, prompt: string) {
+    return client.post<SocialPostDraft>(
+      `/social-posts/variations/${variationId}/revise`,
+      { prompt }
+    )
+  },
+
+  async restoreVersion(variationId: string, versionId: string) {
+    return client.post<SocialPostDraft>(
+      `/social-posts/variations/${variationId}/restore`,
+      { versionId }
+    )
+  },
+
+  async selectVersion(variationId: string, versionId: string) {
+    return client.patch<SocialPostDraft>(
+      `/social-posts/variations/${variationId}/version`,
+      { versionId }
+    )
+  },
+
+  async recordManual(variationId: string, payload: UpdateVariationPayload) {
+    return client.post<SocialPostDraft>(
+      `/social-posts/variations/${variationId}/manual`,
+      payload
+    )
+  },
 }
 
 export function apiErrorMessage(error: unknown, fallback: string) {
