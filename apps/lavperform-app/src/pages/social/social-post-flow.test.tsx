@@ -487,7 +487,9 @@ describe('fluxo de post com IA', () => {
     expect(screen.queryByText('Ctrl + Enter para gerar')).not.toBeInTheDocument()
     expect(screen.getByText('Post')).toBeInTheDocument()
     expect(screen.getByText('1080×1080')).toBeInTheDocument()
-    expect(screen.getByText('Como a IA monta o post')).toBeInTheDocument()
+    expect(screen.queryByText('Como a IA monta o post')).not.toBeInTheDocument()
+    expect(screen.queryByText('1. Você descreve a ideia')).not.toBeInTheDocument()
+    expect(screen.getByText('Legenda e hashtags no seu tom de voz.')).toBeInTheDocument()
 
     fireEvent.change(screen.getByTestId('briefing-theme'), {
       target: { value: '20% de desconto na lavagem de edredons no Batel' },

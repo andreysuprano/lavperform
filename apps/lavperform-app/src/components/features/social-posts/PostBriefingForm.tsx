@@ -15,7 +15,7 @@ import {
   Textarea,
 } from '@chakra-ui/react'
 import { useEffect, useState } from 'react'
-import { LuImage, LuSparkles, LuType } from 'react-icons/lu'
+import { LuSparkles } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
 import type { BrandIdentity, CreateDraftPayload } from '@/types'
@@ -268,6 +268,18 @@ export function PostBriefingForm({
               </NativeSelect.Root>
             </Field.Root>
           </Grid>
+          <Checkbox.Root
+            checked={value.includeCaption !== false}
+            onCheckedChange={({ checked }) =>
+              onChange({ ...value, includeCaption: checked === true })
+            }
+          >
+            <Checkbox.HiddenInput />
+            <Checkbox.Control />
+            <Checkbox.Label>
+              Legenda e hashtags no seu tom de voz.
+            </Checkbox.Label>
+          </Checkbox.Root>
           <Flex justify="flex-end">
             <Button
               bg="#7BC9F1"
@@ -424,71 +436,6 @@ export function PostBriefingForm({
             </Card.Body>
           </Card.Root>
         )}
-        <Card.Root>
-          <Card.Body gap={3}>
-            <Heading size="sm">Como a IA monta o post</Heading>
-            {(
-              [
-                [
-                  '1. Você descreve a ideia',
-                  'promoção de 20% na sexta',
-                  'idea',
-                ],
-                [
-                  '2. A IA cria a imagem de fundo',
-                  'só a arte, sem textos',
-                  'art',
-                ],
-                [
-                  '3. Aplicamos a sua marca',
-                  'título, logo e cores por cima, sempre legíveis',
-                  'brand',
-                ],
-              ] as const
-            ).map(([title, detail, kind]) => (
-              <HStack
-                align="flex-start"
-                gap={3}
-                key={title}
-              >
-                <StepThumb kind={kind} />
-                <Stack gap={0}>
-                  <Text
-                    color="#093A58"
-                    fontSize="sm"
-                    fontWeight="semibold"
-                  >
-                    {title}
-                  </Text>
-                  <Text
-                    color="#5B6B78"
-                    fontSize="xs"
-                  >
-                    {detail}
-                  </Text>
-                </Stack>
-              </HStack>
-            ))}
-            <Text
-              color="#093A58"
-              fontSize="sm"
-            >
-              Você pode revisar e ajustar tudo antes de baixar.
-            </Text>
-            <Checkbox.Root
-              checked={value.includeCaption !== false}
-              onCheckedChange={({ checked }) =>
-                onChange({ ...value, includeCaption: checked === true })
-              }
-            >
-              <Checkbox.HiddenInput />
-              <Checkbox.Control />
-              <Checkbox.Label>
-                Legenda e hashtags no seu tom de voz.
-              </Checkbox.Label>
-            </Checkbox.Root>
-          </Card.Body>
-        </Card.Root>
         {generating && (
           <Card.Root>
             <Card.Body gap={2}>
@@ -556,46 +503,3 @@ function FormatGlyph({ kind }: { kind: 'square' | 'pages' | 'story' }) {
   )
 }
 
-function StepThumb({ kind }: { kind: 'idea' | 'art' | 'brand' }) {
-  return (
-    <Flex
-      align="center"
-      backgroundImage={
-        kind === 'idea' ? undefined : 'url(/samples/post-background.svg)'
-      }
-      backgroundPosition="center"
-      backgroundSize="cover"
-      bg={kind === 'art' ? 'transparent' : '#E8F6FD'}
-      borderRadius="md"
-      color="#093A58"
-      flexShrink={0}
-      h="56px"
-      justify="center"
-      overflow="hidden"
-      position="relative"
-      w="44px"
-    >
-      {kind === 'idea' && <LuType />}
-      {kind === 'brand' && (
-        <Box
-          bg="#093A58"
-          borderRadius="sm"
-          bottom="1"
-          h="4"
-          left="1"
-          position="absolute"
-          w="8"
-        />
-      )}
-      {kind === 'brand' && (
-        <Box
-          position="absolute"
-          right="1"
-          top="1"
-        >
-          <LuImage size={12} />
-        </Box>
-      )}
-    </Flex>
-  )
-}
