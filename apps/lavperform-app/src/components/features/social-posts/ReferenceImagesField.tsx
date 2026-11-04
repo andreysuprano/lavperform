@@ -2,6 +2,7 @@ import { Box, Button, Flex, Image, Text } from '@chakra-ui/react'
 import { useRef, useState } from 'react'
 import { LuImagePlus, LuX } from 'react-icons/lu'
 
+import { useColorModeValue } from '@/components/ui/color-mode'
 import { socialPostsService } from '@/services'
 
 import { prepareReferenceImage } from './referenceImage'
@@ -29,6 +30,20 @@ export function ReferenceImagesField({
   onChange,
   onUseModel,
 }: Props) {
+  const labelColor = useColorModeValue('#093A58', 'gray.100')
+  const labelWeight = useColorModeValue('medium', '600')
+  const countColor = useColorModeValue('#5B6B78', 'gray.400')
+  const zoneBg = useColorModeValue('white', 'transparent')
+  const zoneDragBg = useColorModeValue('#E8F6FD', 'rgba(123,201,241,0.16)')
+  const zoneBorderOpen = useColorModeValue('#7BC9F1', 'whiteAlpha.300')
+  const zoneBorderFull = useColorModeValue('#E4E7EB', 'whiteAlpha.300')
+  const slotBg = useColorModeValue('#F5F5F6', 'whiteAlpha.100')
+  const slotIcon = useColorModeValue('#5B6B78', 'gray.400')
+  const trackBg = useColorModeValue('#E4E7EB', 'whiteAlpha.200')
+  const chipBg = useColorModeValue('white', 'gray.700')
+  const warningBg = useColorModeValue('#FFF7ED', 'orange.900/20')
+  const warningBorder = useColorModeValue('#F3C9A0', 'orange.700')
+  const warningText = useColorModeValue('#9A3412', 'orange.200')
   const input = useRef<HTMLInputElement>(null)
   const [slots, setSlots] = useState<Slot[]>([])
   const [dragOver, setDragOver] = useState(false)
@@ -142,14 +157,14 @@ export function ReferenceImagesField({
         mb={1}
       >
         <Text
-          color="#093A58"
+          color={labelColor}
           fontSize="sm"
-          fontWeight="medium"
+          fontWeight={labelWeight}
         >
           Imagens de referência (opcional)
         </Text>
         <Text
-          color="#5B6B78"
+          color={countColor}
           data-testid="reference-count"
           fontSize="xs"
         >
@@ -167,9 +182,9 @@ export function ReferenceImagesField({
       </Text>
       <Flex
         align="center"
-        bg={dragOver ? '#E8F6FD' : 'white'}
+        bg={dragOver ? zoneDragBg : zoneBg}
         border="1px dashed"
-        borderColor={full ? '#E4E7EB' : '#7BC9F1'}
+        borderColor={full ? zoneBorderFull : zoneBorderOpen}
         borderRadius="lg"
         gap={2}
         minH="88px"
@@ -226,7 +241,7 @@ export function ReferenceImagesField({
                 />
                 {slot.progress < 100 && (
                   <Box
-                    bg="#E4E7EB"
+                    bg={trackBg}
                     borderBottomRadius="md"
                     bottom="0"
                     h="4px"
@@ -248,7 +263,7 @@ export function ReferenceImagesField({
             ) : (
               <Flex
                 align="center"
-                bg="#F5F5F6"
+                bg={slotBg}
                 borderRadius="md"
                 direction="column"
                 h="72px"
@@ -266,7 +281,7 @@ export function ReferenceImagesField({
                   </Text>
                 ) : (
                   <Box
-                    bg="#E4E7EB"
+                    bg={trackBg}
                     borderRadius="full"
                     bottom="2"
                     h="3px"
@@ -287,7 +302,7 @@ export function ReferenceImagesField({
             )}
             {slot.dataUrl && (
               <Box
-                bg="white"
+                bg={chipBg}
                 borderRadius="md"
                 boxShadow="md"
                 className="ref-preview"
@@ -309,7 +324,7 @@ export function ReferenceImagesField({
             )}
             <Box
               as="button"
-              bg="white"
+              bg={chipBg}
               borderRadius="full"
               borderWidth="1px"
               h="5"
@@ -328,9 +343,9 @@ export function ReferenceImagesField({
             align="center"
             aria-disabled={full}
             as="button"
-            bg="#F5F5F6"
+            bg={slotBg}
             borderRadius="md"
-            color="#5B6B78"
+            color={slotIcon}
             cursor={full ? 'not-allowed' : 'pointer'}
             data-testid="reference-slot"
             disabled={full}
@@ -371,8 +386,8 @@ export function ReferenceImagesField({
       )}
       {unsupported && !imageModel && (
         <Box
-          bg="#FFF7ED"
-          borderColor="#F3C9A0"
+          bg={warningBg}
+          borderColor={warningBorder}
           borderRadius="md"
           borderWidth="1px"
           data-testid="reference-model-warning"
@@ -380,7 +395,7 @@ export function ReferenceImagesField({
           p={3}
         >
           <Text
-            color="#9A3412"
+            color={warningText}
             fontSize="sm"
           >
             Este modelo não usa imagens de referência

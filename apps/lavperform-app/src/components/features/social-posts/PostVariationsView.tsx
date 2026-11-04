@@ -13,6 +13,7 @@ import {
 } from '@chakra-ui/react'
 import { LuCopy, LuPencil, LuRefreshCw } from 'react-icons/lu'
 
+import { useColorModeValue } from '@/components/ui/color-mode'
 import type {
   BrandIdentity,
   CaptionLength,
@@ -67,14 +68,21 @@ export function PostVariationsView({
     POST_OBJECTIVES.find((item) => item.value === draft.objective)?.label ??
     draft.objective
   const caption = selected ? activeCaptionText(selected) : ''
+  const pillIdleBg = useColorModeValue('white', 'whiteAlpha.100')
+  const pillIdleBorder = useColorModeValue('#E4E7EB', 'whiteAlpha.200')
+  const pillIdleText = useColorModeValue('#093A58', 'gray.100')
+  const pillActiveBg = useColorModeValue('#E6F5FD', 'rgba(123,201,241,0.16)')
+  const pillActiveText = useColorModeValue('#093A58', '#7BC9F1')
+  const warningBg = useColorModeValue('orange.50', 'orange.900/20')
+  const warningColor = useColorModeValue('orange.800', 'orange.200')
 
   return (
     <Stack gap={4}>
       {draft.referenceWarning && (
         <Box
-          bg="orange.50"
+          bg={warningBg}
           borderRadius="lg"
-          color="orange.800"
+          color={warningColor}
           px={3}
           py={2}
         >
@@ -147,10 +155,10 @@ export function PostVariationsView({
                     Variação {variation.position + 1}
                   </Text>
                   <Button
-                    bg={isSelected ? '#E6F5FD' : 'transparent'}
+                    bg={isSelected ? pillActiveBg : 'transparent'}
                     borderColor={isSelected ? '#7BC9F1' : 'transparent'}
                     borderWidth="1px"
-                    color="#093A58"
+                    color={isSelected ? pillActiveText : pillIdleText}
                     onClick={() => onSelect(variation.id)}
                     size="xs"
                     variant="outline"
@@ -208,12 +216,14 @@ export function PostVariationsView({
                   ] as const
                 ).map(([length, label]) => (
                   <Button
-                  bg={selected.activeCaption === length ? '#E6F5FD' : 'white'}
+                  bg={selected.activeCaption === length ? pillActiveBg : pillIdleBg}
                   borderColor={
-                    selected.activeCaption === length ? '#7BC9F1' : '#E4E7EB'
+                    selected.activeCaption === length ? '#7BC9F1' : pillIdleBorder
                   }
                   borderRadius="full"
-                  color="#093A58"
+                  color={
+                    selected.activeCaption === length ? pillActiveText : pillIdleText
+                  }
                   key={length}
                   onClick={() => onCaptionLength(selected.id, length)}
                   size="xs"

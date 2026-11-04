@@ -18,6 +18,7 @@ import { useEffect, useState } from 'react'
 import { LuSparkles } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { useColorModeValue } from '@/components/ui/color-mode'
 import type { BrandIdentity, CreateDraftPayload } from '@/types'
 import { ART_STYLES, DEFAULT_BRAND, POST_OBJECTIVES } from '@/types'
 
@@ -47,6 +48,17 @@ export function PostBriefingForm({
   onUseReferenceModel,
 }: Props) {
   const [neutralBrand, setNeutralBrand] = useState(false)
+  const pillIdleBg = useColorModeValue('white', 'whiteAlpha.100')
+  const pillIdleBorder = useColorModeValue('#E4E7EB', 'whiteAlpha.200')
+  const pillIdleText = useColorModeValue('#093A58', 'gray.100')
+  const pillActiveBg = useColorModeValue('#E6F5FD', 'rgba(123,201,241,0.16)')
+  const formatIdleBg = useColorModeValue('white', 'gray.800')
+  const formatActiveBg = useColorModeValue('#E8F6FD', 'rgba(123,201,241,0.16)')
+  const formatText = useColorModeValue('#093A58', 'gray.100')
+  const formatActiveText = useColorModeValue('#093A58', '#7BC9F1')
+  const formatMuted = useColorModeValue('#5B6B78', 'gray.400')
+  const inviteTitle = useColorModeValue('#093A58', 'gray.100')
+  const inviteBody = useColorModeValue('#5B6B78', 'gray.300')
   const canGenerate = value.theme.trim().length >= 8 && !generating
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -115,10 +127,10 @@ export function PostBriefingForm({
                 const active = value.objective === objective.value
                 return (
                   <Button
-                    bg={active ? '#E6F5FD' : 'white'}
-                    borderColor={active ? '#7BC9F1' : '#E4E7EB'}
+                    bg={active ? pillActiveBg : pillIdleBg}
+                    borderColor={active ? '#7BC9F1' : pillIdleBorder}
                     borderRadius="full"
-                    color="#093A58"
+                    color={active ? formatActiveText : pillIdleText}
                     key={objective.value}
                     onClick={() =>
                       onChange({ ...value, objective: objective.value })
@@ -170,8 +182,8 @@ export function PostBriefingForm({
                 const selected = value.format === format
                 return (
                   <Button
-                    bg={selected ? '#E8F6FD' : 'white'}
-                    borderColor={selected ? '#7BC9F1' : '#E4E7EB'}
+                    bg={selected ? formatActiveBg : formatIdleBg}
+                    borderColor={selected ? '#7BC9F1' : pillIdleBorder}
                     borderWidth="1px"
                     h="72px"
                     key={format}
@@ -201,14 +213,14 @@ export function PostBriefingForm({
                         gap={0}
                       >
                         <Text
-                          color="#093A58"
+                          color={selected ? formatActiveText : formatText}
                           fontSize="sm"
                           fontWeight="semibold"
                         >
                           {label}
                         </Text>
                         <Text
-                          color="#5B6B78"
+                          color={selected ? formatActiveText : formatMuted}
                           fontSize="xs"
                         >
                           {measure}
@@ -356,13 +368,13 @@ export function PostBriefingForm({
                 </Box>
                 <Stack gap={1}>
                   <Heading
-                    color="#093A58"
+                    color={inviteTitle}
                     size="sm"
                   >
                     Seus posts ficam com a cara da sua lavanderia
                   </Heading>
                   <Text
-                    color="#5B6B78"
+                    color={inviteBody}
                     fontSize="sm"
                   >
                     Configure sua logo, cores e fontes uma vez, e todo post já
@@ -383,7 +395,7 @@ export function PostBriefingForm({
                 </RouterLink>
               </Button>
               <Button
-                color="#093A58"
+                color={inviteTitle}
                 data-testid="use-neutral-brand"
                 onClick={() => setNeutralBrand(true)}
                 variant="ghost"
@@ -459,6 +471,9 @@ export function PostBriefingForm({
 }
 
 function FormatGlyph({ kind }: { kind: 'square' | 'pages' | 'story' }) {
+  const back = useColorModeValue('#E8F6FD', 'whiteAlpha.100')
+  const front = useColorModeValue('white', 'gray.700')
+  const line = useColorModeValue('#093A58', 'gray.300')
   if (kind === 'pages') {
     return (
       <Box
@@ -467,7 +482,7 @@ function FormatGlyph({ kind }: { kind: 'square' | 'pages' | 'story' }) {
         w="8"
       >
         <Box
-          bg="#E8F6FD"
+          bg={back}
           borderColor="#7BC9F1"
           borderRadius="sm"
           borderWidth="1px"
@@ -478,8 +493,8 @@ function FormatGlyph({ kind }: { kind: 'square' | 'pages' | 'story' }) {
           w="5"
         />
         <Box
-          bg="white"
-          borderColor="#093A58"
+          bg={front}
+          borderColor={line}
           borderRadius="sm"
           borderWidth="1px"
           h="6"
@@ -493,8 +508,8 @@ function FormatGlyph({ kind }: { kind: 'square' | 'pages' | 'story' }) {
   }
   return (
     <Box
-      bg="#E8F6FD"
-      borderColor="#093A58"
+      bg={back}
+      borderColor={line}
       borderRadius="sm"
       borderWidth="1px"
       h={kind === 'story' ? '8' : '6'}

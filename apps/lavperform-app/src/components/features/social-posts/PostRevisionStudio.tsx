@@ -25,6 +25,7 @@ import {
 } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { useColorModeValue } from '@/components/ui/color-mode'
 import type {
   BrandIdentity,
   PostVariation,
@@ -86,6 +87,18 @@ export function PostRevisionStudio({
   const viewingPast = Boolean(selected && latest && selected.id !== latest.id)
 
   const chatEnd = useRef<HTMLDivElement>(null)
+  const panelBg = useColorModeValue('white', 'gray.800')
+  const panelBorder = useColorModeValue('#E4E7EB', 'whiteAlpha.200')
+  const idleText = useColorModeValue('#093A58', 'gray.100')
+  const mutedText = useColorModeValue('#5B6B78', 'gray.400')
+  const pillIdleBg = useColorModeValue('white', 'whiteAlpha.100')
+  const pillActiveBg = useColorModeValue('#E6F5FD', 'rgba(123,201,241,0.16)')
+  const pillActiveText = useColorModeValue('#093A58', '#7BC9F1')
+  const softBg = useColorModeValue('#F5F5F6', 'whiteAlpha.100')
+  const skeleton = useColorModeValue('#DCE3E8', 'whiteAlpha.200')
+  const errorBg = useColorModeValue('#FDECEC', 'rgba(127, 29, 29, 0.35)')
+  const errorBorder = useColorModeValue('#F3B4B4', 'red.700')
+  const errorText = useColorModeValue('#8E2A20', 'red.200')
 
   useEffect(() => {
     if (!pending) setInflight(null)
@@ -183,8 +196,8 @@ export function PostRevisionStudio({
         gap={4}
       >
         <Stack
-          bg="white"
-          borderColor="#E4E7EB"
+          bg={panelBg}
+          borderColor={panelBorder}
           borderRadius="xl"
           borderWidth="1px"
           flex="1.2"
@@ -193,7 +206,7 @@ export function PostRevisionStudio({
         >
           <HStack>
             <Text
-              color="#5B6B78"
+              color={mutedText}
               fontSize="sm"
             >
               Variação
@@ -203,10 +216,10 @@ export function PostRevisionStudio({
               return (
                 <Button
                   aria-label={`Variação ${item.position + 1}`}
-                  bg={active ? '#E6F5FD' : 'white'}
-                  borderColor={active ? '#7BC9F1' : '#E4E7EB'}
+                  bg={active ? pillActiveBg : pillIdleBg}
+                  borderColor={active ? '#7BC9F1' : panelBorder}
                   borderRadius="full"
-                  color="#093A58"
+                  color={active ? pillActiveText : idleText}
                   h="32px"
                   key={item.id}
                   onClick={() => onSelectVariation(item.id)}
@@ -249,7 +262,7 @@ export function PostRevisionStudio({
             {pending && (
               <Flex
                 align="center"
-                bg="white"
+                bg={panelBg}
                 borderRadius="xl"
                 data-testid="revision-pending"
                 direction="column"
@@ -260,19 +273,19 @@ export function PostRevisionStudio({
               >
                 <LuRefreshCw />
                 <Box
-                  bg="#DCE3E8"
+                  bg={skeleton}
                   borderRadius="md"
                   h="4"
                   w="70%"
                 />
                 <Box
-                  bg="#DCE3E8"
+                  bg={skeleton}
                   borderRadius="md"
                   h="4"
                   w="50%"
                 />
                 <Text
-                  color="#093A58"
+                  color={idleText}
                   fontWeight="medium"
                 >
                   Gerando nova versão…
@@ -283,7 +296,7 @@ export function PostRevisionStudio({
           {(selected.references?.length || draft.references?.length) ? (
             <Stack gap={1}>
               <Text
-                color="#5B6B78"
+                color={mutedText}
                 fontSize="xs"
                 fontWeight="semibold"
               >
@@ -313,14 +326,14 @@ export function PostRevisionStudio({
           >
             <Stack gap={0}>
               <Text
-                color="#093A58"
+                color={idleText}
                 fontSize="xs"
                 fontWeight="semibold"
               >
                 Histórico
               </Text>
               <Text
-                color="#5B6B78"
+                color={mutedText}
                 fontSize="xs"
               >
                 {versions.length}{' '}
@@ -335,7 +348,7 @@ export function PostRevisionStudio({
                   key={version.id}
                 >
                   <Button
-                    borderColor={current ? '#7BC9F1' : '#E4E7EB'}
+                    borderColor={current ? '#7BC9F1' : panelBorder}
                     borderWidth={current ? '2px' : '1px'}
                     data-testid={`version-${version.number}`}
                     h="90px"
@@ -365,7 +378,7 @@ export function PostRevisionStudio({
                     </Box>
                   </Button>
                   <Text
-                    color={version.number === latest?.number ? '#093A58' : '#5B6B78'}
+                    color={version.number === latest?.number ? idleText : mutedText}
                     fontSize="xs"
                     fontWeight={version.number === latest?.number ? 'semibold' : 'normal'}
                     textAlign="center"
@@ -376,7 +389,7 @@ export function PostRevisionStudio({
                   {version.references?.length ? (
                     <Stack gap={0}>
                       <Text
-                        color="#5B6B78"
+                        color={mutedText}
                         fontSize="10px"
                         textAlign="center"
                       >
@@ -412,8 +425,8 @@ export function PostRevisionStudio({
           </HStack>
         </Stack>
         <Stack
-          bg="white"
-          borderColor="#E4E7EB"
+          bg={panelBg}
+          borderColor={panelBorder}
           borderRadius="xl"
           borderWidth="1px"
           flex="1"
@@ -422,7 +435,7 @@ export function PostRevisionStudio({
           overflow="hidden"
         >
           <HStack
-            color="#093A58"
+            color={idleText}
             fontWeight="semibold"
             p={4}
           >
@@ -459,29 +472,29 @@ export function PostRevisionStudio({
                 >
                   <Flex
                     align="center"
-                    bg="#E6F5FD"
+                    bg={pillActiveBg}
                     borderRadius="full"
                     boxSize="8"
-                    color="#093A58"
+                    color={pillActiveText}
                     justify="center"
                   >
                     <LuSparkles />
                   </Flex>
                   <Box
-                    bg="#F5F5F6"
+                    bg={softBg}
                     borderRadius="lg"
                     maxW="85%"
                     px={3}
                     py={2}
                   >
                     <Text
-                      color="#093A58"
+                      color={idleText}
                       fontSize="sm"
                     >
                       {message.text}
                     </Text>
                     <Text
-                      color="#5B6B78"
+                      color={mutedText}
                       fontSize="xs"
                     >
                       Gerou a V{message.number}
@@ -506,7 +519,7 @@ export function PostRevisionStudio({
             )}
             {pending && (
               <Text
-                color="#5B6B78"
+                color={mutedText}
                 fontSize="sm"
               >
                 IA está gerando a V{versions.length + 1}…
@@ -514,8 +527,8 @@ export function PostRevisionStudio({
             )}
             {error && (
               <Box
-                bg="#FDECEC"
-                borderColor="#F3B4B4"
+                bg={errorBg}
+                borderColor={errorBorder}
                 borderRadius="lg"
                 borderWidth="1px"
                 data-testid="revision-error"
@@ -533,7 +546,7 @@ export function PostRevisionStudio({
                     <LuTriangleAlert />
                   </Box>
                   <Text
-                    color="#8E2A20"
+                    color={errorText}
                     fontSize="sm"
                     fontWeight="medium"
                   >
@@ -563,9 +576,9 @@ export function PostRevisionStudio({
             <HStack wrap="wrap">
               {SUGGESTIONS.map((suggestion) => (
                 <Button
-                  borderColor="#E4E7EB"
+                  borderColor={panelBorder}
                   borderRadius="full"
-                  color="#093A58"
+                  color={idleText}
                   disabled={pending}
                   key={suggestion}
                   onClick={() => send(suggestion)}
@@ -577,7 +590,7 @@ export function PostRevisionStudio({
               ))}
             </HStack>
             <Flex
-              borderColor="#E4E7EB"
+              borderColor={panelBorder}
               borderRadius="md"
               borderWidth="1px"
               gap={2}
@@ -613,7 +626,7 @@ export function PostRevisionStudio({
             </Flex>
           </Stack>
           <Flex
-            bg="#F5F5F6"
+            bg={softBg}
             bottom="0"
             flexShrink={0}
             gap={3}
@@ -633,8 +646,8 @@ export function PostRevisionStudio({
               Baixar post
             </Button>
             <Button
-              bg="white"
-              color="#093A58"
+              bg={pillIdleBg}
+              color={idleText}
               data-testid="copy-caption"
               flex="1"
               onClick={() => onCopy(selected)}
@@ -648,7 +661,7 @@ export function PostRevisionStudio({
       </Flex>
       {historyOpen && (
         <Stack
-          bg="white"
+          bg={panelBg}
           borderRadius="xl"
           borderWidth="1px"
           p={4}
