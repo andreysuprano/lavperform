@@ -20,6 +20,28 @@ global.fetch = async (url, init) => {
     return originalFetch(url, init);
   }
 
+  if (target.includes('/models')) {
+    return Response.json({
+      data: [
+        {
+          id: 'google/gemini-2.5-flash',
+          name: 'Gemini 2.5 Flash',
+          architecture: { output_modalities: ['text'] },
+        },
+        {
+          id: 'google/gemini-2.5-flash-image',
+          name: 'Gemini 2.5 Flash Image',
+          architecture: { output_modalities: ['image', 'text'] },
+        },
+        {
+          id: 'anthropic/claude-sonnet-4',
+          name: 'Claude Sonnet 4',
+          architecture: { modality: 'text->text' },
+        },
+      ],
+    });
+  }
+
   const body = JSON.parse(init?.body || '{}');
   if (body.modalities) {
     return Response.json({

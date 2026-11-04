@@ -2,7 +2,8 @@
   "displayName": "E2E Tests",
   "moduleFileExtensions": ["js", "json", "ts"],
   "rootDir": "../..",
-  "testRegex": "tests/e2e/.*\\.e2e\\.spec\\.ts$",
+  "testRegex": "test/e2e/.*\\.spec\\.ts$",
+  "setupFiles": ["<rootDir>/test/e2e/load-env.ts"],
   "transform": {
     "^.+\\.(t|j)s$": "ts-jest"
   },
