@@ -3,7 +3,13 @@ import { memo } from 'react'
 
 import { Props } from '../AppContentLayout/AppContentLayout.types'
 
-function AppContentLayoutBase({ action, children, icon, title }: Props) {
+function AppContentLayoutBase({
+  action,
+  children,
+  icon,
+  iconBg,
+  title,
+}: Props) {
   return (
     <Stack gap={4}>
       <Flex
@@ -20,12 +26,20 @@ function AppContentLayoutBase({ action, children, icon, title }: Props) {
             alignItems="center"
             gap="2"
           >
-            <Icon
-              boxSize={6}
-              color="fg"
+            <Flex
+              align="center"
+              bg={iconBg}
+              borderRadius="md"
+              boxSize={iconBg ? 9 : undefined}
+              justify="center"
             >
-              {icon}
-            </Icon>
+              <Icon
+                boxSize={6}
+                color={iconBg ? '#093A58' : 'fg'}
+              >
+                {icon}
+              </Icon>
+            </Flex>
             {title}
           </Flex>
         </Heading>

@@ -2,11 +2,14 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { json, urlencoded } from 'express';
 
-import "./instrument";
+import './instrument';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { bodyParser: false });
+  app.use(json({ limit: '15mb' }));
+  app.use(urlencoded({ extended: true, limit: '15mb' }));
   app.enableCors({
     origin: '*',
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
@@ -15,29 +18,29 @@ async function bootstrap() {
     credentials: true,
   });
 
-  app.useGlobalPipes(new ValidationPipe({
-    transform: true,
-    whitelist: true,
-  }));
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      whitelist: true,
+    }),
+  );
 
-  const isFoodCrm = process.env.WHITELABEL === 'foodcrm'
+  const isFoodCrm = process.env.WHITELABEL === 'foodcrm';
   const config = new DocumentBuilder()
     .setTitle(isFoodCrm ? 'FoodCRM API' : 'LavPerform API')
     .setDescription(
-      isFoodCrm
-        ? 'CRM Para Deliverys e Restaurantes'
-        : 'CRM para lavanderias',
+      isFoodCrm ? 'CRM Para Deliverys e Restaurantes' : 'CRM para lavanderias',
     )
     .setVersion('1.0')
     .addBearerAuth()
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document, {
-    swaggerOptions:{
+    swaggerOptions: {
       persistAuthorization: true,
-    }
+    },
   });
 
   await app.listen(process.env.PORT ?? 3000);
 }
-bootstrap();
+void bootstrap();

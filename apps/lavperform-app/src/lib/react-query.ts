@@ -153,6 +153,12 @@ export const queryKeys = {
     partner: (partnerId: string) => ['company', 'partner', partnerId] as const,
     renitency: (companyId: string) =>
       ['company', 'renitency', companyId] as const,
+    brandIdentity: (companyId: string) =>
+      ['company', 'brand-identity', companyId] as const,
+    socialDrafts: (companyId: string) =>
+      ['company', 'social-drafts', companyId] as const,
+    socialDraft: (draftId: string) =>
+      ['company', 'social-draft', draftId] as const,
   },
 
   subscription: {
