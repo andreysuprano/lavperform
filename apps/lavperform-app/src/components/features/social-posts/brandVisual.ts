@@ -38,9 +38,9 @@ export function logoSrc(
   variant: PostLayer['logoVariant'] = 'light'
 ) {
   if (variant === 'dark') {
-    return brand.logoDarkUrl || brand.logoLightUrl || '/seld/logo.png'
+    return brand.logoDarkUrl || brand.logoLightUrl || ''
   }
-  return brand.logoLightUrl || brand.logoDarkUrl || '/seld/logo.png'
+  return brand.logoLightUrl || brand.logoDarkUrl || ''
 }
 
 export function readImageFile(file: File) {

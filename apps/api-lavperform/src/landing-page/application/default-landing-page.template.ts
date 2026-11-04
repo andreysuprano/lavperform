@@ -9,6 +9,10 @@ import {
     FooterData,
     NavigationItem,
 } from '../domain/landing-page.entity';
+import { safeFormatPhoneNumber } from '../../common/utils/formatters';
+
+const DEFAULT_WHATSAPP_MESSAGE =
+    'Olá! Vim pelo site e gostaria de mais informações.';
 
 export function generateDefaultLandingPageData(
     companyName: string,
@@ -16,7 +20,10 @@ export function generateDefaultLandingPageData(
     companyAddress?: string,
     companyPhone?: string
 ) {
-    const whatsappNumber = companyPhone?.replace(/\D/g, '') || '5548999999999';
+    const whatsappNumber =
+        safeFormatPhoneNumber(companyPhone) ||
+        companyPhone?.replace(/\D/g, '') ||
+        '5548999999999';
     const address = companyAddress || 'Endereço não cadastrado';
 
     return {
@@ -191,6 +198,7 @@ export function generateDefaultLandingPageData(
             description: `Venha conhecer ${companyName} e comprove a qualidade dos nossos serviços.`,
             buttonText: 'Solicitar Atendimento',
             whatsappNumber: whatsappNumber,
+            whatsappMessage: DEFAULT_WHATSAPP_MESSAGE,
         } as CtaData,
 
         footer: {

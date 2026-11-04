@@ -85,6 +85,7 @@ export interface CtaData {
     description: string;
     buttonText: string;
     whatsappNumber: string;
+    whatsappMessage?: string;
 }
 
 export interface FooterData {

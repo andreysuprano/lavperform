@@ -45,7 +45,7 @@ export const MENU_ITEMS = [
     isNew: false,
   },
   {
-    label: 'Meta ADS',
+    label: 'Tráfego',
     icon: LuMegaphone,
     href: '/trafego',
     isNew: false,

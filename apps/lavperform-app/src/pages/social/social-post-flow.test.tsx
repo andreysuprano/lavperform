@@ -13,6 +13,7 @@ import { Provider } from '@/components'
 import { BrandIdentityPage } from '@/pages/settings/BrandIdentityPage'
 import { SocialEditorPage } from '@/pages/social/SocialEditorPage'
 import { SocialGeneratorPage } from '@/pages/social/SocialGeneratorPage'
+import { SocialRevisionPage } from '@/pages/social/SocialRevisionPage'
 import { SocialVariationsPage } from '@/pages/social/SocialVariationsPage'
 const COMPANY = '11111111-1111-1111-1111-111111111111'
 const TINY_PNG =
@@ -130,7 +131,9 @@ const { store, service, emptyBrand } = vi.hoisted(() => {
       store.drafts.set(draft.id, draft)
       return { data: draft }
     }),
-    getDraft: vi.fn(async (id: string) => ({ data: store.drafts.get(id) })),
+    getDraft: vi.fn(async (id: string) => ({
+      data: JSON.parse(JSON.stringify(store.drafts.get(id))),
+    })),
     generate: vi.fn(async (id: string) => {
       const draft = store.drafts.get(id)
       draft.variations = [0, 1, 2, 3].map((position) =>
@@ -170,6 +173,156 @@ const { store, service, emptyBrand } = vi.hoisted(() => {
     rewriteCaption: vi.fn(async (variationId: string) => ({
       data: findVariation(variationId),
     })),
+    revise: vi.fn(async (variationId: string, prompt: string) => {
+      if (prompt.trim().length < 3 || !/[a-zA-ZÀ-ÿ]{2,}/.test(prompt)) {
+        throw new Error(
+          'Escreva o que você quer mudar no fundo, no título ou na legenda.'
+        )
+      }
+      const current = findVariation(variationId)
+      if (!current.versions?.length) {
+        current.versions = [
+          {
+            id: `${current.id}-v1`,
+            number: 1,
+            source: 'generation',
+            prompt: null,
+            assistantReply: 'Versão inicial pronta.',
+            headline: current.headline,
+            badgeText: current.badgeText,
+            captionShort: current.captionShort,
+            captionMedium: current.captionMedium,
+            captionLong: current.captionLong,
+            activeCaption: current.activeCaption,
+            hashtags: current.hashtags,
+            slides: current.slides,
+          },
+        ]
+      }
+      const titleChange = /título|titulo/i.test(prompt)
+      const backgroundChange = /fundo/i.test(prompt)
+      const previous = current.versions[current.versions.length - 1]
+      const slides = previous.slides.map((slide: any) => ({
+        backgroundImage: backgroundChange
+          ? `${TINY_PNG}-novo`
+          : slide.backgroundImage,
+        layers: slide.layers.map((layer: any) =>
+          layer.type === 'title' && titleChange
+            ? { ...layer, text: 'Coleta grátis hoje' }
+            : { ...layer }
+        ),
+      }))
+      const version = {
+        id: `${current.id}-v${current.versions.length + 1}`,
+        number: current.versions.length + 1,
+        source: 'revision',
+        prompt,
+        assistantReply: titleChange
+          ? 'Atualizei o título.'
+          : backgroundChange
+            ? 'Mudei o fundo.'
+            : 'Atualizei a legenda.',
+        headline: titleChange ? 'Coleta grátis hoje' : previous.headline,
+        badgeText: previous.badgeText,
+        captionShort: previous.captionShort,
+        captionMedium: previous.captionMedium,
+        captionLong: previous.captionLong,
+        activeCaption: previous.activeCaption,
+        hashtags: previous.hashtags,
+        slides,
+      }
+      current.versions = [...current.versions, version]
+      current.selectedVersionId = version.id
+      current.headline = version.headline
+      current.slides = slides
+      return {
+        data: JSON.parse(
+          JSON.stringify(
+            [...store.drafts.values()].find((item) =>
+              item.variations.some(
+                (entry: { id: string }) => entry.id === variationId
+              )
+            )
+          )
+        ),
+      }
+    }),
+    selectVersion: vi.fn(async (variationId: string, versionId: string) => {
+      const current = findVariation(variationId)
+      const version = current.versions.find((item: { id: string }) => item.id === versionId)
+      current.selectedVersionId = versionId
+      current.headline = version.headline
+      current.slides = version.slides
+      return {
+        data: JSON.parse(
+          JSON.stringify(
+            [...store.drafts.values()].find((item) =>
+              item.variations.some(
+                (entry: { id: string }) => entry.id === variationId
+              )
+            )
+          )
+        ),
+      }
+    }),
+    restoreVersion: vi.fn(async (variationId: string, versionId: string) => {
+      const current = findVariation(variationId)
+      const source = current.versions.find((item: { id: string }) => item.id === versionId)
+      const kept = current.versions.length
+      const version = {
+        ...source,
+        id: `${current.id}-v${kept + 1}`,
+        number: kept + 1,
+        source: 'restore',
+        prompt: null,
+        assistantReply: `Voltei para a versão ${source.number}.`,
+      }
+      current.versions = [...current.versions, version]
+      current.selectedVersionId = version.id
+      current.headline = version.headline
+      current.slides = version.slides
+      expect(current.versions).toHaveLength(kept + 1)
+      return {
+        data: JSON.parse(
+          JSON.stringify(
+            [...store.drafts.values()].find((item) =>
+              item.variations.some(
+                (entry: { id: string }) => entry.id === variationId
+              )
+            )
+          )
+        ),
+      }
+    }),
+    recordManual: vi.fn(async (variationId: string, payload: any) => {
+      const current = findVariation(variationId)
+      if (!current.versions?.length) current.versions = []
+      const version = {
+        id: `${current.id}-manual`,
+        number: current.versions.length + 1,
+        source: 'manual',
+        prompt: null,
+        assistantReply: 'Ajuste manual salvo.',
+        headline: payload.headline,
+        slides: [
+          {
+            backgroundImage: current.slides[0].backgroundImage,
+            layers: payload.layers,
+          },
+        ],
+        captionMedium: current.captionMedium,
+        captionShort: current.captionShort,
+        captionLong: current.captionLong,
+        activeCaption: current.activeCaption,
+        hashtags: current.hashtags,
+        badgeText: current.badgeText,
+      }
+      current.versions = [...current.versions, version]
+      current.selectedVersionId = version.id
+      current.headline = version.headline
+      current.slides = version.slides
+      return { data: [...store.drafts.values()][0] }
+    }),
   }
 
   return { store, service, emptyBrand }
@@ -211,6 +364,10 @@ function renderFlow(path = '/settings/brand-identity') {
               path="/social/generator/:draftId"
             />
             <Route
+              element={<SocialRevisionPage />}
+              path="/social/revise/:draftId/:variationId"
+            />
+            <Route
               element={<SocialEditorPage />}
               path="/social/editor/:draftId/:variationId"
             />
@@ -223,6 +380,12 @@ function renderFlow(path = '/settings/brand-identity') {
 
 describe('fluxo de post com IA', () => {
   beforeEach(() => {
+    class ResizeObserverStub {
+      observe() {}
+      unobserve() {}
+      disconnect() {}
+    }
+    vi.stubGlobal('ResizeObserver', ResizeObserverStub)
     store.drafts.clear()
     store.brand = {
       ...emptyBrand,
@@ -276,6 +439,8 @@ describe('fluxo de post com IA', () => {
 
       expect(await screen.findByText('Variação 1')).toBeInTheDocument()
       expect(screen.getByText('Edredom novo de novo.')).toBeInTheDocument()
+      fireEvent.click(screen.getAllByRole('button', { name: 'Revisar' })[0])
+      expect(await screen.findByText('Revisar com IA')).toBeInTheDocument()
       fireEvent.click(screen.getByTestId('copy-caption'))
       await waitFor(() =>
         expect(navigator.clipboard.writeText).toHaveBeenCalledWith(
@@ -283,7 +448,8 @@ describe('fluxo de post com IA', () => {
         )
       )
 
-      fireEvent.click(screen.getAllByRole('button', { name: /Editar/ })[0])
+      fireEvent.click(screen.getByRole('button', { name: 'Mais ações' }))
+      fireEvent.click(await screen.findByTestId('open-manual-editor'))
       const title = await screen.findByTestId('layer-title')
       fireEvent.change(title, { target: { value: 'Edredom pronto hoje.' } })
       fireEvent.click(screen.getByTestId('download-post'))
@@ -325,5 +491,42 @@ describe('fluxo de post com IA', () => {
     expect(await screen.findByTestId('generation-error')).toHaveTextContent(
       /demorou demais/i
     )
+  })
+
+  it('revisa fundo e título, guarda o histórico e baixa a versão selecionada', async () => {
+    renderFlow('/social/generator')
+    fireEvent.change(await screen.findByTestId('briefing-theme'), {
+      target: { value: '20% de desconto na lavagem de edredons no Batel' },
+    })
+    fireEvent.click(screen.getByTestId('briefing-generate'))
+    fireEvent.click((await screen.findAllByRole('button', { name: 'Revisar' }))[0])
+    expect(await screen.findByText('Versão inicial pronta.')).toBeInTheDocument()
+    expect(screen.getByTestId('revision-send')).toBeDisabled()
+    fireEvent.change(screen.getByTestId('revision-input'), { target: { value: '??' } })
+    expect(screen.getByTestId('revision-send')).toBeDisabled()
+
+    fireEvent.click(screen.getByRole('button', { name: 'Trocar título' }))
+    expect(await screen.findByText('Atualizei o título.')).toBeInTheDocument()
+    expect(screen.getAllByText('Coleta grátis hoje').length).toBeGreaterThan(0)
+    expect(screen.getByTestId('version-1')).toBeInTheDocument()
+    expect(screen.getByTestId('version-2')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('version-1'))
+    expect(await screen.findByTestId('restore-version')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('restore-version'))
+    expect(await screen.findByText('Voltei para a versão 1.')).toBeInTheDocument()
+    expect(screen.getByTestId('version-3')).toBeInTheDocument()
+    expect(screen.getByTestId('version-1')).toBeInTheDocument()
+
+    service.revise.mockRejectedValueOnce(
+      new Error('A OpenRouter demorou demais para responder. Tente de novo.')
+    )
+    fireEvent.click(screen.getByRole('button', { name: 'Fundo mais claro' }))
+    expect(await screen.findByTestId('revision-error')).toHaveTextContent(/Tentar de novo|demorou demais/)
+    expect(screen.getByTestId('version-3')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByTestId('copy-caption'))
+    fireEvent.click(screen.getByTestId('download-post'))
+    await waitFor(() => expect(downloads.length).toBeGreaterThan(0))
   })
 })

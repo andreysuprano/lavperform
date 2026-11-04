@@ -81,6 +81,23 @@ export type SaveBrandPayload = Omit<
   'id' | 'companyId' | 'persisted'
 >
 
+export interface PostVersion {
+  id: string
+  number: number
+  source: 'generation' | 'revision' | 'restore' | 'manual' | string
+  prompt: string | null
+  assistantReply: string | null
+  headline: string
+  badgeText: string | null
+  captionShort: string
+  captionMedium: string
+  captionLong: string
+  activeCaption: CaptionLength | string
+  hashtags: string[]
+  slides: PostSlide[]
+  createdAt?: string
+}
+
 export interface PostVariation {
   id: string
   position: number
@@ -92,6 +109,8 @@ export interface PostVariation {
   activeCaption: CaptionLength | string
   hashtags: string[]
   slides: PostSlide[]
+  selectedVersionId?: string | null
+  versions?: PostVersion[]
 }
 
 export interface SocialPostDraft {

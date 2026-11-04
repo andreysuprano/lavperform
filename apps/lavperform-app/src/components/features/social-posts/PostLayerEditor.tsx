@@ -17,8 +17,12 @@ import { useMemo, useState } from 'react'
 import {
   LuCopy,
   LuDownload,
+  LuEye,
+  LuEyeOff,
+  LuGripVertical,
   LuImage,
   LuLock,
+  LuLockOpen,
   LuPlus,
   LuRefreshCw,
   LuType,
@@ -56,6 +60,10 @@ export function PostLayerEditor({
   const [slideIndex, setSlideIndex] = useState(0)
   const [selectedId, setSelectedId] = useState('title')
   const [history, setHistory] = useState<PostVariation[]>([])
+  const [dragId, setDragId] = useState<string | null>(null)
+  const [preview, setPreview] = useState<'instagram' | 'facebook' | 'story'>(
+    'instagram'
+  )
   const slide = variation.slides[slideIndex] ?? variation.slides[0]
   const selected =
     slide?.layers.find((layer) => layer.id === selectedId) ?? slide?.layers[0]
@@ -141,25 +149,98 @@ export function PostLayerEditor({
             </Button>
           </Flex>
           <Stack gap={1}>
-            {slide?.layers.map((layer) => (
-              <Button
-                justifyContent="space-between"
+            {[...(slide?.layers ?? [])].reverse().map((layer) => (
+              <Flex
+                align="center"
+                bg={layer.id === selected?.id ? 'blue.50' : 'transparent'}
+                borderRadius="md"
+                draggable
+                gap={2}
                 key={layer.id}
                 onClick={() => setSelectedId(layer.id)}
-                size="sm"
-                variant={layer.id === selected?.id ? 'subtle' : 'ghost'}
+                onDragOver={(event) => event.preventDefault()}
+                onDragStart={() => setDragId(layer.id)}
+                onDrop={() => {
+                  if (!slide || !dragId || dragId === layer.id) return
+                  const visual = [...slide.layers].reverse()
+                  const ids = visual.map((item) => item.id)
+                  const from = ids.indexOf(dragId)
+                  const to = ids.indexOf(layer.id)
+                  if (from < 0 || to < 0) return
+                  ids.splice(from, 1)
+                  ids.splice(to, 0, dragId)
+                  const byId = new Map(slide.layers.map((item) => [item.id, item]))
+                  const next = ids
+                    .slice()
+                    .reverse()
+                    .map((id) => byId.get(id))
+                    .filter((item): item is PostLayer => Boolean(item))
+                  const slides = variation.slides.map((item, index) =>
+                    index === slideIndex ? { ...item, layers: next } : item
+                  )
+                  commit({ ...variation, slides })
+                  setDragId(null)
+                }}
+                px={2}
+                py={1}
               >
-                <HStack>
-                  {layer.locked ? (
-                    <LuLock />
-                  ) : layer.type === 'background' ? (
-                    <LuImage />
-                  ) : (
-                    <LuType />
-                  )}
-                  <Text>{layer.label}</Text>
-                </HStack>
-              </Button>
+                <Box color="fg.muted">
+                  <LuGripVertical />
+                </Box>
+                {layer.type === 'background' ? <LuImage /> : <LuType />}
+                <Stack
+                  flex="1"
+                  gap={0}
+                >
+                  <Text fontSize="sm">{layer.label}</Text>
+                  <Text
+                    color="fg.muted"
+                    fontSize="xs"
+                  >
+                    {layer.text || layer.color || layer.type}
+                  </Text>
+                </Stack>
+                <Button
+                  aria-label={layer.visible ? 'Ocultar camada' : 'Mostrar camada'}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setSelectedId(layer.id)
+                    const layers = slide.layers.map((item) =>
+                      item.id === layer.id
+                        ? { ...item, visible: !item.visible }
+                        : item
+                    )
+                    const slides = variation.slides.map((item, index) =>
+                      index === slideIndex ? { ...item, layers } : item
+                    )
+                    commit({ ...variation, slides })
+                  }}
+                  size="xs"
+                  variant="ghost"
+                >
+                  {layer.visible ? <LuEye /> : <LuEyeOff />}
+                </Button>
+                <Button
+                  aria-label={layer.locked ? 'Desbloquear camada' : 'Bloquear camada'}
+                  onClick={(event) => {
+                    event.stopPropagation()
+                    setSelectedId(layer.id)
+                    const layers = slide.layers.map((item) =>
+                      item.id === layer.id
+                        ? { ...item, locked: !item.locked }
+                        : item
+                    )
+                    const slides = variation.slides.map((item, index) =>
+                      index === slideIndex ? { ...item, layers } : item
+                    )
+                    commit({ ...variation, slides })
+                  }}
+                  size="xs"
+                  variant="ghost"
+                >
+                  {layer.locked ? <LuLock /> : <LuLockOpen />}
+                </Button>
+              </Flex>
             ))}
           </Stack>
           <Box
@@ -169,8 +250,8 @@ export function PostLayerEditor({
             fontSize="sm"
             p={3}
           >
-            Texto, logo e cores são da LavPerform. Só o fundo vem da IA —
-            troque-o sem perder o resto.
+            Texto, logo e cores vêm da identidade da marca. Só o fundo vem da
+            IA — troque-o sem perder o resto.
           </Box>
         </Card.Body>
       </Card.Root>
@@ -180,6 +261,12 @@ export function PostLayerEditor({
           wrap="wrap"
         >
           <HStack>
+            <Text
+              color="fg.muted"
+              fontSize="sm"
+            >
+              Slide
+            </Text>
             {Array.from(
               { length: Math.max(slideCount, variation.slides.length) },
               (_, index) => (
@@ -190,10 +277,28 @@ export function PostLayerEditor({
                   size="sm"
                   variant={index === slideIndex ? 'solid' : 'outline'}
                 >
-                  {index === 0 ? 'Slide 1' : index + 1}
+                  {index + 1}
                 </Button>
               )
             )}
+          </HStack>
+          <HStack>
+            {(
+              [
+                ['instagram', 'Instagram'],
+                ['facebook', 'Facebook'],
+                ['story', 'Story'],
+              ] as const
+            ).map(([value, label]) => (
+              <Button
+                key={value}
+                onClick={() => setPreview(value)}
+                size="xs"
+                variant={preview === value ? 'solid' : 'outline'}
+              >
+                {label}
+              </Button>
+            ))}
           </HStack>
           <HStack>
             <Button
@@ -227,7 +332,13 @@ export function PostLayerEditor({
           {slide && (
             <PostArtwork
               brand={brand}
-              format={format}
+              format={
+                preview === 'story'
+                  ? 'story'
+                  : preview === 'facebook'
+                    ? 'feed'
+                    : format
+              }
               interactive
               onMoveLayer={moveLayer}
               onSelectLayer={setSelectedId}
@@ -239,6 +350,8 @@ export function PostLayerEditor({
         </Box>
         <HStack justify="flex-end">
           <Button
+            bg="#7BC9F1"
+            color="#093A58"
             data-testid="download-post"
             onClick={() => onDownload(slideIndex)}
           >

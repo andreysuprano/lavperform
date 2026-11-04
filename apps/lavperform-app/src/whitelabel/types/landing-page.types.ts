@@ -99,6 +99,8 @@ export interface CtaData {
   description: string
   buttonText: string
   whatsappNumber: string
+  /** Texto que o botão flutuante (e o CTA) abre no WhatsApp. */
+  whatsappMessage?: string
 }
 
 export interface FooterData {

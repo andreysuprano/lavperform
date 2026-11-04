@@ -1,4 +1,5 @@
 import {
+  BadGatewayException,
   BadRequestException,
   ForbiddenException,
   Injectable,
@@ -16,9 +17,17 @@ import { buildDefaultLayers, buildSlides } from './domain/post-layers';
 import {
   buildCopyMessages,
   buildImagePrompt,
+  buildRevisionImagePrompt,
+  buildRevisionMessages,
   buildRewriteMessages,
   parseGenerationJson,
 } from './domain/prompts';
+import {
+  applyRevisionToSlides,
+  isUselessPrompt,
+  parseRevisionPlan,
+  type RevisionPlan,
+} from './domain/revision';
 import {
   ART_STYLES,
   CAPTION_LENGTHS,
@@ -42,6 +51,8 @@ const LOGO_PREFIXES = ['data:image/', 'https://', 'http://', '/'];
 
 @Injectable()
 export class SocialPostsService {
+  private readonly revisionQueues = new Map<string, Promise<unknown>>();
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly openRouter: OpenRouterClient,
@@ -322,6 +333,7 @@ export class SocialPostsService {
       for (let index = 0; index < copies.length; index += 1) {
         const copy = copies[index];
         const layers = buildDefaultLayers(brand, copy);
+        const slides = buildSlides(images[index], layers, draft.slideCount);
         const row = await tx.socialPostVariation.create({
           data: {
             draftId: draft.id,
@@ -333,12 +345,28 @@ export class SocialPostsService {
             captionLong: copy.captionLong,
             activeCaption: 'medium',
             hashtags: copy.hashtags,
-            slides: buildSlides(
-              images[index],
-              layers,
-              draft.slideCount,
-            ) as unknown as Prisma.InputJsonValue,
+            slides: slides as unknown as Prisma.InputJsonValue,
           },
+        });
+        const version = await tx.socialPostVersion.create({
+          data: {
+            variationId: row.id,
+            number: 1,
+            source: 'generation',
+            assistantReply: 'Versão inicial pronta.',
+            headline: copy.headline,
+            badgeText: copy.badgeText || null,
+            captionShort: copy.captionShort,
+            captionMedium: copy.captionMedium,
+            captionLong: copy.captionLong,
+            activeCaption: 'medium',
+            hashtags: copy.hashtags,
+            slides: slides as unknown as Prisma.InputJsonValue,
+          },
+        });
+        await tx.socialPostVariation.update({
+          where: { id: row.id },
+          data: { selectedVersionId: version.id },
         });
         rows.push(row);
       }
@@ -425,6 +453,294 @@ export class SocialPostsService {
     };
   }
 
+  async revise(userId: string, variationId: string, prompt: string) {
+    if (isUselessPrompt(prompt)) {
+      throw new BadRequestException(
+        'Escreva o que você quer mudar no fundo, no título ou na legenda.',
+      );
+    }
+    return this.enqueueRevision(variationId, () =>
+      this.reviseUnlocked(userId, variationId, prompt.trim()),
+    );
+  }
+
+  async restoreVersion(userId: string, variationId: string, versionId: string) {
+    return this.enqueueRevision(variationId, async () => {
+      const variation = await this.loadVariation(variationId);
+      await this.ensureCompanyAccess(userId, variation.draft.companyId);
+      const source = variation.versions.find((item) => item.id === versionId);
+      if (!source) throw new NotFoundException('Versão não encontrada');
+      await this.appendVersion(variation, {
+        source: 'restore',
+        prompt: null,
+        assistantReply: `Voltei para a versão ${source.number}.`,
+        headline: source.headline,
+        badgeText: source.badgeText,
+        captionShort: source.captionShort,
+        captionMedium: source.captionMedium,
+        captionLong: source.captionLong,
+        activeCaption: source.activeCaption,
+        hashtags: source.hashtags,
+        slides: this.readSlides(source.slides),
+      });
+      return this.getDraft(userId, variation.draftId);
+    });
+  }
+
+  async selectVersion(userId: string, variationId: string, versionId: string) {
+    const variation = await this.loadVariation(variationId);
+    await this.ensureCompanyAccess(userId, variation.draft.companyId);
+    const source = variation.versions.find((item) => item.id === versionId);
+    if (!source) throw new NotFoundException('Versão não encontrada');
+    await this.mirrorVersion(variation.id, source);
+    return this.getDraft(userId, variation.draftId);
+  }
+
+  async recordManualVersion(
+    userId: string,
+    variationId: string,
+    dto: UpdateVariationDto,
+  ) {
+    return this.enqueueRevision(variationId, async () => {
+      const variation = await this.loadVariation(variationId);
+      await this.ensureCompanyAccess(userId, variation.draft.companyId);
+      const current = this.snapshotFrom(variation);
+      const slides = this.readSlides(current.slides);
+      const slideIndex = dto.slideIndex ?? 0;
+      if (dto.layers && slides[slideIndex]) {
+        slides[slideIndex] = {
+          ...slides[slideIndex],
+          layers: dto.layers as PostLayer[],
+        };
+      }
+      await this.appendVersion(variation, {
+        source: 'manual',
+        prompt: null,
+        assistantReply: 'Ajuste manual salvo.',
+        headline: dto.headline ?? current.headline,
+        badgeText: dto.badgeText ?? current.badgeText,
+        captionShort: dto.captionShort ?? current.captionShort,
+        captionMedium: dto.captionMedium ?? current.captionMedium,
+        captionLong: dto.captionLong ?? current.captionLong,
+        activeCaption: dto.activeCaption ?? current.activeCaption,
+        hashtags: dto.hashtags ?? current.hashtags,
+        slides,
+      });
+      return this.getDraft(userId, variation.draftId);
+    });
+  }
+
+  private async reviseUnlocked(
+    userId: string,
+    variationId: string,
+    prompt: string,
+  ) {
+    const variation = await this.loadVariation(variationId);
+    await this.ensureCompanyAccess(userId, variation.draft.companyId);
+    const current = this.snapshotFrom(variation);
+    const brand = await this.brandFor(variation.draft.companyId);
+    const plan = await this.requestRevisionPlan({
+      theme: variation.draft.theme,
+      tones: brand.tones,
+      headline: current.headline,
+      captionMedium: current.captionMedium,
+      prompt,
+    });
+    if (plan.nonsense) {
+      throw new BadRequestException(
+        plan.reply ||
+          'Não entendi o pedido. Diga o que mudar no fundo, no título ou na legenda.',
+      );
+    }
+    let newBackground: string | null = null;
+    if (plan.regenerateBackground) {
+      newBackground = await this.openRouter.generateImage(
+        buildRevisionImagePrompt(
+          buildImagePrompt({
+            theme: variation.draft.theme,
+            artStyle: variation.draft.artStyle as ArtStyle,
+            brand,
+            format: variation.draft.format as PostFormat,
+          }),
+          plan.backgroundInstruction || prompt,
+        ),
+      );
+    }
+    const slides = applyRevisionToSlides(
+      this.readSlides(current.slides),
+      plan,
+      newBackground,
+    );
+    await this.appendVersion(variation, {
+      source: 'revision',
+      prompt,
+      assistantReply: plan.reply,
+      headline: plan.headline ?? current.headline,
+      badgeText: plan.badgeText ?? current.badgeText,
+      captionShort: plan.captionShort ?? current.captionShort,
+      captionMedium: plan.captionMedium ?? current.captionMedium,
+      captionLong: plan.captionLong ?? current.captionLong,
+      activeCaption: current.activeCaption,
+      hashtags: plan.hashtags ?? current.hashtags,
+      slides,
+    });
+    return this.getDraft(userId, variation.draftId);
+  }
+
+  private async requestRevisionPlan(input: {
+    theme: string;
+    tones: string[];
+    headline: string;
+    captionMedium: string;
+    prompt: string;
+  }): Promise<RevisionPlan> {
+    const messages = buildRevisionMessages(input);
+    const first = await this.openRouter.completeText([
+      { role: 'system', content: messages.system },
+      { role: 'user', content: messages.user },
+    ]);
+    try {
+      return parseRevisionPlan(first);
+    } catch {
+      const second = await this.openRouter.completeText([
+        { role: 'system', content: messages.system },
+        {
+          role: 'user',
+          content: `${messages.user}\n\nResponda só o JSON pedido.`,
+        },
+      ]);
+      try {
+        return parseRevisionPlan(second);
+      } catch {
+        throw new BadGatewayException(
+          'A OpenRouter não devolveu a revisão no formato esperado. Tente de novo.',
+        );
+      }
+    }
+  }
+
+  private async appendVersion(
+    variation: Awaited<ReturnType<SocialPostsService['loadVariation']>>,
+    next: {
+      source: string;
+      prompt: string | null;
+      assistantReply: string;
+      headline: string;
+      badgeText: string | null;
+      captionShort: string;
+      captionMedium: string;
+      captionLong: string;
+      activeCaption: string;
+      hashtags: string[];
+      slides: PostSlide[];
+    },
+  ) {
+    await this.prisma.$transaction(async (tx) => {
+      const latest = await tx.socialPostVersion.findFirst({
+        where: { variationId: variation.id },
+        orderBy: { number: 'desc' },
+      });
+      const created = await tx.socialPostVersion.create({
+        data: {
+          variationId: variation.id,
+          number: (latest?.number ?? 0) + 1,
+          source: next.source,
+          prompt: next.prompt,
+          assistantReply: next.assistantReply,
+          headline: next.headline,
+          badgeText: next.badgeText,
+          captionShort: next.captionShort,
+          captionMedium: next.captionMedium,
+          captionLong: next.captionLong,
+          activeCaption: next.activeCaption,
+          hashtags: next.hashtags,
+          slides: next.slides as unknown as Prisma.InputJsonValue,
+        },
+      });
+      await tx.socialPostVariation.update({
+        where: { id: variation.id },
+        data: {
+          selectedVersionId: created.id,
+          headline: next.headline,
+          badgeText: next.badgeText,
+          captionShort: next.captionShort,
+          captionMedium: next.captionMedium,
+          captionLong: next.captionLong,
+          activeCaption: next.activeCaption,
+          hashtags: next.hashtags,
+          slides: next.slides as unknown as Prisma.InputJsonValue,
+        },
+      });
+    });
+  }
+
+  private async mirrorVersion(
+    variationId: string,
+    source: {
+      id: string;
+      headline: string;
+      badgeText: string | null;
+      captionShort: string;
+      captionMedium: string;
+      captionLong: string;
+      activeCaption: string;
+      hashtags: string[];
+      slides: Prisma.JsonValue;
+    },
+  ) {
+    await this.prisma.socialPostVariation.update({
+      where: { id: variationId },
+      data: {
+        selectedVersionId: source.id,
+        headline: source.headline,
+        badgeText: source.badgeText,
+        captionShort: source.captionShort,
+        captionMedium: source.captionMedium,
+        captionLong: source.captionLong,
+        activeCaption: source.activeCaption,
+        hashtags: source.hashtags,
+        slides: source.slides as Prisma.InputJsonValue,
+      },
+    });
+  }
+
+  private snapshotFrom(
+    variation: Awaited<ReturnType<SocialPostsService['loadVariation']>>,
+  ) {
+    const selected =
+      variation.versions.find((item) => item.id === variation.selectedVersionId) ??
+      variation.versions[variation.versions.length - 1];
+    if (!selected) {
+      return {
+        headline: variation.headline,
+        badgeText: variation.badgeText,
+        captionShort: variation.captionShort,
+        captionMedium: variation.captionMedium,
+        captionLong: variation.captionLong,
+        activeCaption: variation.activeCaption,
+        hashtags: variation.hashtags,
+        slides: variation.slides,
+      };
+    }
+    return selected;
+  }
+
+  private enqueueRevision<T>(
+    variationId: string,
+    task: () => Promise<T>,
+  ): Promise<T> {
+    const previous = this.revisionQueues.get(variationId) ?? Promise.resolve();
+    const run = previous.catch(() => undefined).then(task);
+    this.revisionQueues.set(
+      variationId,
+      run.then(
+        () => undefined,
+        () => undefined,
+      ),
+    );
+    return run;
+  }
+
   private presentDraft(
     draft: Awaited<ReturnType<SocialPostsService['loadDraft']>>,
   ) {
@@ -457,18 +773,58 @@ export class SocialPostsService {
     activeCaption: string;
     hashtags: string[];
     slides: Prisma.JsonValue;
+    selectedVersionId?: string | null;
+    versions?: Array<{
+      id: string;
+      number: number;
+      source: string;
+      prompt: string | null;
+      assistantReply: string | null;
+      headline: string;
+      badgeText: string | null;
+      captionShort: string;
+      captionMedium: string;
+      captionLong: string;
+      activeCaption: string;
+      hashtags: string[];
+      slides: Prisma.JsonValue;
+      createdAt: Date;
+    }>;
   }) {
+    const versions = [...(variation.versions ?? [])].sort(
+      (a, b) => a.number - b.number,
+    );
+    const selected =
+      versions.find((item) => item.id === variation.selectedVersionId) ??
+      versions[versions.length - 1];
     return {
       id: variation.id,
       position: variation.position,
-      headline: variation.headline,
-      badgeText: variation.badgeText,
-      captionShort: variation.captionShort,
-      captionMedium: variation.captionMedium,
-      captionLong: variation.captionLong,
-      activeCaption: variation.activeCaption,
-      hashtags: variation.hashtags,
-      slides: this.readSlides(variation.slides),
+      headline: selected?.headline ?? variation.headline,
+      badgeText: selected?.badgeText ?? variation.badgeText,
+      captionShort: selected?.captionShort ?? variation.captionShort,
+      captionMedium: selected?.captionMedium ?? variation.captionMedium,
+      captionLong: selected?.captionLong ?? variation.captionLong,
+      activeCaption: selected?.activeCaption ?? variation.activeCaption,
+      hashtags: selected?.hashtags ?? variation.hashtags,
+      slides: this.readSlides(selected?.slides ?? variation.slides),
+      selectedVersionId: selected?.id ?? variation.selectedVersionId ?? null,
+      versions: versions.map((item) => ({
+        id: item.id,
+        number: item.number,
+        source: item.source,
+        prompt: item.prompt,
+        assistantReply: item.assistantReply,
+        headline: item.headline,
+        badgeText: item.badgeText,
+        captionShort: item.captionShort,
+        captionMedium: item.captionMedium,
+        captionLong: item.captionLong,
+        activeCaption: item.activeCaption,
+        hashtags: item.hashtags,
+        slides: this.readSlides(item.slides),
+        createdAt: item.createdAt,
+      })),
     };
   }
 
@@ -480,7 +836,9 @@ export class SocialPostsService {
   private async loadDraft(draftId: string) {
     const draft = await this.prisma.socialPostDraft.findUnique({
       where: { id: draftId },
-      include: { variations: true },
+      include: {
+        variations: { include: { versions: { orderBy: { number: 'asc' } } } },
+      },
     });
     if (!draft) throw new NotFoundException('Rascunho não encontrado');
     return draft;
@@ -489,7 +847,7 @@ export class SocialPostsService {
   private async loadVariation(variationId: string) {
     const variation = await this.prisma.socialPostVariation.findUnique({
       where: { id: variationId },
-      include: { draft: true },
+      include: { draft: true, versions: { orderBy: { number: 'asc' } } },
     });
     if (!variation) throw new NotFoundException('Variação não encontrada');
     return variation;

@@ -136,22 +136,27 @@ export function PostVariationsView({
                     Variação {variation.position + 1}
                   </Text>
                   <Button
+                    bg={isSelected ? '#E6F5FD' : 'transparent'}
+                    borderColor={isSelected ? '#7BC9F1' : 'transparent'}
+                    borderWidth="1px"
+                    color="#093A58"
                     onClick={() => onSelect(variation.id)}
                     size="xs"
-                    variant={isSelected ? 'solid' : 'ghost'}
+                    variant="outline"
                   >
                     {isSelected ? 'Selecionada' : 'Rascunho'}
                   </Button>
                 </Flex>
                 <HStack>
                   <Button
+                    bg="#7BC9F1"
+                    color="#093A58"
                     flex="1"
                     onClick={() => onEdit(variation.id)}
                     size="sm"
-                    variant="outline"
                   >
                     <LuPencil />
-                    Editar
+                    Revisar
                   </Button>
                   <Button
                     aria-label="Novo fundo"

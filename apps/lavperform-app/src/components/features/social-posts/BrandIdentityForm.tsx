@@ -50,20 +50,23 @@ export function BrandIdentityForm({
 }: Props) {
   const [tab, setTab] = useState('visual')
   const [uploadError, setUploadError] = useState<string | null>(null)
+  const [titleWeight, setTitleWeight] = useState('ExtraBold')
+  const [bodyWeight, setBodyWeight] = useState('Regular')
+  const [extraColors, setExtraColors] = useState<string[]>([])
   const contrast = contrastMessage(value.primaryColor)
   const previewSlide = {
-    backgroundImage: '',
+    backgroundImage: '/samples/post-background.svg',
     layers: [
       {
         id: 'band',
         type: 'color-band' as const,
         label: 'Faixa',
         color: value.deepColor,
-        opacity: 0.2,
+        opacity: 1,
         x: 0,
-        y: 0,
+        y: 42,
         width: 100,
-        height: 100,
+        height: 58,
         locked: true,
         visible: true,
       },
@@ -71,9 +74,9 @@ export function BrandIdentityForm({
         id: 'logo',
         type: 'logo' as const,
         label: 'Logo',
-        x: 50,
-        y: 8,
-        width: 34,
+        x: 94,
+        y: 4,
+        width: 36,
         locked: true,
         visible: true,
         logoVariant: 'light' as const,
@@ -84,11 +87,25 @@ export function BrandIdentityForm({
         label: 'Título',
         text: 'Roupa limpa, sem esforço.',
         fontFamily: value.titleFont,
-        fontSize: 42,
+        fontSize: titleWeight === 'ExtraBold' ? 56 : 48,
         color: '#FFFFFF',
-        x: 50,
-        y: 62,
-        width: 84,
+        x: 6,
+        y: 64,
+        width: 88,
+        locked: true,
+        visible: true,
+      },
+      {
+        id: 'badge',
+        type: 'badge' as const,
+        label: 'Selo',
+        text: '20% OFF · toda sexta',
+        fontFamily: value.bodyFont,
+        fontSize: bodyWeight === 'Regular' ? 18 : 20,
+        color: value.deepColor,
+        backgroundColor: value.accentColor,
+        x: 6,
+        y: 84,
         locked: true,
         visible: true,
       },
@@ -130,6 +147,8 @@ export function BrandIdentityForm({
           Descartar
         </Button>
         <Button
+          bg="#7BC9F1"
+          color="#093A58"
           data-testid="identity-save"
           loading={saving}
           onClick={onSave}
@@ -225,7 +244,10 @@ export function BrandIdentityForm({
                     wrap="wrap"
                   >
                     {COLOR_FIELDS.map(([key, label]) => (
-                      <Field.Root key={key}>
+                      <Field.Root
+                        key={key}
+                        w="auto"
+                      >
                         <Field.Label>{label}</Field.Label>
                         <Input
                           aria-label={label}
@@ -247,6 +269,39 @@ export function BrandIdentityForm({
                         </Text>
                       </Field.Root>
                     ))}
+                    {extraColors.map((color, index) => (
+                      <Field.Root
+                        key={`extra-${index}`}
+                        w="auto"
+                      >
+                        <Field.Label>Extra</Field.Label>
+                        <Input
+                          aria-label={`Cor extra ${index + 1}`}
+                          h="12"
+                          onChange={(event) =>
+                            setExtraColors((current) =>
+                              current.map((item, itemIndex) =>
+                                itemIndex === index ? event.target.value : item
+                              )
+                            )
+                          }
+                          p={1}
+                          type="color"
+                          value={color}
+                          w="16"
+                        />
+                      </Field.Root>
+                    ))}
+                    <Button
+                      alignSelf="flex-end"
+                      onClick={() =>
+                        setExtraColors((current) => [...current, '#7BC9F1'])
+                      }
+                      size="sm"
+                      variant="outline"
+                    >
+                      + Adicionar
+                    </Button>
                   </HStack>
                   <Box
                     bg={contrast.pass ? 'green.50' : 'orange.50'}
@@ -271,18 +326,34 @@ export function BrandIdentityForm({
                     gap={3}
                     templateColumns={{ base: '1fr', md: '1fr 1fr' }}
                   >
-                    <FontSelect
-                      label="Títulos"
-                      onChange={(titleFont) =>
-                        onChange({ ...value, titleFont })
-                      }
-                      value={value.titleFont}
-                    />
-                    <FontSelect
-                      label="Textos e legendas"
-                      onChange={(bodyFont) => onChange({ ...value, bodyFont })}
-                      value={value.bodyFont}
-                    />
+                    <HStack align="flex-end">
+                      <FontSelect
+                        label="Títulos"
+                        onChange={(titleFont) =>
+                          onChange({ ...value, titleFont })
+                        }
+                        value={value.titleFont}
+                      />
+                      <WeightSelect
+                        label="Peso"
+                        onChange={setTitleWeight}
+                        value={titleWeight}
+                      />
+                    </HStack>
+                    <HStack align="flex-end">
+                      <FontSelect
+                        label="Textos e legendas"
+                        onChange={(bodyFont) =>
+                          onChange({ ...value, bodyFont })
+                        }
+                        value={value.bodyFont}
+                      />
+                      <WeightSelect
+                        label="Peso"
+                        onChange={setBodyWeight}
+                        value={bodyWeight}
+                      />
+                    </HStack>
                   </Grid>
                 </Card.Body>
               </Card.Root>
@@ -297,11 +368,13 @@ export function BrandIdentityForm({
                     const active = value.tones.includes(tone)
                     return (
                       <Button
-                        colorPalette={active ? 'blue' : 'gray'}
+                        bg={active ? '#E6F5FD' : 'white'}
+                        borderColor={active ? '#7BC9F1' : '#E4E7EB'}
+                        color="#093A58"
                         data-testid={`identity-tone-${tone}`}
                         key={tone}
                         onClick={() => toggleTone(tone)}
-                        variant={active ? 'solid' : 'outline'}
+                        variant="outline"
                       >
                         {tone}
                       </Button>
@@ -432,12 +505,15 @@ function LogoSlot({
     <Field.Root>
       <Box
         as="label"
-        bg={dark ? 'gray.900' : 'bg.muted'}
+        bg={dark ? 'gray.800' : 'bg.muted'}
+        border="1px dashed"
+        borderColor={dark ? 'gray.600' : 'border'}
         borderRadius="xl"
         cursor="pointer"
         h="140px"
         overflow="hidden"
         position="relative"
+        w="full"
       >
         {src ? (
           <Image
@@ -504,6 +580,37 @@ function LabelDrop({ onFile }: { onFile: (file: File | undefined) => void }) {
         type="file"
       />
     </Box>
+  )
+}
+
+function WeightSelect({
+  label,
+  value,
+  onChange,
+}: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <Field.Root minW="40">
+      <Field.Label>{label}</Field.Label>
+      <NativeSelect.Root>
+        <NativeSelect.Field
+          onChange={(event) => onChange(event.target.value)}
+          value={value}
+        >
+          {['Regular', 'Medium', 'Bold', 'ExtraBold'].map((weight) => (
+            <option
+              key={weight}
+              value={weight}
+            >
+              {weight}
+            </option>
+          ))}
+        </NativeSelect.Field>
+      </NativeSelect.Root>
+    </Field.Root>
   )
 }
 

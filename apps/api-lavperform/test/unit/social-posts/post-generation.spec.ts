@@ -91,9 +91,22 @@ describe('geração de posts', () => {
           variations = [];
         }),
         create: jest.fn(async ({ data }) => {
-          const row = { ...data, id: `var-${variations.length}` };
+          const row = { ...data, id: `var-${variations.length}`, versions: [] };
           variations.push(row);
           return row;
+        }),
+        update: jest.fn(async ({ where, data }) => {
+          const row = variations.find((item) => item.id === where.id);
+          Object.assign(row, data);
+          return row;
+        }),
+      },
+      socialPostVersion: {
+        create: jest.fn(async ({ data }) => {
+          const row = variations.find((item) => item.id === data.variationId);
+          const version = { ...data, id: `ver-${data.variationId}-${data.number}` };
+          row.versions.push(version);
+          return version;
         }),
       },
       $transaction: async (fn: (tx: any) => Promise<unknown>) => fn(prisma),

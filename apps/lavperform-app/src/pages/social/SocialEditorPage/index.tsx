@@ -23,6 +23,7 @@ export function SocialEditorPage() {
   const draft = useSocialDraft(draftId)
   const [variation, setVariation] = useState<PostVariation | null>(null)
   const [busy, setBusy] = useState(false)
+  const [dirty, setDirty] = useState(false)
 
   useEffect(() => {
     const found = draft.data?.variations.find((item) => item.id === variationId)
@@ -56,7 +57,22 @@ export function SocialEditorPage() {
     <AppContentLayout
       action={
         <Button
-          onClick={() => navigate(`/social/generator/${draftId}`)}
+          onClick={async () => {
+            if (dirty && variation) {
+              await socialPostsService.recordManual(variation.id, {
+                headline: variation.headline,
+                badgeText: variation.badgeText ?? '',
+                captionShort: variation.captionShort,
+                captionMedium: variation.captionMedium,
+                captionLong: variation.captionLong,
+                activeCaption: variation.activeCaption,
+                hashtags: variation.hashtags,
+                layers: variation.slides[0]?.layers,
+                slideIndex: 0,
+              })
+            }
+            navigate(`/social/generator/${draftId}`)
+          }}
           variant="outline"
         >
           Voltar às variações
@@ -73,6 +89,7 @@ export function SocialEditorPage() {
           busy={busy}
           format={draft.data.format}
           onChange={(next) => {
+            setDirty(true)
             setVariation(next)
           }}
           onCopyCaption={async () => {

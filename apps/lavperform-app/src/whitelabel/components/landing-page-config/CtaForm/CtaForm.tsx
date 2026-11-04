@@ -1,4 +1,4 @@
-import { Fieldset, Grid, GridItem, Stack } from '@chakra-ui/react'
+import { Fieldset, Grid, GridItem, Stack, Text } from '@chakra-ui/react'
 import { memo, useEffect, useRef } from 'react'
 import { useForm } from 'react-hook-form'
 
@@ -61,13 +61,32 @@ function CtaFormBase({ data, onChange, branding }: Props) {
                 placeholder="Ex: Solicitar Atendimento"
                 required
               />
+            </Fieldset.Content>
+          </Fieldset.Root>
+
+          <Fieldset.Root>
+            <Fieldset.Legend>Botão flutuante de WhatsApp</Fieldset.Legend>
+            <Fieldset.Content>
+              <Text color="fg.muted" fontSize="sm">
+                Fica fixo no canto da landing page. O número começa com o
+                telefone do cadastro e pode ser trocado aqui. A mensagem abre
+                junto no WhatsApp, também no botão do CTA.
+              </Text>
 
               <Input
                 control={control}
-                label="Número do WhatsApp (apenas números)"
+                label="Número do WhatsApp"
                 name="whatsappNumber"
                 placeholder="5548999999999"
                 required
+              />
+
+              <Textarea
+                control={control}
+                label="Mensagem padrão"
+                name="whatsappMessage"
+                placeholder="Olá! Vim pelo site e gostaria de mais informações."
+                rows={3}
               />
             </Fieldset.Content>
           </Fieldset.Root>

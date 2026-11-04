@@ -189,3 +189,14 @@ export class RewriteCaptionDto {
   @IsIn(CAPTION_LENGTHS)
   length: string;
 }
+
+export class RevisePostDto {
+  @IsString()
+  @MaxLength(500)
+  prompt: string;
+}
+
+export class SelectVersionDto {
+  @IsUUID()
+  versionId: string;
+}
