@@ -52,44 +52,38 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
     webhookEventId: string,
     agentId: string,
     chatId: string,
+    delayOverrideMs?: number,
   ): Promise<string> {
     const bufferKey = this.buildBufferKey(agentId, chatId);
-    const jobId = this.buildJobId(agentId, chatId);
-    const timeoutMs = this.configService.get<number>('MESSAGE_BUFFER_TIMEOUT_MS', 3000);
+    const timeoutMs =
+      delayOverrideMs > 0
+        ? delayOverrideMs
+        : this.configService.get<number>('MESSAGE_BUFFER_TIMEOUT_MS', 3000);
 
-    // Appenda o ID ao fim da lista Redis
     await this.redis.rpush(bufferKey, webhookEventId);
-    // TTL de segurança: timeout + 2 minutos para evitar vazamento em caso de falha
     await this.redis.expire(bufferKey, Math.ceil(timeoutMs / 1000) + 120);
 
-    // Cancela o job anterior para reiniciar o timer
-    try {
-      const existingJob = await this.queue.getJob(jobId);
-      if (existingJob) {
-        await existingJob.remove();
-        this.logger.debug(`[Buffer] Timer reiniciado | chatId=${chatId}`);
-      }
-    } catch {
-      // Job pode já ter sido consumido; sem problema
-    }
-
-    // Agenda novo job com o delay completo
-    const job = await this.queue.add(
-      BUFFER_JOB_NAME,
-      { agentId, chatId, bufferKey } satisfies BufferJobData,
-      {
-        jobId,
-        delay: timeoutMs,
-        removeOnComplete: 100,
-        removeOnFail: 500,
-      },
-    );
+    const jobId = await this.scheduleProcessJob(agentId, chatId, timeoutMs);
 
     this.logger.log(
       `[Buffer] Evento enfileirado | agentId=${agentId} | chatId=${chatId} | webhookEventId=${webhookEventId} | delay=${timeoutMs}ms`,
     );
 
-    return String(job.id);
+    return jobId;
+  }
+
+  async hasItems(agentId: string, chatId: string): Promise<boolean> {
+    const length = await this.redis.llen(this.buildBufferKey(agentId, chatId));
+    return length > 0;
+  }
+
+  async reschedule(agentId: string, chatId: string, delayMs: number): Promise<void> {
+    await this.scheduleProcessJob(agentId, chatId, delayMs);
+  }
+
+  async discard(agentId: string, chatId: string): Promise<void> {
+    await this.redis.del(this.buildBufferKey(agentId, chatId));
+    await this.removeExistingJob(this.buildJobId(agentId, chatId));
   }
 
   /**
@@ -102,6 +96,44 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
     pipe.del(bufferKey);
     const results = await pipe.exec();
     return (results?.[0]?.[1] as string[] | null) ?? [];
+  }
+
+  private async scheduleProcessJob(
+    agentId: string,
+    chatId: string,
+    delayMs: number,
+  ): Promise<string> {
+    const bufferKey = this.buildBufferKey(agentId, chatId);
+    const jobId = this.buildJobId(agentId, chatId);
+
+    await this.removeExistingJob(jobId, chatId);
+
+    const job = await this.queue.add(
+      BUFFER_JOB_NAME,
+      { agentId, chatId, bufferKey } satisfies BufferJobData,
+      {
+        jobId,
+        delay: delayMs,
+        removeOnComplete: 100,
+        removeOnFail: 500,
+      },
+    );
+
+    return String(job.id);
+  }
+
+  private async removeExistingJob(jobId: string, chatId?: string): Promise<void> {
+    try {
+      const existingJob = await this.queue.getJob(jobId);
+      if (existingJob) {
+        await existingJob.remove();
+        if (chatId) {
+          this.logger.debug(`[Buffer] Timer reiniciado | chatId=${chatId}`);
+        }
+      }
+    } catch {
+      // Job pode já ter sido consumido; sem problema
+    }
   }
 
   private buildBufferKey(agentId: string, chatId: string): string {
