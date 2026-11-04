@@ -50,6 +50,7 @@ import { PublicApiOrderWorkerModule } from './public-api/orders/public-api-order
 import { AudiencesModule } from './audiences/audiences.module';
 import { CustomSendListsModule } from './custom-send-lists/custom-send-lists.module';
 import { CompanyApiKeysModule } from './api-keys/company-api-keys.module';
+import { TrafficModule } from './traffic/traffic.module';
 
 @Module({
   imports: [
@@ -108,6 +109,7 @@ import { CompanyApiKeysModule } from './api-keys/company-api-keys.module';
     MetaIntegrationModule,
     DeduplicationModule,
     RenitencyModule,
+    TrafficModule,
     PublicApiOrderWorkerModule,
     CompanyApiKeysModule,
     ...(process.env.ENVIRONMENT === 'production'

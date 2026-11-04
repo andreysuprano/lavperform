@@ -45,4 +45,8 @@ export interface OrganizationPage
   links: OrganizationPageLink[]
   openingHours: OpeningHours[]
   whatsappMessage: string
+  metaPixelId?: string | null
+  gtmContainerId?: string | null
+  pageId?: string
+  type?: string
 }

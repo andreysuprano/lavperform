@@ -94,6 +94,8 @@ model Company {
   customerMergeReviews      CustomerMergeReview[]
   customSendLists           CustomSendList[]
   promptSheets              PromptSheet[]
+  metaPixel                 CompanyMetaPixel?
+  gtmContainer              CompanyGtmContainer?
 
   @@index([businessPartnerId])
   @@index([deletedAt])
@@ -971,6 +973,28 @@ model Gallery {
   updatedAt   DateTime @updatedAt
   linkPage    LinkPage @relation(fields: [linkPageId], references: [id])
   linkPageId  String
+}
+
+model CompanyMetaPixel {
+  companyId String   @id
+  company   Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  pixelId   String
+  enabled   Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("company_meta_pixels")
+}
+
+model CompanyGtmContainer {
+  companyId   String   @id
+  company     Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  containerId String
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("company_gtm_containers")
 }
 
 model LinkPage {

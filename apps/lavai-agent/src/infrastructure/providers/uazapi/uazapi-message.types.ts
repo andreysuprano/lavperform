@@ -45,7 +45,13 @@ export interface UazapiMessage {
   text: string;
   content: UazapiMediaContent | string;
   messageTimestamp: number;
-  wasSentByApi: boolean;
+  wasSentByApi?: boolean;
+  sendFunction?: string;
+  ai_metadata?: {
+    agent_id?: string;
+    flow_id?: string;
+    turn?: string;
+  };
   quoted?: string;
   reaction?: string;
   buttonOrListid?: string;

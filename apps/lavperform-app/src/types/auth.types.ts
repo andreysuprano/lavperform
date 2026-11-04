@@ -24,6 +24,7 @@ export interface UserCompany {
   showIncentivizedSales: boolean
   showTodayPurchases: boolean
   serviceModel: 'CONVENTIONAL' | 'SELF_SERVICE'
+  permissions?: string[]
 }
 
 export interface User {
