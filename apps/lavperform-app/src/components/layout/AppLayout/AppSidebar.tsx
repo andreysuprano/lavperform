@@ -1,8 +1,9 @@
 import { Badge, Box, Button, Center, Icon, Stack, Text } from '@chakra-ui/react'
-import { type ElementType,memo } from 'react'
+import { type ElementType, memo } from 'react'
 import { Link, NavLink, useLocation } from 'react-router-dom'
 
 import { ThemeImage, Tooltip } from '@/components'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import { ACADEMY_MENU_ITEM } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
 
@@ -48,12 +49,25 @@ const Sidebar = memo(
   ({ open, menuItems }: { open: boolean; menuItems: MenuItemLike[] }) => {
     const location = useLocation()
     const activeHref = getActiveHref(menuItems, location.pathname)
+    const surface = useColorModeValue('white', 'gray.900')
+    const line = useColorModeValue('gray.200', 'whiteAlpha.100')
+    const idleText = useColorModeValue('#3F3F46', 'gray.300')
+    const idleIcon = useColorModeValue('gray.500', 'gray.400')
+    const hoverBg = useColorModeValue('gray.100', 'whiteAlpha.100')
+    const hoverPaint = useColorModeValue('#F4F4F5', 'rgba(255, 255, 255, 0.1)')
+    const subActiveBg = useColorModeValue('#E8F6FD', 'rgba(123,201,241,0.16)')
+    const subActiveText = useColorModeValue('#093A58', '#7BC9F1')
+    const academyText = useColorModeValue('#27272A', 'gray.400')
+    const academyLine = useColorModeValue('#D4D4D8', 'whiteAlpha.100')
 
     return (
       <Box
-        bg="white"
-        borderColor="#E4E4E7"
+        bg={surface}
+        borderColor={line}
         borderRightWidth="1px"
+        data-sidebar-bg={surface}
+        data-sidebar-hover={hoverBg}
+        data-sidebar-sub={subActiveBg}
         data-testid="app-sidebar"
         height="100vh"
         left="0"
@@ -65,8 +79,8 @@ const Sidebar = memo(
         w={open ? '260px' : '64px'}
       >
         <Center
-          bg="white"
-          borderBottomColor="#E4E4E7"
+          bg={surface}
+          borderBottomColor={line}
           borderBottomWidth="1px"
           h="64px"
           position="sticky"
@@ -106,19 +120,19 @@ const Sidebar = memo(
                       _hover={
                         isActive
                           ? undefined
-                          : { bg: 'gray.100', textDecoration: 'none' }
+                          : { bg: hoverBg, textDecoration: 'none' }
                       }
                       alignItems="center"
                       as={NavLink}
                       bg={isActive ? '#7BC9F1' : 'transparent'}
                       borderRadius="8px"
-                      color={isActive ? '#18181B' : '#3F3F46'}
+                      color={isActive ? '#18181B' : idleText}
                       css={
                         isActive
                           ? undefined
                           : {
                               '&:hover': {
-                                backgroundColor: '#F4F4F5 !important',
+                                backgroundColor: `${hoverPaint} !important`,
                               },
                             }
                       }
@@ -136,6 +150,7 @@ const Sidebar = memo(
                       <Icon
                         as={item.icon}
                         boxSize="18px"
+                        color={isActive ? '#18181B' : idleIcon}
                       />
                       {open && (
                         <Text
@@ -169,17 +184,25 @@ const Sidebar = memo(
                       const subActive = activeLink?.href === link.href
                       return (
                         <Box
-                          _hover={{ bg: 'gray.100', textDecoration: 'none' }}
+                          _hover={
+                            subActive
+                              ? undefined
+                              : { bg: hoverBg, textDecoration: 'none' }
+                          }
                           alignItems="center"
                           as={NavLink}
-                          bg={subActive ? '#E8F6FD' : 'transparent'}
+                          bg={subActive ? subActiveBg : 'transparent'}
                           borderRadius="8px"
-                          color={subActive ? '#093A58' : '#52525B'}
-                          css={{
-                            '&:hover': {
-                              backgroundColor: '#F4F4F5 !important',
-                            },
-                          }}
+                          color={subActive ? subActiveText : idleText}
+                          css={
+                            subActive
+                              ? undefined
+                              : {
+                                  '&:hover': {
+                                    backgroundColor: `${hoverPaint} !important`,
+                                  },
+                                }
+                          }
                           display="flex"
                           fontSize="13px"
                           fontWeight={subActive ? 'semibold' : 'normal'}
@@ -221,9 +244,10 @@ const Sidebar = memo(
           {ACADEMY_MENU_ITEM && (
             <Link to={ACADEMY_MENU_ITEM.href}>
               <Button
-                bg="white"
-                borderColor="#D4D4D8"
-                color="#27272A"
+                bg={surface}
+                borderColor={academyLine}
+                borderTopWidth="1px"
+                color={academyText}
                 fontWeight="semibold"
                 h="40px"
                 variant="outline"
