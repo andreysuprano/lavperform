@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { AiAgentService } from 'src/ai-agent/application/ai-agent.service';
 
 describe('AiAgentService - setupAgentWebhook', () => {
@@ -55,7 +55,23 @@ describe('AiAgentService - setupAgentWebhook', () => {
 
     await service.createAgent('compInternal', {} as any);
 
+    expect(uazapiClient.setWebhook).toHaveBeenCalledWith(
+      'tok',
+      PUBLIC_URL,
+      ['messages', 'presence'],
+      { action: 'update', id: 'w1', excludeMessages: ['wasSentByApi', 'isGroupYes'] },
+    );
+  });
+
+  it('logs and does not update when the matching webhook has no id', async () => {
+    uazapiClient.getWebhooks = jest.fn().mockResolvedValue([{ url: PUBLIC_URL }]);
+    const errorSpy = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+
+    await expect(service.createAgent('compInternal', {} as any)).resolves.toBeDefined();
+
     expect(uazapiClient.setWebhook).not.toHaveBeenCalled();
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 
   it('removes a stale localhost webhook and recreates with the public url', async () => {
@@ -68,13 +84,13 @@ describe('AiAgentService - setupAgentWebhook', () => {
     expect(uazapiClient.setWebhook).toHaveBeenCalledWith(
       'tok',
       'http://localhost:3000/webhooks/over1/agent1',
-      ['messages'],
+      ['messages', 'presence'],
       { action: 'delete', id: 'w1' },
     );
     expect(uazapiClient.setWebhook).toHaveBeenCalledWith(
       'tok',
       PUBLIC_URL,
-      ['messages'],
+      ['messages', 'presence'],
       { action: 'add', excludeMessages: ['wasSentByApi', 'isGroupYes'] },
     );
   });
@@ -88,7 +104,7 @@ describe('AiAgentService - setupAgentWebhook', () => {
     expect(uazapiClient.setWebhook).toHaveBeenCalledWith(
       'tok',
       PUBLIC_URL,
-      ['messages'],
+      ['messages', 'presence'],
       { action: 'add', excludeMessages: ['wasSentByApi', 'isGroupYes'] },
     );
   });
@@ -104,7 +120,7 @@ describe('AiAgentService - setupAgentWebhook', () => {
     expect(uazapiClient.setWebhook).toHaveBeenCalledWith(
       'tok',
       PUBLIC_URL,
-      ['messages'],
+      ['messages', 'presence'],
       { action: 'add', excludeMessages: ['wasSentByApi', 'isGroupYes'] },
     );
   });

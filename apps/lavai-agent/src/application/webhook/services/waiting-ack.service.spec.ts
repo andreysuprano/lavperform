@@ -26,9 +26,13 @@ describe('WaitingAckService', () => {
     addMessage: jest.fn(),
   };
   const takeover = { isInTakeover: jest.fn() };
+  const typingPause = { isPaused: jest.fn() };
   const filter = new MessageFilterService(
     takeover as never,
     { release: jest.fn() } as never,
+    { cancelForConversation: jest.fn() } as never,
+    typingPause as never,
+    { clear: jest.fn() } as never,
   );
 
   const service = new WaitingAckService(
@@ -36,6 +40,7 @@ describe('WaitingAckService', () => {
     sender as never,
     conversations as never,
     takeover as never,
+    typingPause as never,
     filter,
   );
 
@@ -48,6 +53,7 @@ describe('WaitingAckService', () => {
     conversations.upsert.mockResolvedValue({ id: 'conv-1' });
     conversations.addMessage.mockResolvedValue({ id: 'msg-1' });
     takeover.isInTakeover.mockResolvedValue(false);
+    typingPause.isPaused.mockResolvedValue(false);
   });
 
   it('não envia quando a saudação está vazia', async () => {
@@ -109,6 +115,15 @@ describe('WaitingAckService', () => {
 
   it('não envia quando o atendente está em controle', async () => {
     takeover.isInTakeover.mockResolvedValue(true);
+
+    await service.maybeSend(textMessage(), publicAgent(), { dedupe: true });
+
+    expect(sender.send).not.toHaveBeenCalled();
+    expect(redis.set).not.toHaveBeenCalled();
+  });
+
+  it('não envia quando a pausa de digitação está ativa', async () => {
+    typingPause.isPaused.mockResolvedValue(true);
 
     await service.maybeSend(textMessage(), publicAgent(), { dedupe: true });
 

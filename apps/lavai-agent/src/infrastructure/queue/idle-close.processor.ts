@@ -17,6 +17,7 @@ import type {
   ConversationRepositoryPort,
 } from '../../application/webhook/ports/conversation.repository.port';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
+import { HumanTypingPauseService } from '../../application/webhook/services/human-typing-pause.service';
 import {
   IDLE_CLOSE_QUEUE_NAME,
   IdleCloseJobData,
@@ -46,6 +47,7 @@ export class IdleCloseProcessor extends WorkerHost {
     private readonly messageSender: MessageSenderPort,
     private readonly followUpScheduler: FollowUpSchedulerService,
     private readonly takeover: HumanTakeoverService,
+    private readonly typingPause: HumanTypingPauseService,
   ) {
     super();
   }
@@ -110,6 +112,13 @@ export class IdleCloseProcessor extends WorkerHost {
     if (await this.takeover.isInTakeover(agentId, conversation.chatId)) {
       this.logger.debug(
         `[IdleClose] Atendimento humano | agent=${agentId} | chat=${conversation.chatId}`,
+      );
+      return;
+    }
+
+    if (await this.typingPause.isPaused(agentId, conversation.chatId)) {
+      this.logger.debug(
+        `[IdleClose] Pausa de digitação | agent=${agentId} | chat=${conversation.chatId}`,
       );
       return;
     }

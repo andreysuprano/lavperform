@@ -7,6 +7,7 @@ import {
 import { CONVERSATION_REPOSITORY } from '../../application/webhook/ports/conversation.repository.port';
 import { HumanReleaseService } from '../../application/webhook/services/human-release.service';
 import { HumanTakeoverService } from '../../application/webhook/services/human-takeover.service';
+import { HumanTypingPauseService } from '../../application/webhook/services/human-typing-pause.service';
 import { MessageFilterService } from '../../application/webhook/services/message-filter.service';
 import { WaitingAckService } from '../../application/webhook/services/waiting-ack.service';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
@@ -14,13 +15,15 @@ import { PrismaConversationRepository } from '../../infrastructure/persistence/r
 import { PrismaCustomerJourneyRepository } from '../../infrastructure/persistence/repositories/prisma-customer-journey.repository';
 import { PrismaHelpRequestRepository } from '../../infrastructure/persistence/repositories/prisma-help-request.repository';
 import { CustomerJourneyModule } from '../customer-journey/customer-journey.module';
+import { MessageBufferModule } from '../messaging/message-buffer.module';
 import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
-  imports: [MessagingModule, forwardRef(() => CustomerJourneyModule)],
+  imports: [MessagingModule, MessageBufferModule, forwardRef(() => CustomerJourneyModule)],
   providers: [
     WaitingAckService,
     HumanTakeoverService,
+    HumanTypingPauseService,
     HumanReleaseService,
     MessageFilterService,
     PrismaAgentRepository,
@@ -41,6 +44,6 @@ import { MessagingModule } from '../messaging/messaging.module';
       useExisting: PrismaHelpRequestRepository,
     },
   ],
-  exports: [WaitingAckService],
+  exports: [WaitingAckService, HumanTakeoverService, HumanTypingPauseService],
 })
 export class AttendanceModule {}

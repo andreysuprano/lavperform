@@ -11,6 +11,8 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
 import { HumanReleaseService } from './human-release.service';
 import { HumanTakeoverService } from './human-takeover.service';
+import { HumanTypingPauseService } from './human-typing-pause.service';
+import { MessageBufferService } from './message-buffer.service';
 import { matchesReleaseKeyword } from './release-keyword';
 import { whatsappPhonesMatch } from '../../customer-journey/services/journey-template.service';
 
@@ -30,12 +32,13 @@ export interface FilterResult {
  *
  * Ordem de avaliação:
  *  1. isFromMe → a própria conta não recebe resposta. Saudação automática,
- *     fluxo e mensagem da API não colocam o chat em espera. Texto curto
- *     digitado no aparelho ainda marca os 10 min, sem impedir a IA de responder.
- *  2. telefone de notificação ignorado → descarta respostas do responsável do alerta.
- *  3. allowedPhones → rejeita remetentes não autorizados
- *  4. allowedGroups → rejeita grupos não autorizados
- *  5. triggerWords → verifica gatilho textual no triggerText fornecido
+ *     fluxo e mensagem da API não colocam o chat em espera nem apagam a pausa.
+ *     Texto curto digitado no aparelho marca os 10 min e a IA para de responder.
+ *  2. humanTakeover → bloqueia respostas do bot enquanto o atendente está em controle.
+ *  3. telefone de notificação ignorado → descarta respostas do responsável do alerta.
+ *  4. allowedPhones → rejeita remetentes não autorizados
+ *  5. allowedGroups → rejeita grupos não autorizados
+ *  6. triggerWords → verifica gatilho textual no triggerText fornecido
  */
 @Injectable()
 export class MessageFilterService {
@@ -45,6 +48,8 @@ export class MessageFilterService {
     private readonly humanTakeover: HumanTakeoverService,
     private readonly humanRelease: HumanReleaseService,
     private readonly idleClose: IdleCloseSchedulerService,
+    private readonly typingPause: HumanTypingPauseService,
+    private readonly messageBuffer: MessageBufferService,
   ) {}
 
   /**
@@ -55,6 +60,8 @@ export class MessageFilterService {
     // Mensagens enviadas pela própria instância (bot ou atendente)
     if (message.isFromMe) {
       if (!message.wasSentByApi && !this.isAutomaticOutbound(message)) {
+        await this.typingPause.clearAll(agent.id, message.chatId);
+        await this.messageBuffer.discard(agent.id, message.chatId);
         if (
           matchesReleaseKeyword(
             this.attendantText(message),
@@ -78,6 +85,14 @@ export class MessageFilterService {
         );
       }
       return { allowed: false, reason: 'Mensagem da própria instância ignorada' };
+    }
+
+    const inTakeover = await this.humanTakeover.isInTakeover(agent.id, message.chatId);
+    if (inTakeover) {
+      this.logger.log(
+        `[Filter] Descartado (atendente em controle) | agentId=${agent.id} | chatId=${message.chatId}`,
+      );
+      return { allowed: false, reason: 'Atendente humano em controle da conversa' };
     }
 
     const notification = agent.notificationConfig;

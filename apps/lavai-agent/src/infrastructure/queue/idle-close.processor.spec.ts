@@ -127,6 +127,7 @@ describe('IdleCloseProcessor', () => {
       anchor?: ConversationMessageData | null;
       later?: ConversationMessageData[];
       takeover?: boolean;
+      typingPaused?: boolean;
       sendError?: Error;
     } = {},
   ) {
@@ -167,6 +168,9 @@ describe('IdleCloseProcessor', () => {
     const takeover = {
       isInTakeover: jest.fn().mockResolvedValue(options.takeover ?? false),
     };
+    const typingPause = {
+      isPaused: jest.fn().mockResolvedValue(options.typingPaused ?? false),
+    };
 
     const processor = new IdleCloseProcessor(
       journeyRepo as never,
@@ -175,6 +179,7 @@ describe('IdleCloseProcessor', () => {
       sender,
       followUpScheduler as never,
       takeover as never,
+      typingPause as never,
     );
 
     return {
@@ -421,6 +426,20 @@ describe('IdleCloseProcessor', () => {
   it('não encerra em atendimento humano', async () => {
     await expectNoSendAndNoClose({
       takeover: true,
+      later: [
+        message({
+          id: 'idle-1',
+          originalType: 'IDLE_CLOSE',
+          content: 'Vou encerrar.',
+        }),
+      ],
+    });
+  });
+
+  it('não encerra durante a pausa de digitação', async () => {
+    await expectNoSendAndNoClose({
+      typingPaused: true,
+      takeover: false,
       later: [
         message({
           id: 'idle-1',
