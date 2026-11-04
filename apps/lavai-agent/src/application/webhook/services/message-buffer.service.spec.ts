@@ -1,6 +1,7 @@
 const mockRedis = {
   rpush: jest.fn(),
   expire: jest.fn(),
+  exists: jest.fn(),
   llen: jest.fn(),
   del: jest.fn(),
   quit: jest.fn(),
@@ -43,6 +44,7 @@ describe('MessageBufferService', () => {
     jest.clearAllMocks();
     mockRedis.rpush.mockResolvedValue(1);
     mockRedis.expire.mockResolvedValue(1);
+    mockRedis.exists.mockResolvedValue(0);
     mockRedis.llen.mockResolvedValue(0);
     mockRedis.del.mockResolvedValue(1);
   });
@@ -84,6 +86,25 @@ describe('MessageBufferService', () => {
   });
 
   describe('reschedule', () => {
+    it('renova o TTL da lista quando a chave existe', async () => {
+      mockRedis.exists.mockResolvedValue(1);
+      const { service } = createService();
+
+      await service.reschedule(AGENT_ID, CHAT_ID, 45000);
+
+      expect(mockRedis.exists).toHaveBeenCalledWith(BUFFER_KEY);
+      expect(mockRedis.expire).toHaveBeenCalledWith(BUFFER_KEY, 45 + 120);
+    });
+
+    it('não chama expire quando a lista não existe', async () => {
+      mockRedis.exists.mockResolvedValue(0);
+      const { service } = createService();
+
+      await service.reschedule(AGENT_ID, CHAT_ID, 45000);
+
+      expect(mockRedis.expire).not.toHaveBeenCalled();
+    });
+
     it('remove o job existente e adiciona process-buffer com o delay novo, sem del na lista', async () => {
       const { service, queue, existingJob } = createService();
 

@@ -1,4 +1,5 @@
 import { TypingResumeService } from './typing-resume.service';
+import { AgentKind } from '../../agent/ports/agent.repository.port';
 import { MessageRole } from '../ports/conversation.repository.port';
 
 function message(role: MessageRole, content: string, originalType: string | null = null) {
@@ -56,7 +57,7 @@ describe('TypingResumeService', () => {
     typing.clearPending.mockResolvedValue(undefined);
     takeover.isInTakeover.mockResolvedValue(false);
     conversations.findById.mockResolvedValue(conversation);
-    agents.findById.mockResolvedValue({ id: 'agent-1', active: true });
+    agents.findById.mockResolvedValue({ id: 'agent-1', active: true, kind: AgentKind.PUBLIC });
     agentRunner.run.mockResolvedValue(undefined);
   });
 
@@ -121,7 +122,7 @@ describe('TypingResumeService', () => {
       }),
     );
     expect(conv).toBe(conversation);
-    expect(agent).toEqual({ id: 'agent-1', active: true });
+    expect(agent).toEqual({ id: 'agent-1', active: true, kind: AgentKind.PUBLIC });
     expect(conversations.addMessage).not.toHaveBeenCalled();
   });
 
@@ -151,6 +152,18 @@ describe('TypingResumeService', () => {
       expect(agentRunner.run.mock.calls[0][0].userMessage).toBe('Qual o preço?');
     },
   );
+
+  it('apaga o marcador e não responde quando o agente está inativo', async () => {
+    agents.findById.mockResolvedValue({ id: 'agent-1', active: false, kind: AgentKind.PUBLIC });
+    conversations.findRecentMessages.mockResolvedValue([
+      message(MessageRole.USER, 'Qual o preço?'),
+    ]);
+
+    await service.resume('agent-1', '5511999999999');
+
+    expect(agentRunner.run).not.toHaveBeenCalled();
+    expect(typing.clearPending).toHaveBeenCalledWith('agent-1', '5511999999999');
+  });
 
   it('apaga o marcador quando não há mensagens', async () => {
     conversations.findRecentMessages.mockResolvedValue([]);

@@ -56,7 +56,7 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
   ): Promise<string> {
     const bufferKey = this.buildBufferKey(agentId, chatId);
     const timeoutMs =
-      delayOverrideMs > 0
+      delayOverrideMs !== undefined && delayOverrideMs > 0
         ? delayOverrideMs
         : this.configService.get<number>('MESSAGE_BUFFER_TIMEOUT_MS', 3000);
 
@@ -78,6 +78,10 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
   }
 
   async reschedule(agentId: string, chatId: string, delayMs: number): Promise<void> {
+    const bufferKey = this.buildBufferKey(agentId, chatId);
+    if (await this.redis.exists(bufferKey)) {
+      await this.redis.expire(bufferKey, Math.ceil(delayMs / 1000) + 120);
+    }
     await this.scheduleProcessJob(agentId, chatId, delayMs);
   }
 

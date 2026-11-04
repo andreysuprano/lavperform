@@ -1,5 +1,5 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import { AGENT_REPOSITORY } from '../../agent/ports/agent.repository.port';
+import { AGENT_REPOSITORY, AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentRepositoryPort } from '../../agent/ports/agent.repository.port';
 import { AgentRunnerService } from '../../agent-runner/services/agent-runner.service';
 import { CONVERSATION_REPOSITORY, MessageRole } from '../ports/conversation.repository.port';
@@ -57,7 +57,7 @@ export class TypingResumeService {
     }
 
     const agent = await this.agents.findById(agentId);
-    if (!agent) {
+    if (!agent || !agent.active || agent.kind !== AgentKind.PUBLIC) {
       await this.typing.clearPending(agentId, chatId);
       return;
     }
