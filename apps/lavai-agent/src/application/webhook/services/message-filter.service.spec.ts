@@ -11,11 +11,15 @@ describe('MessageFilterService', () => {
   };
   const humanRelease = { release: jest.fn() };
   const idleClose = { cancelChat: jest.fn() };
+  const typingPause = { clearAll: jest.fn() };
+  const messageBuffer = { discard: jest.fn() };
 
   const service = new MessageFilterService(
     humanTakeover as never,
     humanRelease as never,
     idleClose as never,
+    typingPause as never,
+    messageBuffer as never,
   );
 
   const baseMessage = {
@@ -96,7 +100,15 @@ describe('MessageFilterService', () => {
     );
 
     expect(result.allowed).toBe(false);
+    expect(typingPause.clearAll).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(messageBuffer.discard).toHaveBeenCalledWith('agent-1', '5511999999999');
     expect(humanRelease.release).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(typingPause.clearAll.mock.invocationCallOrder[0]).toBeLessThan(
+      humanRelease.release.mock.invocationCallOrder[0],
+    );
+    expect(messageBuffer.discard.mock.invocationCallOrder[0]).toBeLessThan(
+      humanRelease.release.mock.invocationCallOrder[0],
+    );
     expect(idleClose.cancelChat).not.toHaveBeenCalled();
     expect(humanTakeover.setTakeover).not.toHaveBeenCalled();
     expect(humanTakeover.clearTakeover).not.toHaveBeenCalled();
@@ -115,8 +127,16 @@ describe('MessageFilterService', () => {
       agent,
     );
 
+    expect(typingPause.clearAll).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(messageBuffer.discard).toHaveBeenCalledWith('agent-1', '5511999999999');
     expect(idleClose.cancelChat).toHaveBeenCalledWith('agent-1', '5511999999999');
     expect(humanTakeover.setTakeover).toHaveBeenCalledWith('agent-1', '5511999999999');
+    expect(typingPause.clearAll.mock.invocationCallOrder[0]).toBeLessThan(
+      humanTakeover.setTakeover.mock.invocationCallOrder[0],
+    );
+    expect(messageBuffer.discard.mock.invocationCallOrder[0]).toBeLessThan(
+      humanTakeover.setTakeover.mock.invocationCallOrder[0],
+    );
     expect(idleClose.cancelChat.mock.invocationCallOrder[0]).toBeLessThan(
       humanTakeover.setTakeover.mock.invocationCallOrder[0],
     );
@@ -140,6 +160,8 @@ describe('MessageFilterService', () => {
     expect(idleClose.cancelChat).not.toHaveBeenCalled();
     expect(humanTakeover.setTakeover).not.toHaveBeenCalled();
     expect(humanRelease.release).not.toHaveBeenCalled();
+    expect(typingPause.clearAll).not.toHaveBeenCalled();
+    expect(messageBuffer.discard).not.toHaveBeenCalled();
   });
 });
 

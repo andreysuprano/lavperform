@@ -11,6 +11,8 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
 import { HumanReleaseService } from './human-release.service';
 import { HumanTakeoverService } from './human-takeover.service';
+import { HumanTypingPauseService } from './human-typing-pause.service';
+import { MessageBufferService } from './message-buffer.service';
 import { matchesReleaseKeyword } from './release-keyword';
 import { whatsappPhonesMatch } from '../../customer-journey/services/journey-template.service';
 
@@ -45,6 +47,8 @@ export class MessageFilterService {
     private readonly humanTakeover: HumanTakeoverService,
     private readonly humanRelease: HumanReleaseService,
     private readonly idleClose: IdleCloseSchedulerService,
+    private readonly typingPause: HumanTypingPauseService,
+    private readonly messageBuffer: MessageBufferService,
   ) {}
 
   /**
@@ -55,6 +59,8 @@ export class MessageFilterService {
     // Mensagens enviadas pela própria instância (bot ou atendente)
     if (message.isFromMe) {
       if (!message.wasSentByApi) {
+        await this.typingPause.clearAll(agent.id, message.chatId);
+        await this.messageBuffer.discard(agent.id, message.chatId);
         if (
           matchesReleaseKeyword(
             this.attendantText(message),

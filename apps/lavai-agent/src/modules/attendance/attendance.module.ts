@@ -15,10 +15,11 @@ import { PrismaConversationRepository } from '../../infrastructure/persistence/r
 import { PrismaCustomerJourneyRepository } from '../../infrastructure/persistence/repositories/prisma-customer-journey.repository';
 import { PrismaHelpRequestRepository } from '../../infrastructure/persistence/repositories/prisma-help-request.repository';
 import { CustomerJourneyModule } from '../customer-journey/customer-journey.module';
+import { MessageBufferModule } from '../messaging/message-buffer.module';
 import { MessagingModule } from '../messaging/messaging.module';
 
 @Module({
-  imports: [MessagingModule, forwardRef(() => CustomerJourneyModule)],
+  imports: [MessagingModule, MessageBufferModule, forwardRef(() => CustomerJourneyModule)],
   providers: [
     WaitingAckService,
     HumanTakeoverService,
