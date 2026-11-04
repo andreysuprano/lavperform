@@ -18,7 +18,7 @@ import { useEffect, useState } from 'react'
 import { LuSparkles } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
-import { useColorModeValue } from '@/components/ui/color-mode'
+import { useColorMode, useColorModeValue } from '@/components/ui/color-mode'
 import type { BrandIdentity, CreateDraftPayload } from '@/types'
 import { ART_STYLES, DEFAULT_BRAND, POST_OBJECTIVES } from '@/types'
 
@@ -48,6 +48,8 @@ export function PostBriefingForm({
   onUseReferenceModel,
 }: Props) {
   const [neutralBrand, setNeutralBrand] = useState(false)
+  const { colorMode } = useColorMode()
+  const captionOn = value.includeCaption !== false
   const pillIdleBg = useColorModeValue('white', 'whiteAlpha.100')
   const pillIdleBorder = useColorModeValue('#E4E7EB', 'whiteAlpha.200')
   const pillIdleText = useColorModeValue('#093A58', 'gray.100')
@@ -281,13 +283,22 @@ export function PostBriefingForm({
             </Field.Root>
           </Grid>
           <Checkbox.Root
-            checked={value.includeCaption !== false}
+            checked={captionOn}
             onCheckedChange={({ checked }) =>
               onChange({ ...value, includeCaption: checked === true })
             }
           >
             <Checkbox.HiddenInput />
-            <Checkbox.Control />
+            <Checkbox.Control
+              data-testid="caption-checkbox"
+              {...(colorMode === 'dark'
+                ? {
+                    bg: captionOn ? '#7BC9F1' : 'transparent',
+                    borderColor: captionOn ? '#7BC9F1' : 'whiteAlpha.300',
+                    color: 'gray.900',
+                  }
+                : {})}
+            />
             <Checkbox.Label>
               Legenda e hashtags no seu tom de voz.
             </Checkbox.Label>
