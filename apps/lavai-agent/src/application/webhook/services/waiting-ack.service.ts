@@ -28,6 +28,7 @@ import {
   type IncomingMessage,
 } from '../types/incoming-message.types';
 import { HumanTakeoverService } from './human-takeover.service';
+import { HumanTypingPauseService } from './human-typing-pause.service';
 import { MessageFilterService } from './message-filter.service';
 
 const WAITING_ACK_TTL_SECONDS = 120;
@@ -48,6 +49,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversations: ConversationRepositoryPort,
     private readonly humanTakeover: HumanTakeoverService,
+    private readonly typingPause: HumanTypingPauseService,
     private readonly filter: MessageFilterService,
   ) {}
 
@@ -78,6 +80,7 @@ export class WaitingAckService implements OnModuleInit, OnModuleDestroy {
     if (!agent.journeyConfig?.waitingAckEnabled || !text) return;
     if (message.isFromMe || message.wasSentByApi) return;
     if (await this.humanTakeover.isInTakeover(agent.id, message.chatId)) return;
+    if (await this.typingPause.isPaused(agent.id, message.chatId)) return;
     if (this.isIgnoredNotificationPhone(message, agent)) return;
     if (!this.passesAudience(message, agent)) return;
 
