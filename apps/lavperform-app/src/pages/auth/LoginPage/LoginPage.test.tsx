@@ -34,15 +34,22 @@ describe('tela de login', () => {
     signIn.mockReset()
   })
 
-  it('mostra logo, título, campos, Entrar e Esqueci minha senha', () => {
+  it('mostra logo, campos, Entrar e Esqueci minha senha, sem título', () => {
     renderLogin()
 
     expect(screen.getByRole('img', { name: 'LavPerform' })).toBeInTheDocument()
     expect(
-      screen.getByRole('heading', { name: 'Entrar na sua conta' })
-    ).toBeInTheDocument()
-    expect(screen.getByLabelText('E-mail')).toBeInTheDocument()
-    expect(screen.getByLabelText('Senha')).toBeInTheDocument()
+      screen.queryByRole('heading', { name: 'Entrar na sua conta' })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByText('Entrar na sua conta')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('E-mail')).toHaveAttribute(
+      'placeholder',
+      'E-mail'
+    )
+    expect(screen.getByLabelText('Senha')).toHaveAttribute(
+      'placeholder',
+      'Senha'
+    )
     expect(screen.getByRole('button', { name: 'Entrar' })).toBeInTheDocument()
     expect(
       screen.getByRole('link', { name: 'Esqueci minha senha' })

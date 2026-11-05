@@ -91,7 +91,7 @@ function LoginForm() {
       <div className="login-fields">
         <div className="login-field">
           <label
-            className="login-label"
+            className="login-sr-only"
             htmlFor="email"
           >
             E-mail
@@ -110,6 +110,7 @@ function LoginForm() {
               autoComplete="email"
               className="login-input"
               id="email"
+              placeholder="E-mail"
               type="email"
               {...register('email')}
             />
@@ -125,7 +126,7 @@ function LoginForm() {
         </div>
         <div className="login-field">
           <label
-            className="login-label"
+            className="login-sr-only"
             htmlFor="password"
           >
             Senha
@@ -147,6 +148,7 @@ function LoginForm() {
               className="login-input"
               data-masked={passwordVisible ? 'false' : 'true'}
               id="password"
+              placeholder="Senha"
               type={passwordVisible ? 'text' : 'password'}
               {...register('password')}
             />
