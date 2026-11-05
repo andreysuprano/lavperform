@@ -310,9 +310,17 @@ export function CriterionEditor({
             </Field.Root>
           )}
           <HStack align="flex-end">
-            <Field.Root flex={1}>
+            <Field.Root
+              flex={1}
+              invalid={Boolean(
+                lastOrderFilter.from &&
+                  lastOrderFilter.to &&
+                  lastOrderFilter.from > lastOrderFilter.to,
+              )}
+            >
               <Field.Label>De</Field.Label>
               <Input
+                max={lastOrderFilter.to || undefined}
                 onChange={(event) =>
                   handleLastOrderFilterChange({
                     ...lastOrderFilter,
@@ -322,10 +330,14 @@ export function CriterionEditor({
                 type="date"
                 value={lastOrderFilter.from}
               />
+              <Field.ErrorText>
+                A data inicial precisa ser anterior ou igual à data final.
+              </Field.ErrorText>
             </Field.Root>
             <Field.Root flex={1}>
               <Field.Label>Até</Field.Label>
               <Input
+                min={lastOrderFilter.from || undefined}
                 onChange={(event) =>
                   handleLastOrderFilterChange({
                     ...lastOrderFilter,
@@ -611,9 +623,17 @@ export function CriterionEditor({
       {criterion.type !== 'last_order_days' && (
         <Stack gap={1}>
           <HStack align="flex-end">
-            <Field.Root flex={1}>
+            <Field.Root
+              flex={1}
+              invalid={Boolean(
+                criterion.period?.from &&
+                  criterion.period?.to &&
+                  criterion.period.from > criterion.period.to,
+              )}
+            >
               <Field.Label>De</Field.Label>
               <Input
+                max={criterion.period?.to || undefined}
                 onChange={(event) =>
                   onChange({
                     ...criterion,
@@ -626,10 +646,14 @@ export function CriterionEditor({
                 type="date"
                 value={criterion.period?.from ?? ''}
               />
+              <Field.ErrorText>
+                A data inicial precisa ser anterior ou igual à data final.
+              </Field.ErrorText>
             </Field.Root>
             <Field.Root flex={1}>
               <Field.Label>Até</Field.Label>
               <Input
+                min={criterion.period?.from || undefined}
                 onChange={(event) =>
                   onChange({
                     ...criterion,
