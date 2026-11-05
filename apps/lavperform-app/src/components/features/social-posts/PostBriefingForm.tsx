@@ -14,12 +14,15 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { LuSparkles } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { useColorMode, useColorModeValue } from '@/components/ui/color-mode'
 import type { BrandIdentity, CreateDraftPayload } from '@/types'
-import { ART_STYLES, POST_OBJECTIVES } from '@/types'
+import { ART_STYLES, DEFAULT_BRAND, POST_OBJECTIVES } from '@/types'
+
+import { ReferenceImagesField } from './ReferenceImagesField'
 
 interface Props {
   value: CreateDraftPayload
@@ -29,6 +32,8 @@ interface Props {
   error?: string | null
   onChange: (value: CreateDraftPayload) => void
   onGenerate: () => void
+  onReferences?: (ids: string[]) => void
+  onUseReferenceModel?: (model: string) => void
 }
 
 export function PostBriefingForm({
@@ -39,7 +44,23 @@ export function PostBriefingForm({
   error,
   onChange,
   onGenerate,
+  onReferences,
+  onUseReferenceModel,
 }: Props) {
+  const [neutralBrand, setNeutralBrand] = useState(false)
+  const { colorMode } = useColorMode()
+  const captionOn = value.includeCaption !== false
+  const pillIdleBg = useColorModeValue('white', 'whiteAlpha.100')
+  const pillIdleBorder = useColorModeValue('#E4E7EB', 'whiteAlpha.200')
+  const pillIdleText = useColorModeValue('#093A58', 'gray.100')
+  const pillActiveBg = useColorModeValue('#E6F5FD', 'rgba(123,201,241,0.16)')
+  const formatIdleBg = useColorModeValue('white', 'gray.800')
+  const formatActiveBg = useColorModeValue('#E8F6FD', 'rgba(123,201,241,0.16)')
+  const formatText = useColorModeValue('#093A58', 'gray.100')
+  const formatActiveText = useColorModeValue('#093A58', '#7BC9F1')
+  const formatMuted = useColorModeValue('#5B6B78', 'gray.400')
+  const inviteTitle = useColorModeValue('#093A58', 'gray.100')
+  const inviteBody = useColorModeValue('#5B6B78', 'gray.300')
   const canGenerate = value.theme.trim().length >= 8 && !generating
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
@@ -108,10 +129,10 @@ export function PostBriefingForm({
                 const active = value.objective === objective.value
                 return (
                   <Button
-                    bg={active ? '#E6F5FD' : 'white'}
-                    borderColor={active ? '#7BC9F1' : '#E4E7EB'}
+                    bg={active ? pillActiveBg : pillIdleBg}
+                    borderColor={active ? '#7BC9F1' : pillIdleBorder}
                     borderRadius="full"
-                    color="#093A58"
+                    color={active ? formatActiveText : pillIdleText}
                     key={objective.value}
                     onClick={() =>
                       onChange({ ...value, objective: objective.value })
@@ -141,44 +162,77 @@ export function PostBriefingForm({
               resultado.
             </Field.HelperText>
           </Field.Root>
+          <ReferenceImagesField
+            companyId={value.companyId}
+            imageModel={value.imageModel}
+            onChange={(ids) => onReferences?.(ids)}
+            onUseModel={onUseReferenceModel}
+          />
           <Field.Root>
             <Field.Label>Formato</Field.Label>
-            <HStack>
+            <Grid
+              gap={2}
+              templateColumns="repeat(3, minmax(0, 1fr))"
+            >
               {(
                 [
-                  ['feed', 'Feed', '1 / 1'],
-                  ['story', 'Story', '9 / 16'],
-                  ['carousel', 'Carrossel', '4 / 5'],
+                  ['feed', 'Post', '1080×1080', 'square'],
+                  ['carousel', 'Carrossel', 'até 10 páginas', 'pages'],
+                  ['story', 'Story', '1080×1920', 'story'],
                 ] as const
-              ).map(([format, label, ratio]) => (
-                <Button
-                  borderColor={value.format === format ? 'blue.400' : 'border'}
-                  borderWidth="2px"
-                  h="auto"
-                  key={format}
-                  onClick={() =>
-                    onChange({
-                      ...value,
-                      format,
-                      slideCount:
-                        format === 'carousel' ? value.slideCount || 4 : 1,
-                    })
-                  }
-                  py={3}
-                  variant="outline"
-                >
-                  <Stack gap={2}>
-                    <Box
-                      aspectRatio={ratio}
-                      bg="bg.muted"
-                      borderRadius="md"
-                      w="14"
-                    />
-                    <Text fontSize="sm">{label}</Text>
-                  </Stack>
-                </Button>
-              ))}
-            </HStack>
+              ).map(([format, label, measure, icon]) => {
+                const selected = value.format === format
+                return (
+                  <Button
+                    bg={selected ? formatActiveBg : formatIdleBg}
+                    borderColor={selected ? '#7BC9F1' : pillIdleBorder}
+                    borderWidth="1px"
+                    h="72px"
+                    key={format}
+                    onClick={() =>
+                      onChange({
+                        ...value,
+                        format,
+                        slideCount:
+                          format === 'carousel'
+                            ? value.format === 'carousel'
+                              ? value.slideCount || 4
+                              : 4
+                            : 1,
+                      })
+                    }
+                    px={2}
+                    variant="outline"
+                    w="full"
+                  >
+                    <HStack
+                      gap={2}
+                      w="full"
+                    >
+                      <FormatGlyph kind={icon} />
+                      <Stack
+                        align="flex-start"
+                        gap={0}
+                      >
+                        <Text
+                          color={selected ? formatActiveText : formatText}
+                          fontSize="sm"
+                          fontWeight="semibold"
+                        >
+                          {label}
+                        </Text>
+                        <Text
+                          color={selected ? formatActiveText : formatMuted}
+                          fontSize="xs"
+                        >
+                          {measure}
+                        </Text>
+                      </Stack>
+                    </HStack>
+                  </Button>
+                )
+              })}
+            </Grid>
           </Field.Root>
           <Grid
             gap={3}
@@ -196,12 +250,12 @@ export function PostBriefingForm({
                   }
                   value={String(value.slideCount || 4)}
                 >
-                  {[2, 3, 4, 5, 6].map((count) => (
+                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
                     <option
                       key={count}
                       value={count}
                     >
-                      {count} slides
+                      {count === 1 ? '1 slide' : `${count} slides`}
                     </option>
                   ))}
                 </NativeSelect.Field>
@@ -228,17 +282,28 @@ export function PostBriefingForm({
               </NativeSelect.Root>
             </Field.Root>
           </Grid>
-          <Flex
-            align="center"
-            justify="space-between"
-            wrap="wrap"
+          <Checkbox.Root
+            checked={captionOn}
+            onCheckedChange={({ checked }) =>
+              onChange({ ...value, includeCaption: checked === true })
+            }
           >
-            <Text
-              color="fg.muted"
-              fontSize="sm"
-            >
-              Ctrl + Enter para gerar
-            </Text>
+            <Checkbox.HiddenInput />
+            <Checkbox.Control
+              data-testid="caption-checkbox"
+              {...(colorMode === 'dark'
+                ? {
+                    bg: captionOn ? '#7BC9F1' : 'transparent',
+                    borderColor: captionOn ? '#7BC9F1' : 'whiteAlpha.300',
+                    color: 'gray.900',
+                  }
+                : {})}
+            />
+            <Checkbox.Label>
+              Legenda e hashtags no seu tom de voz.
+            </Checkbox.Label>
+          </Checkbox.Root>
+          <Flex justify="flex-end">
             <Button
               bg="#7BC9F1"
               color="#093A58"
@@ -254,67 +319,146 @@ export function PostBriefingForm({
         </Card.Body>
       </Card.Root>
       <Stack gap={4}>
-        <Card.Root>
-          <Card.Body gap={3}>
-            <Flex justify="space-between">
-              <Heading size="sm">Identidade aplicada</Heading>
+        {brand && !brand.persisted && !neutralBrand ? (
+          <Card.Root
+            border="1px dashed"
+            borderColor="#7BC9F1"
+            data-testid="brand-incomplete-notice"
+          >
+            <Card.Body gap={3}>
+              <Flex
+                gap={3}
+              >
+                <Box
+                  borderRadius="md"
+                  flexShrink={0}
+                  h="112px"
+                  opacity={0.55}
+                  overflow="hidden"
+                  position="relative"
+                  w="84px"
+                >
+                  <Box
+                    bg="url(/samples/post-background.svg) center/cover"
+                    inset={0}
+                    position="absolute"
+                  />
+                  <Box
+                    bg="linear-gradient(to top, #093A58, transparent)"
+                    bottom={0}
+                    h="55%"
+                    left={0}
+                    position="absolute"
+                    right={0}
+                  />
+                  <Text
+                    bottom="7"
+                    color="white"
+                    fontSize="10px"
+                    fontWeight="800"
+                    left="1.5"
+                    lineHeight="1.05"
+                    position="absolute"
+                    right="1.5"
+                  >
+                    Roupa limpa, sem esforço.
+                  </Text>
+                  <Text
+                    bg="#FFD23F"
+                    borderRadius="full"
+                    bottom="1.5"
+                    color="#093A58"
+                    fontSize="8px"
+                    fontWeight="700"
+                    left="1.5"
+                    position="absolute"
+                    px="1"
+                  >
+                    20% OFF
+                  </Text>
+                </Box>
+                <Stack gap={1}>
+                  <Heading
+                    color={inviteTitle}
+                    size="sm"
+                  >
+                    Seus posts ficam com a cara da sua lavanderia
+                  </Heading>
+                  <Text
+                    color={inviteBody}
+                    fontSize="sm"
+                  >
+                    Configure sua logo, cores e fontes uma vez, e todo post já
+                    sai pronto com a sua marca.
+                  </Text>
+                </Stack>
+              </Flex>
               <Button
                 asChild
-                size="xs"
+                bg="#7BC9F1"
+                color="#093A58"
+              >
+                <RouterLink
+                  data-testid="configure-brand"
+                  to="/settings/brand-identity"
+                >
+                  Configurar minha marca
+                </RouterLink>
+              </Button>
+              <Button
+                color={inviteTitle}
+                data-testid="use-neutral-brand"
+                onClick={() => setNeutralBrand(true)}
                 variant="ghost"
               >
-                <RouterLink to="/settings/brand-identity">Editar</RouterLink>
+                Gerar sem marca por enquanto
               </Button>
-            </Flex>
-            <HStack>
-              {[
-                brand?.primaryColor,
-                brand?.deepColor,
-                brand?.accentColor,
-                brand?.neutralColor,
-              ]
-                .filter(Boolean)
-                .map((color) => (
-                  <Box
-                    bg={color}
-                    borderRadius="md"
-                    borderWidth="1px"
-                    h="6"
-                    key={color}
-                    w="6"
-                  />
-                ))}
-            </HStack>
-            <Text
-              color="fg.muted"
-              fontSize="sm"
-            >
-              {brand?.titleFont || 'Poppins'} / {brand?.bodyFont || 'Inter'} ·{' '}
-              {(brand?.tones || ['Próximo']).join(' e ')}
-            </Text>
-          </Card.Body>
-        </Card.Root>
-        <Card.Root>
-          <Card.Body gap={2}>
-            <Heading size="sm">Como a IA monta o post</Heading>
-            <Text fontSize="sm">A IA cria só a arte de fundo.</Text>
-            <Text fontSize="sm">
-              LavPerform coloca por cima o texto, logo e cores da sua marca.
-            </Text>
-            <Checkbox.Root
-              checked={value.includeCaption !== false}
-              onCheckedChange={({ checked }) =>
-                onChange({ ...value, includeCaption: checked === true })
-              }
-            >
-              <Checkbox.HiddenInput />
-              <Checkbox.Control />
-              <Checkbox.Label>
-                Legenda e hashtags no seu tom de voz.
-              </Checkbox.Label>
-            </Checkbox.Root>
-          </Card.Body>
-        </Card.Root>
+            </Card.Body>
+          </Card.Root>
+        ) : (
+          <Card.Root>
+            <Card.Body gap={3}>
+              <Flex justify="space-between">
+                <Heading size="sm">
+                  {neutralBrand ? 'Estilo neutro LavPerform' : 'Identidade aplicada'}
+                </Heading>
+                <Button
+                  asChild
+                  size="xs"
+                  variant="ghost"
+                >
+                  <RouterLink to="/settings/brand-identity">Editar</RouterLink>
+                </Button>
+              </Flex>
+              <HStack>
+                {[
+                  (neutralBrand ? DEFAULT_BRAND : brand)?.primaryColor,
+                  (neutralBrand ? DEFAULT_BRAND : brand)?.deepColor,
+                  (neutralBrand ? DEFAULT_BRAND : brand)?.accentColor,
+                  (neutralBrand ? DEFAULT_BRAND : brand)?.neutralColor,
+                ]
+                  .filter(Boolean)
+                  .map((color) => (
+                    <Box
+                      bg={color}
+                      borderRadius="md"
+                      borderWidth="1px"
+                      h="6"
+                      key={color}
+                      w="6"
+                    />
+                  ))}
+              </HStack>
+              <Text
+                color="fg.muted"
+                fontSize="sm"
+              >
+                {(neutralBrand ? DEFAULT_BRAND : brand)?.titleFont || 'Poppins'}{' '}
+                / {(neutralBrand ? DEFAULT_BRAND : brand)?.bodyFont || 'Inter'}
+              </Text>
+            </Card.Body>
+          </Card.Root>
+        )}
         {generating && (
           <Card.Root>
             <Card.Body gap={2}>
@@ -336,3 +480,52 @@ export function PostBriefingForm({
     </Grid>
   )
 }
+
+function FormatGlyph({ kind }: { kind: 'square' | 'pages' | 'story' }) {
+  const back = useColorModeValue('#E8F6FD', 'whiteAlpha.100')
+  const front = useColorModeValue('white', 'gray.700')
+  const line = useColorModeValue('#093A58', 'gray.300')
+  if (kind === 'pages') {
+    return (
+      <Box
+        h="8"
+        position="relative"
+        w="8"
+      >
+        <Box
+          bg={back}
+          borderColor="#7BC9F1"
+          borderRadius="sm"
+          borderWidth="1px"
+          h="6"
+          left="2"
+          position="absolute"
+          top="0"
+          w="5"
+        />
+        <Box
+          bg={front}
+          borderColor={line}
+          borderRadius="sm"
+          borderWidth="1px"
+          h="6"
+          left="0"
+          position="absolute"
+          top="2"
+          w="5"
+        />
+      </Box>
+    )
+  }
+  return (
+    <Box
+      bg={back}
+      borderColor={line}
+      borderRadius="sm"
+      borderWidth="1px"
+      h={kind === 'story' ? '8' : '6'}
+      w={kind === 'story' ? '5' : '6'}
+    />
+  )
+}
+

@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   Card,
+  createListCollection,
   Field,
   Flex,
   Grid,
@@ -10,7 +11,8 @@ import {
   HStack,
   Image,
   Input,
-  NativeSelect,
+  Portal,
+  Select,
   Stack,
   Tabs,
   Text,
@@ -20,6 +22,7 @@ import { useState } from 'react'
 import { LuCheck, LuImagePlus, LuUpload } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { useColorModeValue } from '@/components/ui/color-mode'
 import type { SaveBrandPayload } from '@/types'
 import { FONT_OPTIONS, TONE_OPTIONS } from '@/types'
 
@@ -54,6 +57,18 @@ export function BrandIdentityForm({
   const [bodyWeight, setBodyWeight] = useState('Regular')
   const [extraColors, setExtraColors] = useState<string[]>([])
   const contrast = contrastMessage(value.primaryColor)
+  const contrastBg = useColorModeValue(
+    contrast.pass ? 'green.50' : 'orange.50',
+    contrast.pass ? 'green.50' : 'orange.900/20',
+  )
+  const contrastColor = useColorModeValue(
+    contrast.pass ? 'green.800' : 'orange.800',
+    contrast.pass ? 'green.800' : 'orange.200',
+  )
+  const contrastBorder = useColorModeValue(
+    'transparent',
+    contrast.pass ? 'transparent' : 'orange.700',
+  )
   const previewSlide = {
     backgroundImage: '/samples/post-background.svg',
     layers: [
@@ -195,16 +210,17 @@ export function BrandIdentityForm({
                     templateColumns={{ base: '1fr', md: 'repeat(3, 1fr)' }}
                   >
                     <LogoSlot
+                      contrast={!value.logoDarkUrl && Boolean(value.logoLightUrl)}
                       label="Fundo claro"
                       onFile={(file) => upload(file, 'logoLightUrl')}
-                      src={value.logoLightUrl}
+                      src={value.logoDarkUrl || value.logoLightUrl}
                       testId="logo-light"
                     />
                     <LogoSlot
                       dark
                       label="Fundo escuro"
                       onFile={(file) => upload(file, 'logoDarkUrl')}
-                      src={value.logoDarkUrl}
+                      src={value.logoLightUrl || value.logoDarkUrl}
                       testId="logo-dark"
                     />
                     <LabelDrop
@@ -304,9 +320,11 @@ export function BrandIdentityForm({
                     </Button>
                   </HStack>
                   <Box
-                    bg={contrast.pass ? 'green.50' : 'orange.50'}
+                    bg={contrastBg}
+                    borderColor={contrastBorder}
                     borderRadius="lg"
-                    color={contrast.pass ? 'green.800' : 'orange.800'}
+                    borderWidth="1px"
+                    color={contrastColor}
                     px={3}
                     py={2}
                   >
@@ -492,12 +510,14 @@ function LogoSlot({
   label,
   src,
   dark,
+  contrast,
   onFile,
   testId,
 }: {
   label: string
   src: string | null
   dark?: boolean
+  contrast?: boolean
   onFile: (file: File | undefined) => void
   testId: string
 }) {
@@ -505,9 +525,9 @@ function LogoSlot({
     <Field.Root>
       <Box
         as="label"
-        bg={dark ? 'gray.800' : 'bg.muted'}
+        bg={dark ? 'gray.800' : 'gray.50'}
         border="1px dashed"
-        borderColor={dark ? 'gray.600' : 'border'}
+        borderColor={dark ? 'gray.600' : 'gray.200'}
         borderRadius="xl"
         cursor="pointer"
         h="140px"
@@ -518,6 +538,7 @@ function LogoSlot({
         {src ? (
           <Image
             alt={label}
+            filter={contrast ? 'brightness(0)' : undefined}
             h="full"
             objectFit="contain"
             p={4}
@@ -583,64 +604,85 @@ function LabelDrop({ onFile }: { onFile: (file: File | undefined) => void }) {
   )
 }
 
-function WeightSelect({
+function OptionSelect({
   label,
   value,
+  options,
   onChange,
+  minW,
 }: {
   label: string
   value: string
+  options: string[]
   onChange: (value: string) => void
+  minW?: string
 }) {
+  const collection = createListCollection({
+    items: options.map((option) => ({ label: option, value: option })),
+  })
   return (
-    <Field.Root minW="40">
-      <Field.Label>{label}</Field.Label>
-      <NativeSelect.Root>
-        <NativeSelect.Field
-          onChange={(event) => onChange(event.target.value)}
-          value={value}
-        >
-          {['Regular', 'Medium', 'Bold', 'ExtraBold'].map((weight) => (
-            <option
-              key={weight}
-              value={weight}
-            >
-              {weight}
-            </option>
-          ))}
-        </NativeSelect.Field>
-      </NativeSelect.Root>
+    <Field.Root minW={minW}>
+      <Select.Root
+        collection={collection}
+        onValueChange={(details) => {
+          const next = details.value[0]
+          if (next) onChange(next)
+        }}
+        value={[value]}
+      >
+        <Select.HiddenSelect />
+        <Select.Label>{label}</Select.Label>
+        <Select.Control>
+          <Select.Trigger>
+            <Select.ValueText placeholder={label} />
+            <Select.IndicatorGroup>
+              <Select.Indicator />
+            </Select.IndicatorGroup>
+          </Select.Trigger>
+        </Select.Control>
+        <Portal>
+          <Select.Positioner>
+            <Select.Content>
+              {collection.items.map((item) => (
+                <Select.Item
+                  item={item}
+                  key={item.value}
+                >
+                  {item.label}
+                  <Select.ItemIndicator />
+                </Select.Item>
+              ))}
+            </Select.Content>
+          </Select.Positioner>
+        </Portal>
+      </Select.Root>
     </Field.Root>
   )
 }
 
-function FontSelect({
-  label,
-  value,
-  onChange,
-}: {
+function WeightSelect(props: {
   label: string
   value: string
   onChange: (value: string) => void
 }) {
   return (
-    <Field.Root>
-      <Field.Label>{label}</Field.Label>
-      <NativeSelect.Root>
-        <NativeSelect.Field
-          onChange={(event) => onChange(event.target.value)}
-          value={value}
-        >
-          {FONT_OPTIONS.map((font) => (
-            <option
-              key={font}
-              value={font}
-            >
-              {font}
-            </option>
-          ))}
-        </NativeSelect.Field>
-      </NativeSelect.Root>
-    </Field.Root>
+    <OptionSelect
+      {...props}
+      minW="40"
+      options={['Regular', 'Medium', 'Bold', 'ExtraBold']}
+    />
+  )
+}
+
+function FontSelect(props: {
+  label: string
+  value: string
+  onChange: (value: string) => void
+}) {
+  return (
+    <OptionSelect
+      {...props}
+      options={[...FONT_OPTIONS]}
+    />
   )
 }

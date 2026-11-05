@@ -135,7 +135,10 @@ export function PostLayerEditor({
       gap={4}
       minW={0}
       overflow="hidden"
-      templateColumns={{ base: 'minmax(0, 1fr)', xl: 'minmax(0, 260px) minmax(0, 1fr) minmax(0, 280px)' }}
+      templateColumns={{
+        base: 'minmax(0, 1fr)',
+        xl: 'minmax(0, 340px) minmax(0, 1fr) minmax(0, 300px)',
+      }}
     >
       <Card.Root>
         <Card.Body gap={3}>
@@ -193,8 +196,16 @@ export function PostLayerEditor({
                 <Stack
                   flex="1"
                   gap={0}
+                  minW="0"
                 >
-                  <Text fontSize="sm">{layer.label}</Text>
+                  <Text
+                    fontSize="sm"
+                    overflow="hidden"
+                    textOverflow="ellipsis"
+                    whiteSpace="nowrap"
+                  >
+                    {layer.label}
+                  </Text>
                   <Text
                     color="fg.muted"
                     fontSize="xs"
@@ -274,6 +285,7 @@ export function PostLayerEditor({
               (_, index) => (
                 <Button
                   borderRadius="full"
+                  data-testid={`editor-slide-${index + 1}`}
                   key={index}
                   onClick={() => setSlideIndex(index)}
                   size="sm"
@@ -418,7 +430,11 @@ export function PostLayerEditor({
                     value={selected.fontSize ?? 46}
                   />
                 </Grid>
-                <HStack>
+                <HStack
+                  gap={3}
+                  mb={4}
+                  mt={2}
+                >
                   {[
                     brand.primaryColor,
                     brand.deepColor,
@@ -493,7 +509,21 @@ export function PostLayerEditor({
           </Card.Body>
         </Card.Root>
         <Card.Root>
-          <Card.Body gap={2}>
+          <Card.Body gap={3}>
+            <Heading size="xs">Prévia</Heading>
+            {slide && (
+              <PostArtwork
+                brand={brand}
+                format={
+                  preview === 'story'
+                    ? 'story'
+                    : preview === 'facebook'
+                      ? 'feed'
+                      : format
+                }
+                slide={slide}
+              />
+            )}
             <Heading size="xs">Prévia da legenda</Heading>
             <Text
               fontSize="sm"

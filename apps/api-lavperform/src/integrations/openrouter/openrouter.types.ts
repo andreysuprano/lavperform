@@ -2,10 +2,18 @@ export const DEFAULT_TEXT_MODEL = 'google/gemini-2.5-flash';
 export const DEFAULT_IMAGE_MODEL = 'google/gemini-2.5-flash-image';
 export const OPENROUTER_CHAT_URL =
   'https://openrouter.ai/api/v1/chat/completions';
+export const OPENROUTER_MODELS_URL = 'https://openrouter.ai/api/v1/models';
+
+export type OpenRouterContent =
+  | string
+  | Array<
+      | { type: 'text'; text: string }
+      | { type: 'image_url'; image_url: { url: string } }
+    >;
 
 export type OpenRouterMessage = {
   role: 'system' | 'user' | 'assistant';
-  content: string;
+  content: OpenRouterContent;
 };
 
 export function extractTextContent(payload: unknown): string {
