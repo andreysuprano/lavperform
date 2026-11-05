@@ -153,6 +153,7 @@ export function normalizeLibraryPost(raw: Partial<SocialLibraryPost> & { id: str
     publishedAt: raw.publishedAt ?? null,
     variationCount: raw.variationCount ?? 0,
     status,
+    media: raw.media ?? [],
   }
 }
 

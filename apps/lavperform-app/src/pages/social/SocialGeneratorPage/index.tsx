@@ -155,6 +155,7 @@ export function SocialGeneratorPage() {
         posts={drafts.data ?? []}
       />
       <SocialPostWizard
+        companyId={companyId}
         initial={
           wizard?.post
             ? {
@@ -166,7 +167,12 @@ export function SocialGeneratorPage() {
                 tone: wizard.post.tone ?? 'Amigável',
                 creativeFreedom: wizard.post.creativeFreedom,
                 wizardStep: wizard.step,
-                mediaIds: [],
+                mediaIds: wizard.post.media?.map((item) => item.id) ?? [],
+                media: wizard.post.media?.map((item) => ({
+                  id: item.id,
+                  url: item.url,
+                  name: item.name ?? 'foto',
+                })),
               }
             : undefined
         }

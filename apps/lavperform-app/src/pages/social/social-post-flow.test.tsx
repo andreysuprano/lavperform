@@ -510,6 +510,8 @@ describe('fluxo de post com IA', () => {
       })
       fireEvent.click(screen.getByTestId('wizard-next'))
       expect(screen.getByTestId('social-photos-step')).toBeInTheDocument()
+      expect(screen.getByText('Arraste fotos aqui')).toBeInTheDocument()
+      expect(screen.getByText('Dar liberdade criativa à IA')).toBeInTheDocument()
       expect(screen.getByText(/PASSO 2 DE 4/)).toBeInTheDocument()
       fireEvent.click(screen.getByTestId('wizard-next'))
       fireEvent.click(screen.getByTestId('wizard-next'))
@@ -567,6 +569,15 @@ describe('fluxo de post com IA', () => {
     })
     fireEvent.click(screen.getByTestId('wizard-next'))
     expect(screen.getByTestId('social-photos-step')).toBeInTheDocument()
+    expect(screen.getByTestId('creative-freedom')).toHaveAttribute(
+      'aria-checked',
+      'false'
+    )
+    fireEvent.click(screen.getByTestId('creative-freedom'))
+    expect(screen.getByTestId('creative-freedom')).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
     fireEvent.click(screen.getByTestId('wizard-next'))
     expect(screen.getByText('Onde vai aparecer?')).toBeInTheDocument()
     fireEvent.click(screen.getByTestId('wizard-next'))

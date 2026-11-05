@@ -178,10 +178,18 @@ describe('imagens de referência', () => {
     });
     await service.generate('user-a', draftId);
     expect(openRouter.generateImage).toHaveBeenCalled();
-    expect(openRouter.generateImage.mock.calls[0][1]).toEqual([TINY]);
+    expect(openRouter.generateImage.mock.calls[0][1]).toEqual([
+      { url: TINY, role: 'media' },
+    ]);
+    expect(String(openRouter.generateImage.mock.calls[0][0])).toMatch(
+      /MUST appear|must appear/i,
+    );
     expect(openRouter.generateImage.mock.calls[0][2]).toBe(
       'google/gemini-2.5-flash-image',
     );
+    expect(openRouter.generateImage.mock.calls[0][3]).toEqual({
+      compose: true,
+    });
     expect(draft.variations[0].versions[0].referenceIds).toEqual(['ref-1']);
   });
 });

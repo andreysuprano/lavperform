@@ -30,6 +30,7 @@ export function parseReferenceDataUrl(value: string): {
 }
 
 export const REFERENCE_LIMIT = 5;
+export const MEDIA_LIMIT = 10;
 
 export function referenceLimitMessage() {
   return 'Limite de 5 imagens';

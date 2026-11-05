@@ -81,6 +81,32 @@ export function buildDefaultLayers(
   return layers;
 }
 
+export function buildComposedLayers(): PostLayer[] {
+  return [
+    {
+      id: 'background',
+      type: 'background',
+      label: 'Arte completa (IA)',
+      x: 0,
+      y: 0,
+      width: 100,
+      height: 100,
+      locked: true,
+      visible: true,
+    },
+  ];
+}
+
+export function buildComposedSlides(
+  image: string,
+  slideCount: number,
+): PostSlide[] {
+  return Array.from({ length: slideCount }, () => ({
+    backgroundImage: image,
+    layers: buildComposedLayers(),
+  }));
+}
+
 export function buildSlides(
   backgroundImage: string,
   layers: PostLayer[],

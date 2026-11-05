@@ -13,7 +13,10 @@ import {
   type WizardStep,
 } from './postLibrary'
 import { useSocialMediaTokens } from './socialMediaTokens'
-import { SocialPostPhotosStep } from './SocialPostPhotosStep'
+import {
+  SocialPostPhotosStep,
+  type PostPhoto,
+} from './SocialPostPhotosStep'
 
 export interface WizardSnapshot {
   id?: string
@@ -25,10 +28,12 @@ export interface WizardSnapshot {
   creativeFreedom: boolean
   wizardStep: WizardStep
   mediaIds: string[]
+  media?: PostPhoto[]
 }
 
 interface Props {
   open: boolean
+  companyId: string
   initial?: Partial<WizardSnapshot>
   step?: WizardStep
   onClose: (snapshot: WizardSnapshot | null) => void
@@ -44,6 +49,7 @@ const STEP_LABELS = [
 
 export function SocialPostWizard({
   open,
+  companyId,
   initial,
   step = 1,
   onClose,
@@ -56,7 +62,10 @@ export function SocialPostWizard({
   const [theme, setTheme] = useState(initial?.theme ?? '')
   const [placement, setPlacement] = useState(initial?.placement ?? 'feed')
   const [tone, setTone] = useState(initial?.tone ?? 'Amigável')
-  const creativeFreedom = Boolean(initial?.creativeFreedom)
+  const [creativeFreedom, setCreativeFreedom] = useState(
+    Boolean(initial?.creativeFreedom)
+  )
+  const [photos, setPhotos] = useState<PostPhoto[]>(initial?.media ?? [])
 
   useEffect(() => {
     if (!open) return
@@ -65,7 +74,9 @@ export function SocialPostWizard({
     setTheme(initial?.theme ?? '')
     setPlacement(initial?.placement ?? 'feed')
     setTone(initial?.tone ?? 'Amigável')
-  }, [open, step, initial])
+    setCreativeFreedom(Boolean(initial?.creativeFreedom))
+    setPhotos(initial?.media ?? [])
+  }, [open, step, initial?.id])
 
   const snapshot = (wizardStep: WizardStep): WizardSnapshot => {
     const place = WIZARD_PLACEMENTS.find((item) => item.value === placement)
@@ -78,7 +89,8 @@ export function SocialPostWizard({
       tone,
       creativeFreedom,
       wizardStep,
-      mediaIds: initial?.mediaIds ?? [],
+      mediaIds: photos.map((photo) => photo.id),
+      media: photos,
     }
   }
 
@@ -315,7 +327,15 @@ export function SocialPostWizard({
                   </Box>
                 </Flex>
               )}
-              {current === 2 && <SocialPostPhotosStep />}
+              {current === 2 && (
+                <SocialPostPhotosStep
+                  companyId={companyId}
+                  creativeFreedom={creativeFreedom}
+                  onCreativeFreedom={setCreativeFreedom}
+                  onPhotos={setPhotos}
+                  photos={photos}
+                />
+              )}
               {current === 3 && (
                 <Flex
                   direction="column"
@@ -443,7 +463,13 @@ export function SocialPostWizard({
                       [
                         ['Objetivo', objectiveTitle(objective), 1],
                         ['Tema', theme, 1],
-                        ['Fotos', 'Opcional', 2],
+                        [
+                          'Fotos',
+                          photos.length
+                            ? `${photos.length} ${photos.length === 1 ? 'foto' : 'fotos'} · liberdade criativa ${creativeFreedom ? 'ligada' : 'desligada'}`
+                            : `Nenhuma foto · liberdade criativa ${creativeFreedom ? 'ligada' : 'desligada'}`,
+                          2,
+                        ],
                         ['Formato', placementTitle(placement), 3],
                         ['Jeito de falar', tone, 3],
                       ] as const

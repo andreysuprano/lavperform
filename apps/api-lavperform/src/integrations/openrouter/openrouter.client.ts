@@ -16,6 +16,17 @@ import {
   type OpenRouterMessage,
 } from './openrouter.types';
 
+export type ImageRole = 'logo' | 'media' | 'reference';
+
+export interface PromptImage {
+  url: string;
+  role?: ImageRole;
+}
+
+export interface GenerateImageOptions {
+  compose?: boolean;
+}
+
 /**
  * Único cliente de IA da geração de posts.
  * Texto e imagem passam só pela API do OpenRouter (https://openrouter.ai).
@@ -62,13 +73,14 @@ export class OpenRouterClient {
 
   async generateImage(
     prompt: string,
-    referenceImages: string[] = [],
+    referenceImages: Array<string | PromptImage> = [],
     model?: string,
+    options?: GenerateImageOptions,
   ): Promise<string> {
     try {
-      return await this.requestImage(prompt, referenceImages, model);
+      return await this.requestImage(prompt, referenceImages, model, options);
     } catch {
-      return await this.requestImage(prompt, referenceImages, model);
+      return await this.requestImage(prompt, referenceImages, model, options);
     }
   }
 
@@ -118,18 +130,26 @@ export class OpenRouterClient {
 
   private async requestImage(
     prompt: string,
-    referenceImages: string[],
+    referenceImages: Array<string | PromptImage>,
     model?: string,
+    options?: GenerateImageOptions,
   ): Promise<string> {
-    const content: OpenRouterContent = referenceImages.length
+    const images = referenceImages.map((item) =>
+      typeof item === 'string'
+        ? { url: item, role: 'reference' as const }
+        : item,
+    );
+    const content: OpenRouterContent = images.length
       ? [
           {
             type: 'text',
-            text: `${prompt} Use the attached images only as inspiration for style and composition. Do not reproduce any text from them. The result must contain no text, letters, numbers, logo or watermark.`,
+            text: options?.compose
+              ? `${prompt}\n\n${this.composeNotes(images)}`
+              : `${prompt} Use the attached images only as inspiration for style and composition. Do not reproduce any text from them. The result must contain no text, letters, numbers, logo or watermark.`,
           },
-          ...referenceImages.map((url) => ({
+          ...images.map((image) => ({
             type: 'image_url' as const,
-            image_url: { url },
+            image_url: { url: image.url },
           })),
         ]
       : prompt;
@@ -145,6 +165,21 @@ export class OpenRouterClient {
       );
     }
     return image;
+  }
+
+  private composeNotes(images: Array<{ role?: ImageRole }>): string {
+    return images
+      .map((image, index) => {
+        const number = index + 1;
+        if (image.role === 'logo') {
+          return `Image ${number} is the brand logo. Place this exact logo in the artwork.`;
+        }
+        if (image.role === 'media') {
+          return `Image ${number} is a store photo. The final post MUST show this photo, composited into the layout. Do not treat it as style inspiration.`;
+        }
+        return `Image ${number} is style inspiration only. Do not copy its text.`;
+      })
+      .join(' ');
   }
 
   private async post(body: Record<string, unknown>): Promise<unknown> {
