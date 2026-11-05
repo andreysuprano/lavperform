@@ -195,4 +195,104 @@ describe('geração de posts', () => {
     expect(result.variations[0].captionMedium).toBe('media 1');
     expect(result.selectedVariationId).toBe('var-0');
   });
+
+  it('usa o fal quando ele está ativo e volta para a OpenRouter se a fila falha', async () => {
+    const companyId = '11111111-1111-4111-8111-111111111111';
+    const userId = '22222222-2222-4222-8222-222222222222';
+    const draftId = '33333333-3333-4333-8333-333333333333';
+    let variations: any[] = [];
+    const draft = {
+      id: draftId,
+      companyId,
+      objective: 'promocao',
+      theme: 'desconto na lavagem de edredom no Batel',
+      format: 'video',
+      slideCount: 1,
+      artStyle: 'fotografico_clean',
+      includeCaption: true,
+      selectedVariationId: null as string | null,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+      variations,
+    };
+    const prisma: any = {
+      userCompany: { findUnique: jest.fn().mockResolvedValue({ id: 'link' }) },
+      company: {
+        findUnique: jest.fn().mockResolvedValue({ name: 'Bolha Azul' }),
+      },
+      brandIdentity: { findUnique: jest.fn().mockResolvedValue(null) },
+      socialPostDraft: {
+        findUnique: jest.fn(async () => ({ ...draft, variations })),
+        update: jest.fn(async ({ data }) => {
+          draft.selectedVariationId = data.selectedVariationId;
+          return draft;
+        }),
+      },
+      socialPostVariation: {
+        deleteMany: jest.fn(async () => {
+          variations = [];
+          draft.variations = variations;
+        }),
+        create: jest.fn(async ({ data }) => {
+          const row = { ...data, id: `var-${variations.length}`, versions: [] };
+          variations.push(row);
+          draft.variations = variations;
+          return row;
+        }),
+        update: jest.fn(async ({ where, data }) => {
+          const row = variations.find((item) => item.id === where.id);
+          Object.assign(row, data);
+          return row;
+        }),
+      },
+      socialPostVersion: {
+        create: jest.fn(async ({ data }) => {
+          const row = variations.find((item) => item.id === data.variationId);
+          const version = { ...data, id: `ver-${data.variationId}` };
+          row.versions.push(version);
+          return version;
+        }),
+      },
+      $transaction: async (fn: (tx: any) => Promise<unknown>) => fn(prisma),
+    };
+    const openRouter: any = {
+      completeText: jest.fn().mockResolvedValue(
+        JSON.stringify({
+          variations: [1, 2, 3, 4].map((index) => ({
+            headline: `Titulo ${index}`,
+            badgeText: '',
+            captionShort: 'c',
+            captionMedium: 'm',
+            captionLong: 'l',
+            hashtags: [],
+          })),
+        }),
+      ),
+      generateImage: jest.fn().mockResolvedValue(TINY),
+    };
+    const fal = {
+      isActive: () => true,
+      acceptsReferences: () => true,
+      model: () => ({ endpointId: 'fal-ai/flux-pro/v1.1' }),
+      generate: jest.fn().mockResolvedValue(TINY),
+    };
+    const withFal = new SocialPostsService(prisma, openRouter, fal as any);
+    await withFal.generate(userId, draftId);
+    expect(fal.generate).toHaveBeenCalled();
+    expect(fal.generate.mock.calls[0][0].format).toBe('story');
+    expect(fal.generate.mock.calls[0][0].prompt).toMatch(/Titulo 1/);
+    expect(fal.generate.mock.calls[0][0].prompt).not.toMatch(/no text/i);
+    expect(openRouter.generateImage).not.toHaveBeenCalled();
+
+    variations = [];
+    draft.variations = variations;
+    draft.selectedVariationId = null;
+    fal.generate.mockRejectedValueOnce(new Error('fila do fal caiu'));
+    const fallen = new SocialPostsService(prisma, openRouter, fal as any);
+    await fallen.generate(userId, draftId);
+    expect(openRouter.generateImage).toHaveBeenCalled();
+    expect(openRouter.generateImage.mock.calls[0][3]).toEqual({
+      compose: true,
+    });
+  });
 });

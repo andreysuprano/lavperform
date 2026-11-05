@@ -3,9 +3,16 @@ import {
   BadRequestException,
   ForbiddenException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
+import { FalQueueClient, redactSecrets } from '../integrations/image/fal.queue';
+import {
+  referenceModelAlternative,
+  SocialImageProvider,
+} from '../integrations/image/social-image.provider';
 import {
   OpenRouterClient,
   type PromptImage,
@@ -76,14 +83,21 @@ const LOGO_PREFIXES = ['data:image/', 'https://', 'http://', '/'];
 
 @Injectable()
 export class SocialPostsService {
+  private readonly logger = new Logger(SocialPostsService.name);
   private readonly revisionQueues = new Map<string, Promise<unknown>>();
   private readonly generationJobs = new Map<string, Promise<void>>();
   private referenceWarning: string | null = null;
 
+  private readonly socialImages: SocialImageProvider;
+
   constructor(
     private readonly prisma: PrismaService,
     private readonly openRouter: OpenRouterClient,
-  ) {}
+    @Optional() socialImages?: SocialImageProvider,
+  ) {
+    this.socialImages =
+      socialImages ?? new SocialImageProvider(new FalQueueClient());
+  }
 
   async getBrand(userId: string, companyId: string) {
     await this.ensureCompanyAccess(userId, companyId);
@@ -230,7 +244,11 @@ export class SocialPostsService {
     return copies;
   }
 
-  async updateDraft(userId: string, draftId: string, dto: UpdateSocialDraftDto) {
+  async updateDraft(
+    userId: string,
+    draftId: string,
+    dto: UpdateSocialDraftDto,
+  ) {
     const draft = await this.loadDraft(draftId);
     await this.ensureCompanyAccess(userId, draft.companyId);
     if (draft.generationStatus === 'generating') {
@@ -1179,19 +1197,6 @@ export class SocialPostsService {
       images.push({ url: logo, role: 'logo' });
     }
     for (const item of refs) images.push({ url: item.dataUrl, role: 'media' });
-    let usable = images;
-    if (usable.length && this.openRouter.referenceCapability) {
-      const capability = await this.openRouter.referenceCapability(model);
-      if (!capability.accepts) {
-        const hadMedia = usable.some((item) => item.role === 'media');
-        usable = [];
-        this.referenceWarning = hadMedia
-          ? 'Este modelo não insere as fotos da loja na arte. Escolha um modelo que aceite imagem.'
-          : 'Este modelo não usa imagens de referência.';
-      } else {
-        this.referenceWarning = null;
-      }
-    }
     const objective = (POST_OBJECTIVES as readonly string[]).includes(
       draft.objective,
     )
@@ -1218,6 +1223,48 @@ export class SocialPostsService {
     const prompt = adjustment
       ? buildRevisionImagePrompt(base, adjustment)
       : base;
+    const referenceUrls = [
+      ...images.filter((item) => item.role === 'media').map((item) => item.url),
+      ...images.filter((item) => item.role === 'logo').map((item) => item.url),
+    ];
+    if (this.socialImages.isActive()) {
+      if (images.length && !this.socialImages.acceptsReferences(model)) {
+        this.referenceWarning = images.some((item) => item.role === 'media')
+          ? 'Este modelo não insere as fotos da loja na arte. Escolha um modelo que aceite imagem.'
+          : 'Este modelo não usa imagens de referência.';
+      } else if (images.length) {
+        this.referenceWarning = null;
+      }
+      try {
+        return await this.socialImages.generate({
+          prompt,
+          format: this.providerFormat(draft.format),
+          referenceImages: referenceUrls,
+          draftModel: model,
+        });
+      } catch (error) {
+        const detail = error instanceof Error ? error.message : 'falha';
+        this.logger.warn(
+          redactSecrets(
+            `A geração de imagem voltou para a OpenRouter. ${detail}`,
+            [process.env.FAL_KEY],
+          ),
+        );
+      }
+    }
+    let usable = images;
+    if (usable.length && this.openRouter.referenceCapability) {
+      const capability = await this.openRouter.referenceCapability(model);
+      if (!capability.accepts) {
+        const hadMedia = usable.some((item) => item.role === 'media');
+        usable = [];
+        this.referenceWarning = hadMedia
+          ? 'Este modelo não insere as fotos da loja na arte. Escolha um modelo que aceite imagem.'
+          : 'Este modelo não usa imagens de referência.';
+      } else {
+        this.referenceWarning = null;
+      }
+    }
     return this.openRouter.generateImage(prompt, usable, model, {
       compose: true,
     });
@@ -1225,19 +1272,37 @@ export class SocialPostsService {
 
   private async refreshReferenceWarning(draftId: string) {
     const refs = await this.listActiveReferences(draftId);
-    if (!refs.length || !this.openRouter.referenceCapability) {
+    if (!refs.length) {
       this.referenceWarning = null;
       return;
     }
-    const capability = await this.openRouter.referenceCapability(
-      await this.draftImageModel(draftId),
-    );
+    const model = await this.draftImageModel(draftId);
+    if (this.socialImages.isActive()) {
+      this.referenceWarning = this.socialImages.acceptsReferences(model)
+        ? null
+        : 'Este modelo não usa imagens de referência.';
+      return;
+    }
+    if (!this.openRouter.referenceCapability) {
+      this.referenceWarning = null;
+      return;
+    }
+    const capability = await this.openRouter.referenceCapability(model);
     this.referenceWarning = capability.accepts
       ? null
       : 'Este modelo não usa imagens de referência.';
   }
 
   async imageModelStatus(model?: string) {
+    if (this.socialImages.isActive()) {
+      const current = this.socialImages.model(model);
+      const alternative = referenceModelAlternative(current);
+      return {
+        model: current.endpointId,
+        acceptsImages: Boolean(current.referenceEndpoint),
+        suggestion: alternative?.endpointId ?? null,
+      };
+    }
     const capability = this.openRouter.referenceCapability
       ? await this.openRouter.referenceCapability(model)
       : { accepts: true, suggestion: null };
@@ -1246,6 +1311,13 @@ export class SocialPostsService {
       acceptsImages: capability.accepts,
       suggestion: capability.suggestion,
     };
+  }
+
+  /** Vídeo vira capa 9:16, o mesmo enquadramento de story no fal. */
+  private providerFormat(format: string): PostFormat {
+    if (format === 'story' || format === 'video') return 'story';
+    if (format === 'carousel') return 'carousel';
+    return 'feed';
   }
 
   private async draftImageModel(draftId: string) {
@@ -1508,7 +1580,11 @@ export class SocialPostsService {
       createdAt: draft.createdAt,
       updatedAt: draft.updatedAt,
       headline: variation?.headline ?? null,
-      captionExcerpt: captionExcerpt([caption, variation?.headline, draft.theme]),
+      captionExcerpt: captionExcerpt([
+        caption,
+        variation?.headline,
+        draft.theme,
+      ]),
       thumbnail: thumbnailFromSlides(variation?.slides),
       networks: channelLabels(winning?.channels ?? []),
       scheduledAt: winning?.scheduledAt ?? null,
