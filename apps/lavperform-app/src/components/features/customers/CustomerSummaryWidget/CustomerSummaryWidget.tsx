@@ -24,7 +24,7 @@ const CustomerSummaryWidgetComponent = ({
     <Grid
       gap={2}
       templateColumns={{
-        base: '1fr',
+        base: 'repeat(2, 1fr)',
         sm: 'repeat(2, 1fr)',
         md: 'repeat(3, 1fr)',
         lg: 'repeat(4, 1fr)',
@@ -37,25 +37,6 @@ const CustomerSummaryWidgetComponent = ({
           selectedSegmentations?.includes(card.segmentation) ?? false
         return (
           <Badge
-            as="div"
-            bg={card.count ? 'bg.panel' : 'bg.muted'}
-            borderColor={isSelected ? colors.primary : 'border'}
-            borderWidth="1px"
-            colorPalette="gray"
-            cursor={onSegmentationToggle ? 'pointer' : 'default'}
-            justifyContent="space-between"
-            key={idx}
-            opacity={card.count ? 1 : 0.55}
-            px={3}
-            py={2}
-            transition="border-color 0.15s ease, background 0.15s ease"
-            userSelect="none"
-            variant="outline"
-            onClick={
-              onSegmentationToggle && card.count
-                ? () => onSegmentationToggle(card.segmentation)
-                : undefined
-            }
             _hover={
               onSegmentationToggle && card.count
                 ? {
@@ -64,6 +45,25 @@ const CustomerSummaryWidgetComponent = ({
                   }
                 : undefined
             }
+            as="div"
+            bg={card.count ? 'bg.panel' : 'bg.muted'}
+            borderColor={isSelected ? colors.primary : 'border'}
+            borderWidth="1px"
+            colorPalette="gray"
+            cursor={onSegmentationToggle ? 'pointer' : 'default'}
+            justifyContent="space-between"
+            key={idx}
+            onClick={
+              onSegmentationToggle && card.count
+                ? () => onSegmentationToggle(card.segmentation)
+                : undefined
+            }
+            opacity={card.count ? 1 : 0.55}
+            px={3}
+            py={2}
+            transition="border-color 0.15s ease, background 0.15s ease"
+            userSelect="none"
+            variant="outline"
           >
             <Text
               as="span"
@@ -77,8 +77,8 @@ const CustomerSummaryWidgetComponent = ({
               as="span"
               color="fg"
               fontSize="sm"
-              fontWeight="bold"
               fontVariantNumeric="tabular-nums"
+              fontWeight="bold"
             >
               {card.count}
             </Text>

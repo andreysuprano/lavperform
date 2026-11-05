@@ -24,6 +24,8 @@ import {
 } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import type {
   BrandIdentity,
   PostVariation,
@@ -71,6 +73,9 @@ export function PostRevisionStudio({
   onDownload,
   onCopy,
 }: Props) {
+  const surface = useColorModeValue('white', 'gray.800')
+  const actionBar = useColorModeValue('#F5F5F6', 'gray.900')
+  const phone = useShellMode() === 'phone'
   const [prompt, setPrompt] = useState('')
   const [inflight, setInflight] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -166,11 +171,13 @@ export function PostRevisionStudio({
       </Flex>
       <Flex
         align="stretch"
-        direction={{ base: 'column', xl: 'row' }}
+        css={{ '@media (min-width: 1200px)': { flexDirection: 'row' } }}
+        direction="column"
         gap={4}
+        minW={0}
       >
         <Stack
-          bg="white"
+          bg={surface}
           borderColor="#E4E7EB"
           borderRadius="xl"
           borderWidth="1px"
@@ -234,7 +241,7 @@ export function PostRevisionStudio({
             {pending && (
               <Flex
                 align="center"
-                bg="white"
+                bg={surface}
                 borderRadius="xl"
                 data-testid="revision-pending"
                 direction="column"
@@ -329,7 +336,7 @@ export function PostRevisionStudio({
           </HStack>
         </Stack>
         <Stack
-          bg="white"
+          bg={surface}
           borderColor="#E4E7EB"
           borderRadius="xl"
           borderWidth="1px"
@@ -528,7 +535,8 @@ export function PostRevisionStudio({
             </Flex>
           </Stack>
           <Flex
-            bg="#F5F5F6"
+            bg={actionBar}
+            direction={phone ? 'column' : 'row'}
             gap={3}
             opacity={pending ? 0.45 : 1}
             p={4}
@@ -538,18 +546,22 @@ export function PostRevisionStudio({
               color="#093A58"
               data-testid="download-post"
               flex="1"
+              minH={phone ? '44px' : undefined}
               onClick={() => onDownload(variation, selected)}
+              w={phone ? 'full' : undefined}
             >
               <LuDownload />
               Baixar post
             </Button>
             <Button
-              bg="white"
+              bg={surface}
               color="#093A58"
               data-testid="copy-caption"
               flex="1"
+              minH={phone ? '44px' : undefined}
               onClick={() => onCopy(selected)}
               variant="outline"
+              w={phone ? 'full' : undefined}
             >
               <LuCopy />
               Copiar legenda
@@ -559,7 +571,7 @@ export function PostRevisionStudio({
       </Flex>
       {historyOpen && (
         <Stack
-          bg="white"
+          bg={surface}
           borderRadius="xl"
           borderWidth="1px"
           p={4}

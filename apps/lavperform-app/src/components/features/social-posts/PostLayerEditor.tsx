@@ -133,7 +133,9 @@ export function PostLayerEditor({
   return (
     <Grid
       gap={4}
-      templateColumns={{ base: '1fr', xl: '260px minmax(0, 1fr) 280px' }}
+      minW={0}
+      overflow="hidden"
+      templateColumns={{ base: 'minmax(0, 1fr)', xl: 'minmax(0, 260px) minmax(0, 1fr) minmax(0, 280px)' }}
     >
       <Card.Root>
         <Card.Body gap={3}>

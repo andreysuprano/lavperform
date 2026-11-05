@@ -2,6 +2,7 @@ import {
   Badge,
   Box,
   Button,
+  Dialog,
   Flex,
   Input,
   InputGroup,
@@ -9,13 +10,7 @@ import {
   Table,
   Text,
 } from '@chakra-ui/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import {
-  RiCheckboxCircleLine,
-  RiCloseCircleLine,
-  RiUserCommunityLine,
-  RiWhatsappLine,
-} from 'react-icons/ri'
+import { type ReactNode,useCallback, useEffect, useMemo, useState } from 'react'
 import {
   LuArrowDownUp,
   LuArrowUpDown,
@@ -25,6 +20,12 @@ import {
   LuMessageCircle,
   LuShoppingBag,
 } from 'react-icons/lu'
+import {
+  RiCheckboxCircleLine,
+  RiCloseCircleLine,
+  RiUserCommunityLine,
+  RiWhatsappLine,
+} from 'react-icons/ri'
 
 import {
   AppContentLayout,
@@ -33,12 +34,14 @@ import {
   ExportCustomersButton,
   ImportCustomersWizard,
   ImportWhatsAppCustomersModal,
+  LoadingState,
+  TablePagination,
 } from '@/components'
 import { MultiSelectFilter } from '@/components/features/campaigns/recurring-campaign/RecurringCampaignDetailsView/MultiSelectFilter'
-import { Tooltip } from '@/components/ui/tooltip'
-import { CustomerDetailsModal } from '@/components/features/customers/CustomerDetailsModal'
-import { CustomerDetailsModal as WhiteLabelCustomerDetailsModal } from '@/whitelabel/components/CustomerDetailsModal'
 import { RfvMatrix } from '@/components/features/customers'
+import { CustomerDetailsModal } from '@/components/features/customers/CustomerDetailsModal'
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useAuth } from '@/context/AuthContext'
 import { useCustomers } from '@/hooks/queries'
 import { useWhatsAppManager } from '@/hooks/useWhatsAppManager'
@@ -57,12 +60,14 @@ import {
   formatOrPlaceholder,
   normalizeText,
 } from '@/utils/strings'
+import { CustomerDetailsModal as WhiteLabelCustomerDetailsModal } from '@/whitelabel/components/CustomerDetailsModal'
 
 import {
   clearBirthMonthForFilter,
   formatCustomerBirthDate,
   isBirthMonthVisible,
 } from './customerBirthdayFilters'
+import { CustomerPhoneList } from './CustomerPhoneList'
 
 type BoolFilter = 'true' | 'false'
 type OrderByFilter =
@@ -87,6 +92,7 @@ type ListFilters = {
 
 interface CustomerTableSectionProps {
   rfvClassifications?: string[]
+  filterExtra?: ReactNode
 }
 
 const DEFAULT_FILTERS: ListFilters = {
@@ -173,6 +179,7 @@ function firstBool(values: BoolFilter[]): boolean | undefined {
 // Componente reutilizável com a tabela de clientes
 export function CustomerTableSection({
   rfvClassifications,
+  filterExtra,
 }: CustomerTableSectionProps) {
   const { selectedCompany } = useAuth()
   const { isConnected: isWhatsAppConnected } = useWhatsAppManager(
@@ -190,6 +197,9 @@ export function CustomerTableSection({
     null
   )
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const shell = useShellMode()
+  const phone = shell === 'phone'
 
   useEffect(() => {
     setParams((prev) => ({ ...prev, page: 1 }))
@@ -333,10 +343,110 @@ export function CustomerTableSection({
     filters.orderBy.length > 0 ||
     filters.orderDirection.length > 0
 
+  const sortLabel =
+    ORDER_BY_OPTIONS.find((option) => option.value === filters.orderBy[0])
+      ?.label ?? 'Cadastro'
+  const activeFilterCount = [
+    filters.hasEmail.length,
+    filters.hasBirthDate.length,
+    filters.birthMonth !== undefined ? 1 : 0,
+    filters.whatsappOptin.length,
+    filters.whatsappVerified.length,
+    filters.hasOrders.length,
+    rfvClassifications?.length ?? 0,
+  ].reduce((sum, value) => sum + value, 0)
+
   return (
     <Stack gap={3}>
+      {phone ? (
+        <Stack gap={2}>
+          <Flex gap={2}>
+            <InputGroup flex={1}>
+              <Input
+                bg="bg.panel"
+                h="44px"
+                onChange={handleSearchChange}
+                placeholder="Buscar nome ou telefone"
+                rounded="lg"
+                value={searchQuery}
+              />
+            </InputGroup>
+            <Button
+              aria-label="Filtros"
+              h="44px"
+              minW="44px"
+              onClick={() => setFiltersOpen(true)}
+              position="relative"
+              variant="outline"
+            >
+              Filtros
+              {activeFilterCount > 0 ? (
+                <Badge
+                  colorPalette="orange"
+                  position="absolute"
+                  right="-4px"
+                  top="-4px"
+                >
+                  {activeFilterCount}
+                </Badge>
+              ) : null}
+            </Button>
+          </Flex>
+          <Flex
+            fontSize="13px"
+            justify="space-between"
+          >
+            <Text color="fg.muted">{meta?.total ?? customers.length} clientes</Text>
+            <Text color="fg.muted">Ordenar: {sortLabel}</Text>
+          </Flex>
+          {isLoading ? (
+            <LoadingState title="Carregando clientes..." />
+          ) : (
+            <CustomerPhoneList
+              customers={customers}
+              onSelect={handleCustomerSelect}
+            />
+          )}
+          <Dialog.Root
+            onOpenChange={(details) => setFiltersOpen(details.open)}
+            open={filtersOpen}
+            placement="bottom"
+          >
+            <Dialog.Backdrop />
+            <Dialog.Positioner>
+              <Dialog.Content>
+                <Dialog.Header>
+                  <Dialog.Title>Filtros</Dialog.Title>
+                  <Dialog.CloseTrigger />
+                </Dialog.Header>
+                <Dialog.Body>
+                  <Stack gap={3}>{filterExtra}</Stack>
+                </Dialog.Body>
+                <Dialog.Footer>
+                  <Button
+                    flex="1"
+                    minH="44px"
+                    onClick={handleClearFilters}
+                    variant="outline"
+                  >
+                    Limpar
+                  </Button>
+                  <Button
+                    flex="1"
+                    minH="44px"
+                    onClick={() => setFiltersOpen(false)}
+                  >
+                    Ver {meta?.total ?? customers.length} clientes
+                  </Button>
+                </Dialog.Footer>
+              </Dialog.Content>
+            </Dialog.Positioner>
+          </Dialog.Root>
+        </Stack>
+      ) : null}
       <Flex
         align="center"
+        display="flex"
         gap={2}
         wrap="wrap"
       >
@@ -466,6 +576,7 @@ export function CustomerTableSection({
         <CreateCustomerForm />
       </Flex>
 
+      <Box display={phone ? 'none' : 'block'}>
       <CustomTable<Customer>
         data={customers}
         emptyStateMessage="Nenhum cliente encontrado"
@@ -483,6 +594,7 @@ export function CustomerTableSection({
         }
         isLoading={isLoading}
         meta={meta}
+        stickyFirstColumn={shell === 'tablet'}
       >
         {customers.map((item) => (
           <Table.Row
@@ -537,6 +649,15 @@ export function CustomerTableSection({
           </Table.Row>
         ))}
       </CustomTable>
+      </Box>
+      {phone && meta ? (
+        <TablePagination
+          data={customers}
+          handleLimitChange={handleLimitChange}
+          handlePageChange={handlePageChange}
+          meta={meta}
+        />
+      ) : null}
       {selectedCustomer && (
         <CustomerModal
           data={selectedCustomer}

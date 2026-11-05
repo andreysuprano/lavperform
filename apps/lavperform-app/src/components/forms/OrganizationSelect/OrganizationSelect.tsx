@@ -10,14 +10,16 @@ import {
   Text,
   useSelectContext,
 } from '@chakra-ui/react'
-import { useCallback, useMemo, useState } from 'react'
+import { createContext, useCallback, useContext, useMemo, useState } from 'react'
 import { RiSearchLine } from 'react-icons/ri'
 
+import { getBusinessCopy,useWhiteLabel } from '@/config'
 import { convertLinkToResizedImage } from '@/firebase/storage'
 import type { UserCompany } from '@/types'
-import { useWhiteLabel, getBusinessCopy } from '@/config'
 
 import { Props } from './OrganizationSelect.types'
+
+const CompactContext = createContext(false)
 
 function normalizeCompanySearch(text: string) {
   return text
@@ -31,6 +33,7 @@ const SelectedValue = () => {
   const select = useSelectContext()
   const items = select.selectedItems as Array<UserCompany>
   const { theme } = useWhiteLabel()
+  const compact = useContext(CompactContext)
   const placeholder = getBusinessCopy(theme).unitSelectPlaceholder
 
   if (items.length === 0) {
@@ -52,7 +55,7 @@ const SelectedValue = () => {
           />
           <Avatar.Fallback name={name} />
         </Avatar.Root>
-        <Text lineClamp={1}>{name}</Text>
+        {compact ? null : <Text lineClamp={1}>{name}</Text>}
       </HStack>
     </Select.ValueText>
   )
@@ -63,6 +66,7 @@ function OrganizationSelect({
   selectedCompany,
   onCompanyChange,
   showLabel,
+  compact = false,
 }: Props) {
   const [searchQuery, setSearchQuery] = useState('')
 
@@ -97,9 +101,10 @@ function OrganizationSelect({
   )
 
   return (
+    <CompactContext.Provider value={compact}>
     <Select.Root
       collection={companiesCollection}
-      minW={240}
+      minW={compact ? '44px' : 240}
       onOpenChange={handleOpenChange}
       onValueChange={onCompanyChange}
       positioning={{ sameWidth: true }}
@@ -173,6 +178,7 @@ function OrganizationSelect({
         </Select.Content>
       </Select.Positioner>
     </Select.Root>
+    </CompactContext.Provider>
   )
 }
 export { OrganizationSelect, type Props as OrganizationSelectProps }
