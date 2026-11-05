@@ -1,4 +1,5 @@
 import {
+  BadRequestException,
   Body,
   Controller,
   Delete,
@@ -10,8 +11,13 @@ import {
   Post,
   Put,
   Req,
+  Res,
+  UploadedFile,
   UseGuards,
+  UseInterceptors,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
 import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { UpdateBrandIdentityDto } from './dto/brand-identity.dto';
@@ -19,6 +25,8 @@ import {
   CreateSocialDraftDto,
   AttachReferencesDto,
   CreateReferenceDto,
+  StartGenerationDto,
+  UpdateSocialDraftDto,
   RegenerateBackgroundDto,
   ReorderReferencesDto,
   RewriteCaptionDto,
@@ -69,6 +77,47 @@ export class SocialPostsController {
     return this.socialPostsService.createDraft(req.user.userId, dto);
   }
 
+  @Patch('drafts/item/:draftId')
+  updateDraft(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: UpdateSocialDraftDto,
+  ) {
+    return this.socialPostsService.updateDraft(req.user.userId, draftId, dto);
+  }
+
+  @Post('media')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  uploadMedia(
+    @Req() req: AuthRequest,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('companyId') companyId: string,
+  ) {
+    if (!file) throw new BadRequestException('Envie uma imagem.');
+    return this.socialPostsService.uploadMedia(
+      req.user.userId,
+      companyId,
+      file,
+    );
+  }
+
+  @Get('media/:mediaId')
+  async readMedia(
+    @Req() req: AuthRequest,
+    @Param('mediaId', ParseUUIDPipe) mediaId: string,
+    @Res() res: Response,
+  ) {
+    const media = await this.socialPostsService.readMedia(
+      req.user.userId,
+      mediaId,
+    );
+    res.setHeader('Content-Type', media.mimeType);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(media.buffer);
+  }
+
   @Get('drafts/item/:draftId')
   getDraft(
     @Req() req: AuthRequest,
@@ -84,6 +133,20 @@ export class SocialPostsController {
     @Param('draftId', ParseUUIDPipe) draftId: string,
   ) {
     return this.socialPostsService.generate(req.user.userId, draftId);
+  }
+
+  @Post('drafts/item/:draftId/generate-async')
+  @HttpCode(202)
+  startGeneration(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: StartGenerationDto,
+  ) {
+    return this.socialPostsService.startGeneration(
+      req.user.userId,
+      draftId,
+      dto,
+    );
   }
 
   @Post('drafts/item/:draftId/more')

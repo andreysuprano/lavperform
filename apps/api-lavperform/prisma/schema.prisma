@@ -1611,6 +1611,12 @@ model SocialPostDraft {
   includeCaption      Boolean               @default(true)
   imageModel          String?
   selectedVariationId String?
+  generationStatus    String                @default("idle")
+  generationError     String?               @db.Text
+  tone                String?
+  wizardStep          Int                   @default(1)
+  placement           String                @default("feed")
+  creativeFreedom     Boolean               @default(false)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   variations          SocialPostVariation[]

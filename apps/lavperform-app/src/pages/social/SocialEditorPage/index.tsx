@@ -13,7 +13,7 @@ import {
 } from '@/hooks/queries/useSocialPosts'
 import { socialPostsService } from '@/services'
 import type { PostVariation } from '@/types'
-import { captionWithHashtags, DEFAULT_BRAND } from '@/types'
+import { activeCaptionText, DEFAULT_BRAND } from '@/types'
 
 export function SocialEditorPage() {
   const { draftId = '', variationId = '' } = useParams()
@@ -93,7 +93,7 @@ export function SocialEditorPage() {
             setVariation(next)
           }}
           onCopyCaption={async () => {
-            await navigator.clipboard.writeText(captionWithHashtags(variation))
+            await navigator.clipboard.writeText(activeCaptionText(variation))
             toaster.create({ title: 'Legenda copiada', type: 'success' })
           }}
           onDownload={async (slideIndex) => {

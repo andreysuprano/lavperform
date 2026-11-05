@@ -20,12 +20,7 @@ import type {
   PostVariation,
   SocialPostDraft,
 } from '@/types'
-import {
-  activeCaptionText,
-  captionWithHashtags,
-  formatLabel,
-  POST_OBJECTIVES,
-} from '@/types'
+import { activeCaptionText, formatLabel, POST_OBJECTIVES } from '@/types'
 
 import { PostArtwork } from './PostArtwork'
 
@@ -257,28 +252,12 @@ export function PostVariationsView({
               }
               value={caption}
             />
-            <Flex
-              justify="space-between"
-              wrap="wrap"
+            <Text
+              color="fg.muted"
+              fontSize="xs"
             >
-              <HStack wrap="wrap">
-                {selected.hashtags.map((tag) => (
-                  <Badge
-                    key={tag}
-                    variant="subtle"
-                  >
-                    {tag}
-                  </Badge>
-                ))}
-              </HStack>
-              <Text
-                color="fg.muted"
-                fontSize="xs"
-              >
-                {captionWithHashtags(selected).length}/2200 ·{' '}
-                {selected.hashtags.length}/30 hashtags
-              </Text>
-            </Flex>
+              {caption.length}/2200
+            </Text>
           </Card.Body>
         </Card.Root>
       )}

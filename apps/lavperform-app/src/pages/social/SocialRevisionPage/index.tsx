@@ -10,7 +10,7 @@ import { useAuth } from '@/context/AuthContext'
 import { useBrandIdentity, useSocialDraft } from '@/hooks/queries/useSocialPosts'
 import { apiErrorMessage, socialPostsService } from '@/services'
 import type { PostVariation, PostVersion } from '@/types'
-import { captionWithHashtags, DEFAULT_BRAND } from '@/types'
+import { activeCaptionText, DEFAULT_BRAND } from '@/types'
 
 export function SocialRevisionPage() {
   const { draftId = '' } = useParams()
@@ -80,7 +80,7 @@ export function SocialRevisionPage() {
           error={error}
           onCopy={async (version) => {
             await navigator.clipboard.writeText(
-              captionWithHashtags(version as unknown as PostVariation)
+              activeCaptionText(version as unknown as PostVariation)
             )
             toaster.create({ title: 'Legenda copiada', type: 'success' })
           }}
@@ -111,7 +111,7 @@ export function SocialRevisionPage() {
         <Stack gap={4}>
           <SocialPhoneLinks />
           <ReviewSchedule
-            caption={current ? captionWithHashtags(current) : ''}
+            caption={current ? activeCaptionText(current) : ''}
             companyId={selectedCompany?.id ?? ''}
             draftId={draft.data.id}
             headline={current?.headline}

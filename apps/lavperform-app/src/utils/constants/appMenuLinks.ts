@@ -147,7 +147,7 @@ export const MENU_ITEMS = [
     isNew: true,
     links: [
       {
-        label: 'Gerador de posts',
+        label: 'Social Media',
         href: '/social/generator',
         icon: LuSparkles,
       },
