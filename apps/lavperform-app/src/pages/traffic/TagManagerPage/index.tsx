@@ -24,8 +24,10 @@ function TagManagerInstructions() {
           o Google Tag Manager.
         </li>
         <li>
-          Copie os dois blocos, o do head e o que vem depois da body. Os dois
-          trazem o mesmo <code>GTM-…</code>.
+          Copie o código da tela de instalação. O Google mostra um script do{' '}
+          <code>gtm.js</code> e outro com <code>gtag</code>, os dois com o
+          mesmo <code>GTM-…</code>. Se a tela ainda mostrar o bloco do head e
+          o de depois da body, copie esses também.
         </li>
       </ol>
       <Text fontWeight="medium">No sistema:</Text>
@@ -34,8 +36,9 @@ function TagManagerInstructions() {
         style={{ paddingInlineStart: '1.25rem' }}
       >
         <li>
-          Cole esses blocos no campo abaixo. O bloco do head basta; o noscript
-          pode vir junto.
+          Cole o código inteiro no campo abaixo. Servem o formato novo, com o
+          script do <code>gtm.js</code> e o <code>gtag</code>, e o formato
+          antigo, com o bloco do head. O noscript pode vir junto.
         </li>
         <li>Deixe a medição ligada e salve.</li>
         <li>

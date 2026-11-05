@@ -41,6 +41,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->`;
 }
 
+function gtmCurrent(id = 'GTM-P38BJKSJ', quote = '"') {
+  return `<script async src=${quote}https://www.googletagmanager.com/gtm.js?id=${id}${quote}></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+</script>`;
+}
+
 describe('parseMetaPixelCode', () => {
   it('accepts the official snippet in en_US and pt_BR', () => {
     expect(parseMetaPixelCode(pixelSnippet())).toBe(PIXEL_ID);
@@ -81,6 +90,17 @@ describe('parseGoogleTagManagerCode', () => {
     expect(parseGoogleTagManagerCode(gtmHead('GTM-ABCD12345678'))).toBe('GTM-ABCD12345678');
   });
 
+  it('accepts the current Google install snippet, single quotes, src before async and noscript', () => {
+    expect(parseGoogleTagManagerCode(gtmCurrent())).toBe('GTM-P38BJKSJ');
+    expect(parseGoogleTagManagerCode(gtmCurrent('GTM-ABCD', "'"))).toBe('GTM-ABCD');
+    expect(
+      parseGoogleTagManagerCode(
+        gtmCurrent('GTM-ABCD12345678').replace('<script async src=', '<script src=').replace('></script>', ' async></script>'),
+      ),
+    ).toBe('GTM-ABCD12345678');
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\n${gtmNoscript('GTM-P38BJKSJ')}`)).toBe('GTM-P38BJKSJ');
+  });
+
   it('rejects noscript alone, another host, another layer, two calls, short and long ids, lowercase, G-, AW-, script src, javascript, onerror and a different ns id', () => {
     expect(parseGoogleTagManagerCode(gtmNoscript())).toBeNull();
     expect(parseGoogleTagManagerCode(gtmHead().replace('www.googletagmanager.com', 'evil.example'))).toBeNull();
@@ -96,5 +116,12 @@ describe('parseGoogleTagManagerCode', () => {
     expect(parseGoogleTagManagerCode(`${gtmHead()}\nonerror=`)).toBeNull();
     expect(parseGoogleTagManagerCode(`${gtmHead()}\n${gtmNoscript('GTM-ZZZZZZZZ')}`)).toBeNull();
     expect(parseGoogleTagManagerCode('')).toBeNull();
+    expect(parseGoogleTagManagerCode(gtmCurrent().split('</script>')[0] + '</script>')).toBeNull();
+    expect(parseGoogleTagManagerCode(gtmCurrent().replace("gtag('js', new Date());", "gtag('js', new Date());\nalert(1)"))).toBeNull();
+    expect(parseGoogleTagManagerCode(gtmCurrent().replace('www.googletagmanager.com', 'evil.example'))).toBeNull();
+    expect(parseGoogleTagManagerCode(gtmCurrent().replace('/gtm.js?id=', '/gtag/js?id='))).toBeNull();
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\n${gtmCurrent()}`)).toBeNull();
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\njavascript:`)).toBeNull();
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\nonerror=`)).toBeNull();
   });
 });
