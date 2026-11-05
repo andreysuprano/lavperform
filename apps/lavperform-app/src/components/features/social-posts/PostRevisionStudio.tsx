@@ -25,6 +25,7 @@ import {
 } from 'react-icons/lu'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
 import { useColorModeValue } from '@/components/ui/color-mode'
 import type {
   BrandIdentity,
@@ -73,6 +74,7 @@ export function PostRevisionStudio({
   onDownload,
   onCopy,
 }: Props) {
+  const phone = useShellMode() === 'phone'
   const [prompt, setPrompt] = useState('')
   const [inflight, setInflight] = useState<string | null>(null)
   const [historyOpen, setHistoryOpen] = useState(false)
@@ -192,8 +194,10 @@ export function PostRevisionStudio({
       </Flex>
       <Flex
         align="stretch"
-        direction={{ base: 'column', xl: 'row' }}
+        css={{ '@media (min-width: 1200px)': { flexDirection: 'row' } }}
+        direction="column"
         gap={4}
+        minW={0}
       >
         <Stack
           bg={panelBg}
@@ -628,6 +632,7 @@ export function PostRevisionStudio({
           <Flex
             bg={softBg}
             bottom="0"
+            direction={phone ? 'column' : 'row'}
             flexShrink={0}
             gap={3}
             opacity={pending ? 0.45 : 1}
@@ -640,7 +645,9 @@ export function PostRevisionStudio({
               color="#093A58"
               data-testid="download-post"
               flex="1"
+              minH={phone ? '44px' : undefined}
               onClick={() => onDownload(variation, selected)}
+              w={phone ? 'full' : undefined}
             >
               <LuDownload />
               Baixar post
@@ -650,8 +657,10 @@ export function PostRevisionStudio({
               color={idleText}
               data-testid="copy-caption"
               flex="1"
+              minH={phone ? '44px' : undefined}
               onClick={() => onCopy(selected)}
               variant="outline"
+              w={phone ? 'full' : undefined}
             >
               <LuCopy />
               Copiar legenda

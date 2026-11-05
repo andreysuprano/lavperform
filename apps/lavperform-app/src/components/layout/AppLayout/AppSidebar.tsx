@@ -1,6 +1,6 @@
 import { Box, Button, Center, Icon, Stack, Text } from '@chakra-ui/react'
 import { type ElementType, memo } from 'react'
-import { Link, NavLink, useLocation } from 'react-router-dom'
+import { Link, useLocation } from 'react-router-dom'
 
 import { ThemeImage, Tooltip } from '@/components'
 import { useColorModeValue } from '@/components/ui/color-mode'
@@ -8,6 +8,7 @@ import { ACADEMY_MENU_ITEM } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
 
 import { NavNewBadge } from './NavNewBadge'
+import { ShellNavLink } from './ShellLink'
 
 type MenuLink = {
   label: string
@@ -118,14 +119,13 @@ const Sidebar = memo(
                     disabled={open}
                     positioning={{ placement: 'right' }}
                   >
-                    <Box
+                    <ShellNavLink
                       _hover={
                         isActive
                           ? undefined
                           : { bg: hoverBg, textDecoration: 'none' }
                       }
                       alignItems="center"
-                      as={NavLink}
                       bg={isActive ? '#7BC9F1' : 'transparent'}
                       borderRadius="8px"
                       color={isActive ? '#18181B' : idleText}
@@ -169,21 +169,20 @@ const Sidebar = memo(
                           Novidade
                         </NavNewBadge>
                       )}
-                    </Box>
+                    </ShellNavLink>
                   </Tooltip>
                   {open &&
                     isActive &&
                     item.links?.map((link) => {
                       const subActive = activeLink?.href === link.href
                       return (
-                        <Box
+                        <ShellNavLink
                           _hover={
                             subActive
                               ? undefined
                               : { bg: hoverBg, textDecoration: 'none' }
                           }
                           alignItems="center"
-                          as={NavLink}
                           bg={subActive ? subActiveBg : 'transparent'}
                           borderRadius="8px"
                           color={subActive ? subActiveText : idleText}
@@ -222,7 +221,7 @@ const Sidebar = memo(
                               {link.badge}
                             </NavNewBadge>
                           )}
-                        </Box>
+                        </ShellNavLink>
                       )
                     })}
                 </Box>

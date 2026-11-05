@@ -1,7 +1,19 @@
-import { lazy, Suspense } from 'react'
-import { Navigate, Routes, Route } from 'react-router-dom'
+import { lazy, type ReactNode,Suspense } from 'react'
+import { Navigate, Route,Routes } from 'react-router-dom'
+
 import { LoadingState } from '@/components'
+import { LandingSectionTabs } from '@/components/layout/AppLayout/LandingSectionTabs'
+
 import { useWhitelabelActive } from '../hooks/useWhitelabelActive'
+
+function LandingFrame({ children }: { children: ReactNode }) {
+  return (
+    <>
+      <LandingSectionTabs />
+      {children}
+    </>
+  )
+}
 
 const AIAgentConfigPage = lazy(() =>
   import('../pages/AIAgentConfigPage').then((module) => ({
@@ -99,64 +111,64 @@ export function WhitelabelRoutes() {
     <Suspense fallback={<LoadingState />}>
       <Routes>
         <Route
-          path="/ai-agent"
           element={<AIAgentConfigPage />}
+          path="/ai-agent"
         />
         <Route
+          element={<Navigate replace state={{ openWizard: true }} to="/whitelabel/ai-agent" />}
           path="/ai-agent/novo"
-          element={<Navigate to="/whitelabel/ai-agent" state={{ openWizard: true }} replace />}
         />
         <Route
-          path="/ai-agent/:agentId/conversa"
           element={<AIAgentConfiguratorPage />}
+          path="/ai-agent/:agentId/conversa"
         />
         <Route
-          path="/ai-agent/:agentId/teste"
           element={<AIAgentPlaygroundPage />}
+          path="/ai-agent/:agentId/teste"
         />
         <Route
-          path="/ai-agent/:agentId"
           element={<AIAgentDetailPage />}
+          path="/ai-agent/:agentId"
         />
         <Route
-          path="/weather"
           element={<WeatherConfigPage />}
+          path="/weather"
         />
         <Route
-          path="/landing-page"
           element={<LandingPageIndexPage />}
+          path="/landing-page"
         />
         <Route
+          element={<LandingFrame><BrandingPage /></LandingFrame>}
           path="/landing-page/branding"
-          element={<BrandingPage />}
         />
         <Route
+          element={<LandingFrame><HeroPage /></LandingFrame>}
           path="/landing-page/hero"
-          element={<HeroPage />}
         />
         <Route
+          element={<LandingFrame><ServicesPage /></LandingFrame>}
           path="/landing-page/services"
-          element={<ServicesPage />}
         />
         <Route
+          element={<LandingFrame><LocationPage /></LandingFrame>}
           path="/landing-page/location"
-          element={<LocationPage />}
         />
         <Route
+          element={<LandingFrame><FaqPage /></LandingFrame>}
           path="/landing-page/faq"
-          element={<FaqPage />}
         />
         <Route
+          element={<LandingFrame><TestimonialsPage /></LandingFrame>}
           path="/landing-page/testimonials"
-          element={<TestimonialsPage />}
         />
         <Route
+          element={<LandingFrame><CtaPage /></LandingFrame>}
           path="/landing-page/cta"
-          element={<CtaPage />}
         />
         <Route
+          element={<LandingFrame><FooterPage /></LandingFrame>}
           path="/landing-page/footer"
-          element={<FooterPage />}
         />
       </Routes>
     </Suspense>

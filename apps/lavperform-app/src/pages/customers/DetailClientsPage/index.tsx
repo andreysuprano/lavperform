@@ -2,29 +2,34 @@ import {
   Badge,
   Box,
   Button,
+  Dialog,
   Flex,
+  IconButton,
   Input,
   InputGroup,
+  Menu,
+  Portal,
   Stack,
   Table,
   Text,
 } from '@chakra-ui/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { type ReactNode,useCallback, useEffect, useMemo, useState } from 'react'
+import {
+  LuArrowDownUp,
+  LuArrowUpDown,
+  LuCake,
+  LuCalendarDays,
+  LuEllipsis,
+  LuMail,
+  LuMessageCircle,
+  LuShoppingBag,
+} from 'react-icons/lu'
 import {
   RiCheckboxCircleLine,
   RiCloseCircleLine,
   RiUserCommunityLine,
   RiWhatsappLine,
 } from 'react-icons/ri'
-import {
-  LuArrowDownUp,
-  LuArrowUpDown,
-  LuCake,
-  LuCalendarDays,
-  LuMail,
-  LuMessageCircle,
-  LuShoppingBag,
-} from 'react-icons/lu'
 
 import {
   AppContentLayout,
@@ -33,12 +38,14 @@ import {
   ExportCustomersButton,
   ImportCustomersWizard,
   ImportWhatsAppCustomersModal,
+  LoadingState,
+  TablePagination,
 } from '@/components'
 import { MultiSelectFilter } from '@/components/features/campaigns/recurring-campaign/RecurringCampaignDetailsView/MultiSelectFilter'
-import { Tooltip } from '@/components/ui/tooltip'
-import { CustomerDetailsModal } from '@/components/features/customers/CustomerDetailsModal'
-import { CustomerDetailsModal as WhiteLabelCustomerDetailsModal } from '@/whitelabel/components/CustomerDetailsModal'
 import { RfvMatrix } from '@/components/features/customers'
+import { CustomerDetailsModal } from '@/components/features/customers/CustomerDetailsModal'
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+import { Tooltip } from '@/components/ui/tooltip'
 import { useAuth } from '@/context/AuthContext'
 import { useCustomers } from '@/hooks/queries'
 import { useWhatsAppManager } from '@/hooks/useWhatsAppManager'
@@ -57,12 +64,14 @@ import {
   formatOrPlaceholder,
   normalizeText,
 } from '@/utils/strings'
+import { CustomerDetailsModal as WhiteLabelCustomerDetailsModal } from '@/whitelabel/components/CustomerDetailsModal'
 
 import {
   clearBirthMonthForFilter,
   formatCustomerBirthDate,
   isBirthMonthVisible,
 } from './customerBirthdayFilters'
+import { CustomerPhoneList } from './CustomerPhoneList'
 
 type BoolFilter = 'true' | 'false'
 type OrderByFilter =
@@ -87,6 +96,7 @@ type ListFilters = {
 
 interface CustomerTableSectionProps {
   rfvClassifications?: string[]
+  filterExtra?: ReactNode
 }
 
 const DEFAULT_FILTERS: ListFilters = {
@@ -173,6 +183,7 @@ function firstBool(values: BoolFilter[]): boolean | undefined {
 // Componente reutilizável com a tabela de clientes
 export function CustomerTableSection({
   rfvClassifications,
+  filterExtra,
 }: CustomerTableSectionProps) {
   const { selectedCompany } = useAuth()
   const { isConnected: isWhatsAppConnected } = useWhatsAppManager(
@@ -190,6 +201,9 @@ export function CustomerTableSection({
     null
   )
   const [isWhatsAppModalOpen, setIsWhatsAppModalOpen] = useState(false)
+  const [filtersOpen, setFiltersOpen] = useState(false)
+  const shell = useShellMode()
+  const phone = shell === 'phone'
 
   useEffect(() => {
     setParams((prev) => ({ ...prev, page: 1 }))
@@ -333,16 +347,30 @@ export function CustomerTableSection({
     filters.orderBy.length > 0 ||
     filters.orderDirection.length > 0
 
-  return (
-    <Stack gap={3}>
+  const sortLabel =
+    ORDER_BY_OPTIONS.find((option) => option.value === filters.orderBy[0])
+      ?.label ?? 'Cadastro'
+  const activeFilterCount = [
+    filters.hasEmail.length,
+    filters.hasBirthDate.length,
+    filters.birthMonth !== undefined ? 1 : 0,
+    filters.whatsappOptin.length,
+    filters.whatsappVerified.length,
+    filters.hasOrders.length,
+    rfvClassifications?.length ?? 0,
+  ].reduce((sum, value) => sum + value, 0)
+
+  const filterControls = (
       <Flex
         align="center"
+        display="flex"
         gap={2}
         wrap="wrap"
       >
         <MultiSelectFilter
           icon={<LuMail size={14} />}
           label="E-mail"
+          minH="44px"
           onChange={(next) => updateExclusiveFilter('hasEmail', next)}
           options={EMAIL_OPTIONS}
           placeholder="Todos"
@@ -351,6 +379,7 @@ export function CustomerTableSection({
         <MultiSelectFilter
           icon={<LuCake size={14} />}
           label="Aniversário"
+          minH="44px"
           onChange={handleBirthDateFilterChange}
           options={BIRTHDATE_OPTIONS}
           placeholder="Todos"
@@ -358,8 +387,9 @@ export function CustomerTableSection({
         />
         {isBirthMonthVisible(filters.hasBirthDate) && (
           <MultiSelectFilter
-            icon={<LuCalendarDays size={14} />}
+          icon={<LuCalendarDays size={14} />}
             label="Mês"
+            minH="44px"
             onChange={handleBirthMonthChange}
             options={MONTH_FILTER_OPTIONS}
             placeholder="Todos"
@@ -369,6 +399,7 @@ export function CustomerTableSection({
         <MultiSelectFilter
           icon={<LuMessageCircle size={14} />}
           label="Opt-in"
+          minH="44px"
           onChange={(next) => updateExclusiveFilter('whatsappOptin', next)}
           options={OPTIN_OPTIONS}
           placeholder="Todos"
@@ -377,6 +408,7 @@ export function CustomerTableSection({
         <MultiSelectFilter
           icon={<RiWhatsappLine size={14} />}
           label="WhatsApp"
+          minH="44px"
           onChange={(next) => updateExclusiveFilter('whatsappVerified', next)}
           options={VERIFIED_OPTIONS}
           placeholder="Todos"
@@ -385,6 +417,7 @@ export function CustomerTableSection({
         <MultiSelectFilter
           icon={<LuShoppingBag size={14} />}
           label="Vendas"
+          minH="44px"
           onChange={(next) => updateExclusiveFilter('hasOrders', next)}
           options={ORDERS_OPTIONS}
           placeholder="Todos"
@@ -393,6 +426,7 @@ export function CustomerTableSection({
         <MultiSelectFilter
           icon={<LuArrowDownUp size={14} />}
           label="Ordenar"
+          minH="44px"
           onChange={(next) => updateExclusiveFilter('orderBy', next)}
           options={ORDER_BY_OPTIONS}
           placeholder="Cadastro"
@@ -401,6 +435,7 @@ export function CustomerTableSection({
         <MultiSelectFilter
           icon={<LuArrowUpDown size={14} />}
           label="Direção"
+          minH="44px"
           onChange={(next) => updateExclusiveFilter('orderDirection', next)}
           options={ORDER_DIRECTION_OPTIONS}
           placeholder="Decrescente"
@@ -425,9 +460,140 @@ export function CustomerTableSection({
           </Box>
         )}
       </Flex>
+  )
+
+  return (
+    <Stack gap={3}>
+      {phone ? (
+        <Stack gap={2}>
+          <Flex gap={2}>
+            <InputGroup flex={1}>
+          <Input
+            bg="bg.panel"
+            h="44px"
+            minH="44px"
+            onChange={handleSearchChange}
+            placeholder="Buscar nome ou telefone"
+            rounded="lg"
+            value={searchQuery}
+          />
+            </InputGroup>
+            <Button
+              aria-label="Filtros"
+              h="44px"
+              minH="44px"
+              minW="44px"
+              onClick={() => setFiltersOpen(true)}
+              position="relative"
+              variant="outline"
+            >
+              Filtros
+              {activeFilterCount > 0 ? (
+                <Badge
+                  colorPalette="orange"
+                  position="absolute"
+                  right="-4px"
+                  top="-4px"
+                >
+                  {activeFilterCount}
+                </Badge>
+              ) : null}
+            </Button>
+            <Menu.Root>
+              <Menu.Trigger asChild>
+                <IconButton
+                  aria-label="Mais ações"
+                  minH="44px"
+                  minW="44px"
+                  variant="outline"
+                >
+                  <LuEllipsis />
+                </IconButton>
+              </Menu.Trigger>
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content minW="220px" p={2}>
+                    <Stack gap={2}>
+                      <Button
+                        colorPalette="green"
+                        disabled={!isWhatsAppConnected}
+                        onClick={handleOpenWhatsAppModal}
+                        variant="surface"
+                        w="full"
+                      >
+                        <RiWhatsappLine />
+                        Importar Clientes
+                      </Button>
+                      <ImportCustomersWizard />
+                      <ExportCustomersButton />
+                      <CreateCustomerForm />
+                    </Stack>
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            </Menu.Root>
+          </Flex>
+          <Flex
+            fontSize="13px"
+            justify="space-between"
+          >
+            <Text color="fg.muted">{meta?.total ?? customers.length} clientes</Text>
+            <Text color="fg.muted">Ordenar: {sortLabel}</Text>
+          </Flex>
+          {isLoading ? (
+            <LoadingState title="Carregando clientes..." />
+          ) : (
+            <CustomerPhoneList
+              customers={customers}
+              onSelect={handleCustomerSelect}
+            />
+          )}
+          <Dialog.Root
+            onOpenChange={(details) => setFiltersOpen(details.open)}
+            open={filtersOpen}
+            placement="bottom"
+          >
+            <Dialog.Backdrop />
+            <Dialog.Positioner>
+              <Dialog.Content>
+                <Dialog.Header>
+                  <Dialog.Title>Filtros</Dialog.Title>
+                  <Dialog.CloseTrigger />
+                </Dialog.Header>
+                <Dialog.Body>
+                  <Stack gap={3}>
+                    {filterExtra}
+                    {filterControls}
+                  </Stack>
+                </Dialog.Body>
+                <Dialog.Footer>
+                  <Button
+                    flex="1"
+                    minH="44px"
+                    onClick={handleClearFilters}
+                    variant="outline"
+                  >
+                    Limpar
+                  </Button>
+                  <Button
+                    flex="1"
+                    minH="44px"
+                    onClick={() => setFiltersOpen(false)}
+                  >
+                    Ver {meta?.total ?? customers.length} clientes
+                  </Button>
+                </Dialog.Footer>
+              </Dialog.Content>
+            </Dialog.Positioner>
+          </Dialog.Root>
+        </Stack>
+      ) : null}
+      {!phone && filterControls}
+
 
       <Flex
         alignItems="center"
+        display={phone ? 'none' : 'flex'}
         flexDirection={{ base: 'column', md: 'row' }}
         gap={2}
       >
@@ -435,6 +601,7 @@ export function CustomerTableSection({
           <Input
             bg="bg.panel"
             borderColor="border.emphasized"
+            minH="44px"
             onChange={handleSearchChange}
             placeholder="Buscar por nome, telefone ou e-mail..."
             rounded="lg"
@@ -466,6 +633,7 @@ export function CustomerTableSection({
         <CreateCustomerForm />
       </Flex>
 
+      <Box display={phone ? 'none' : 'block'}>
       <CustomTable<Customer>
         data={customers}
         emptyStateMessage="Nenhum cliente encontrado"
@@ -483,6 +651,7 @@ export function CustomerTableSection({
         }
         isLoading={isLoading}
         meta={meta}
+        stickyFirstColumn={shell === 'tablet'}
       >
         {customers.map((item) => (
           <Table.Row
@@ -537,6 +706,15 @@ export function CustomerTableSection({
           </Table.Row>
         ))}
       </CustomTable>
+      </Box>
+      {phone && meta ? (
+        <TablePagination
+          data={customers}
+          handleLimitChange={handleLimitChange}
+          handlePageChange={handlePageChange}
+          meta={meta}
+        />
+      ) : null}
       {selectedCustomer && (
         <CustomerModal
           data={selectedCustomer}

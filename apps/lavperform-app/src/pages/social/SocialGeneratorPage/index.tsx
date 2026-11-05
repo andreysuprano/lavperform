@@ -109,7 +109,7 @@ export function SocialGeneratorPage() {
                 {(drafts.data ?? []).length === 0 && (
                   <Text color="fg.muted">Nenhum rascunho ainda.</Text>
                 )}
-                {(drafts.data ?? []).map((draft) => (
+                {(Array.isArray(drafts.data) ? drafts.data : []).map((draft) => (
                   <Button
                     justifyContent="flex-start"
                     key={draft.id}

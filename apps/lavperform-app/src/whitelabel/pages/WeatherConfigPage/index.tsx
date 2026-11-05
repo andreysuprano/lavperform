@@ -1,4 +1,4 @@
-import { Alert, Box, Button, Card, Stack } from '@chakra-ui/react'
+import { Alert, Button, Card, Stack } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { LuCloudRain } from 'react-icons/lu'
@@ -6,22 +6,28 @@ import { RiSaveLine } from 'react-icons/ri'
 
 import { AppContentLayout, LoadingState } from '@/components'
 import { WeekdaySelect } from '@/components/forms'
+import { StickySaveBar } from '@/components/layout/AppLayout/StickySaveBar'
 import { useAuth } from '@/context/AuthContext'
 import { useWhatsAppManager } from '@/hooks/useWhatsAppManager'
 import {
-  WeatherStatusCard,
+  WeatherAlertDetailsModal,
+  WeatherAlertMessagesCard,
   WeatherAlertsFrequencyCard,
   WeatherConditionSelect,
-  WeatherAlertMessagesCard,
   WeatherHistoryCard,
-  WeatherAlertDetailsModal,
+  WeatherStatusCard,
 } from '@/whitelabel/components'
 import {
-  useWeatherAlertConfig,
   useSaveWeatherAlertConfig,
   useToggleWeatherAlert,
+  useWeatherAlertConfig,
   useWeatherHistory,
 } from '@/whitelabel/hooks'
+import type {
+  WeatherAlertHistory,
+  WeatherAlertMessages,
+  WeatherConditionAPI,
+} from '@/whitelabel/types'
 import {
   weekdayNumbersToStrings,
   weekdayStringsToNumbers,
@@ -30,11 +36,6 @@ import {
   DEFAULT_WEATHER_ALERT_MESSAGES,
   mergeWeatherAlertMessages,
 } from '@/whitelabel/utils/weather.constants'
-import type {
-  WeatherConditionAPI,
-  WeatherAlertHistory,
-  WeatherAlertMessages,
-} from '@/whitelabel/types'
 
 interface WeatherConfigForm {
   dailyAlerts: number
@@ -96,7 +97,7 @@ function WeatherConfigPageBase() {
           messages: data.messages,
           active: config?.active ?? true,
         })
-      } catch (error) {
+      } catch {
         // Erro já tratado no hook
       }
     },
@@ -107,7 +108,7 @@ function WeatherConfigPageBase() {
     async (enabled: boolean) => {
       try {
         await toggleAlert.mutateAsync(enabled)
-      } catch (error) {
+      } catch {
         // Erro já tratado no hook
       }
     },
@@ -231,17 +232,7 @@ function WeatherConfigPageBase() {
         </AppContentLayout>
 
         {/* Sticky Footer com botão Salvar */}
-        <Box
-          bg="none"
-          borderTopWidth="1px"
-          bottom={0}
-          left={0}
-          p={0}
-          mt={4}
-          position="sticky"
-          right={0}
-          zIndex={10}
-        >
+        <StickySaveBar>
           <Button
             disabled={!config?.active}
             loading={saveConfig.isPending}
@@ -252,7 +243,7 @@ function WeatherConfigPageBase() {
             <RiSaveLine />
             Salvar Configurações
           </Button>
-        </Box>
+        </StickySaveBar>
 
         {/* Modal de detalhes do alerta */}
         <WeatherAlertDetailsModal

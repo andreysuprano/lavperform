@@ -1,17 +1,17 @@
-import { Box, Button, Stack } from '@chakra-ui/react'
+import { Button, Stack } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { RiPagesLine, RiSaveLine } from 'react-icons/ri'
 
-import { AppContentLayout, LoadingState, toaster } from '@/components'
+import { AppContentLayout, LoadingState } from '@/components'
+import { StickySaveBar } from '@/components/layout/AppLayout/StickySaveBar'
 import { useAuth } from '@/context/AuthContext'
+import { LocationForm } from '@/whitelabel/components/landing-page-config/LocationForm'
 import {
   useRequireLandingPage,
   useUpdateLandingPageConfig,
 } from '@/whitelabel/hooks'
 import type { LocationData } from '@/whitelabel/types'
-import { normalizeLocationData, serializeLocationForBackend } from '@/whitelabel/utils'
-
-import { LocationForm } from '@/whitelabel/components/landing-page-config/LocationForm'
+import { normalizeLocationData } from '@/whitelabel/utils'
 
 function LocationPageBase() {
   const { selectedCompany } = useAuth()
@@ -69,15 +69,7 @@ function LocationPageBase() {
         />
       </AppContentLayout>
 
-      <Box
-        bg="none"
-        bottom={0}
-        left={0}
-        mt={4}
-        position="sticky"
-        right={0}
-        zIndex={10}
-      >
+      <StickySaveBar>
         <Button
           loading={updateConfig.isPending}
           onClick={handleSave}
@@ -87,7 +79,7 @@ function LocationPageBase() {
           <RiSaveLine />
           Salvar alterações
         </Button>
-      </Box>
+      </StickySaveBar>
     </Stack>
   )
 }
