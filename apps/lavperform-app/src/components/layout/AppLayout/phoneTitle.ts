@@ -12,6 +12,8 @@ export function phoneTitle(pathname: string): string {
   if (pathname.startsWith('/customers')) return 'Clientes'
   if (pathname.startsWith('/social/editor')) return 'Editar post'
   if (pathname.startsWith('/social/revise')) return 'Revisar post'
+  if (pathname.startsWith('/social/calendario')) return 'Calendário de posts'
+  if (pathname.startsWith('/social/google')) return 'Google Meu Negócio'
   if (pathname.startsWith('/social')) return 'Redes Sociais'
   if (pathname.startsWith('/campaigns')) return 'Fidelização'
   if (pathname.startsWith('/dashboard') || pathname === '/') return 'Início'

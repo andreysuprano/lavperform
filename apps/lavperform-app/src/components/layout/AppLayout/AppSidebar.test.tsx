@@ -75,7 +75,7 @@ function contrast(foreground: string, background: string) {
 describe('sidebar no formato do Figma', () => {
   afterEach(() => cleanup())
 
-  it('mostra a ordem, o accordion e o badge Novidade sem Google nem Calendário', () => {
+  it('mostra a ordem, o accordion e o calendário em Redes Sociais', () => {
     renderSidebar('/social/generator')
 
     const labels = screen
@@ -94,12 +94,20 @@ describe('sidebar no formato do Figma', () => {
       'Integrações',
       'Redes Sociais',
       'Gerador de posts',
+      'Calendário de posts',
+      'Google Meu Negócio',
       'Ajustes',
       'Minha Página',
     ])
     expect(screen.getByTestId('nav-badge-/social')).toHaveTextContent('Novidade')
-    expect(screen.queryByText('Calendário')).not.toBeInTheDocument()
-    expect(screen.queryByText('Google Meu Negócio')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Calendário de posts' })).toHaveAttribute(
+      'href',
+      '/social/calendario'
+    )
+    expect(screen.getByRole('link', { name: 'Google Meu Negócio' })).toHaveAttribute(
+      'href',
+      '/social/google'
+    )
     expect(screen.getByRole('link', { name: 'Academy' })).toBeInTheDocument()
   })
 

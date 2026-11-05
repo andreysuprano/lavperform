@@ -131,6 +131,16 @@ const SocialRevisionPage = lazy(() =>
     default: module.SocialRevisionPage,
   }))
 )
+const SocialCalendarPage = lazy(() =>
+  import('@/pages/social/SocialCalendarPage').then((module) => ({
+    default: module.SocialCalendarPage,
+  }))
+)
+const GoogleBusinessPage = lazy(() =>
+  import('@/pages/social/GoogleBusinessPage').then((module) => ({
+    default: module.GoogleBusinessPage,
+  }))
+)
 const IntegrationPage = lazy(() =>
   import('@/pages/settings/IntegrationPage').then((module) => ({
     default: module.IntegrationPage,
@@ -484,6 +494,14 @@ export function PrivateRoutes() {
         <Route
           element={<SocialEditorPage />}
           path="/social/editor/:draftId/:variationId"
+        />
+        <Route
+          element={<SocialCalendarPage />}
+          path="/social/calendario"
+        />
+        <Route
+          element={<GoogleBusinessPage />}
+          path="/social/google"
         />
         <Route
           element={<MyPage />}

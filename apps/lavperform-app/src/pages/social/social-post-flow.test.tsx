@@ -334,6 +334,36 @@ vi.mock('@/context/AuthContext', () => ({
   }),
 }))
 
+vi.mock('@/services/socialPublishing.service', () => ({
+  socialPublishingService: {
+    connections: vi.fn().mockResolvedValue({
+      data: {
+        sandbox: false,
+        metaConfigured: false,
+        googleConfigured: false,
+        googleAdsConfigured: false,
+        connections: [],
+      },
+    }),
+    suggestions: vi.fn().mockResolvedValue({
+      data: {
+        slots: [
+          {
+            id: 'friday-1830',
+            label: 'Sex 18:30 · melhor horário',
+            at: '2026-11-06T21:30:00.000Z',
+            best: true,
+          },
+        ],
+      },
+    }),
+    createPost: vi.fn(),
+    posts: vi.fn().mockResolvedValue({ data: [] }),
+    googleProfile: vi.fn(),
+  },
+  publishingErrorMessage: (_error: unknown, fallback: string) => fallback,
+}))
+
 vi.mock('@/services/socialPosts.service', () => ({
   socialPostsService: service,
   apiErrorMessage: (error: unknown, fallback: string) =>

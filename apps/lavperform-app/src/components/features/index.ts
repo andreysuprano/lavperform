@@ -33,3 +33,4 @@ export * from './traffic'
 // Channels
 export * from './channels'
 export * from './social-posts'
+export * from './social-publishing'
