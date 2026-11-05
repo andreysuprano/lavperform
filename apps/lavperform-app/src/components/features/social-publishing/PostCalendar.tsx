@@ -9,20 +9,25 @@ import {
   Text,
   Textarea,
 } from '@chakra-ui/react'
-import { useMemo, useState } from 'react'
+import { Fragment, useMemo, useRef, useState } from 'react'
 import { LuChevronLeft, LuChevronRight, LuPlus } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
 import type { PostStatus, ScheduledPost } from '@/types'
 
 import {
+  addDays,
   addMonths,
   dateKey,
   formatWhen,
   monthLabel,
   monthWeeks,
+  saoPauloClock,
+  WEEK_SLOTS,
   weekContaining,
   weekdayLabels,
+  weekRangeLabel,
+  weekSlot,
 } from './monthGrid'
 
 const STATUS: Record<Exclude<PostStatus, 'CANCELLED'>, { label: string; bg: string; color: string }> = {
@@ -38,30 +43,52 @@ const CHANNEL_LABEL: Record<string, string> = {
   GOOGLE_BUSINESS: 'Google',
 }
 
+const CHANNEL_SHORT: Record<string, string> = {
+  FACEBOOK: 'FB',
+  INSTAGRAM: 'IG',
+  GOOGLE_BUSINESS: 'Google',
+}
+
+const WEEK_TONE: Record<
+  Exclude<PostStatus, 'CANCELLED'>,
+  { bg: string; color: string }
+> = {
+  SCHEDULED: { bg: '#DBEAFE', color: '#1D4ED8' },
+  PUBLISHING: { bg: '#DBEAFE', color: '#1D4ED8' },
+  PUBLISHED: { bg: '#DCFCE7', color: '#15803D' },
+  FAILED: { bg: '#FEE2E2', color: '#B91C1C' },
+}
+
 export function PostCalendar({
   posts,
   phone,
+  now,
   onSave,
   onCancel,
   onRetry,
 }: {
   posts: ScheduledPost[]
   phone?: boolean
+  now?: Date
   onSave: (post: ScheduledPost, input: { caption: string; scheduledAt: string }) => Promise<void>
   onCancel: (post: ScheduledPost) => Promise<void>
   onRetry: (post: ScheduledPost) => Promise<void>
 }) {
   const navigate = useNavigate()
-  const today = new Date()
+  const today = now ?? new Date()
+  const todayKey = dateKey(today.toISOString())
   const [cursor, setCursor] = useState({
     year: today.getFullYear(),
     monthIndex: today.getMonth(),
   })
+  const [weekAnchor, setWeekAnchor] = useState(todayKey)
   const [view, setView] = useState<'month' | 'week' | 'list'>(phone ? 'list' : 'month')
   const [selected, setSelected] = useState<ScheduledPost | null>(null)
   const [editing, setEditing] = useState(false)
   const [reschedule, setReschedule] = useState(false)
   const [confirmCancel, setConfirmCancel] = useState(false)
+  const confirmCancelRef = useRef(false)
+  confirmCancelRef.current = confirmCancel
   const [caption, setCaption] = useState('')
   const [when, setWhen] = useState('')
   const weeks = useMemo(
@@ -69,7 +96,20 @@ export function PostCalendar({
     [cursor.monthIndex, cursor.year]
   )
   const anchor = `${cursor.year}-${String(cursor.monthIndex + 1).padStart(2, '0')}-01`
-  const week = weekContaining(anchor)
+  const week = weekContaining(weekAnchor)
+  const shiftWeek = (direction: number) => {
+    const start = addDays(week[0].date, direction * 7)
+    const [year, month] = start.split('-').map(Number)
+    setWeekAnchor(start)
+    setCursor({ year, monthIndex: month - 1 })
+  }
+  const openWeek = () => {
+    const prefix = anchor.slice(0, 7)
+    if (!week.some((cell) => cell.date.startsWith(prefix))) {
+      setWeekAnchor(todayKey.startsWith(prefix) ? todayKey : anchor)
+    }
+    setView('week')
+  }
   const byDay = new Map<string, ScheduledPost[]>()
   for (const post of posts) {
     const key = dateKey(post.scheduledAt)
@@ -101,30 +141,41 @@ export function PostCalendar({
           gap={1}
         >
           <Button
-            aria-label="Mês anterior"
-            onClick={() => setCursor((current) => addMonths(current.year, current.monthIndex, -1))}
+            aria-label={view === 'week' ? 'Semana anterior' : 'Mês anterior'}
+            onClick={() =>
+              view === 'week'
+                ? shiftWeek(-1)
+                : setCursor((current) => addMonths(current.year, current.monthIndex, -1))
+            }
             variant="ghost"
           >
             <LuChevronLeft />
           </Button>
           <Text
             fontWeight="semibold"
-            minW="160px"
+            minW="180px"
             textAlign="center"
           >
-            {monthLabel(cursor.year, cursor.monthIndex)}
+            {view === 'week' ? weekRangeLabel(week) : monthLabel(cursor.year, cursor.monthIndex)}
           </Text>
           <Button
-            aria-label="Próximo mês"
-            onClick={() => setCursor((current) => addMonths(current.year, current.monthIndex, 1))}
+            aria-label={view === 'week' ? 'Próxima semana' : 'Próximo mês'}
+            onClick={() =>
+              view === 'week'
+                ? shiftWeek(1)
+                : setCursor((current) => addMonths(current.year, current.monthIndex, 1))
+            }
             variant="ghost"
           >
             <LuChevronRight />
           </Button>
           <Button
-            onClick={() =>
-              setCursor({ year: today.getFullYear(), monthIndex: today.getMonth() })
-            }
+            onClick={() => {
+              const key = dateKey((now ?? new Date()).toISOString())
+              const [year, month] = key.split('-').map(Number)
+              setCursor({ year, monthIndex: month - 1 })
+              setWeekAnchor(key)
+            }}
             variant="ghost"
           >
             Hoje
@@ -172,7 +223,7 @@ export function PostCalendar({
               <Button
                 bg={view === item ? 'bg' : 'transparent'}
                 key={item}
-                onClick={() => setView(item)}
+                onClick={() => (item === 'week' ? openWeek() : setView(item))}
                 size="sm"
                 variant="ghost"
               >
@@ -238,34 +289,100 @@ export function PostCalendar({
 
       {view === 'week' ? (
         <Box
-          display="grid"
-          gap={2}
-          gridTemplateColumns={{ base: '1fr', md: 'repeat(7, minmax(0, 1fr))' }}
+          data-testid="week-grid"
+          overflowX="auto"
         >
-          {week.map((cell) => (
+          <Box
+            bg="bg"
+            borderColor="border"
+            borderRadius="xl"
+            borderWidth="1px"
+            display="grid"
+            gridTemplateColumns="64px repeat(7, minmax(96px, 1fr))"
+            minW={{ base: '760px', md: '100%' }}
+            overflow="hidden"
+          >
             <Box
+              bg="bg.muted"
+              borderBottomWidth="1px"
               borderColor="border"
-              borderRadius="lg"
-              borderWidth="1px"
-              key={cell.date}
-              minH="120px"
-              p={2}
-            >
-              <Text fontWeight="medium">{cell.day}</Text>
-              <Stack
-                gap={1}
-                mt={2}
-              >
-                {(byDay.get(cell.date) ?? []).map((post) => (
-                  <PostChip
-                    key={post.id}
-                    onClick={() => open(post)}
-                    post={post}
-                  />
+              borderRightWidth="1px"
+            />
+            {week.map((cell, index) => {
+              const isToday = cell.date === todayKey
+              return (
+                <Flex
+                  bg="bg.muted"
+                  borderBottomWidth="1px"
+                  borderColor="border"
+                  borderRightWidth="1px"
+                  direction="column"
+                  gap="4px"
+                  key={cell.date}
+                  minH="104px"
+                  p="6px"
+                >
+                  <Text
+                    color={isToday ? '#093A58' : 'fg'}
+                    fontSize="12px"
+                    fontWeight="semibold"
+                  >
+                    {weekdayLabels()[index]}
+                  </Text>
+                  <Text
+                    color={isToday ? '#093A58' : 'fg'}
+                    fontSize="18px"
+                    fontWeight="semibold"
+                    textAlign="center"
+                    w="full"
+                  >
+                    {cell.day}
+                  </Text>
+                </Flex>
+              )
+            })}
+            {WEEK_SLOTS.map((slot) => (
+              <Fragment key={slot}>
+                <Flex
+                  borderBottomWidth="1px"
+                  borderColor="border"
+                  borderRightWidth="1px"
+                  minH="110px"
+                  p="6px"
+                >
+                  <Text
+                    color="fg.muted"
+                    fontSize="12px"
+                  >
+                    {slot}
+                  </Text>
+                </Flex>
+                {week.map((cell) => (
+                  <Flex
+                    borderBottomWidth="1px"
+                    borderColor="border"
+                    borderRightWidth="1px"
+                    data-slot={`${cell.date}|${slot}`}
+                    direction="column"
+                    gap="4px"
+                    key={`${cell.date}-${slot}`}
+                    minH="110px"
+                    p="6px"
+                  >
+                    {(byDay.get(cell.date) ?? [])
+                      .filter((post) => weekSlot(post.scheduledAt) === slot)
+                      .map((post) => (
+                        <WeekCard
+                          key={post.id}
+                          onClick={() => open(post)}
+                          post={post}
+                        />
+                      ))}
+                  </Flex>
                 ))}
-              </Stack>
-            </Box>
-          ))}
+              </Fragment>
+            ))}
+          </Box>
         </Box>
       ) : null}
 
@@ -335,9 +452,9 @@ export function PostCalendar({
 
       <Dialog.Root
         onOpenChange={(details) => {
-          if (!details.open) setSelected(null)
+          if (!details.open && !confirmCancelRef.current) setSelected(null)
         }}
-        open={Boolean(selected)}
+        open={Boolean(selected) && !confirmCancel}
       >
         <Portal>
           <Dialog.Backdrop />
@@ -523,6 +640,50 @@ function StatusPill({ status }: { status: PostStatus }) {
     >
       {tone.label}
     </Text>
+  )
+}
+
+function WeekCard({ post, onClick }: { post: ScheduledPost; onClick: () => void }) {
+  if (post.status === 'CANCELLED') return null
+  const tone = WEEK_TONE[post.status]
+  const title = post.headline || post.caption
+  return (
+    <Flex
+      as="button"
+      bg={tone.bg}
+      borderRadius="8px"
+      gap="6px"
+      onClick={onClick}
+      p="6px"
+      textAlign="left"
+      type="button"
+      w="full"
+    >
+      <Box
+        bg="linear-gradient(180deg, #BEE6FA 0%, #1E6FA8 70%, #093A58 100%)"
+        borderRadius="8px"
+        flexShrink={0}
+        h="28px"
+        w="28px"
+      />
+      <Box minW={0}>
+        <Text
+          color={tone.color}
+          fontSize="11px"
+          fontWeight="semibold"
+          lineClamp={2}
+        >
+          {title}
+        </Text>
+        <Text
+          color={tone.color}
+          fontSize="10px"
+        >
+          {saoPauloClock(post.scheduledAt)} ·{' '}
+          {post.channels.map((channel) => CHANNEL_SHORT[channel] ?? channel).join(' ')}
+        </Text>
+      </Box>
+    </Flex>
   )
 }
 
