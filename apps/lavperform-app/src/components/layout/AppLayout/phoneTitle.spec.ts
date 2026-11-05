@@ -6,7 +6,10 @@ describe('títulos e abas do celular', () => {
   it('mantém o rótulo Tráfego e os nomes das abas do Figma', () => {
     expect(phoneTitle('/trafego')).toBe('Tráfego')
     expect(phoneTitle('/trafego/pixel')).toBe('Tráfego')
-    expect(phoneTitle('/social/generator')).toBe('Redes Sociais')
+    expect(phoneTitle('/social/generator')).toBe('Social Media')
+    expect(phoneTitle('/social/calendario')).toBe('Calendário de posts')
+    expect(phoneTitle('/social/google')).toBe('Google Meu Negócio')
+    expect(phoneTitle('/integrations')).toBe('Integrações')
     expect(phoneTitle('/campaigns/recurring-campaigns')).toBe('Fidelização')
     expect(phoneTitle('/mais')).toBe('Mais')
   })

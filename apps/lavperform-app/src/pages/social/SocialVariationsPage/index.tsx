@@ -17,7 +17,7 @@ import {
 } from '@/hooks/queries/useSocialPosts'
 import { socialPostsService } from '@/services'
 import type { CaptionLength, PostVariation } from '@/types'
-import { captionWithHashtags, DEFAULT_BRAND } from '@/types'
+import { activeCaptionText, DEFAULT_BRAND } from '@/types'
 
 export function SocialVariationsPage() {
   const { draftId = '' } = useParams()
@@ -37,7 +37,7 @@ export function SocialVariationsPage() {
   }
 
   const copy = async (variation: PostVariation) => {
-    await navigator.clipboard.writeText(captionWithHashtags(variation))
+    await navigator.clipboard.writeText(activeCaptionText(variation))
     toaster.create({ title: 'Legenda copiada', type: 'success' })
   }
 
@@ -58,7 +58,7 @@ export function SocialVariationsPage() {
   return (
     <AppContentLayout
       icon={<LuSparkles />}
-      title="Gerador de posts"
+      title="Social Media"
     >
       {draft.isLoading || !draft.data ? (
         <LoadingState title="Carregando variações..." />

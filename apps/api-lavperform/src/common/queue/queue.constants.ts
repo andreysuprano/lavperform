@@ -35,4 +35,5 @@ export const QUEUE_NAMES = {
   ASAAS_PAYMENT_PROCESS: 'asaas-payment-process',
   DATA_DEDUPLICATION: 'data-deduplication',
   PUBLIC_API_ORDER_INGESTION: 'public-api-order-ingestion',
+  SOCIAL_POST_PUBLISH: 'social-post-publish',
 } as const;

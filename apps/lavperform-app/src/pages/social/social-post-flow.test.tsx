@@ -13,6 +13,7 @@ import { Provider } from '@/components'
 import { BrandIdentityPage } from '@/pages/settings/BrandIdentityPage'
 import { SocialEditorPage } from '@/pages/social/SocialEditorPage'
 import { SocialGeneratorPage } from '@/pages/social/SocialGeneratorPage'
+import { SocialPostDetailPage } from '@/pages/social/SocialPostDetailPage'
 import { SocialRevisionPage } from '@/pages/social/SocialRevisionPage'
 import { SocialVariationsPage } from '@/pages/social/SocialVariationsPage'
 const COMPANY = '11111111-1111-1111-1111-111111111111'
@@ -118,7 +119,47 @@ const { store, service, emptyBrand } = vi.hoisted(() => {
       }
       return { data: store.brand }
     }),
-    listDrafts: vi.fn(async () => ({ data: [] })),
+    listDrafts: vi.fn(async () => ({
+      data: [...store.drafts.values()].map((draft) => ({
+        id: draft.id,
+        objective: draft.objective,
+        theme: draft.theme,
+        format: draft.format,
+        slideCount: draft.slideCount ?? 1,
+        artStyle: draft.artStyle,
+        tone: draft.tone ?? 'Amigável',
+        wizardStep: draft.wizardStep ?? 1,
+        placement: draft.placement ?? draft.format,
+        creativeFreedom: Boolean(draft.creativeFreedom),
+        includeCaption: true,
+        generationStatus: draft.variations?.length ? 'generated' : 'idle',
+        generationError: null,
+        selectedVariationId: draft.selectedVariationId,
+        createdAt: draft.createdAt,
+        updatedAt: draft.updatedAt,
+        headline: draft.variations?.[0]?.headline ?? null,
+        captionExcerpt: draft.variations?.[0]?.captionMedium || draft.theme,
+        thumbnail: draft.variations?.[0]?.slides?.[0]?.backgroundImage ?? null,
+        networks: [],
+        scheduledAt: null,
+        publishedAt: null,
+        variationCount: draft.variations?.length ?? 0,
+        status: draft.variations?.length ? 'gerado' : 'rascunho',
+      })),
+    })),
+    updateDraft: vi.fn(async (id: string, payload: Record<string, unknown>) => {
+      const draft = store.drafts.get(id)
+      Object.assign(draft, payload, { updatedAt: new Date().toISOString() })
+      return { data: draft }
+    }),
+    startGeneration: vi.fn(async (id: string) => {
+      await service.generate(id)
+      const draft = store.drafts.get(id)
+      draft.generationStatus = 'generated'
+      draft.status = 'gerado'
+      draft.updatedAt = new Date().toISOString()
+      return { data: { id, status: 'gerado' } }
+    }),
     createDraft: vi.fn(async (payload: Record<string, unknown>) => {
       const draft = {
         id: `draft-${store.drafts.size + 1}`,
@@ -334,6 +375,36 @@ vi.mock('@/context/AuthContext', () => ({
   }),
 }))
 
+vi.mock('@/services/socialPublishing.service', () => ({
+  socialPublishingService: {
+    connections: vi.fn().mockResolvedValue({
+      data: {
+        sandbox: false,
+        metaConfigured: false,
+        googleConfigured: false,
+        googleAdsConfigured: false,
+        connections: [],
+      },
+    }),
+    suggestions: vi.fn().mockResolvedValue({
+      data: {
+        slots: [
+          {
+            id: 'friday-1830',
+            label: 'Sex 18:30 · melhor horário',
+            at: '2026-11-06T21:30:00.000Z',
+            best: true,
+          },
+        ],
+      },
+    }),
+    createPost: vi.fn(),
+    posts: vi.fn().mockResolvedValue({ data: [] }),
+    googleProfile: vi.fn(),
+  },
+  publishingErrorMessage: (_error: unknown, fallback: string) => fallback,
+}))
+
 vi.mock('@/services/socialPosts.service', () => ({
   socialPostsService: service,
   apiErrorMessage: (error: unknown, fallback: string) =>
@@ -360,8 +431,12 @@ function renderFlow(path = '/settings/brand-identity') {
               path="/social/generator"
             />
             <Route
-              element={<SocialVariationsPage />}
+              element={<SocialPostDetailPage />}
               path="/social/generator/:draftId"
+            />
+            <Route
+              element={<SocialVariationsPage />}
+              path="/social/variations/:draftId"
             />
             <Route
               element={<SocialRevisionPage />}
@@ -426,20 +501,27 @@ describe('fluxo de post com IA', () => {
       fireEvent.click(screen.getByTestId('identity-save'))
       await waitFor(() => expect(store.brand.deepColor).toBe('#0b2540'))
 
-      fireEvent.click(
-        screen.getByRole('link', { name: 'Abrir gerador de posts' })
-      )
-      const theme = await screen.findByTestId('briefing-theme')
-      fireEvent.change(theme, {
+      fireEvent.click(screen.getByRole('link', { name: 'Abrir Social Media' }))
+      fireEvent.click(await screen.findByTestId('create-first-post'))
+      fireEvent.change(await screen.findByTestId('briefing-theme'), {
         target: {
           value: '20% de desconto na lavagem de edredons toda sexta no Batel',
         },
       })
-      fireEvent.click(screen.getByTestId('briefing-generate'))
-
-      expect(await screen.findByText('Variação 1')).toBeInTheDocument()
-      expect(screen.getByText('Edredom novo de novo.')).toBeInTheDocument()
-      fireEvent.click(screen.getAllByRole('button', { name: 'Revisar' })[0])
+      fireEvent.click(screen.getByTestId('wizard-next'))
+      expect(screen.getByTestId('social-photos-step')).toBeInTheDocument()
+      expect(screen.getByText(/PASSO 2 DE 4/)).toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('wizard-next'))
+      fireEvent.click(screen.getByTestId('wizard-next'))
+      fireEvent.click(screen.getByTestId('wizard-generate'))
+      expect(await screen.findByText('Post pronto!')).toBeInTheDocument()
+      expect(screen.queryByText('#lavanderia')).not.toBeInTheDocument()
+      fireEvent.click(screen.getByTestId('post-ready-view'))
+      expect((await screen.findAllByText('Edredom novo de novo.')).length).toBeGreaterThan(0)
+      cleanup()
+      const draft = [...store.drafts.values()].at(-1)
+      renderFlow(`/social/variations/${draft.id}`)
+      fireEvent.click((await screen.findAllByRole('button', { name: 'Revisar' }))[0])
       expect(await screen.findByText('Revisar com IA')).toBeInTheDocument()
       fireEvent.click(screen.getByTestId('copy-caption'))
       await waitFor(() =>
@@ -475,40 +557,43 @@ describe('fluxo de post com IA', () => {
     expect(await screen.findByTestId('identity-deepColor')).toHaveValue('#0b2540')
   })
 
-  it('avisa identidade incompleta e falha da OpenRouter', async () => {
+  it('abre o modal em 4 passos e avisa quando a geração falha', async () => {
     renderFlow('/social/generator')
-    expect(await screen.findByTestId('brand-incomplete-notice')).toHaveTextContent(
-      /cara da sua lavanderia/i
-    )
-    expect(screen.getByTestId('configure-brand')).toHaveAttribute(
-      'href',
-      '/settings/brand-identity'
-    )
-    expect(screen.queryByText('Ctrl + Enter para gerar')).not.toBeInTheDocument()
-    expect(screen.getByText('Post')).toBeInTheDocument()
-    expect(screen.getByText('1080×1080')).toBeInTheDocument()
-    expect(screen.queryByText('Como a IA monta o post')).not.toBeInTheDocument()
-    expect(screen.queryByText('1. Você descreve a ideia')).not.toBeInTheDocument()
-    expect(screen.getByText('Legenda e hashtags no seu tom de voz.')).toBeInTheDocument()
-
+    fireEvent.click(await screen.findByTestId('create-first-post'))
+    expect(await screen.findByText(/PASSO 1 DE 4/)).toBeInTheDocument()
+    expect(screen.queryByText(/hashtag/i)).not.toBeInTheDocument()
     fireEvent.change(screen.getByTestId('briefing-theme'), {
       target: { value: '20% de desconto na lavagem de edredons no Batel' },
     })
-    service.generate.mockRejectedValueOnce(
+    fireEvent.click(screen.getByTestId('wizard-next'))
+    expect(screen.getByTestId('social-photos-step')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('wizard-next'))
+    expect(screen.getByText('Onde vai aparecer?')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('wizard-next'))
+    expect(screen.getByText(/PASSO 4 DE 4/)).toBeInTheDocument()
+    service.startGeneration.mockRejectedValueOnce(
       new Error('A OpenRouter demorou demais para responder. Tente de novo.')
     )
-    fireEvent.click(screen.getByTestId('briefing-generate'))
-    expect(await screen.findByTestId('generation-error')).toHaveTextContent(
+    fireEvent.click(screen.getByTestId('wizard-generate'))
+    expect(await screen.findByTestId('post-ready-toast')).toHaveTextContent(
       /demorou demais/i
     )
   })
 
   it('revisa fundo e título, guarda o histórico e baixa a versão selecionada', async () => {
     renderFlow('/social/generator')
+    fireEvent.click(await screen.findByTestId('create-first-post'))
     fireEvent.change(await screen.findByTestId('briefing-theme'), {
       target: { value: '20% de desconto na lavagem de edredons no Batel' },
     })
-    fireEvent.click(screen.getByTestId('briefing-generate'))
+    fireEvent.click(screen.getByTestId('wizard-next'))
+    fireEvent.click(screen.getByTestId('wizard-next'))
+    fireEvent.click(screen.getByTestId('wizard-next'))
+    fireEvent.click(screen.getByTestId('wizard-generate'))
+    await screen.findByText('Post pronto!')
+    cleanup()
+    const draft = [...store.drafts.values()].at(-1)
+    renderFlow(`/social/variations/${draft.id}`)
     fireEvent.click((await screen.findAllByRole('button', { name: 'Revisar' }))[0])
     expect(await screen.findByText('Versão inicial pronta.')).toBeInTheDocument()
     expect(screen.getByTestId('revision-send')).toBeDisabled()

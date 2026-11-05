@@ -6,7 +6,7 @@
   "private": true,
   "license": "UNLICENSED",
   "scripts": {
-    "build": "prisma generate && nest build",
+    "build": "prisma generate && nest build && tsc -p tsconfig.seed.json",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",
     "semgrep": "semgrep --config .semgrep.yml",
     "qa:local": "bash scripts/qa-local.sh",
@@ -25,6 +25,7 @@
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main",
     "seed:local": "ts-node prisma/seed.ts",
+    "seed:homolog": "node prisma/run-seed-homolog.js",
     "db:deploy": "npx prisma migrate deploy && npx prisma generate",
     "script:create-landing-pages": "ts-node -r tsconfig-paths/register src/scripts/create-landing-pages-for-existing-companies.ts",
     "script:create-ai-agents": "ts-node -r tsconfig-paths/register src/scripts/create-ai-agents-for-existing-companies.ts",

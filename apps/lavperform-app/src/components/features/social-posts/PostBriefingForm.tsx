@@ -300,7 +300,7 @@ export function PostBriefingForm({
                 : {})}
             />
             <Checkbox.Label>
-              Legenda e hashtags no seu tom de voz.
+              Legenda no seu tom de voz.
             </Checkbox.Label>
           </Checkbox.Root>
           <Flex justify="flex-end">
