@@ -3,7 +3,13 @@ import { FalQueueClient } from './fal.queue';
 import { SocialImageProvider } from './social-image.provider';
 
 @Module({
-  providers: [FalQueueClient, SocialImageProvider],
+  providers: [
+    {
+      provide: FalQueueClient,
+      useFactory: () => new FalQueueClient({}),
+    },
+    SocialImageProvider,
+  ],
   exports: [SocialImageProvider],
 })
 export class ImageModule {}
