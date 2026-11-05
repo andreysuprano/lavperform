@@ -6,6 +6,7 @@ import {
   ADMIN_MENU_ITEM,
   FOODCRM_MENU_ITEMS,
   MENU_ITEMS,
+  visibleMenuItems,
 } from '@/utils/constants/appMenuLinks'
 import { withoutTrafficMenu } from '@/utils/tracking/traffic-access'
 import { WHITELABEL_MENU_ITEMS } from '@/whitelabel/constants'
@@ -28,10 +29,9 @@ function applyMetaCreativesVisibility<
   })
 }
 
-function applyLandingPageVisibility<T extends { href: string; links?: unknown }>(
-  items: T[],
-  hasLandingPage: boolean
-): T[] {
+function applyLandingPageVisibility<
+  T extends { href: string; links?: unknown },
+>(items: T[], hasLandingPage: boolean): T[] {
   return items.map((item) => {
     if (item.href !== '/whitelabel/landing-page') return item
     if (!hasLandingPage) {
@@ -52,7 +52,7 @@ export function useAppMenuItems() {
   )
 
   return useMemo(() => {
-    let items = [...MENU_ITEMS]
+    let items = visibleMenuItems(MENU_ITEMS)
     const integrationsIndex = items.findIndex(
       (item) => item.href === '/integrations'
     )

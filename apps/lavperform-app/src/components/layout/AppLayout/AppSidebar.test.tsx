@@ -1,16 +1,26 @@
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, describe, expect, it } from 'vitest'
 
 import { Provider } from '@/components'
 import { useColorMode } from '@/components/ui/color-mode'
 import { NAV_NEW_BADGE_COLOR } from '@/theme'
-import { FOODCRM_MENU_ITEMS, MENU_ITEMS } from '@/utils/constants/appMenuLinks'
+import {
+  FOODCRM_MENU_ITEMS,
+  MENU_ITEMS,
+  visibleMenuItems,
+} from '@/utils/constants/appMenuLinks'
 
 import { Sidebar } from './AppSidebar'
 
 function menuWithMyPage() {
-  const items = [...MENU_ITEMS]
+  const items = visibleMenuItems([...MENU_ITEMS])
   const ajustesIndex = items.findIndex((item) => item.href === '/settings')
   items.splice(ajustesIndex + 1, 0, ...FOODCRM_MENU_ITEMS)
   return items
@@ -65,7 +75,9 @@ function contrast(foreground: string, background: string) {
     const red = Number.parseInt(normalized.slice(0, 2), 16)
     const green = Number.parseInt(normalized.slice(2, 4), 16)
     const blue = Number.parseInt(normalized.slice(4, 6), 16)
-    return 0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)
+    return (
+      0.2126 * channel(red) + 0.7152 * channel(green) + 0.0722 * channel(blue)
+    )
   }
   const lighter = Math.max(luminance(foreground), luminance(background))
   const darker = Math.min(luminance(foreground), luminance(background))
@@ -75,8 +87,8 @@ function contrast(foreground: string, background: string) {
 describe('sidebar no formato do Figma', () => {
   afterEach(() => cleanup())
 
-  it('mostra a ordem, o accordion e o calendário em Redes Sociais', () => {
-    renderSidebar('/social/generator')
+  it('mostra a ordem do menu sem Redes Sociais', () => {
+    renderSidebar('/dashboard')
 
     const labels = screen
       .getAllByRole('link')
@@ -92,33 +104,33 @@ describe('sidebar no formato do Figma', () => {
       'Clientes',
       'Canais de Comunicação',
       'Integrações',
-      'Redes Sociais',
-      'Social Media',
-      'Calendário de posts',
-      'Google Meu Negócio',
       'Ajustes',
       'Minha Página',
     ])
-    expect(screen.getByTestId('nav-badge-/social')).toHaveTextContent('Novidade')
-    expect(screen.getByRole('link', { name: 'Calendário de posts' })).toHaveAttribute(
-      'href',
-      '/social/calendario'
-    )
-    expect(screen.getByRole('link', { name: 'Google Meu Negócio' })).toHaveAttribute(
-      'href',
-      '/social/google'
-    )
+    expect(
+      screen.queryByRole('link', { name: /Redes Sociais/ })
+    ).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('link', { name: 'Social Media' })
+    ).not.toBeInTheDocument()
+    expect(screen.queryByTestId('nav-badge-/social')).not.toBeInTheDocument()
     expect(screen.getByRole('link', { name: 'Academy' })).toBeInTheDocument()
   })
 
   it('abre Identidade da marca em Ajustes e mantém rotas antigas no accordion', () => {
     renderSidebar('/settings/brand-identity')
-    expect(screen.getByRole('link', { name: /Identidade da marca/ })).toHaveTextContent('Novo')
+    expect(
+      screen.getByRole('link', { name: /Identidade da marca/ })
+    ).toHaveTextContent('Novo')
     const novo = screen.getByTestId('nav-badge-/settings/brand-identity')
-    const novidade = screen.getByTestId('nav-badge-/social')
-    expect(novo).toHaveStyle({ background: 'var(--chakra-colors-nav-new-badge)' })
-    expect(novidade).toHaveStyle({ background: 'var(--chakra-colors-nav-new-badge)' })
-    expect(screen.getByRole('link', { name: 'Carteira' })).toHaveAttribute('href', '/settings/wallet')
+    expect(novo).toHaveStyle({
+      background: 'var(--chakra-colors-nav-new-badge)',
+    })
+    expect(screen.queryByTestId('nav-badge-/social')).not.toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Carteira' })).toHaveAttribute(
+      'href',
+      '/settings/wallet'
+    )
     expect(screen.getByRole('link', { name: 'Renitência' })).toHaveAttribute(
       'href',
       '/settings/renitency'
@@ -134,10 +146,9 @@ describe('sidebar no formato do Figma', () => {
     cleanup()
 
     renderSidebar('/customers/CustomerBase')
-    expect(screen.getByRole('link', { name: 'Base de clientes' })).toHaveAttribute(
-      'href',
-      '/customers/CustomerBase'
-    )
+    expect(
+      screen.getByRole('link', { name: 'Base de clientes' })
+    ).toHaveAttribute('href', '/customers/CustomerBase')
   })
 
   it('troca as cores do sidebar entre claro e escuro', async () => {
@@ -151,25 +162,35 @@ describe('sidebar no formato do Figma', () => {
     )
     const sidebar = () => screen.getByTestId('app-sidebar')
     const expectSharedBadge = () => {
-      for (const testId of ['nav-badge-/settings/brand-identity', 'nav-badge-/social']) {
-        expect(screen.getByTestId(testId)).toHaveStyle({
-          background: 'var(--chakra-colors-nav-new-badge)',
-        })
-      }
+      expect(
+        screen.getByTestId('nav-badge-/settings/brand-identity')
+      ).toHaveStyle({
+        background: 'var(--chakra-colors-nav-new-badge)',
+      })
+      expect(screen.queryByTestId('nav-badge-/social')).not.toBeInTheDocument()
     }
-    await waitFor(() => expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'white'))
+    await waitFor(() =>
+      expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'white')
+    )
     expectSharedBadge()
     expect(sidebar()).toHaveAttribute('data-sidebar-hover', 'gray.100')
     expect(sidebar()).toHaveAttribute('data-sidebar-sub', '#E8F6FD')
 
     fireEvent.click(screen.getByRole('button', { name: 'modo escuro' }))
-    await waitFor(() => expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'gray.900'))
+    await waitFor(() =>
+      expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'gray.900')
+    )
     expectSharedBadge()
     expect(sidebar()).toHaveAttribute('data-sidebar-hover', 'whiteAlpha.100')
-    expect(sidebar()).toHaveAttribute('data-sidebar-sub', 'rgba(123,201,241,0.16)')
+    expect(sidebar()).toHaveAttribute(
+      'data-sidebar-sub',
+      'rgba(123,201,241,0.16)'
+    )
 
     fireEvent.click(screen.getByRole('button', { name: 'modo claro' }))
-    await waitFor(() => expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'white'))
+    await waitFor(() =>
+      expect(sidebar()).toHaveAttribute('data-sidebar-bg', 'white')
+    )
   })
 
   it('mantém contraste de pelo menos 4,5:1 no texto do sidebar escuro', () => {
