@@ -68,7 +68,7 @@ export function buildDefaultLayers(
       label: 'Selo de oferta',
       text: copy.badgeText.trim(),
       fontFamily: brand.titleFont,
-      fontSize: 18,
+      fontSize: 34,
       color: brand.deepColor,
       backgroundColor: brand.accentColor,
       x: 6,

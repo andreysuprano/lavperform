@@ -2,6 +2,7 @@ import { GrCycle, GrGraphQl, GrTarget } from 'react-icons/gr'
 import {
   LuActivity,
   LuBrain,
+  LuCalendarDays,
   LuCalendarSync,
   LuChartColumn,
   LuChartColumnBig,
@@ -10,6 +11,7 @@ import {
   LuDollarSign,
   LuLayoutTemplate,
   LuList,
+  LuMapPin,
   LuMegaphone,
   LuPalette,
   LuPlug,
@@ -148,6 +150,16 @@ export const MENU_ITEMS = [
         label: 'Gerador de posts',
         href: '/social/generator',
         icon: LuSparkles,
+      },
+      {
+        label: 'Calendário de posts',
+        href: '/social/calendario',
+        icon: LuCalendarDays,
+      },
+      {
+        label: 'Google Meu Negócio',
+        href: '/social/google',
+        icon: LuMapPin,
       },
     ],
   },

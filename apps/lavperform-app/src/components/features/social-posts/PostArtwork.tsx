@@ -1,5 +1,5 @@
 import { Box, Image, Text } from '@chakra-ui/react'
-import { useRef } from 'react'
+import { useLayoutEffect, useRef } from 'react'
 
 import type { BrandIdentity, PostLayer, PostSlide } from '@/types'
 import { formatAspect } from '@/types'
@@ -31,6 +31,29 @@ export function PostArtwork({
   testId,
 }: Props) {
   const frame = useRef<HTMLDivElement>(null)
+  const placed = useRef(false)
+
+  useLayoutEffect(() => {
+    const root = frame.current
+    if (!root) return
+    const nudge = () => {
+      if (placed.current) return
+      const title = root.querySelector<HTMLElement>('[data-layer-type="title"]')
+      const badge = root.querySelector<HTMLElement>('[data-layer-type="badge"]')
+      if (!title || !badge) return
+      const gap =
+        badge.getBoundingClientRect().top - title.getBoundingClientRect().bottom
+      const delta = 8 - gap
+      if (Math.abs(delta) < 0.5) return
+      const current = Number.parseFloat(badge.style.marginTop || '0')
+      badge.style.marginTop = `${current + delta}px`
+    }
+    nudge()
+    const observer = new ResizeObserver(nudge)
+    observer.observe(root)
+    void document.fonts?.ready.then(nudge)
+    return () => observer.disconnect()
+  }, [slide, format])
 
   const move = (layer: PostLayer, event: React.PointerEvent) => {
     if (
@@ -45,6 +68,7 @@ export function PostArtwork({
     if (!bounds) return
     event.preventDefault()
     event.stopPropagation()
+    placed.current = true
     onSelectLayer?.(layer.id)
     const drag = (pointer: PointerEvent) => {
       const x = clamp(
@@ -179,12 +203,15 @@ function LayerView({
         bg={layer.backgroundColor || '#FFD23F'}
         borderRadius="full"
         color={layer.color || '#093A58'}
+        data-layer-type="badge"
         fontFamily={layer.fontFamily || brand.titleFont}
-        fontSize={`${((layer.fontSize ?? 18) / 1080) * 100}cqw`}
+        fontSize={`clamp(13px, ${((layer.fontSize ?? 34) / 1080) * 100}cqw, 22px)`}
         fontWeight="700"
+        lineHeight="1.2"
         px="3"
-        py="1"
+        py="1.5"
         textAlign={anchorLeft ? 'left' : 'center'}
+        whiteSpace="nowrap"
         {...shared}
       >
         {layer.text}
@@ -195,12 +222,14 @@ function LayerView({
   return (
     <Text
       color={layer.color || 'white'}
+      data-layer-type={layer.type}
       fontFamily={layer.fontFamily || brand.titleFont}
-      fontSize={`${((layer.fontSize ?? 46) / 1080) * 100}cqw`}
+      fontSize={`clamp(20px, ${((layer.fontSize ?? 64) / 1080) * 100}cqw, 44px)`}
       fontWeight="800"
       lineHeight="1.05"
+      maxW={anchorLeft ? '8.5em' : undefined}
       textAlign={anchorLeft ? 'left' : 'center'}
-      w={`${layer.width ?? 86}%`}
+      w={anchorLeft ? '8.5em' : `${layer.width ?? 86}%`}
       {...shared}
     >
       {layer.text}

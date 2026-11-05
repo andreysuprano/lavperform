@@ -1,8 +1,9 @@
-import { useState } from 'react'
+import { Box, Stack } from '@chakra-ui/react'
+import { useMemo, useState } from 'react'
 import { LuSparkles } from 'react-icons/lu'
 import { useParams } from 'react-router-dom'
 
-import { AppContentLayout, LoadingState, PostRevisionStudio } from '@/components'
+import { AppContentLayout, LoadingState, PostRevisionStudio, ReviewSchedule, SocialPhoneLinks } from '@/components'
 import { downloadPostImage } from '@/components/features/social-posts/exportPost'
 import { toaster } from '@/components/ui/toaster'
 import { useAuth } from '@/context/AuthContext'
@@ -45,6 +46,14 @@ export function SocialRevisionPage() {
     }
   }
 
+  const current = useMemo(() => {
+    const variations = draft.data?.variations ?? []
+    return (
+      variations.find((item) => item.id === draft.data?.selectedVariationId) ??
+      variations[0]
+    )
+  }, [draft.data])
+
   const revise = (variationId: string, prompt: string) => {
     setLastPrompt(prompt)
     return run(() => socialPostsService.revise(variationId, prompt))
@@ -59,13 +68,19 @@ export function SocialRevisionPage() {
       {draft.isLoading || !draft.data ? (
         <LoadingState title="Abrindo revisão..." />
       ) : (
+        <Box
+          alignItems="start"
+          display="grid"
+          gap={4}
+          gridTemplateColumns={{ base: '1fr', xl: 'minmax(0, 1fr) 420px' }}
+        >
         <PostRevisionStudio
           brand={identity}
           draft={draft.data}
           error={error}
           onCopy={async (version) => {
             await navigator.clipboard.writeText(
-              captionWithHashtags(version as PostVariation)
+              captionWithHashtags(version as unknown as PostVariation)
             )
             toaster.create({ title: 'Legenda copiada', type: 'success' })
           }}
@@ -93,6 +108,18 @@ export function SocialRevisionPage() {
           }
           pending={pending}
         />
+        <Stack gap={4}>
+          <SocialPhoneLinks />
+          <ReviewSchedule
+            caption={current ? captionWithHashtags(current) : ''}
+            companyId={selectedCompany?.id ?? ''}
+            draftId={draft.data.id}
+            headline={current?.headline}
+            imageDataUrl={current?.slides[0]?.backgroundImage ?? undefined}
+            variationId={current?.id}
+          />
+        </Stack>
+        </Box>
       )}
     </AppContentLayout>
   )

@@ -2,6 +2,8 @@ import { lazy, type ReactNode,Suspense, useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 
 import { AppLayout, LoadingState } from '@/components'
+import { MorePage } from '@/components/layout/AppLayout/MorePage'
+import { StoreSwitchPage } from '@/components/layout/AppLayout/StoreSwitchPage'
 import { useAuth } from '@/context/AuthContext'
 import { DetailClientsPage } from '@/pages/customers/DetailClientsPage'
 import { RfvAttributionWindowPage } from '@/pages/customers/RfvAttributionWindowPage'
@@ -127,6 +129,16 @@ const SocialEditorPage = lazy(() =>
 const SocialRevisionPage = lazy(() =>
   import('@/pages/social/SocialRevisionPage').then((module) => ({
     default: module.SocialRevisionPage,
+  }))
+)
+const SocialCalendarPage = lazy(() =>
+  import('@/pages/social/SocialCalendarPage').then((module) => ({
+    default: module.SocialCalendarPage,
+  }))
+)
+const GoogleBusinessPage = lazy(() =>
+  import('@/pages/social/GoogleBusinessPage').then((module) => ({
+    default: module.GoogleBusinessPage,
   }))
 )
 const IntegrationPage = lazy(() =>
@@ -319,6 +331,18 @@ export function PrivateRoutes() {
           path="/dashboard"
         />
         <Route
+          element={<MorePage />}
+          path="/mais"
+        />
+        <Route
+          element={<MorePage />}
+          path="/mais/secao"
+        />
+        <Route
+          element={<StoreSwitchPage />}
+          path="/trocar-loja"
+        />
+        <Route
           element={<CustomersPage />}
           path="/customers"
         />
@@ -470,6 +494,14 @@ export function PrivateRoutes() {
         <Route
           element={<SocialEditorPage />}
           path="/social/editor/:draftId/:variationId"
+        />
+        <Route
+          element={<SocialCalendarPage />}
+          path="/social/calendario"
+        />
+        <Route
+          element={<GoogleBusinessPage />}
+          path="/social/google"
         />
         <Route
           element={<MyPage />}

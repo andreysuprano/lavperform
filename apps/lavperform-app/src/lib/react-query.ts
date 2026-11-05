@@ -159,6 +159,12 @@ export const queryKeys = {
       ['company', 'social-drafts', companyId] as const,
     socialDraft: (draftId: string) =>
       ['company', 'social-draft', draftId] as const,
+    socialConnections: (companyId: string) =>
+      ['company', 'social-connections', companyId] as const,
+    scheduledPosts: (companyId: string, from: string, to: string) =>
+      ['company', 'scheduled-posts', companyId, from, to] as const,
+    googleProfile: (companyId: string) =>
+      ['company', 'google-profile', companyId] as const,
   },
 
   subscription: {

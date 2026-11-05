@@ -1,16 +1,16 @@
-import { Box, Button, Stack } from '@chakra-ui/react'
+import { Button, Stack } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { RiPagesLine, RiSaveLine } from 'react-icons/ri'
 
 import { AppContentLayout, LoadingState, toaster } from '@/components'
+import { StickySaveBar } from '@/components/layout/AppLayout/StickySaveBar'
 import { useAuth } from '@/context/AuthContext'
+import { HeroForm } from '@/whitelabel/components/landing-page-config/HeroForm'
 import {
   useRequireLandingPage,
   useUpdateLandingPageConfig,
 } from '@/whitelabel/hooks'
 import type { HeroData } from '@/whitelabel/types'
-
-import { HeroForm } from '@/whitelabel/components/landing-page-config/HeroForm'
 
 function HeroPageBase() {
   const { selectedCompany } = useAuth()
@@ -75,15 +75,7 @@ function HeroPageBase() {
         />
       </AppContentLayout>
 
-      <Box
-        bg="none"
-        bottom={0}
-        left={0}
-        mt={4}
-        position="sticky"
-        right={0}
-        zIndex={10}
-      >
+      <StickySaveBar>
         <Button
           loading={updateConfig.isPending}
           onClick={handleSave}
@@ -93,7 +85,7 @@ function HeroPageBase() {
           <RiSaveLine />
           Salvar alterações
         </Button>
-      </Box>
+      </StickySaveBar>
     </Stack>
   )
 }

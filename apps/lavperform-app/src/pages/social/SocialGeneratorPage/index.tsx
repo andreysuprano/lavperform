@@ -1,5 +1,5 @@
 import { Button, Dialog, Stack, Text } from '@chakra-ui/react'
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { LuSparkles } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
@@ -37,6 +37,7 @@ export function SocialGeneratorPage() {
   const [draftsOpen, setDraftsOpen] = useState(false)
   const [generating, setGenerating] = useState(false)
   const [generationError, setGenerationError] = useState<string | null>(null)
+  const referenceIds = useRef<string[]>([])
 
   const generate = async () => {
     if (!companyId) return
@@ -44,6 +45,12 @@ export function SocialGeneratorPage() {
     setGenerationError(null)
     try {
       const created = await createDraft.mutateAsync({ ...form, companyId })
+      if (referenceIds.current.length) {
+        await socialPostsService.attachReferences(
+          created.id,
+          referenceIds.current
+        )
+      }
       const generated = await socialPostsService.generate(created.id)
       toaster.create({ title: 'Variações prontas', type: 'success' })
       navigate(`/social/generator/${generated.data.id}`)
@@ -58,11 +65,6 @@ export function SocialGeneratorPage() {
       setGenerating(false)
     }
   }
-
-  const brandNotice =
-    brand.data && !brand.data.persisted
-      ? 'A identidade da marca ainda não foi salva. A IA usa cores e tom padrão até você salvar logo, cores, fontes e tom de voz em Ajustes.'
-      : null
 
   return (
     <AppContentLayout
@@ -81,9 +83,15 @@ export function SocialGeneratorPage() {
         brand={brand.data}
         error={generationError}
         generating={generating}
-        notice={brandNotice}
+        notice={null}
         onChange={setForm}
         onGenerate={generate}
+        onReferences={(ids) => {
+          referenceIds.current = ids
+        }}
+        onUseReferenceModel={(model) =>
+          setForm((current) => ({ ...current, imageModel: model }))
+        }
         value={{ ...form, companyId }}
       />
       <Dialog.Root
@@ -101,7 +109,7 @@ export function SocialGeneratorPage() {
                 {(drafts.data ?? []).length === 0 && (
                   <Text color="fg.muted">Nenhum rascunho ainda.</Text>
                 )}
-                {(drafts.data ?? []).map((draft) => (
+                {(Array.isArray(drafts.data) ? drafts.data : []).map((draft) => (
                   <Button
                     justifyContent="flex-start"
                     key={draft.id}

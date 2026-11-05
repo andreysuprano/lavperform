@@ -41,12 +41,51 @@ export function parseRevisionPlan(raw: string): RevisionPlan {
     captionMedium: optionalText(parsed.captionMedium),
     captionLong: optionalText(parsed.captionLong),
     hashtags: Array.isArray(parsed.hashtags)
-      ? parsed.hashtags.map((tag) => String(tag)).filter((tag) => tag.startsWith('#'))
+      ? parsed.hashtags
+          .map((tag) => String(tag))
+          .filter((tag) => tag.startsWith('#'))
       : null,
     reply:
       optionalText(parsed.reply) ??
       defaultReply({ regenerateBackground, headline, captionTouched }),
   };
+}
+
+export function describeRevision(input: {
+  backgroundChanged: boolean;
+  headlineBefore: string;
+  headlineAfter: string;
+  captionBefore: string;
+  captionAfter: string;
+  badgeBefore: string | null;
+  badgeAfter: string | null;
+  hashtagsBefore?: string[];
+  hashtagsAfter?: string[];
+}): string {
+  const sentences: string[] = [];
+  if (input.backgroundChanged) sentences.push('Mudei o fundo.');
+  if (input.headlineAfter.trim() !== input.headlineBefore.trim()) {
+    sentences.push('Atualizei o título.');
+  }
+  const before = input.captionBefore.trim();
+  const after = input.captionAfter.trim();
+  if (after !== before) {
+    sentences.push(
+      after.length < before.length
+        ? 'Encurtei a legenda.'
+        : 'Atualizei a legenda.',
+    );
+  }
+  if ((input.badgeAfter ?? '').trim() !== (input.badgeBefore ?? '').trim()) {
+    sentences.push('Atualizei o selo.');
+  }
+  if (
+    (input.hashtagsBefore ?? []).join('\n') !==
+    (input.hashtagsAfter ?? input.hashtagsBefore ?? []).join('\n')
+  ) {
+    sentences.push('Atualizei as hashtags.');
+  }
+  return sentences.length ? sentences.join(' ') : 'Mantive o post como estava.';
 }
 
 export function applyRevisionToSlides(

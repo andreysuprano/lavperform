@@ -98,6 +98,9 @@ model Company {
   gtmContainer              CompanyGtmContainer?
   brandIdentity             BrandIdentity?
   socialPostDrafts          SocialPostDraft[]
+  socialPostReferences      SocialPostReference[]
+  scheduledSocialPosts      ScheduledSocialPost[]
+  storeSocialConnections    StoreSocialConnection[]
 
   @@index([businessPartnerId])
   @@index([deletedAt])
@@ -1606,10 +1609,13 @@ model SocialPostDraft {
   slideCount          Int                   @default(1)
   artStyle            String
   includeCaption      Boolean               @default(true)
+  imageModel          String?
   selectedVariationId String?
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt
   variations          SocialPostVariation[]
+  references          SocialPostReference[]
+  scheduledPosts      ScheduledSocialPost[]
 
   @@index([companyId])
   @@map("social_post_drafts")
@@ -1653,11 +1659,30 @@ model SocialPostVersion {
   activeCaption   String              @default("medium")
   hashtags        String[]            @default([])
   slides          Json
+  referenceIds    String[]            @default([])
   createdAt       DateTime            @default(now())
 
   @@unique([variationId, number])
   @@index([variationId])
   @@map("social_post_versions")
+}
+
+model SocialPostReference {
+  id        String    @id @default(uuid())
+  companyId String
+  company   Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  userId    String
+  draftId   String?
+  draft     SocialPostDraft? @relation(fields: [draftId], references: [id], onDelete: Cascade)
+  position  Int
+  mimeType  String
+  dataUrl   String    @db.Text
+  removedAt DateTime?
+  createdAt DateTime  @default(now())
+
+  @@index([companyId, userId])
+  @@index([draftId])
+  @@map("social_post_references")
 }
 
 /// Escolha global dos modelos OpenRouter. Uma linha (id = default).
@@ -1671,4 +1696,108 @@ model AiModelSetting {
   updatedAt   DateTime @updatedAt
 
   @@map("ai_model_settings")
+}
+
+enum ScheduledPostStatus {
+  SCHEDULED
+  PUBLISHING
+  PUBLISHED
+  FAILED
+  CANCELLED
+}
+
+enum SocialPublishChannel {
+  FACEBOOK
+  INSTAGRAM
+  GOOGLE_BUSINESS
+}
+
+enum StoreConnectionProvider {
+  META
+  GOOGLE_BUSINESS
+  GOOGLE_ADS
+}
+
+enum StoreConnectionStatus {
+  DISCONNECTED
+  CONNECTING
+  CONNECTED
+  ERROR
+}
+
+/// Publicação agendada de um post já gerado (ou avulso) por loja.
+model ScheduledSocialPost {
+  id             String                 @id @default(uuid())
+  companyId      String
+  company        Company                @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  draftId        String?
+  draft          SocialPostDraft?       @relation(fields: [draftId], references: [id], onDelete: SetNull)
+  variationId    String?
+  channels       SocialPublishChannel[]
+  caption        String                 @db.Text
+  headline       String?
+  imageDataUrl   String?                @db.Text
+  scheduledAt    DateTime
+  status         ScheduledPostStatus    @default(SCHEDULED)
+  publishedAt    DateTime?
+  attemptCount   Int                    @default(0)
+  maxAttempts    Int                    @default(3)
+  lastError      String?                @db.Text
+  channelResults Json?
+  sandbox        Boolean                @default(false)
+  cancelledAt    DateTime?
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
+
+  @@index([companyId, scheduledAt])
+  @@index([status, scheduledAt])
+  @@map("scheduled_social_posts")
+}
+
+/// Token de longa duração e ativos escolhidos (Página, Instagram, Ads, perfil Google).
+model StoreSocialConnection {
+  id                  String                  @id @default(uuid())
+  companyId           String
+  company             Company                 @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  provider            StoreConnectionProvider
+  status              StoreConnectionStatus   @default(DISCONNECTED)
+  accessTokenEnc      String?                 @db.Text
+  refreshTokenEnc     String?                 @db.Text
+  pageAccessTokenEnc  String?                 @db.Text
+  tokenExpiresAt      DateTime?
+  pageId              String?
+  pageName            String?
+  igUserId            String?
+  igUsername          String?
+  adAccountId         String?
+  adAccountName       String?
+  accountName         String?
+  locationId          String?
+  locationName        String?
+  locationAddress     String?
+  customerId          String?
+  customerName        String?
+  lastError           String?                 @db.Text
+  metadata            Json?
+  sandbox             Boolean                 @default(false)
+  connectedAt         DateTime?
+  createdAt           DateTime                @default(now())
+  updatedAt           DateTime                @updatedAt
+
+  @@unique([companyId, provider])
+  @@index([companyId])
+  @@map("store_social_connections")
+}
+
+model SocialOAuthState {
+  id        String                  @id @default(uuid())
+  state     String                  @unique
+  companyId String
+  userId    String
+  provider  StoreConnectionProvider
+  expiresAt DateTime
+  createdAt DateTime                @default(now())
+
+  @@index([expiresAt])
+  @@map("social_oauth_states")
 }

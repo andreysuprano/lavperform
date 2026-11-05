@@ -1,4 +1,4 @@
-import { SimpleGrid, Stack } from '@chakra-ui/react'
+import { SimpleGrid, Stack, Text } from '@chakra-ui/react'
 import { useCallback, useEffect, useState } from 'react'
 
 import {
@@ -6,20 +6,19 @@ import {
   Empty,
   LoadingState,
   OpenApiIntegrationSection,
+  SocialConnectionsSection,
 } from '@/components'
 import { useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import { integrationService } from '@/services'
 import type { CompanyIntegration } from '@/types'
 import { logger } from '@/utils/logger'
-import { useWhitelabelActive } from '@/whitelabel/hooks'
 
 export const CompanyIntegrationList = () => {
   const [integrations, setIntegrations] = useState<CompanyIntegration[]>([])
   const [loading, setLoading] = useState(true)
   const { selectedCompany } = useAuth()
   const { features } = useWhiteLabel()
-  const { isActive: isWhitelabelActive } = useWhitelabelActive()
 
   const fetchIntegrations = useCallback(async () => {
     if (!selectedCompany?.id) return
@@ -45,7 +44,15 @@ export const CompanyIntegrationList = () => {
 
   return (
     <Stack gap={4}>
-      {<OpenApiIntegrationSection />}
+      <SocialConnectionsSection />
+      <Text
+        color="fg.muted"
+        fontSize="sm"
+        fontWeight="semibold"
+      >
+        Sistemas da lavanderia
+      </Text>
+      <OpenApiIntegrationSection />
 
       {loading ? (
         <LoadingState />
@@ -64,6 +71,8 @@ export const CompanyIntegrationList = () => {
 
             return (
               <CompanyIntegrationForm
+                apiPassword={defaultIntegration?.password}
+                apiSecret={defaultIntegration?.apiSecret}
                 codigoLoja={defaultIntegration?.merchantId}
                 key={integration.id}
                 logo={integration.logoUrl}
@@ -71,10 +80,8 @@ export const CompanyIntegrationList = () => {
                 onSuccess={fetchIntegrations}
                 partnerId={integration.id}
                 partnerSlug={integration.partnerSlug}
-                token={defaultIntegration?.apiKey}
-                apiSecret={defaultIntegration?.apiSecret}
-                apiPassword={defaultIntegration?.password}
                 requiredFields={integration.requiredFields}
+                token={defaultIntegration?.apiKey}
                 urlCardapio={
                   features.hasDelivery
                     ? defaultIntegration?.digitalMenuUrl
