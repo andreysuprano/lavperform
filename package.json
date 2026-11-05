@@ -4,7 +4,8 @@
   "version": "0.0.0",
   "workspaces": [
     "apps/*",
-    "packages/*"
+    "packages/*",
+    "!apps/lavnotas-api"
   ],
   "packageManager": "yarn@4.3.0",
   "scripts": {
