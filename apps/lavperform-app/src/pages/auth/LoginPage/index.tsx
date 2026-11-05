@@ -17,12 +17,6 @@ export function LoginPage() {
         aria-labelledby="login-title"
         className="login-card"
       >
-        <h1
-          className="login-sr-only"
-          id="login-title"
-        >
-          Entrar
-        </h1>
         <img
           alt="LavPerform"
           className="login-logo"
@@ -30,6 +24,12 @@ export function LoginPage() {
           src={logo}
           width={193}
         />
+        <h1
+          className="login-title"
+          id="login-title"
+        >
+          Entrar na sua conta
+        </h1>
         <LoginForm />
       </section>
     </main>
