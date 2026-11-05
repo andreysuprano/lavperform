@@ -1,4 +1,4 @@
-import { BadRequestException, INestApplication, ValidationPipe } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, INestApplication, ValidationPipe } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { Test } from '@nestjs/testing';
 import { GTM_CODE_MESSAGE, META_PIXEL_CODE_MESSAGE } from 'src/traffic/domain/tracking-messages';
@@ -182,17 +182,28 @@ describe('TrafficTrackingController', () => {
 });
 
 describe('TrafficReadGuard', () => {
-  const guard = new TrafficReadGuard();
+  const members = new Set(['user-1:company-1']);
+  const guard = new TrafficReadGuard({
+    userCompany: {
+      findUnique: async ({ where }: { where: { userId_companyId: { userId: string; companyId: string } } }) => {
+        const key = `${where.userId_companyId.userId}:${where.userId_companyId.companyId}`;
+        return members.has(key) ? { id: 'link' } : null;
+      },
+    },
+  } as any);
 
-  function context(user: unknown) {
+  function context(user: unknown, companyId = 'company-1') {
     return {
-      switchToHttp: () => ({ getRequest: () => ({ user }) }),
+      switchToHttp: () => ({ getRequest: () => ({ user, params: { companyId } }) }),
     } as any;
   }
 
-  it('allows traffic.read and rejects everyone else', () => {
-    expect(guard.canActivate(context({ accessRules: [{ module: 'traffic', action: 'read' }] }))).toBe(true);
-    expect(guard.canActivate(context({ accessRules: ['traffic.read'] }))).toBe(true);
-    expect(() => guard.canActivate(context({ accessRules: [{ module: 'campaigns', action: 'read' }] }))).toThrow();
+  it('allows a member of the company and rejects anyone else', async () => {
+    await expect(guard.canActivate(context({ userId: 'user-1' }))).resolves.toBe(true);
+    await expect(guard.canActivate(context({ userId: 'user-2' }))).rejects.toBeInstanceOf(ForbiddenException);
+    await expect(guard.canActivate(context({ userId: 'user-1' }, 'other-company'))).rejects.toBeInstanceOf(
+      ForbiddenException,
+    );
+    await expect(guard.canActivate(context({}))).rejects.toBeInstanceOf(ForbiddenException);
   });
 });
