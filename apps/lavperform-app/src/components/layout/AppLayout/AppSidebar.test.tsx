@@ -93,7 +93,7 @@ describe('sidebar no formato do Figma', () => {
       'Canais de Comunicação',
       'Integrações',
       'Redes Sociais',
-      'Gerador de posts',
+      'Social Media',
       'Calendário de posts',
       'Google Meu Negócio',
       'Ajustes',

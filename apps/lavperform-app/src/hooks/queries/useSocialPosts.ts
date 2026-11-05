@@ -1,5 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 
+import { normalizeLibraryPost } from '@/components/features/social-posts/postLibrary'
 import { toaster } from '@/components/ui/toaster'
 import { queryKeys } from '@/lib/react-query'
 import { apiErrorMessage, socialPostsService } from '@/services'
@@ -47,8 +48,10 @@ export function useSocialDrafts(companyId?: string) {
     enabled: Boolean(companyId),
     queryFn: async () => {
       const response = await socialPostsService.listDrafts(companyId ?? '')
-      return response.data
+      return response.data.map((post) => normalizeLibraryPost(post))
     },
+    refetchInterval: (query) =>
+      query.state.data?.some((post) => post.status === 'gerando') ? 2000 : false,
   })
 }
 

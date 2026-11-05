@@ -19,6 +19,7 @@ export function buildCopyMessages(input: {
   format: PostFormat;
   count: number;
   includeCaption: boolean;
+  creativeFreedom?: boolean;
 }) {
   const tones = input.brand.tones.length
     ? input.brand.tones.join(', ')
@@ -42,6 +43,9 @@ export function buildCopyMessages(input: {
     input.includeCaption
       ? 'Preencha as três legendas.'
       : 'Deixe captionShort, captionMedium e captionLong como string vazia e hashtags como array vazio.',
+    input.creativeFreedom
+      ? 'Você tem liberdade criativa: pode sugerir um ângulo novo, desde que continue fiel à lavanderia e ao tema.'
+      : 'Siga o tema de perto. Não invente preço, prazo ou promoção que não estejam no pedido.',
     'Não descreva layout, cores ou instruções de imagem. O fundo é gerado à parte.',
   ]
     .filter(Boolean)

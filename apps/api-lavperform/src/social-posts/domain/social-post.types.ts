@@ -5,6 +5,7 @@ export const POST_OBJECTIVES = [
   'data',
   'prova_social',
   'reativar',
+  'atrair',
 ] as const;
 
 export const POST_FORMATS = ['feed', 'story', 'carousel'] as const;
@@ -110,6 +111,7 @@ export const OBJECTIVE_LABELS: Record<PostObjective, string> = {
   data: 'Data comemorativa',
   prova_social: 'Prova social',
   reativar: 'Reativar clientes',
+  atrair: 'Trazer clientes novos',
 };
 
 export const ART_STYLE_PROMPTS: Record<ArtStyle, string> = {

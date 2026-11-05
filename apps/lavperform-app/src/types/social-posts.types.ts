@@ -152,6 +152,11 @@ export interface CreateDraftPayload {
   artStyle: string
   includeCaption?: boolean
   imageModel?: string
+  tone?: string | null
+  wizardStep?: number
+  placement?: string
+  creativeFreedom?: boolean
+  mediaIds?: string[]
 }
 
 export interface UpdateVariationPayload {
@@ -187,9 +192,42 @@ export function activeCaptionText(variation: PostVariation) {
 }
 
 export function captionWithHashtags(variation: PostVariation) {
-  const caption = activeCaptionText(variation).trim()
-  const tags = variation.hashtags.join(' ')
-  return [caption, tags].filter(Boolean).join('\n\n')
+  return activeCaptionText(variation).trim()
+}
+
+export type SocialPostStatus =
+  | 'rascunho'
+  | 'gerando'
+  | 'gerado'
+  | 'agendado'
+  | 'publicado'
+  | 'falhou'
+
+export interface SocialLibraryPost {
+  id: string
+  objective: string
+  theme: string
+  format: string
+  slideCount: number
+  artStyle: string
+  tone: string | null
+  wizardStep: number
+  placement: string
+  creativeFreedom: boolean
+  includeCaption: boolean
+  generationStatus: string
+  generationError: string | null
+  selectedVariationId: string | null
+  createdAt: string
+  updatedAt: string
+  headline: string | null
+  captionExcerpt: string
+  thumbnail: string | null
+  networks: string[]
+  scheduledAt: string | null
+  publishedAt: string | null
+  variationCount: number
+  status: SocialPostStatus
 }
 
 export function formatAspect(format: string): number {

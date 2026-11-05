@@ -4,7 +4,7 @@ import { NavLink } from 'react-router-dom'
 import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
 
 const LINKS = [
-  { href: '/social/generator', label: 'Gerador' },
+  { href: '/social/generator', label: 'Social Media' },
   { href: '/social/calendario', label: 'Calendário' },
   { href: '/social/google', label: 'Google' },
 ]

@@ -11,8 +11,16 @@ import { PrismaService } from '../prisma/prisma.service';
 import { UpdateBrandIdentityDto } from './dto/brand-identity.dto';
 import {
   CreateSocialDraftDto,
+  StartGenerationDto,
+  UpdateSocialDraftDto,
   UpdateVariationDto,
 } from './dto/social-post.dto';
+import {
+  captionExcerpt,
+  channelLabels,
+  libraryStatus,
+  thumbnailFromSlides,
+} from './domain/library-status';
 import { buildDefaultLayers, buildSlides } from './domain/post-layers';
 import {
   REFERENCE_LIMIT,
@@ -58,6 +66,7 @@ const LOGO_PREFIXES = ['data:image/', 'https://', 'http://', '/'];
 @Injectable()
 export class SocialPostsService {
   private readonly revisionQueues = new Map<string, Promise<unknown>>();
+  private readonly generationJobs = new Map<string, Promise<void>>();
   private referenceWarning: string | null = null;
 
   constructor(
@@ -123,25 +132,33 @@ export class SocialPostsService {
     const drafts = await this.prisma.socialPostDraft.findMany({
       where: { companyId },
       orderBy: { updatedAt: 'desc' },
-      take: 30,
       include: {
+        _count: { select: { variations: true } },
         variations: {
-          select: { id: true, position: true, headline: true },
           orderBy: { position: 'asc' },
+          take: 1,
+          select: {
+            headline: true,
+            captionShort: true,
+            captionMedium: true,
+            captionLong: true,
+            activeCaption: true,
+            slides: true,
+          },
+        },
+        scheduledPosts: {
+          where: { status: { not: 'CANCELLED' } },
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            status: true,
+            channels: true,
+            scheduledAt: true,
+            publishedAt: true,
+          },
         },
       },
     });
-    return drafts.map((draft) => ({
-      id: draft.id,
-      objective: draft.objective,
-      theme: draft.theme,
-      format: draft.format,
-      slideCount: draft.slideCount,
-      updatedAt: draft.updatedAt,
-      selectedVariationId: draft.selectedVariationId,
-      variationCount: draft.variations.length,
-      headline: draft.variations[0]?.headline ?? null,
-    }));
+    return drafts.map((draft) => this.presentLibrary(draft));
   }
 
   async createDraft(userId: string, dto: CreateSocialDraftDto) {
@@ -158,6 +175,10 @@ export class SocialPostsService {
         artStyle: dto.artStyle,
         includeCaption: dto.includeCaption ?? true,
         imageModel: dto.imageModel?.trim() || null,
+        tone: dto.tone?.trim() || null,
+        wizardStep: dto.wizardStep ?? 1,
+        placement: dto.placement ?? 'feed',
+        creativeFreedom: dto.creativeFreedom ?? false,
       },
       include: { variations: true },
     });
@@ -173,8 +194,107 @@ export class SocialPostsService {
   async generate(userId: string, draftId: string) {
     const draft = await this.loadDraft(draftId);
     await this.ensureCompanyAccess(userId, draft.companyId);
+    if (draft.theme.trim().length < 8) {
+      throw new BadRequestException(
+        'Descreva o tema com pelo menos 8 caracteres.',
+      );
+    }
     const copies = await this.createVariations(draft, 0, true);
     return copies;
+  }
+
+  async updateDraft(userId: string, draftId: string, dto: UpdateSocialDraftDto) {
+    const draft = await this.loadDraft(draftId);
+    await this.ensureCompanyAccess(userId, draft.companyId);
+    if (draft.generationStatus === 'generating') {
+      throw new BadRequestException('Este post está sendo gerado.');
+    }
+    const format = (dto.format ?? draft.format) as PostFormat;
+    const placement = dto.placement ?? draft.placement;
+    const slideCount =
+      format === 'carousel' ? (dto.slideCount ?? draft.slideCount) : 1;
+    await this.prisma.socialPostDraft.update({
+      where: { id: draftId },
+      data: {
+        objective: dto.objective ?? draft.objective,
+        theme: dto.theme?.trim() ?? draft.theme,
+        format,
+        slideCount,
+        artStyle: dto.artStyle ?? draft.artStyle,
+        includeCaption: dto.includeCaption ?? draft.includeCaption,
+        tone: dto.tone !== undefined ? dto.tone.trim() || null : draft.tone,
+        wizardStep: dto.wizardStep ?? draft.wizardStep,
+        placement,
+        creativeFreedom: dto.creativeFreedom ?? draft.creativeFreedom,
+      },
+    });
+    if (dto.mediaIds?.length) {
+      await this.attachReferences(userId, draftId, dto.mediaIds);
+    }
+    return this.presentLibrary(await this.loadLibraryRow(draftId));
+  }
+
+  async startGeneration(
+    userId: string,
+    draftId: string,
+    dto: StartGenerationDto = {},
+  ) {
+    const draft = await this.loadDraft(draftId);
+    await this.ensureCompanyAccess(userId, draft.companyId);
+    if (draft.theme.trim().length < 8) {
+      throw new BadRequestException(
+        'Descreva o tema com pelo menos 8 caracteres.',
+      );
+    }
+    if (dto.creativeFreedom !== undefined) {
+      await this.prisma.socialPostDraft.update({
+        where: { id: draftId },
+        data: { creativeFreedom: dto.creativeFreedom },
+      });
+    }
+    if (dto.mediaIds?.length) {
+      await this.attachReferences(userId, draftId, dto.mediaIds);
+    }
+    if (draft.generationStatus !== 'generating') {
+      await this.prisma.socialPostDraft.update({
+        where: { id: draftId },
+        data: { generationStatus: 'generating', generationError: null },
+      });
+      this.kickGeneration(userId, draftId);
+    }
+    return this.presentLibrary(await this.loadLibraryRow(draftId));
+  }
+
+  async uploadMedia(
+    userId: string,
+    companyId: string,
+    file: { mimetype: string; buffer: Buffer; size: number },
+  ) {
+    if (!/^[0-9a-f-]{36}$/i.test(companyId)) {
+      throw new BadRequestException('Loja inválida.');
+    }
+    const allowed = ['image/jpeg', 'image/png', 'image/webp'];
+    if (!allowed.includes(file.mimetype)) {
+      throw new BadRequestException('Envie JPG, PNG ou WEBP.');
+    }
+    if (!file.buffer?.length || file.size > 10 * 1024 * 1024) {
+      throw new BadRequestException('Cada imagem pode ter no máximo 10 MB.');
+    }
+    const dataUrl = `data:${file.mimetype};base64,${file.buffer.toString('base64')}`;
+    const saved = await this.addReference(userId, companyId, dataUrl);
+    return { id: saved.id, url: `/social-posts/media/${saved.id}` };
+  }
+
+  async readMedia(userId: string, mediaId: string) {
+    const row = await this.getReference(userId, mediaId);
+    const match = /^data:(image\/[\w.+-]+);base64,([A-Za-z0-9+/=\s]+)$/.exec(
+      row.dataUrl,
+    );
+    if (!match) throw new BadRequestException('Imagem indisponível.');
+    return {
+      mimeType: match[1],
+      buffer: Buffer.from(match[2].replace(/\s/g, ''), 'base64'),
+    };
   }
 
   async generateMore(userId: string, draftId: string) {
@@ -314,13 +434,15 @@ export class SocialPostsService {
       select: { name: true },
     });
     const brand = await this.brandFor(draft.companyId);
+    const voiced = draft.tone ? { ...brand, tones: [draft.tone] } : brand;
     const copies = await this.requestCopies({
       companyName: company?.name ?? 'Lavanderia',
-      brand,
+      brand: voiced,
       objective: draft.objective as PostObjective,
       theme: draft.theme,
       format: draft.format as PostFormat,
       includeCaption: draft.includeCaption,
+      creativeFreedom: draft.creativeFreedom,
     });
     const images = await this.mapPool(copies, 2, () =>
       this.generateBackground(
@@ -391,6 +513,8 @@ export class SocialPostsService {
           selectedVariationId: replace
             ? (rows[0]?.id ?? null)
             : (draft.selectedVariationId ?? rows[0]?.id ?? null),
+          generationStatus: 'generated',
+          generationError: null,
         },
       });
       return rows;
@@ -408,6 +532,7 @@ export class SocialPostsService {
     theme: string;
     format: PostFormat;
     includeCaption: boolean;
+    creativeFreedom?: boolean;
   }): Promise<GeneratedCopy[]> {
     const messages = buildCopyMessages({ ...input, count: VARIATION_BATCH });
     const first = await this.openRouter.completeText([
@@ -806,6 +931,11 @@ export class SocialPostsService {
       slideCount: draft.slideCount,
       artStyle: draft.artStyle,
       includeCaption: draft.includeCaption,
+      tone: draft.tone,
+      wizardStep: draft.wizardStep,
+      placement: draft.placement,
+      creativeFreedom: draft.creativeFreedom,
+      generationStatus: draft.generationStatus,
       selectedVariationId: draft.selectedVariationId,
       referenceWarning: this.referenceWarning,
       references: [...(draft.references ?? [])]
@@ -1090,6 +1220,117 @@ export class SocialPostsService {
       throw new NotFoundException('Imagem não encontrada');
     }
     return row;
+  }
+
+  private kickGeneration(userId: string, draftId: string) {
+    if (this.generationJobs.has(draftId)) return;
+    const job = this.generate(userId, draftId)
+      .then(() => undefined)
+      .catch(async (error: unknown) => {
+        const message =
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível gerar o post.';
+        await this.prisma.socialPostDraft
+          .update({
+            where: { id: draftId },
+            data: { generationStatus: 'failed', generationError: message },
+          })
+          .catch(() => undefined);
+      })
+      .finally(() => {
+        this.generationJobs.delete(draftId);
+      });
+    this.generationJobs.set(draftId, job);
+  }
+
+  private async loadLibraryRow(draftId: string) {
+    const draft = await this.prisma.socialPostDraft.findUnique({
+      where: { id: draftId },
+      include: {
+        _count: { select: { variations: true } },
+        variations: {
+          orderBy: { position: 'asc' },
+          take: 1,
+          select: {
+            headline: true,
+            captionShort: true,
+            captionMedium: true,
+            captionLong: true,
+            activeCaption: true,
+            slides: true,
+          },
+        },
+        scheduledPosts: {
+          where: { status: { not: 'CANCELLED' } },
+          orderBy: { updatedAt: 'desc' },
+          select: {
+            status: true,
+            channels: true,
+            scheduledAt: true,
+            publishedAt: true,
+          },
+        },
+      },
+    });
+    if (!draft) throw new NotFoundException('Rascunho não encontrado');
+    return draft;
+  }
+
+  private presentLibrary(
+    draft: Awaited<ReturnType<SocialPostsService['loadLibraryRow']>>,
+  ) {
+    const variation = draft.variations[0];
+    const variationCount = draft._count?.variations ?? draft.variations.length;
+    const schedules = draft.scheduledPosts ?? [];
+    const status = libraryStatus({
+      generationStatus: draft.generationStatus,
+      variationCount,
+      scheduleStatuses: schedules.map((item) => item.status),
+    });
+    const winning =
+      status === 'publicado'
+        ? schedules.find((item) => item.status === 'PUBLISHED')
+        : status === 'agendado'
+          ? schedules.find(
+              (item) =>
+                item.status === 'SCHEDULED' || item.status === 'PUBLISHING',
+            )
+          : status === 'falhou'
+            ? schedules.find((item) => item.status === 'FAILED')
+            : schedules[0];
+    const caption =
+      variation?.activeCaption === 'short'
+        ? variation.captionShort
+        : variation?.activeCaption === 'long'
+          ? variation.captionLong
+          : variation?.captionMedium;
+    return {
+      id: draft.id,
+      objective: draft.objective,
+      theme: draft.theme,
+      format: draft.format,
+      slideCount: draft.slideCount,
+      artStyle: draft.artStyle,
+      includeCaption: draft.includeCaption,
+      tone: draft.tone,
+      wizardStep: draft.wizardStep,
+      placement: draft.placement,
+      creativeFreedom: draft.creativeFreedom,
+      generationStatus: draft.generationStatus,
+      generationError: draft.generationError,
+      selectedVariationId: draft.selectedVariationId,
+      createdAt: draft.createdAt,
+      updatedAt: draft.updatedAt,
+      headline: variation?.headline ?? null,
+      captionExcerpt: captionExcerpt([caption, variation?.headline, draft.theme]),
+      thumbnail: thumbnailFromSlides(variation?.slides),
+      networks: channelLabels(winning?.channels ?? []),
+      scheduledAt: winning?.scheduledAt ?? null,
+      publishedAt: winning?.publishedAt ?? null,
+      variationCount,
+      status,
+    };
   }
 
   private async ensureCompanyAccess(userId: string, companyId: string) {

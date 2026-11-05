@@ -473,7 +473,7 @@ export function BrandIdentityForm({
                 variant="outline"
               >
                 <RouterLink to="/social/generator">
-                  Abrir gerador de posts
+                  Abrir Social Media
                 </RouterLink>
               </Button>
             </Card.Body>

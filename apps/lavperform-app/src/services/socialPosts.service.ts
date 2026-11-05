@@ -5,7 +5,7 @@ import type {
   CreateDraftPayload,
   PostVariation,
   SaveBrandPayload,
-  SocialDraftSummary,
+  SocialLibraryPost,
   SocialPostDraft,
   UpdateVariationPayload,
 } from '@/types'
@@ -25,7 +25,36 @@ export const socialPostsService = {
   },
 
   async listDrafts(companyId: string) {
-    return client.get<SocialDraftSummary[]>(`/social-posts/drafts/${companyId}`)
+    return client.get<SocialLibraryPost[]>(`/social-posts/drafts/${companyId}`)
+  },
+
+  async updateDraft(
+    draftId: string,
+    payload: Partial<CreateDraftPayload> & { wizardStep?: number }
+  ) {
+    return client.patch<SocialLibraryPost>(
+      `/social-posts/drafts/item/${draftId}`,
+      payload
+    )
+  },
+
+  async startGeneration(
+    draftId: string,
+    payload: { mediaIds?: string[]; creativeFreedom?: boolean } = {}
+  ) {
+    return client.post<SocialLibraryPost>(
+      `/social-posts/drafts/item/${draftId}/generate-async`,
+      payload
+    )
+  },
+
+  async uploadMedia(companyId: string, file: File) {
+    const body = new FormData()
+    body.append('companyId', companyId)
+    body.append('file', file)
+    return client.post<{ id: string; url: string }>('/social-posts/media', body, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+    })
   },
 
   async createDraft(payload: CreateDraftPayload) {

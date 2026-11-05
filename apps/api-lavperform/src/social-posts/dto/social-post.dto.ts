@@ -29,7 +29,7 @@ export class CreateSocialDraftDto {
   objective: string;
 
   @IsString()
-  @MinLength(8)
+  @MinLength(1)
   @MaxLength(1000)
   theme: string;
 
@@ -54,6 +54,98 @@ export class CreateSocialDraftDto {
   @IsString()
   @MaxLength(120)
   imageModel?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  tone?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  wizardStep?: number;
+
+  @IsOptional()
+  @IsIn(['feed', 'story', 'google'])
+  placement?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  creativeFreedom?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  mediaIds?: string[];
+}
+
+export class UpdateSocialDraftDto {
+  @IsOptional()
+  @IsIn(POST_OBJECTIVES)
+  objective?: string;
+
+  @IsOptional()
+  @IsString()
+  @MinLength(1)
+  @MaxLength(1000)
+  theme?: string;
+
+  @IsOptional()
+  @IsIn(POST_FORMATS)
+  format?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  slideCount?: number;
+
+  @IsOptional()
+  @IsIn(ART_STYLES)
+  artStyle?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  includeCaption?: boolean;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  tone?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(4)
+  wizardStep?: number;
+
+  @IsOptional()
+  @IsIn(['feed', 'story', 'google'])
+  placement?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  creativeFreedom?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  mediaIds?: string[];
+}
+
+export class StartGenerationDto {
+  @IsOptional()
+  @IsBoolean()
+  creativeFreedom?: boolean;
+
+  @IsOptional()
+  @IsArray()
+  @IsUUID('4', { each: true })
+  mediaIds?: string[];
 }
 
 export class SelectVariationDto {

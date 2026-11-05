@@ -29,7 +29,7 @@ import {
 } from 'react-icons/lu'
 
 import type { BrandIdentity, PostLayer, PostVariation } from '@/types'
-import { captionWithHashtags, FONT_OPTIONS } from '@/types'
+import { activeCaptionText, FONT_OPTIONS } from '@/types'
 
 import { contrastRatio } from './brandVisual'
 import { PostArtwork } from './PostArtwork'
@@ -529,7 +529,7 @@ export function PostLayerEditor({
               fontSize="sm"
               whiteSpace="pre-wrap"
             >
-              {captionWithHashtags(variation)}
+              {activeCaptionText(variation)}
             </Text>
           </Card.Body>
         </Card.Root>
