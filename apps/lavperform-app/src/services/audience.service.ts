@@ -16,7 +16,13 @@ export const audienceService = {
   ) {
     return client.get<AudiencesListResponse>(
       `/companies/${companyId}/audiences`,
-      { params },
+      {
+        params,
+        headers: {
+          'Cache-Control': 'no-cache',
+          Pragma: 'no-cache',
+        },
+      },
     )
   },
 

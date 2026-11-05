@@ -3,23 +3,61 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@/lib/react-query'
 import { audienceService } from '@/services/audience.service'
 import type {
+  Audience,
   AudienceDefinition,
+  AudiencesListResponse,
   CreateAudienceRequest,
   UpdateAudienceRequest,
 } from '@/types'
 
+const AUDIENCE_PAGE_SIZE = 100
+
+async function listEveryAudience(
+  companyId: string,
+): Promise<AudiencesListResponse> {
+  const first = await audienceService.list(companyId, {
+    page: 1,
+    limit: AUDIENCE_PAGE_SIZE,
+  })
+  const items: Audience[] = [...first.data.data]
+  const totalPages = first.data.meta?.totalPages ?? 1
+
+  for (let page = 2; page <= totalPages; page += 1) {
+    const next = await audienceService.list(companyId, {
+      page,
+      limit: AUDIENCE_PAGE_SIZE,
+    })
+    items.push(...next.data.data)
+  }
+
+  return {
+    data: items,
+    meta: {
+      ...first.data.meta,
+      total: first.data.meta?.total ?? items.length,
+      page: 1,
+      limit: items.length || AUDIENCE_PAGE_SIZE,
+      totalPages: 1,
+    },
+  }
+}
+
 export function useAudiences(
   companyId: string | undefined,
-  params: { page?: number; limit?: number } = {},
+  _params: { page?: number; limit?: number } = {},
 ) {
+  // page/limit antigo criava um cache por tela e a lista da campanha ficava para trás.
+  void _params
+
   return useQuery({
-    queryKey: queryKeys.audiences.list(companyId || '', params),
+    queryKey: queryKeys.audiences.lists(companyId || ''),
     queryFn: async () => {
       if (!companyId) throw new Error('Company ID is required')
-      const response = await audienceService.list(companyId, params)
-      return response.data
+      return listEveryAudience(companyId)
     },
     enabled: !!companyId,
+    refetchOnMount: 'always',
+    staleTime: 0,
   })
 }
 
@@ -92,6 +130,7 @@ export function useCreateAudience() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.audiences.lists(variables.companyId),
+        refetchType: 'all',
       })
     },
   })
@@ -116,12 +155,14 @@ export function useUpdateAudience() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.audiences.lists(variables.companyId),
+        refetchType: 'all',
       })
       queryClient.invalidateQueries({
         queryKey: queryKeys.audiences.detail(
           variables.companyId,
           variables.audienceId,
         ),
+        refetchType: 'all',
       })
     },
   })
@@ -143,6 +184,7 @@ export function useDeleteAudience() {
     onSuccess: (_, variables) => {
       queryClient.invalidateQueries({
         queryKey: queryKeys.audiences.lists(variables.companyId),
+        refetchType: 'all',
       })
     },
   })
