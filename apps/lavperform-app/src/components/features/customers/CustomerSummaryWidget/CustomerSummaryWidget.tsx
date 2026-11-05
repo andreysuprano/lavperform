@@ -1,6 +1,9 @@
 import { Badge, Grid, Text } from '@chakra-ui/react'
 import { memo } from 'react'
 
+import { shellDark } from '@/components/layout/AppLayout/shellPalette'
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import { useWhiteLabel } from '@/config'
 import { useCustomerSummary } from '@/context/CustomerSummaryContext'
 
@@ -15,6 +18,8 @@ const CustomerSummaryWidgetComponent = ({
 }: Props) => {
   const { colors } = useWhiteLabel()
   const { customersSummary } = useCustomerSummary()
+  const phone = useShellMode() === 'phone'
+  const phoneCard = useColorModeValue('white', shellDark.card)
 
   if (customersSummary.length === 0) {
     return null
@@ -46,7 +51,7 @@ const CustomerSummaryWidgetComponent = ({
                 : undefined
             }
             as="div"
-            bg={card.count ? 'bg.panel' : 'bg.muted'}
+            bg={phone ? phoneCard : card.count ? 'bg.panel' : 'bg.muted'}
             borderColor={isSelected ? colors.primary : 'border'}
             borderWidth="1px"
             colorPalette="gray"

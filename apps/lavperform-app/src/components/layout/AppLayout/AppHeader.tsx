@@ -28,8 +28,11 @@ import {
   OrganizationSelect,
 } from '@/components'
 import { CreditsHeaderCard } from '@/components/features/credits/CreditsHeaderCard/CreditsHeaderCard'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import type { UserCompany } from '@/types'
 import { WeatherStatus } from '@/whitelabel/components/weather/WeatherStatus'
+
+import { shellDark } from './shellPalette'
 
 const Header = memo(
   ({
@@ -54,6 +57,8 @@ const Header = memo(
     variant?: 'desktop' | 'tablet'
   }) => {
     const tablet = variant === 'tablet'
+    const headerBg = useColorModeValue('white', shellDark.background)
+    const headerBorder = useColorModeValue('border', shellDark.border)
     const handleToggleSidebar = useCallback(() => {
       const newOpenState = !open
       setOpen(newOpenState)
@@ -74,8 +79,9 @@ const Header = memo(
 
     return (
       <Center
-        bg="bg"
+        bg={headerBg}
         borderBottomWidth={1}
+        borderColor={headerBorder}
         gap={{ base: 2, lg: 4 }}
         h="calc(64px + env(safe-area-inset-top, 0px))"
         justifyContent={'space-between'}

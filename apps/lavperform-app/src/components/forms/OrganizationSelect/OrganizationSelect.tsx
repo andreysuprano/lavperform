@@ -104,7 +104,7 @@ function OrganizationSelect({
     <CompactContext.Provider value={compact}>
     <Select.Root
       collection={companiesCollection}
-      minW={compact ? '44px' : 240}
+      minW={compact ? '80px' : 240}
       onOpenChange={handleOpenChange}
       onValueChange={onCompanyChange}
       positioning={{ sameWidth: true }}

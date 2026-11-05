@@ -1,6 +1,7 @@
 import { Badge, Box, Button, Text } from '@chakra-ui/react'
 import { LuChevronRight, LuPhone } from 'react-icons/lu'
 
+import { shellDark } from '@/components/layout/AppLayout/shellPalette'
 import { useColorModeValue } from '@/components/ui/color-mode'
 import type { Customer } from '@/types'
 import { getCustomerCategoryLabel } from '@/utils/customers/customerCategory'
@@ -28,9 +29,9 @@ export function CustomerPhoneList({
   customers: Customer[]
   onSelect: (customer: Customer) => void
 }) {
-  const card = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
-  const muted = useColorModeValue('#71717A', 'gray.400')
+  const card = useColorModeValue('white', shellDark.card)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
+  const muted = useColorModeValue('#71717A', shellDark.muted)
 
   if (customers.length === 0) {
     return (
