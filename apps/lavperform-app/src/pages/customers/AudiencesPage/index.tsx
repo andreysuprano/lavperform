@@ -20,7 +20,7 @@ import type { Audience } from '@/types'
 export function AudiencesPage() {
   const { selectedCompany } = useAuth()
   const companyId = selectedCompany?.id
-  const { data, isLoading } = useAudiences(companyId, { page: 1, limit: 50 })
+  const { data, isLoading } = useAudiences(companyId)
   const deleteAudience = useDeleteAudience()
 
   const [editorOpen, setEditorOpen] = useState(false)
