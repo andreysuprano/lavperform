@@ -4,6 +4,7 @@ import { ValidationPipe } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { json, urlencoded } from 'express';
 
+import { parseCorsOrigins } from './cors-origins';
 import './instrument';
 
 async function bootstrap() {
@@ -11,7 +12,7 @@ async function bootstrap() {
   app.use(json({ limit: '15mb' }));
   app.use(urlencoded({ extended: true, limit: '15mb' }));
   app.enableCors({
-    origin: '*',
+    origin: parseCorsOrigins(process.env.CORS_ORIGIN),
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
     preflightContinue: false,
     optionsSuccessStatus: 204,

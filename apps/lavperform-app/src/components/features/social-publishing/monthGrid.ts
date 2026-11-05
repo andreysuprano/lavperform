@@ -98,3 +98,50 @@ export function dateKey(iso: string) {
     day: '2-digit',
   }).format(new Date(iso))
 }
+
+export function addDays(date: string, delta: number) {
+  const [year, month, day] = date.split('-').map(Number)
+  const next = new Date(Date.UTC(year, month - 1, day + delta))
+  return stamp(next.getUTCFullYear(), next.getUTCMonth(), next.getUTCDate())
+}
+
+/** Faixas de 3 horas do quadro de semana, no fuso de São Paulo. */
+export const WEEK_SLOTS = ['09:00', '12:00', '15:00', '18:00', '21:00'] as const
+
+export function saoPauloClock(iso: string) {
+  const parts = new Intl.DateTimeFormat('en-GB', {
+    timeZone: 'America/Sao_Paulo',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  }).formatToParts(new Date(iso))
+  const hour = parts.find((part) => part.type === 'hour')?.value ?? '00'
+  const minute = parts.find((part) => part.type === 'minute')?.value ?? '00'
+  return `${hour.padStart(2, '0')}:${minute.padStart(2, '0')}`
+}
+
+export function weekSlot(iso: string) {
+  const hour = Number(saoPauloClock(iso).slice(0, 2))
+  if (hour < 12) return WEEK_SLOTS[0]
+  if (hour < 15) return WEEK_SLOTS[1]
+  if (hour < 18) return WEEK_SLOTS[2]
+  if (hour < 21) return WEEK_SLOTS[3]
+  return WEEK_SLOTS[4]
+}
+
+export function weekRangeLabel(week: CalendarCell[]) {
+  const start = week[0]?.date ?? ''
+  const end = week[6]?.date ?? start
+  const monthName = (date: string) => {
+    const [year, month] = date.split('-').map(Number)
+    return new Intl.DateTimeFormat('pt-BR', {
+      month: 'long',
+      timeZone: 'UTC',
+    }).format(new Date(Date.UTC(year, month - 1, 1)))
+  }
+  const dayNum = (date: string) => Number(date.slice(8, 10))
+  if (start.slice(0, 7) === end.slice(0, 7)) {
+    return `${dayNum(start)} – ${dayNum(end)} de ${monthName(start)}`
+  }
+  return `${dayNum(start)} de ${monthName(start)} – ${dayNum(end)} de ${monthName(end)}`
+}

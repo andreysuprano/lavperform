@@ -232,8 +232,11 @@ describe('revisão de post', () => {
       'fundo mais claro',
     );
     expect(openRouter.generateImage).toHaveBeenCalledTimes(1);
-    expect(String(openRouter.generateImage.mock.calls[0][0])).toMatch(
+    expect(String(openRouter.generateImage.mock.calls[0][0])).not.toMatch(
       /no text/i,
+    );
+    expect(String(openRouter.generateImage.mock.calls[0][0])).toMatch(
+      /Coleta grátis hoje/,
     );
     expect(background.variations[0].versions).toHaveLength(3);
     expect(background.variations[0].slides[0].backgroundImage).toBe(NEXT);

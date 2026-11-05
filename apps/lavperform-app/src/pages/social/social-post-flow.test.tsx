@@ -510,6 +510,8 @@ describe('fluxo de post com IA', () => {
       })
       fireEvent.click(screen.getByTestId('wizard-next'))
       expect(screen.getByTestId('social-photos-step')).toBeInTheDocument()
+      expect(screen.getByText('Arraste fotos aqui')).toBeInTheDocument()
+      expect(screen.getByText('Dar liberdade criativa à IA')).toBeInTheDocument()
       expect(screen.getByText(/PASSO 2 DE 4/)).toBeInTheDocument()
       fireEvent.click(screen.getByTestId('wizard-next'))
       fireEvent.click(screen.getByTestId('wizard-next'))
@@ -567,8 +569,40 @@ describe('fluxo de post com IA', () => {
     })
     fireEvent.click(screen.getByTestId('wizard-next'))
     expect(screen.getByTestId('social-photos-step')).toBeInTheDocument()
+    expect(screen.getByTestId('creative-freedom')).toHaveAttribute(
+      'aria-checked',
+      'false'
+    )
+    fireEvent.click(screen.getByTestId('creative-freedom'))
+    expect(screen.getByTestId('creative-freedom')).toHaveAttribute(
+      'aria-checked',
+      'true'
+    )
     fireEvent.click(screen.getByTestId('wizard-next'))
-    expect(screen.getByText('Onde vai aparecer?')).toBeInTheDocument()
+    expect(screen.getByText('Formato')).toBeInTheDocument()
+    expect(screen.getByText('Carrossel')).toBeInTheDocument()
+    expect(screen.getByText('Onde postar')).toBeInTheDocument()
+    expect(screen.getByText('Stories')).toBeInTheDocument()
+    expect(screen.getByText('1 imagem')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /Carrossel/ }))
+    fireEvent.click(screen.getByRole('button', { name: 'Stories' }))
+    expect(screen.getByTestId('carousel-block-notice')).toHaveTextContent(
+      'Stories e Google Meu Negócio não aceitam carrossel.'
+    )
+    expect(screen.getByRole('button', { name: /Carrossel/ })).toBeDisabled()
+    fireEvent.click(screen.getByTestId('wizard-next'))
+    expect(screen.getByText('Destinos')).toBeInTheDocument()
+    expect(screen.getByText(/Feed e Stories/)).toBeInTheDocument()
+    expect(screen.getByText('Post único')).toBeInTheDocument()
+    expect(screen.getByText(/Nenhuma foto · liberdade criativa ligada/)).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('wizard-back'))
+    fireEvent.click(screen.getByRole('button', { name: 'Stories' }))
+    fireEvent.click(screen.getByRole('button', { name: /Carrossel/ }))
+    fireEvent.click(screen.getByTestId('wizard-back'))
+    expect(screen.getByText('Fotos do carrossel')).toBeInTheDocument()
+    expect(screen.getByText('0 de 10')).toBeInTheDocument()
+    expect(screen.getByText('Arraste para mudar a ordem. A foto 1 é a capa.')).toBeInTheDocument()
+    fireEvent.click(screen.getByTestId('wizard-next'))
     fireEvent.click(screen.getByTestId('wizard-next'))
     expect(screen.getByText(/PASSO 4 DE 4/)).toBeInTheDocument()
     service.startGeneration.mockRejectedValueOnce(
