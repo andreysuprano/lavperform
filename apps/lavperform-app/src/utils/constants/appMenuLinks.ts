@@ -38,6 +38,22 @@ import {
   RiUserLine,
 } from 'react-icons/ri'
 
+// Hotfix: o item continua em MENU_ITEMS. Só sai da navegação até voltar a ser exibido.
+export const HIDDEN_MENU_HREFS = new Set(['/social'])
+
+export function isHiddenMenuHref(href: string) {
+  for (const hidden of HIDDEN_MENU_HREFS) {
+    if (href === hidden || href.startsWith(`${hidden}/`)) return true
+  }
+  return false
+}
+
+export function visibleMenuItems<T extends { href: string }>(
+  items: readonly T[]
+) {
+  return items.filter((item) => !isHiddenMenuHref(item.href))
+}
+
 // Dados do menu definidos fora do componente para evitar recriação
 export const MENU_ITEMS = [
   {
@@ -141,6 +157,7 @@ export const MENU_ITEMS = [
     isNew: false,
   },
   {
+    // Oculto via HIDDEN_MENU_HREFS. Não apagar: rotas e telas continuam no app.
     label: 'Redes Sociais',
     icon: LuShare2,
     href: '/social',
