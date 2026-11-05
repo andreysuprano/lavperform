@@ -91,7 +91,7 @@ function LoginForm() {
       <div className="login-fields">
         <div className="login-field">
           <label
-            className="login-sr-only"
+            className="login-label"
             htmlFor="email"
           >
             E-mail
@@ -126,7 +126,7 @@ function LoginForm() {
         </div>
         <div className="login-field">
           <label
-            className="login-sr-only"
+            className="login-label"
             htmlFor="password"
           >
             Senha

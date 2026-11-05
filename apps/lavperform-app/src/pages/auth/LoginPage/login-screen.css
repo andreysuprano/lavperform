@@ -109,7 +109,7 @@
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 32px;
+  gap: 24px;
   width: 358px;
   max-width: calc(100% - 32px);
   padding: 40px;
@@ -140,16 +140,29 @@
   pointer-events: none;
 }
 
-.login-sr-only {
-  position: absolute;
-  width: 1px;
-  height: 1px;
-  padding: 0;
-  margin: -1px;
-  overflow: hidden;
-  clip: rect(0, 0, 0, 0);
-  white-space: nowrap;
-  border: 0;
+.login-title {
+  margin: 0;
+  font-family: Inter, sans-serif;
+  font-size: 26px;
+  font-weight: 700;
+  line-height: normal;
+  color: #18181b;
+}
+
+.dark .login-title {
+  color: #f7fafc;
+}
+
+.login-label {
+  font-family: Inter, sans-serif;
+  font-size: 13px;
+  font-weight: 600;
+  line-height: normal;
+  color: #18181b;
+}
+
+.dark .login-label {
+  color: #f7fafc;
 }
 
 .login-form {
