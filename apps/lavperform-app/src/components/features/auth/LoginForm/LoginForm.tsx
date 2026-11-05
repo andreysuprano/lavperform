@@ -14,6 +14,24 @@ import { useAuth } from '@/context/AuthContext'
 
 import { type FormData, schema } from './schema'
 
+const CONNECTION_ERROR = 'Não foi possível conectar. Tente novamente.'
+
+function hasUsableApiResponse(error: unknown): boolean {
+  if (!error || typeof error !== 'object' || !('response' in error)) {
+    return false
+  }
+
+  const response = error.response
+  if (!response || typeof response !== 'object') return false
+
+  const { status, data } = response as { status?: unknown; data?: unknown }
+  if (typeof status === 'number' && status >= 100 && status <= 599) {
+    return true
+  }
+
+  return data !== undefined && data !== null && data !== ''
+}
+
 function ThemeIcon({ dark, light }: { dark: string; light: string }) {
   return (
     <>
@@ -70,9 +88,17 @@ function LoginForm() {
       navigate('/')
 
       reset()
-
-      // eslint-disable-next-line @typescript-eslint/no-unused-vars
     } catch (error) {
+      if (!hasUsableApiResponse(error)) {
+        toaster.create({
+          title: CONNECTION_ERROR,
+          type: 'error',
+          closable: true,
+          duration: 4000,
+        })
+        return
+      }
+
       toaster.create({
         title: 'Erro ao realizar login',
         description: 'Email ou senha incorretos. Por favor, tente novamente.',
