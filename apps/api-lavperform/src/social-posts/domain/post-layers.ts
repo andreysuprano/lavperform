@@ -97,11 +97,9 @@ export function buildComposedLayers(): PostLayer[] {
   ];
 }
 
-export function buildComposedSlides(
-  image: string,
-  slideCount: number,
-): PostSlide[] {
-  return Array.from({ length: slideCount }, () => ({
+export function buildComposedSlides(images: string[]): PostSlide[] {
+  const frames = images.length ? images : [''];
+  return frames.map((image) => ({
     backgroundImage: image,
     layers: buildComposedLayers(),
   }));

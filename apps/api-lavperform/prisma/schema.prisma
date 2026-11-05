@@ -1616,6 +1616,7 @@ model SocialPostDraft {
   tone                String?
   wizardStep          Int                   @default(1)
   placement           String                @default("feed")
+  destinations        String[]              @default([])
   creativeFreedom     Boolean               @default(false)
   createdAt           DateTime              @default(now())
   updatedAt           DateTime              @updatedAt

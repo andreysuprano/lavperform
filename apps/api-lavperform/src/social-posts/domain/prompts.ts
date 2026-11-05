@@ -89,6 +89,8 @@ export function buildImagePrompt(input: {
   tone?: string | null;
   creativeFreedom?: boolean;
   variationIndex?: number;
+  slideIndex?: number;
+  slideCount?: number;
   logoCount?: number;
   mediaCount?: number;
 }): string {
@@ -98,9 +100,11 @@ export function buildImagePrompt(input: {
       ? 'vertical 9:16'
       : shape === 'carousel'
         ? 'portrait 4:5'
-        : shape === 'google'
-          ? 'landscape 4:3'
-          : 'square 1:1';
+        : shape === 'video'
+          ? 'vertical 9:16'
+          : shape === 'google'
+            ? 'landscape 4:3'
+            : 'square 1:1';
   const layout =
     COMPOSITIONS[(input.variationIndex ?? 0) % COMPOSITIONS.length];
   const objective = input.objective
@@ -120,6 +124,11 @@ export function buildImagePrompt(input: {
     `Typography: headline in ${input.brand.titleFont}, supporting text in ${input.brand.bodyFont}.`,
     `Art direction: ${ART_STYLE_PROMPTS[input.artStyle]}.`,
     `Layout for this option: ${layout}`,
+    (input.slideCount ?? 1) > 1
+      ? `This is slide ${(input.slideIndex ?? 0) + 1} of ${input.slideCount} in a carousel. Compose it differently from the other slides. When store photos are attached, feature photo ${((input.slideIndex ?? 0) % Math.max(input.mediaCount ?? 1, 1)) + 1} most prominently and keep the same campaign.`
+      : shape === 'video'
+        ? 'This still is the cover of a vertical Reel. Do not design it as a multi-image carousel.'
+        : '',
     input.headline
       ? `Render this exact headline in Portuguese: "${input.headline}".`
       : 'Write a short Portuguese headline from the theme and render it.',

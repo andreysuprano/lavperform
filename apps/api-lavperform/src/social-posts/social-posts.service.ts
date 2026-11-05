@@ -24,6 +24,12 @@ import {
   libraryStatus,
   thumbnailFromSlides,
 } from './domain/library-status';
+import {
+  assertFormatDestinations,
+  legacyPlacement,
+  normalizeDestinations,
+  resolveSlideCount,
+} from './domain/destinations';
 import { buildComposedSlides } from './domain/post-layers';
 import {
   MEDIA_LIMIT,
@@ -174,7 +180,9 @@ export class SocialPostsService {
   async createDraft(userId: string, dto: CreateSocialDraftDto) {
     await this.ensureCompanyAccess(userId, dto.companyId);
     const format = dto.format as PostFormat;
-    const slideCount = format === 'carousel' ? (dto.slideCount ?? 4) : 1;
+    const destinations = normalizeDestinations(dto.destinations, dto.placement);
+    assertFormatDestinations(format, destinations);
+    const slideCount = resolveSlideCount(format, dto.slideCount);
     const created = await this.prisma.socialPostDraft.create({
       data: {
         companyId: dto.companyId,
@@ -187,7 +195,8 @@ export class SocialPostsService {
         imageModel: dto.imageModel?.trim() || null,
         tone: dto.tone?.trim() || null,
         wizardStep: dto.wizardStep ?? 1,
-        placement: dto.placement ?? 'feed',
+        placement: legacyPlacement(destinations),
+        destinations,
         creativeFreedom: dto.creativeFreedom ?? false,
       },
       include: { variations: true },
@@ -213,6 +222,10 @@ export class SocialPostsService {
         'Descreva o tema com pelo menos 8 caracteres.',
       );
     }
+    assertFormatDestinations(
+      draft.format,
+      normalizeDestinations(draft.destinations, draft.placement),
+    );
     const copies = await this.createVariations(draft, 0, true);
     return copies;
   }
@@ -224,9 +237,15 @@ export class SocialPostsService {
       throw new BadRequestException('Este post está sendo gerado.');
     }
     const format = (dto.format ?? draft.format) as PostFormat;
-    const placement = dto.placement ?? draft.placement;
-    const slideCount =
-      format === 'carousel' ? (dto.slideCount ?? draft.slideCount) : 1;
+    const destinations = normalizeDestinations(
+      dto.destinations ?? draft.destinations,
+      dto.placement ?? draft.placement,
+    );
+    assertFormatDestinations(format, destinations);
+    const slideCount = resolveSlideCount(
+      format,
+      dto.slideCount ?? draft.slideCount,
+    );
     await this.prisma.socialPostDraft.update({
       where: { id: draftId },
       data: {
@@ -238,7 +257,8 @@ export class SocialPostsService {
         includeCaption: dto.includeCaption ?? draft.includeCaption,
         tone: dto.tone !== undefined ? dto.tone.trim() || null : draft.tone,
         wizardStep: dto.wizardStep ?? draft.wizardStep,
-        placement,
+        placement: legacyPlacement(destinations),
+        destinations,
         creativeFreedom: dto.creativeFreedom ?? draft.creativeFreedom,
       },
     });
@@ -260,6 +280,10 @@ export class SocialPostsService {
         'Descreva o tema com pelo menos 8 caracteres.',
       );
     }
+    assertFormatDestinations(
+      draft.format,
+      normalizeDestinations(draft.destinations, draft.placement),
+    );
     if (dto.creativeFreedom !== undefined) {
       await this.prisma.socialPostDraft.update({
         where: { id: draftId },
@@ -489,19 +513,28 @@ export class SocialPostsService {
       creativeFreedom: draft.creativeFreedom,
       tone: draft.tone,
     });
-    const images = await this.mapPool(copies, 2, (copy, index) =>
-      this.generateArtwork(
-        draft,
-        brand,
-        company?.name ?? 'Lavanderia',
-        {
-          headline: copy.headline,
-          badgeText: copy.badgeText,
-          caption: copy.captionMedium,
-          variationIndex: positionOffset + index,
-        },
-      ),
-    );
+    const slideCount = resolveSlideCount(draft.format, draft.slideCount);
+    const images = await this.mapPool(copies, 2, async (copy, index) => {
+      const frames: string[] = [];
+      for (let slide = 0; slide < slideCount; slide += 1) {
+        frames.push(
+          await this.generateArtwork(
+            draft,
+            brand,
+            company?.name ?? 'Lavanderia',
+            {
+              headline: copy.headline,
+              badgeText: copy.badgeText,
+              caption: copy.captionMedium,
+              variationIndex: positionOffset + index,
+              slideIndex: slide,
+              slideCount,
+            },
+          ),
+        );
+      }
+      return frames;
+    });
     const referenceIds = (await this.listActiveReferences(draft.id)).map(
       (item) => item.id,
     );
@@ -515,7 +548,7 @@ export class SocialPostsService {
       const rows: { id: string }[] = [];
       for (let index = 0; index < copies.length; index += 1) {
         const copy = copies[index];
-        const slides = buildComposedSlides(images[index], draft.slideCount);
+        const slides = buildComposedSlides(images[index]);
         const row = await tx.socialPostVariation.create({
           data: {
             draftId: draft.id,
@@ -987,6 +1020,7 @@ export class SocialPostsService {
       tone: draft.tone,
       wizardStep: draft.wizardStep,
       placement: draft.placement,
+      destinations: draft.destinations ?? [],
       creativeFreedom: draft.creativeFreedom,
       generationStatus: draft.generationStatus,
       selectedVariationId: draft.selectedVariationId,
@@ -1132,6 +1166,8 @@ export class SocialPostsService {
       badgeText: string;
       caption: string;
       variationIndex: number;
+      slideIndex?: number;
+      slideCount?: number;
     },
     adjustment?: string,
   ) {
@@ -1174,6 +1210,8 @@ export class SocialPostsService {
       tone: draft.tone,
       creativeFreedom: Boolean(draft.creativeFreedom),
       variationIndex: copy.variationIndex,
+      slideIndex: copy.slideIndex,
+      slideCount: copy.slideCount,
       logoCount: images.some((item) => item.role === 'logo') ? 1 : 0,
       mediaCount: refs.length,
     });
@@ -1462,6 +1500,7 @@ export class SocialPostsService {
       tone: draft.tone,
       wizardStep: draft.wizardStep,
       placement: draft.placement,
+      destinations: draft.destinations ?? [],
       creativeFreedom: draft.creativeFreedom,
       generationStatus: draft.generationStatus,
       generationError: draft.generationError,

@@ -1,11 +1,14 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  destinationsTitle,
   filterCounts,
   filterLibrary,
+  formatTitle,
   normalizeLibraryPost,
   reopenStep,
   stripHashtags,
+  wizardStepOf,
 } from './postLibrary'
 
 describe('biblioteca de Social Media', () => {
@@ -26,8 +29,24 @@ describe('biblioteca de Social Media', () => {
     ]
     expect(filterLibrary(posts, 'gerado').map((item) => item.id)).toEqual(['b'])
     expect(filterLibrary(posts, 'todos').map((item) => item.id)).toEqual(['b', 'c', 'a'])
+    const withGenerating = [
+      ...posts,
+      post({ id: 'g', status: 'gerando', updatedAt: '2026-10-01T00:00:00.000Z' }),
+    ]
+    expect(filterLibrary(withGenerating, 'todos').map((item) => item.id)[0]).toBe('g')
     expect(filterCounts(posts).todos).toBe(3)
     expect(filterCounts(posts).gerado).toBe(1)
+  })
+
+  it('junta destinos com "e" e descreve o formato', () => {
+    expect(destinationsTitle(['ig_feed', 'ig_reels', 'facebook'])).toBe(
+      'Feed, Reels e Facebook'
+    )
+    expect(formatTitle('feed')).toBe('Post único')
+    expect(formatTitle('carousel', 4)).toBe('Carrossel · 4 slides')
+    expect(formatTitle('video')).toBe('Vídeo')
+    expect(wizardStepOf('photos')).toBe(2)
+    expect(wizardStepOf('format')).toBe(3)
   })
 
   it('reabre rascunho no passo salvo e post pronto na revisão', () => {

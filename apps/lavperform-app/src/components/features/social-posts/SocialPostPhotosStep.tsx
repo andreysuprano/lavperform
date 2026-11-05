@@ -1,6 +1,6 @@
 import { Box, Flex, Image, Text } from '@chakra-ui/react'
 import { useRef, useState } from 'react'
-import { LuImagePlus, LuX } from 'react-icons/lu'
+import { LuGripVertical, LuImagePlus, LuX } from 'react-icons/lu'
 
 import { socialPostsService } from '@/services'
 
@@ -16,6 +16,7 @@ export interface PostPhoto {
 interface Props {
   companyId: string
   photos: PostPhoto[]
+  format?: string
   creativeFreedom: boolean
   onPhotos: (photos: PostPhoto[]) => void
   onCreativeFreedom: (value: boolean) => void
@@ -26,6 +27,7 @@ const LIMIT = 10
 export function SocialPostPhotosStep({
   companyId,
   photos,
+  format,
   creativeFreedom,
   onPhotos,
   onCreativeFreedom,
@@ -33,8 +35,19 @@ export function SocialPostPhotosStep({
   const tokens = useSocialMediaTokens()
   const input = useRef<HTMLInputElement>(null)
   const [dragOver, setDragOver] = useState(false)
+  const [dragFrom, setDragFrom] = useState<number | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [sending, setSending] = useState(false)
+  const carousel = format === 'carousel'
+  const compactDrop = carousel && photos.length > 0
+
+  const reorder = (from: number, to: number) => {
+    if (from === to || from < 0 || to < 0 || to >= photos.length) return
+    const next = [...photos]
+    const [item] = next.splice(from, 1)
+    next.splice(to, 0, item)
+    onPhotos(next)
+  }
 
   const addFiles = async (list: File[]) => {
     const room = LIMIT - photos.length
@@ -81,23 +94,37 @@ export function SocialPostPhotosStep({
       direction="column"
       gap={4}
     >
-      <Text
-        color={tokens.text}
-        fontSize="14px"
-        fontWeight="semibold"
-      >
-        Fotos para o post (opcional)
-      </Text>
       <Flex
-        align="center"
+        align="baseline"
+        justify="space-between"
+      >
+        <Text
+          color={tokens.text}
+          fontSize="14px"
+          fontWeight="semibold"
+        >
+          {carousel ? 'Fotos do carrossel' : 'Fotos para o post (opcional)'}
+        </Text>
+        {carousel ? (
+          <Text
+            color={tokens.muted}
+            fontSize="12px"
+          >
+            {photos.length} de {LIMIT}
+          </Text>
+        ) : null}
+      </Flex>
+      <Flex
+        align={compactDrop ? 'center' : 'center'}
         bg={dragOver ? tokens.selectedBg : 'transparent'}
         borderColor={tokens.accent}
         borderRadius="12px"
         borderStyle="dashed"
         borderWidth="1.5px"
         data-testid="photo-dropzone"
-        direction="column"
+        direction={compactDrop ? 'row' : 'column'}
         gap={2}
+        justify={compactDrop ? 'space-between' : 'center'}
         onDragLeave={() => setDragOver(false)}
         onDragOver={(event) => {
           event.preventDefault()
@@ -106,17 +133,42 @@ export function SocialPostPhotosStep({
         onDrop={(event) => {
           event.preventDefault()
           setDragOver(false)
-          void addFiles(Array.from(event.dataTransfer.files))
+          if (event.dataTransfer.files.length) {
+            void addFiles(Array.from(event.dataTransfer.files))
+          }
         }}
-        py={6}
+        px={compactDrop ? 3 : 0}
+        py={compactDrop ? 3 : 6}
       >
-        <LuImagePlus color={tokens.deep} size={28} />
-        <Text color={tokens.text} fontSize="14px" fontWeight="semibold">
-          Arraste fotos aqui
-        </Text>
-        <Text color={tokens.muted} fontSize="12px">
-          JPG ou PNG, até 10 fotos
-        </Text>
+        {compactDrop ? (
+          <Text
+            color={tokens.text}
+            fontSize="13px"
+            fontWeight="semibold"
+          >
+            Arraste mais fotos aqui
+          </Text>
+        ) : (
+          <>
+            <LuImagePlus
+              color={tokens.deep}
+              size={28}
+            />
+            <Text
+              color={tokens.text}
+              fontSize="14px"
+              fontWeight="semibold"
+            >
+              Arraste fotos aqui
+            </Text>
+            <Text
+              color={tokens.muted}
+              fontSize="12px"
+            >
+              JPG ou PNG, até 10 fotos
+            </Text>
+          </>
+        )}
         <Box
           as="button"
           bg={tokens.card}
@@ -124,16 +176,20 @@ export function SocialPostPhotosStep({
           borderRadius="10px"
           borderWidth="1px"
           color={tokens.text}
-          disabled={sending}
+          disabled={sending || photos.length >= LIMIT}
           fontSize="14px"
           fontWeight="semibold"
           h="44px"
-          mt={1}
+          mt={compactDrop ? 0 : 1}
           onClick={() => input.current?.click()}
           px={4}
           type="button"
         >
-          <Flex align="center" gap={2} justify="center">
+          <Flex
+            align="center"
+            gap={2}
+            justify="center"
+          >
             <LuImagePlus size={16} />
             Escolher fotos
           </Flex>
@@ -151,12 +207,96 @@ export function SocialPostPhotosStep({
         />
       </Flex>
       {error ? (
-        <Text color="red.600" fontSize="12px">
+        <Text
+          color="red.600"
+          fontSize="12px"
+        >
           {error}
         </Text>
       ) : null}
-      {photos.length > 0 && (
-        <Flex gap={3} wrap="wrap">
+      {carousel && photos.length > 0 ? (
+        <Flex
+          data-testid="carousel-photos"
+          direction="column"
+          gap={2}
+        >
+          {photos.map((photo, index) => (
+            <Flex
+              align="center"
+              bg={tokens.card}
+              borderColor={tokens.border}
+              borderRadius="12px"
+              borderWidth="1px"
+              draggable
+              gap={3}
+              key={photo.id}
+              onDragOver={(event) => event.preventDefault()}
+              onDragStart={() => setDragFrom(index)}
+              onDrop={() => {
+                if (dragFrom != null) reorder(dragFrom, index)
+                setDragFrom(null)
+              }}
+              px={3}
+              py={2}
+            >
+              <Box
+                aria-label={`Arrastar ${photo.name}`}
+                color={tokens.muted}
+                cursor="grab"
+              >
+                <LuGripVertical size={16} />
+              </Box>
+              <Text
+                color={tokens.text}
+                fontSize="13px"
+                fontWeight="semibold"
+                w="16px"
+              >
+                {index + 1}
+              </Text>
+              <Image
+                alt=""
+                borderRadius="8px"
+                boxSize="48px"
+                objectFit="cover"
+                src={photo.preview || photo.url}
+              />
+              <Box flex="1" minW={0}>
+                <Text
+                  color={tokens.text}
+                  fontSize="13px"
+                  fontWeight="semibold"
+                  truncate
+                >
+                  {photo.name}
+                </Text>
+                <Text
+                  color={tokens.muted}
+                  fontSize="11px"
+                >
+                  {index === 0 ? 'Capa do carrossel' : `Imagem ${index + 1}`}
+                </Text>
+              </Box>
+              <Box
+                aria-label={`Remover ${photo.name}`}
+                as="button"
+                color={tokens.deep}
+                h="32px"
+                onClick={() => onPhotos(photos.filter((item) => item.id !== photo.id))}
+                type="button"
+                w="32px"
+              >
+                <LuX size={16} />
+              </Box>
+            </Flex>
+          ))}
+        </Flex>
+      ) : null}
+      {!carousel && photos.length > 0 ? (
+        <Flex
+          gap={3}
+          wrap="wrap"
+        >
           {photos.map((photo) => (
             <Box
               borderRadius="12px"
@@ -206,9 +346,14 @@ export function SocialPostPhotosStep({
             </Box>
           ))}
         </Flex>
-      )}
-      <Text color={tokens.muted} fontSize="12px">
-        A IA vai usar estas fotos no post, como um cliente real usaria.
+      ) : null}
+      <Text
+        color={tokens.muted}
+        fontSize="12px"
+      >
+        {carousel
+          ? 'Arraste para mudar a ordem. A foto 1 é a capa.'
+          : 'A IA vai usar estas fotos no post, como um cliente real usaria.'}
       </Text>
       <Flex
         align="center"
@@ -220,10 +365,17 @@ export function SocialPostPhotosStep({
         py={3}
       >
         <Box pr={3}>
-          <Text color={tokens.text} fontSize="14px" fontWeight="semibold">
+          <Text
+            color={tokens.text}
+            fontSize="14px"
+            fontWeight="semibold"
+          >
             Dar liberdade criativa à IA
           </Text>
-          <Text color={tokens.muted} fontSize="12px">
+          <Text
+            color={tokens.muted}
+            fontSize="12px"
+          >
             A IA pode recortar, ajustar cores e criar o fundo.
           </Text>
         </Box>

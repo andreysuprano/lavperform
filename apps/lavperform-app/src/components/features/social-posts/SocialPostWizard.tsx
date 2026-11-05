@@ -5,11 +5,18 @@ import { LuInfo, LuSparkles, LuX } from 'react-icons/lu'
 import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
 
 import {
+  CAROUSEL_BLOCK_MESSAGE,
+  carouselBlocked,
+  destinationsTitle,
+  formatTitle,
+  legacyPlacement,
   objectiveTitle,
-  placementTitle,
+  WIZARD_DESTINATIONS,
+  WIZARD_FLOW,
+  WIZARD_FORMATS,
   WIZARD_OBJECTIVES,
-  WIZARD_PLACEMENTS,
   WIZARD_TONES,
+  wizardStepOf,
   type WizardStep,
 } from './postLibrary'
 import { useSocialMediaTokens } from './socialMediaTokens'
@@ -23,7 +30,9 @@ export interface WizardSnapshot {
   objective: string
   theme: string
   placement: string
+  destinations: string[]
   format: string
+  slideCount: number
   tone: string
   creativeFreedom: boolean
   wizardStep: WizardStep
@@ -40,13 +49,6 @@ interface Props {
   onGenerate: (snapshot: WizardSnapshot) => void
 }
 
-const STEP_LABELS = [
-  'Objetivo & tema',
-  'Fotos',
-  'Formato & tom',
-  'Revisar & gerar',
-] as const
-
 export function SocialPostWizard({
   open,
   companyId,
@@ -60,7 +62,11 @@ export function SocialPostWizard({
   const [current, setCurrent] = useState<WizardStep>(step)
   const [objective, setObjective] = useState(initial?.objective ?? 'atrair')
   const [theme, setTheme] = useState(initial?.theme ?? '')
-  const [placement, setPlacement] = useState(initial?.placement ?? 'feed')
+  const [format, setFormat] = useState(initial?.format ?? 'feed')
+  const [slideCount, setSlideCount] = useState(initial?.slideCount ?? 4)
+  const [destinations, setDestinations] = useState<string[]>(
+    initial?.destinations?.length ? initial.destinations : ['ig_feed']
+  )
   const [tone, setTone] = useState(initial?.tone ?? 'Amigável')
   const [creativeFreedom, setCreativeFreedom] = useState(
     Boolean(initial?.creativeFreedom)
@@ -72,20 +78,25 @@ export function SocialPostWizard({
     setCurrent(step)
     setObjective(initial?.objective ?? 'atrair')
     setTheme(initial?.theme ?? '')
-    setPlacement(initial?.placement ?? 'feed')
+    setFormat(initial?.format === 'story' ? 'video' : initial?.format ?? 'feed')
+    setSlideCount(initial?.slideCount ?? 4)
+    setDestinations(
+      initial?.destinations?.length ? initial.destinations : ['ig_feed']
+    )
     setTone(initial?.tone ?? 'Amigável')
     setCreativeFreedom(Boolean(initial?.creativeFreedom))
     setPhotos(initial?.media ?? [])
   }, [open, step, initial?.id])
 
   const snapshot = (wizardStep: WizardStep): WizardSnapshot => {
-    const place = WIZARD_PLACEMENTS.find((item) => item.value === placement)
     return {
       id: initial?.id,
       objective,
       theme,
-      placement,
-      format: place?.format ?? 'feed',
+      placement: legacyPlacement(destinations),
+      destinations,
+      format: format === 'story' ? 'video' : format,
+      slideCount: format === 'carousel' ? slideCount : 1,
       tone,
       creativeFreedom,
       wizardStep,
@@ -103,6 +114,9 @@ export function SocialPostWizard({
   }
 
   const canContinue = theme.trim().length >= 8
+  const stepId = WIZARD_FLOW[current - 1].id
+  const objectiveBlocked = stepId === 'objective' && !canContinue
+  const lastStep = WIZARD_FLOW.length
 
   return (
     <Dialog.Root
@@ -196,43 +210,43 @@ export function SocialPostWizard({
                 letterSpacing="0.04em"
                 mb={2}
               >
-                {`PASSO ${current} DE 4 · ${STEP_LABELS[current - 1].toUpperCase()}`}
+                {`PASSO ${current} DE ${lastStep} · ${WIZARD_FLOW[current - 1].label.toUpperCase()}`}
               </Text>
               <Flex
                 gap={2}
                 mb={2}
               >
-                {[1, 2, 3, 4].map((item) => (
+                {WIZARD_FLOW.map((item, index) => (
                   <Box
-                    bg={item <= current ? tokens.deep : tokens.track}
+                    bg={index < current ? tokens.deep : tokens.track}
                     borderRadius="full"
                     flex="1"
                     h="6px"
-                    key={item}
+                    key={item.id}
                   />
                 ))}
               </Flex>
               <Flex
                 aria-label="Progresso"
-                aria-valuemax={4}
+                aria-valuemax={lastStep}
                 aria-valuemin={1}
                 aria-valuenow={current}
                 justify="space-between"
                 mb={6}
                 role="progressbar"
               >
-                {STEP_LABELS.map((label, index) => (
+                {WIZARD_FLOW.map((item, index) => (
                   <Text
                     color={index + 1 === current ? tokens.text : tokens.muted}
                     fontSize="11px"
                     fontWeight={index + 1 === current ? 'semibold' : 'normal'}
-                    key={label}
+                    key={item.id}
                   >
-                    {label}
+                    {item.label}
                   </Text>
                 ))}
               </Flex>
-              {current === 1 && (
+              {stepId === 'objective' && (
                 <Flex
                   direction="column"
                   gap={6}
@@ -327,16 +341,17 @@ export function SocialPostWizard({
                   </Box>
                 </Flex>
               )}
-              {current === 2 && (
+              {stepId === 'photos' && (
                 <SocialPostPhotosStep
                   companyId={companyId}
                   creativeFreedom={creativeFreedom}
+                  format={format}
                   onCreativeFreedom={setCreativeFreedom}
                   onPhotos={setPhotos}
                   photos={photos}
                 />
               )}
-              {current === 3 && (
+              {stepId === 'format' && (
                 <Flex
                   direction="column"
                   gap={6}
@@ -348,60 +363,175 @@ export function SocialPostWizard({
                       fontWeight="semibold"
                       mb={3}
                     >
-                      Onde vai aparecer?
+                      <Text as="span">Onde postar</Text>
+                      <Text
+                        as="span"
+                        color={tokens.muted}
+                        fontWeight="normal"
+                      >
+                        {' '}
+                        (pode escolher vários)
+                      </Text>
                     </Text>
                     <Flex
-                      direction="column"
                       gap={2}
+                      wrap="wrap"
                     >
-                      {WIZARD_PLACEMENTS.map((item) => {
-                        const active = placement === item.value
+                      {WIZARD_DESTINATIONS.map((item) => {
+                        const active = destinations.includes(item.value)
                         return (
                           <Box
+                            aria-pressed={active}
                             as="button"
                             bg={active ? tokens.selectedBg : tokens.card}
                             borderColor={active ? tokens.accent : tokens.border}
-                            borderRadius="12px"
+                            borderRadius="10px"
                             borderWidth="1px"
+                            color={tokens.text}
+                            fontSize="13px"
+                            fontWeight="medium"
+                            h="40px"
                             key={item.value}
-                            minH="52px"
-                            onClick={() => setPlacement(item.value)}
-                            px={4}
-                            py={3}
-                            textAlign="left"
+                            onClick={() => {
+                              const selected = destinations.includes(item.value)
+                              const next = selected
+                                ? destinations.length === 1
+                                  ? destinations
+                                  : destinations.filter((value) => value !== item.value)
+                                : [...destinations, item.value]
+                              if (format === 'carousel' && carouselBlocked(next)) {
+                                setFormat('feed')
+                              }
+                              setDestinations(next)
+                            }}
+                            px={3}
                             type="button"
-                            w="full"
                           >
                             <Flex
                               align="center"
-                              gap={3}
+                              gap={2}
                             >
                               <Box
+                                bg={active ? tokens.deep : 'transparent'}
                                 borderColor={active ? tokens.deep : tokens.border}
-                                borderRadius="full"
-                                borderWidth={active ? '7px' : '2px'}
-                                boxSize="22px"
+                                borderRadius="4px"
+                                borderWidth="1px"
+                                boxSize="16px"
                               />
-                              <Box>
-                                <Text
-                                  color={tokens.text}
-                                  fontSize="12px"
-                                  fontWeight="semibold"
-                                >
-                                  {item.title}
-                                </Text>
-                                <Text
-                                  color={tokens.muted}
-                                  fontSize="11px"
-                                >
-                                  {item.hint}
-                                </Text>
-                              </Box>
+                              {item.title}
                             </Flex>
                           </Box>
                         )
                       })}
                     </Flex>
+                  </Box>
+                  <Box>
+                    <Text
+                      color={tokens.text}
+                      fontSize="14px"
+                      fontWeight="semibold"
+                      mb={3}
+                    >
+                      Formato
+                    </Text>
+                    <Flex
+                      direction={phone ? 'column' : 'row'}
+                      gap={2}
+                    >
+                      {WIZARD_FORMATS.map((item) => {
+                        const blocked =
+                          item.value === 'carousel' && carouselBlocked(destinations)
+                        const active = format === item.value
+                        return (
+                          <Box
+                            aria-disabled={blocked}
+                            as="button"
+                            bg={active ? tokens.selectedBg : tokens.card}
+                            borderColor={active ? tokens.accent : tokens.border}
+                            borderRadius="12px"
+                            borderWidth="1px"
+                            disabled={blocked}
+                            flex="1"
+                            key={item.value}
+                            minH="72px"
+                            onClick={() => {
+                              if (blocked) return
+                              setFormat(item.value)
+                            }}
+                            opacity={blocked ? 0.45 : 1}
+                            px={3}
+                            py={3}
+                            textAlign="left"
+                            type="button"
+                          >
+                            <Text
+                              color={tokens.text}
+                              fontSize="13px"
+                              fontWeight="semibold"
+                            >
+                              {item.title}
+                            </Text>
+                            <Text
+                              color={tokens.muted}
+                              fontSize="12px"
+                            >
+                              {item.hint}
+                            </Text>
+                          </Box>
+                        )
+                      })}
+                    </Flex>
+                    {carouselBlocked(destinations) && (
+                      <Flex
+                        bg="#FEF3C7"
+                        borderRadius="10px"
+                        data-testid="carousel-block-notice"
+                        mt={3}
+                        px={3}
+                        py={2}
+                      >
+                        <Text
+                          color="#92400E"
+                          fontSize="12px"
+                          fontWeight="medium"
+                        >
+                          {CAROUSEL_BLOCK_MESSAGE}
+                        </Text>
+                      </Flex>
+                    )}
+                    {format === 'carousel' && (
+                      <Flex
+                        align="center"
+                        gap={2}
+                        mt={3}
+                        wrap="wrap"
+                      >
+                        <Text
+                          color={tokens.muted}
+                          fontSize="12px"
+                        >
+                          Slides
+                        </Text>
+                        {[2, 3, 4, 5, 6, 7, 8, 9, 10].map((count) => (
+                          <Box
+                            as="button"
+                            bg={slideCount === count ? tokens.deep : tokens.card}
+                            borderColor={tokens.border}
+                            borderRadius="full"
+                            borderWidth="1px"
+                            color={slideCount === count ? 'white' : tokens.text}
+                            fontSize="12px"
+                            h="32px"
+                            key={count}
+                            onClick={() => setSlideCount(count)}
+                            type="button"
+                            w="32px"
+                          >
+                            {count}
+                          </Box>
+                        ))}
+                      </Flex>
+                    )}
                   </Box>
                   <Box>
                     <Text
@@ -449,7 +579,7 @@ export function SocialPostWizard({
                   </Box>
                 </Flex>
               )}
-              {current === 4 && (
+              {stepId === 'review' && (
                 <Flex
                   direction="column"
                   gap={4}
@@ -461,17 +591,18 @@ export function SocialPostWizard({
                   >
                     {(
                       [
-                        ['Objetivo', objectiveTitle(objective), 1],
-                        ['Tema', theme, 1],
+                        ['Objetivo', objectiveTitle(objective), wizardStepOf('objective')],
+                        ['Tema', theme, wizardStepOf('objective')],
+                        ['Destinos', destinationsTitle(destinations), wizardStepOf('format')],
+                        ['Formato', formatTitle(format, slideCount), wizardStepOf('format')],
+                        ['Jeito de falar', tone, wizardStepOf('format')],
                         [
                           'Fotos',
                           photos.length
                             ? `${photos.length} ${photos.length === 1 ? 'foto' : 'fotos'} · liberdade criativa ${creativeFreedom ? 'ligada' : 'desligada'}`
                             : `Nenhuma foto · liberdade criativa ${creativeFreedom ? 'ligada' : 'desligada'}`,
-                          2,
+                          wizardStepOf('photos'),
                         ],
-                        ['Formato', placementTitle(placement), 3],
-                        ['Jeito de falar', tone, 3],
                       ] as const
                     ).map(([label, value, target], index) => (
                       <Flex
@@ -583,23 +714,25 @@ export function SocialPostWizard({
                     Voltar
                   </Box>
                 )}
-                {current < 4 ? (
+                {current < lastStep ? (
                   <Box
                     as="button"
                     bg={tokens.accent}
                     borderRadius="10px"
                     color={tokens.deep}
                     data-testid="wizard-next"
-                    disabled={current === 1 && !canContinue}
+                    disabled={objectiveBlocked}
                     flex={phone ? 1 : undefined}
                     fontSize="14px"
                     fontWeight="semibold"
                     h="44px"
                     onClick={() => {
-                      if (current === 1 && !canContinue) return
-                      setCurrent((value) => (value < 4 ? ((value + 1) as WizardStep) : value))
+                      if (objectiveBlocked) return
+                      setCurrent((value) =>
+                        value < lastStep ? ((value + 1) as WizardStep) : value
+                      )
                     }}
-                    opacity={current === 1 && !canContinue ? 0.5 : 1}
+                    opacity={objectiveBlocked ? 0.5 : 1}
                     px="20px"
                     type="button"
                   >
@@ -617,7 +750,7 @@ export function SocialPostWizard({
                     fontSize="14px"
                     fontWeight="semibold"
                     h="44px"
-                    onClick={() => onGenerate(snapshot(4))}
+                    onClick={() => onGenerate(snapshot(lastStep as WizardStep))}
                     opacity={!canContinue ? 0.5 : 1}
                     px="20px"
                     type="button"

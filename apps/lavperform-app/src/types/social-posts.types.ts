@@ -155,6 +155,7 @@ export interface CreateDraftPayload {
   tone?: string | null
   wizardStep?: number
   placement?: string
+  destinations?: string[]
   creativeFreedom?: boolean
   mediaIds?: string[]
 }
@@ -236,16 +237,17 @@ export interface SocialLibraryPost {
   variationCount: number
   status: SocialPostStatus
   media?: { id: string; url: string; name?: string }[]
+  destinations?: string[]
 }
 
 export function formatAspect(format: string): number {
-  if (format === 'story') return 9 / 16
+  if (format === 'story' || format === 'video') return 9 / 16
   if (format === 'carousel') return 4 / 5
   return 1
 }
 
 export function formatLabel(format: string, slideCount: number) {
-  if (format === 'story') return 'Story'
+  if (format === 'story' || format === 'video') return 'Vídeo/Reels'
   if (format === 'carousel') return `Carrossel · ${slideCount} slides`
-  return 'Post'
+  return 'Post único'
 }
