@@ -1,13 +1,17 @@
-import { Box, Button, Center, Input, Text } from '@chakra-ui/react'
+import { Avatar, Box, Button, Input, Text } from '@chakra-ui/react'
 import { useMemo, useState } from 'react'
 import { LuCheck, LuSearch } from 'react-icons/lu'
 
 import { useColorModeValue } from '@/components/ui/color-mode'
 import { useAuth } from '@/context/AuthContext'
+import { convertLinkToResizedImage } from '@/firebase/storage'
 import type { UserCompany } from '@/types'
 
 import { shellDark } from './shellPalette'
-import { filterStoreGroups, groupStores, unitInitials } from './storeGroups'
+
+function normalize(value: string) {
+  return value.normalize('NFD').replace(/\p{M}/gu, '').toLowerCase().trim()
+}
 
 export function StoreSwitchPage() {
   const { companies, selectedCompany, selectCompany } = useAuth()
@@ -18,10 +22,13 @@ export function StoreSwitchPage() {
   const text = useColorModeValue('#18181B', 'gray.100')
   const page = useColorModeValue('#F7F7F8', shellDark.background)
   const line = useColorModeValue('#E4E4E7', shellDark.border)
-  const groups = useMemo(
-    () => filterStoreGroups(groupStores(companies), query),
-    [companies, query]
-  )
+  const stores = useMemo(() => {
+    const normalized = normalize(query)
+    if (!normalized) return companies
+    return companies.filter((store) =>
+      normalize(`${store.name} ${store.slug}`).includes(normalized)
+    )
+  }, [companies, query])
 
   const choose = (company: UserCompany) => {
     selectCompany(company.id)
@@ -62,116 +69,91 @@ export function StoreSwitchPage() {
           value={query}
         />
       </Box>
-      {groups.map((group) => (
-        <Box
-          key={group.id}
+      <Box
+        bg={card}
+        borderColor={border}
+        borderRadius="12px"
+        borderWidth="1px"
+        overflow="hidden"
+      >
+        {stores.map((store, index) => {
+          const selected = store.id === selectedCompany?.id
+          return (
+            <Button
+              alignItems="center"
+              display="flex"
+              gap={3}
+              h="52px"
+              justifyContent="flex-start"
+              key={store.id}
+              minH="44px"
+              onClick={() => choose(store)}
+              position="relative"
+              px="14px"
+              textAlign="left"
+              type="button"
+              variant="ghost"
+              w="full"
+            >
+              {index > 0 ? (
+                <Box
+                  bg={line}
+                  h="1px"
+                  left="58px"
+                  position="absolute"
+                  right={0}
+                  top={0}
+                />
+              ) : null}
+              <Avatar.Root
+                borderRadius="8px"
+                boxSize="32px"
+                shape="rounded"
+              >
+                <Avatar.Fallback name={store.name} />
+                <Avatar.Image
+                  alt={store.name}
+                  src={
+                    store.avatarUrl
+                      ? convertLinkToResizedImage(store.avatarUrl)
+                      : undefined
+                  }
+                />
+              </Avatar.Root>
+              <Text
+                color={text}
+                flex="1"
+                fontSize="14px"
+                fontWeight="semibold"
+                minW={0}
+                truncate
+              >
+                {store.name}
+              </Text>
+              {selected ? (
+                <LuCheck
+                  color="#093A58"
+                  size={20}
+                />
+              ) : null}
+            </Button>
+          )
+        })}
+      </Box>
+      {stores.length === 0 ? (
+        <Text
+          color={muted}
+          fontSize="13px"
           mb={4}
+          px={1}
         >
-          <Box
-            alignItems="center"
-            display="flex"
-            justifyContent="space-between"
-            mb={2}
-            px={1}
-          >
-            <Text
-              color={muted}
-              fontSize="12px"
-              fontWeight="semibold"
-              letterSpacing="0.04em"
-              textTransform="uppercase"
-            >
-              {group.label}
-            </Text>
-            <Text
-              color={muted}
-              fontSize="12px"
-              fontWeight="semibold"
-            >
-              {group.stores.length} {group.stores.length === 1 ? 'loja' : 'lojas'}
-            </Text>
-          </Box>
-          <Box
-            bg={card}
-            borderColor={border}
-            borderRadius="12px"
-            borderWidth="1px"
-            overflow="hidden"
-          >
-            {group.stores.map((store, index) => {
-              const selected = store.id === selectedCompany?.id
-              return (
-                <Button
-                  alignItems="center"
-                  display="flex"
-                  gap={3}
-                  h="52px"
-                  justifyContent="flex-start"
-                  key={store.id}
-                  minH="44px"
-                  onClick={() => choose(store)}
-                  position="relative"
-                  px="14px"
-                  textAlign="left"
-                  type="button"
-                  variant="ghost"
-                  w="full"
-                >
-                  {index > 0 ? (
-                    <Box
-                      bg={line}
-                      h="1px"
-                      left="54px"
-                      position="absolute"
-                      right={0}
-                      top={0}
-                    />
-                  ) : null}
-                  <Center
-                    bg={selected ? '#093A58' : '#64748B'}
-                    borderRadius="8px"
-                    boxSize="28px"
-                    color="white"
-                    fontSize="11px"
-                    fontWeight="bold"
-                  >
-                    {unitInitials(store.name)}
-                  </Center>
-                  <Box
-                    flex="1"
-                    minW={0}
-                  >
-                    <Text
-                      color={text}
-                      fontSize="12px"
-                      fontWeight="semibold"
-                      truncate
-                    >
-                      {store.name}
-                    </Text>
-                    <Text
-                      color={muted}
-                      fontSize="11px"
-                      truncate
-                    >
-                      {store.slug}
-                    </Text>
-                  </Box>
-                  {selected ? (
-                    <LuCheck
-                      color="#093A58"
-                      size={20}
-                    />
-                  ) : null}
-                </Button>
-              )
-            })}
-          </Box>
-        </Box>
-      ))}
+          Nenhuma loja encontrada
+        </Text>
+      ) : null}
       <Text
         color={muted}
         fontSize="11px"
+        mt={4}
         px={1}
       >
         A troca vale para todo o app: dashboard, clientes, posts e campanhas

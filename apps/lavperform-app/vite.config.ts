@@ -1,3 +1,5 @@
+import { fileURLToPath, URL } from 'node:url'
+
 import react from '@vitejs/plugin-react'
 import { defineConfig, loadEnv } from 'vite'
 import { VitePWA } from 'vite-plugin-pwa'
@@ -31,7 +33,9 @@ export default defineConfig(({ mode }) => {
   return {
     // Define as variáveis explicitamente para garantir que sejam injetadas
     define: {
-      'import.meta.env.VITE_API_URL': JSON.stringify(VITE_API_URL),
+      'import.meta.env.VITE_API_URL': JSON.stringify(
+        mode === 'development' ? '/api-proxy' : VITE_API_URL
+      ),
       'import.meta.env.VITE_THEME_ID': JSON.stringify(VITE_THEME_ID),
       'import.meta.env.VITE_ENVIROMENT': JSON.stringify(VITE_ENVIROMENT),
       'import.meta.env.VITE_ADM_DOMAIN': JSON.stringify(VITE_ADM_DOMAIN),
@@ -99,6 +103,14 @@ export default defineConfig(({ mode }) => {
       sourcemap: false,
       minify: 'esbuild', // Usa esbuild ao invés de terser
     },
+    resolve: {
+      alias: [
+        {
+          find: /^@\//,
+          replacement: fileURLToPath(new URL('./src/', import.meta.url)),
+        },
+      ],
+    },
     preview: {
       port: 8080,
       strictPort: true,
@@ -108,6 +120,14 @@ export default defineConfig(({ mode }) => {
       strictPort: true,
       host: true,
       origin: VITE_ENVIROMENT !== 'development' ? 'http://0.0.0.0:8080' : '',
+      proxy: {
+        '/api-proxy': {
+          target: VITE_API_URL,
+          changeOrigin: true,
+          secure: true,
+          rewrite: (path) => path.replace(/^\/api-proxy/, ''),
+        },
+      },
     },
   }
 })
