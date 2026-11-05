@@ -43,26 +43,83 @@ export const WIZARD_OBJECTIVES = [
   },
 ] as const
 
-export const WIZARD_PLACEMENTS = [
-  {
-    value: 'feed',
-    title: 'Post no feed · quadrado',
-    hint: 'Instagram e Facebook',
-    format: 'feed',
-  },
-  {
-    value: 'story',
-    title: 'Story · vertical',
-    hint: 'Some em 24 horas',
-    format: 'story',
-  },
-  {
-    value: 'google',
-    title: 'Post no Google',
-    hint: 'Aparece no seu perfil do Google Meu Negócio',
-    format: 'feed',
-  },
+export const WIZARD_FORMATS = [
+  { value: 'feed', title: 'Post único', hint: '1 imagem' },
+  { value: 'carousel', title: 'Carrossel', hint: 'até 10 imagens' },
+  { value: 'video', title: 'Vídeo', hint: 'até 60 s' },
 ] as const
+
+export const WIZARD_DESTINATIONS = [
+  { value: 'ig_feed', title: 'Feed' },
+  { value: 'ig_stories', title: 'Stories' },
+  { value: 'ig_reels', title: 'Reels' },
+  { value: 'facebook', title: 'Facebook' },
+  { value: 'google', title: 'Google Meu Negócio' },
+] as const
+
+/** Ordem atual do modal. Trocar a sequência daqui reordena a jornada. */
+export const WIZARD_FLOW = [
+  { id: 'objective', label: 'Objetivo & tema' },
+  { id: 'photos', label: 'Fotos' },
+  { id: 'format', label: 'Formato & tom' },
+  { id: 'review', label: 'Revisar & gerar' },
+] as const
+
+export type WizardFlowId = (typeof WIZARD_FLOW)[number]['id']
+
+export function wizardStepOf(id: WizardFlowId) {
+  return (WIZARD_FLOW.findIndex((step) => step.id === id) + 1) as 1 | 2 | 3 | 4
+}
+
+export const CAROUSEL_BLOCKED_DESTINATIONS = ['ig_stories', 'google'] as const
+
+export const CAROUSEL_BLOCK_MESSAGE =
+  'Stories e Google Meu Negócio não aceitam carrossel.'
+
+export function formatTitle(value: string, slideCount = 1) {
+  if (value === 'story' || value === 'video') return 'Vídeo'
+  if (value === 'carousel') {
+    const count = Math.min(10, Math.max(2, slideCount || 2))
+    return `Carrossel · ${count} slides`
+  }
+  return WIZARD_FORMATS.find((item) => item.value === value)?.title ?? value
+}
+
+export function destinationTitle(value: string) {
+  return WIZARD_DESTINATIONS.find((item) => item.value === value)?.title ?? value
+}
+
+export function destinationsTitle(values: string[]) {
+  const names = values.map((item) => destinationTitle(item))
+  if (!names.length) return 'Nenhum destino'
+  if (names.length === 1) return names[0]
+  return `${names.slice(0, -1).join(', ')} e ${names[names.length - 1]}`
+}
+
+export function carouselBlocked(destinations: string[]) {
+  return destinations.some((item) =>
+    (CAROUSEL_BLOCKED_DESTINATIONS as readonly string[]).includes(item)
+  )
+}
+
+export function destinationsFromPlacement(placement?: string | null) {
+  if (placement === 'story') return ['ig_stories']
+  if (placement === 'google') return ['google']
+  if (placement === 'feed') return ['ig_feed']
+  return ['ig_feed']
+}
+
+export function legacyPlacement(destinations: string[]) {
+  if (destinations.length === 1 && destinations[0] === 'google') return 'google'
+  if (
+    destinations.includes('ig_stories') &&
+    !destinations.includes('ig_feed') &&
+    !destinations.includes('facebook')
+  ) {
+    return 'story'
+  }
+  return 'feed'
+}
 
 export const WIZARD_TONES = ['Amigável', 'Divertido', 'Direto', 'Profissional'] as const
 
@@ -71,7 +128,7 @@ export function objectiveTitle(value: string) {
 }
 
 export function placementTitle(value: string) {
-  return WIZARD_PLACEMENTS.find((item) => item.value === value)?.title ?? value
+  return destinationTitle(value) || value
 }
 
 export function stripHashtags(value: string) {
@@ -138,6 +195,12 @@ export function normalizeLibraryPost(raw: Partial<SocialLibraryPost> & { id: str
     tone: raw.tone ?? 'Amigável',
     wizardStep: raw.wizardStep ?? 1,
     placement: raw.placement ?? (raw.format === 'story' ? 'story' : 'feed'),
+    destinations:
+      raw.destinations && raw.destinations.length
+        ? raw.destinations
+        : destinationsFromPlacement(
+            raw.placement ?? (raw.format === 'story' ? 'story' : 'feed')
+          ),
     creativeFreedom: Boolean(raw.creativeFreedom),
     includeCaption: raw.includeCaption !== false,
     generationStatus: raw.generationStatus ?? 'idle',
@@ -153,13 +216,17 @@ export function normalizeLibraryPost(raw: Partial<SocialLibraryPost> & { id: str
     publishedAt: raw.publishedAt ?? null,
     variationCount: raw.variationCount ?? 0,
     status,
+    media: raw.media ?? [],
   }
 }
 
 export function filterLibrary(posts: SocialLibraryPost[], filter: LibraryFilter) {
-  const sorted = [...posts].sort(
-    (a, b) => +new Date(b.updatedAt) - +new Date(a.updatedAt)
-  )
+  const sorted = [...posts].sort((a, b) => {
+    const rank = (status: string) => (status === 'gerando' ? 0 : 1)
+    const byStatus = rank(a.status) - rank(b.status)
+    if (byStatus !== 0) return byStatus
+    return +new Date(b.updatedAt) - +new Date(a.updatedAt)
+  })
   if (filter === 'todos') return sorted
   return sorted.filter((post) => post.status === filter)
 }

@@ -155,6 +155,7 @@ export interface CreateDraftPayload {
   tone?: string | null
   wizardStep?: number
   placement?: string
+  destinations?: string[]
   creativeFreedom?: boolean
   mediaIds?: string[]
 }
@@ -186,9 +187,16 @@ export const DEFAULT_BRAND: SaveBrandPayload = {
 }
 
 export function activeCaptionText(variation: PostVariation) {
-  if (variation.activeCaption === 'short') return variation.captionShort
-  if (variation.activeCaption === 'long') return variation.captionLong
-  return variation.captionMedium
+  const raw =
+    variation.activeCaption === 'short'
+      ? variation.captionShort
+      : variation.activeCaption === 'long'
+        ? variation.captionLong
+        : variation.captionMedium
+  return raw
+    .replace(/(^|\s)#[\p{L}\p{N}_-]+/gu, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim()
 }
 
 export function captionWithHashtags(variation: PostVariation) {
@@ -228,16 +236,18 @@ export interface SocialLibraryPost {
   publishedAt: string | null
   variationCount: number
   status: SocialPostStatus
+  media?: { id: string; url: string; name?: string }[]
+  destinations?: string[]
 }
 
 export function formatAspect(format: string): number {
-  if (format === 'story') return 9 / 16
+  if (format === 'story' || format === 'video') return 9 / 16
   if (format === 'carousel') return 4 / 5
   return 1
 }
 
 export function formatLabel(format: string, slideCount: number) {
-  if (format === 'story') return 'Story'
+  if (format === 'story' || format === 'video') return 'Vídeo/Reels'
   if (format === 'carousel') return `Carrossel · ${slideCount} slides`
-  return 'Post'
+  return 'Post único'
 }

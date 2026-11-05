@@ -64,11 +64,13 @@ export function SocialGeneratorPage() {
       objective: snapshot.objective,
       theme: snapshot.theme.trim() || 'Rascunho',
       format: snapshot.format,
+      slideCount: snapshot.slideCount,
       artStyle: 'fotografico_clean',
       includeCaption: true,
       tone: snapshot.tone,
       wizardStep: snapshot.wizardStep,
       placement: snapshot.placement,
+      destinations: snapshot.destinations,
       creativeFreedom: snapshot.creativeFreedom,
       mediaIds: snapshot.mediaIds,
     }
@@ -155,6 +157,7 @@ export function SocialGeneratorPage() {
         posts={drafts.data ?? []}
       />
       <SocialPostWizard
+        companyId={companyId}
         initial={
           wizard?.post
             ? {
@@ -162,11 +165,18 @@ export function SocialGeneratorPage() {
                 objective: wizard.post.objective,
                 theme: wizard.post.theme,
                 placement: wizard.post.placement,
+                destinations: wizard.post.destinations,
                 format: wizard.post.format,
+                slideCount: wizard.post.slideCount,
                 tone: wizard.post.tone ?? 'Amigável',
                 creativeFreedom: wizard.post.creativeFreedom,
                 wizardStep: wizard.step,
-                mediaIds: [],
+                mediaIds: wizard.post.media?.map((item) => item.id) ?? [],
+                media: wizard.post.media?.map((item) => ({
+                  id: item.id,
+                  url: item.url,
+                  name: item.name ?? 'foto',
+                })),
               }
             : undefined
         }

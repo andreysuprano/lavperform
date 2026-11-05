@@ -8,7 +8,7 @@ export const POST_OBJECTIVES = [
   'atrair',
 ] as const;
 
-export const POST_FORMATS = ['feed', 'story', 'carousel'] as const;
+export const POST_FORMATS = ['feed', 'story', 'carousel', 'video'] as const;
 
 export const ART_STYLES = [
   'fotografico_clean',

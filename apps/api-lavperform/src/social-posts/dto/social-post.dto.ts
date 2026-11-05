@@ -14,6 +14,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { DESTINATIONS } from '../domain/destinations';
 import {
   ART_STYLES,
   CAPTION_LENGTHS,
@@ -72,6 +73,11 @@ export class CreateSocialDraftDto {
   placement?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsIn(DESTINATIONS, { each: true })
+  destinations?: string[];
+
+  @IsOptional()
   @IsBoolean()
   creativeFreedom?: boolean;
 
@@ -126,6 +132,11 @@ export class UpdateSocialDraftDto {
   @IsOptional()
   @IsIn(['feed', 'story', 'google'])
   placement?: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsIn(DESTINATIONS, { each: true })
+  destinations?: string[];
 
   @IsOptional()
   @IsBoolean()
