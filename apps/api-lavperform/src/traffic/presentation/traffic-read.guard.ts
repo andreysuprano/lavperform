@@ -1,20 +1,24 @@
 import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
-
-type AccessRuleLike = { module?: string; action?: string } | string;
-
-function hasTrafficRead(rules: AccessRuleLike[] | undefined): boolean {
-  return (rules ?? []).some((rule) => {
-    if (typeof rule === 'string') return rule === 'traffic.read';
-    return rule?.module === 'traffic' && rule?.action === 'read';
-  });
-}
+import { PrismaService } from '../../prisma/prisma.service';
 
 @Injectable()
 export class TrafficReadGuard implements CanActivate {
-  canActivate(context: ExecutionContext): boolean {
+  constructor(private readonly prisma: PrismaService) {}
+
+  async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest();
-    if (!hasTrafficRead(request.user?.accessRules)) {
-      throw new ForbiddenException();
+    const userId = request.user?.userId;
+    const companyId = request.params?.companyId;
+    if (!userId || !companyId) {
+      throw new ForbiddenException('Usuário sem acesso a esta empresa');
+    }
+
+    const link = await this.prisma.userCompany.findUnique({
+      where: { userId_companyId: { userId, companyId } },
+      select: { id: true },
+    });
+    if (!link) {
+      throw new ForbiddenException('Usuário sem acesso a esta empresa');
     }
     return true;
   }
