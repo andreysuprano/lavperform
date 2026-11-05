@@ -6,6 +6,7 @@ import {
   Toaster,
   WhatsAppDisconnectedAlert,
 } from '@/components'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import { useAuth } from '@/context/AuthContext'
 import { useCompanyChange } from '@/hooks/useCompanyChange'
 
@@ -16,6 +17,7 @@ import { AppPhoneHeader } from './AppPhoneHeader'
 import { Sidebar } from './AppSidebar'
 import { AppTabBar } from './AppTabBar'
 import { TAB_BAR_OFFSET } from './shellMode'
+import { shellDark } from './shellPalette'
 import { useAppMenuItems } from './useAppMenuItems'
 import { useShellMode } from './useShellMode'
 
@@ -29,6 +31,7 @@ function AppLayoutBase({ children }: Props) {
     isPreloadLoading,
   } = useAuth()
   const mode = useShellMode()
+  const shellBackground = useColorModeValue('bg.subtle', shellDark.background)
   const [open, setOpen] = useState(() => {
     const savedState = localStorage.getItem('sidebar-open')
     return savedState !== null ? JSON.parse(savedState) : true
@@ -59,14 +62,14 @@ function AppLayoutBase({ children }: Props) {
       <Toaster />
       <WhatsAppDisconnectedAlert />
       <Flex
-        bg="bg.subtle"
+        bg={mode === 'desktop' ? 'bg.subtle' : shellBackground}
         minH={mode === 'phone' ? undefined : 'calc(100vh - 64px)'}
         minW={0}
         position="relative"
       >
         <Box
           as="div"
-          bg="bg.subtle"
+          bg={mode === 'desktop' ? 'bg.subtle' : shellBackground}
           flex={1}
           id="app-scroll-container"
           maxW="100%"
@@ -90,6 +93,7 @@ function AppLayoutBase({ children }: Props) {
   if (mode === 'phone') {
     return (
       <Flex
+        bg={shellBackground}
         direction="column"
         h="100dvh"
         maxW="100vw"
@@ -113,6 +117,7 @@ function AppLayoutBase({ children }: Props) {
   if (mode === 'tablet') {
     return (
       <Box
+        bg={shellBackground}
         maxW="100vw"
         minH="100dvh"
         overflowX="hidden"

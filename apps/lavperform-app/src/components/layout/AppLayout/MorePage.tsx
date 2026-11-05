@@ -1,15 +1,17 @@
 import { Box, Button, Center, Icon, Text } from '@chakra-ui/react'
 import type { ElementType } from 'react'
 import { LuChevronRight, LuDollarSign, LuLogOut, LuMapPin } from 'react-icons/lu'
-import { useSearchParams } from 'react-router-dom'
+import { Navigate, useSearchParams } from 'react-router-dom'
 
 import { useColorModeValue } from '@/components/ui/color-mode'
 import { useAuth } from '@/context/AuthContext'
 import { ACADEMY_MENU_ITEM } from '@/utils/constants/appMenuLinks'
 
 import { ShellLink } from './ShellLink'
+import { shellDark } from './shellPalette'
 import { initials } from './storeGroups'
 import { useAppMenuItems } from './useAppMenuItems'
+import { useShellMode } from './useShellMode'
 
 type MenuLink = {
   label: string
@@ -78,8 +80,12 @@ function resolveRows(items: MenuItem[], rows: Array<Omit<Row, 'icon'>>): Row[] {
 }
 
 export function MorePage() {
+  const mode = useShellMode()
   const items = useAppMenuItems() as MenuItem[]
   const [params] = useSearchParams()
+  if (mode !== 'phone') {
+    return <Navigate replace to="/dashboard" />
+  }
   const sectionHref = params.get('item')
   if (sectionHref) {
     const section = findMenuItem(items, sectionHref)
@@ -97,11 +103,11 @@ export function MorePage() {
 
 function MoreHome({ items }: { items: MenuItem[] }) {
   const { user, companies, signOut } = useAuth()
-  const card = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
-  const muted = useColorModeValue('#71717A', 'gray.400')
+  const card = useColorModeValue('white', shellDark.card)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
+  const muted = useColorModeValue('#71717A', shellDark.muted)
   const text = useColorModeValue('#18181B', 'gray.100')
-  const page = useColorModeValue('#F7F7F8', 'gray.950')
+  const page = useColorModeValue('#F7F7F8', shellDark.background)
   const companyName = user?.companyName || 'Sua lavanderia'
   const admin = items.find((item) => item.href === '/admin')
 
@@ -237,8 +243,8 @@ function MoreHome({ items }: { items: MenuItem[] }) {
 }
 
 function MoreSection({ title, links }: { title: string; links: MenuLink[] }) {
-  const card = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
+  const card = useColorModeValue('white', shellDark.card)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
   return (
     <Box data-testid="more-section">
       <Text
@@ -276,9 +282,9 @@ function MoreSection({ title, links }: { title: string; links: MenuLink[] }) {
 }
 
 function Group({ title, rows }: { title: string; rows: Row[] }) {
-  const muted = useColorModeValue('#71717A', 'gray.400')
-  const card = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
+  const muted = useColorModeValue('#71717A', shellDark.muted)
+  const card = useColorModeValue('white', shellDark.card)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
   if (rows.length === 0) return null
   return (
     <Box mb={3}>
@@ -334,9 +340,9 @@ function RowLink({
   single?: boolean
 }) {
   const text = useColorModeValue('#18181B', 'gray.100')
-  const line = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
-  const card = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
+  const line = useColorModeValue('#E4E4E7', shellDark.border)
+  const card = useColorModeValue('white', shellDark.card)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
   return (
     <ShellLink
       alignItems="center"

@@ -21,14 +21,15 @@ import { useAuth } from '@/context/AuthContext'
 
 import { phoneShowsBack, phoneTitle } from './phoneTitle'
 import { ShellLink } from './ShellLink'
+import { shellDark } from './shellPalette'
 import { initials } from './storeGroups'
 
 export function AppPhoneHeader() {
   const { pathname } = useLocation()
   const navigate = useNavigate()
   const { selectedCompany } = useAuth()
-  const background = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
+  const background = useColorModeValue('white', shellDark.background)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
   const text = useColorModeValue('#18181B', 'gray.100')
   const backColor = useColorModeValue('#093A58', '#7BC9F1')
   const switcher = pathname === '/trocar-loja'

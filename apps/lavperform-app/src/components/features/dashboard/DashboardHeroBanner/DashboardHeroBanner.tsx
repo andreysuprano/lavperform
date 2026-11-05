@@ -60,11 +60,11 @@ function DashboardHeroBannerBase() {
 
       <Box
         aria-hidden
+        css={gridStyle}
         inset={0}
         opacity={0.75}
         pointerEvents="none"
         position="absolute"
-        css={gridStyle}
         zIndex={0}
       />
 
@@ -115,16 +115,6 @@ function DashboardHeroBannerBase() {
             gap={1.5}
             minW={0}
           >
-            <Text
-              color="colorPalette.solid"
-              fontSize="sm"
-              fontWeight="semibold"
-              letterSpacing="0.02em"
-              lineClamp={1}
-            >
-              {restaurantName}
-            </Text>
-
             <Text
               color={{ base: 'fg.inverted', _dark: 'fg' }}
               fontSize={{ base: '2xl', md: '3xl' }}

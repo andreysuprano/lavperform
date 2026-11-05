@@ -6,6 +6,7 @@ import { useColorModeValue } from '@/components/ui/color-mode'
 
 import { isTabActive } from './phoneTitle'
 import { TAB_BAR_HEIGHT } from './shellMode'
+import { shellDark } from './shellPalette'
 
 const TABS = [
   { label: 'Início', href: '/dashboard', icon: LuHouse },
@@ -17,11 +18,11 @@ const TABS = [
 
 export function AppTabBar() {
   const { pathname } = useLocation()
-  const background = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
+  const background = useColorModeValue('white', shellDark.background)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
   const active = useColorModeValue('#093A58', '#7BC9F1')
-  const idle = useColorModeValue('#718096', 'gray.500')
-  const dotRing = useColorModeValue('white', 'gray.900')
+  const idle = useColorModeValue('#718096', shellDark.muted)
+  const dotRing = useColorModeValue('white', shellDark.background)
 
   return (
     <Box
@@ -31,11 +32,11 @@ export function AppTabBar() {
       borderColor={border}
       borderTopWidth="1px"
       bottom={0}
+      css={{ paddingBottom: 'env(safe-area-inset-bottom, 0px)' }}
       data-testid="app-tab-bar"
       display="grid"
       gridTemplateColumns="repeat(5, 1fr)"
       left={0}
-      pb="env(safe-area-inset-bottom, 0px)"
       position="fixed"
       right={0}
       zIndex={30}

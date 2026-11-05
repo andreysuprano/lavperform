@@ -3,12 +3,13 @@ import type { ReactNode } from 'react'
 
 import { useColorModeValue } from '@/components/ui/color-mode'
 
+import { shellDark } from './shellPalette'
 import { useShellMode } from './useShellMode'
 
 export function StickySaveBar({ children }: { children: ReactNode }) {
   const phone = useShellMode() === 'phone'
-  const background = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
+  const background = useColorModeValue('white', shellDark.card)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
 
   if (!phone) {
     return (

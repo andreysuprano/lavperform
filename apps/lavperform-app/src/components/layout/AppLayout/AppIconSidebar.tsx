@@ -8,6 +8,7 @@ import { ACADEMY_MENU_ITEM } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
 
 import { ShellNavLink } from './ShellLink'
+import { shellDark } from './shellPalette'
 
 type MenuLink = {
   label: string
@@ -26,10 +27,10 @@ type MenuItemLike = {
 export function AppIconSidebar({ menuItems }: { menuItems: MenuItemLike[] }) {
   const location = useLocation()
   const [openHref, setOpenHref] = useState<string | null>(null)
-  const surface = useColorModeValue('white', 'gray.900')
-  const line = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
-  const idle = useColorModeValue('gray.500', 'gray.400')
-  const popoverBg = useColorModeValue('white', 'gray.800')
+  const surface = useColorModeValue('white', shellDark.background)
+  const line = useColorModeValue('#E4E4E7', shellDark.border)
+  const idle = useColorModeValue('gray.500', shellDark.muted)
+  const popoverBg = useColorModeValue('white', shellDark.card)
   const rowHover = useColorModeValue('gray.50', 'whiteAlpha.100')
   const subActive = useColorModeValue('#E8F6FD', 'rgba(123,201,241,0.16)')
 

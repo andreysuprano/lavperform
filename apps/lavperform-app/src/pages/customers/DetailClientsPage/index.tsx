@@ -4,8 +4,11 @@ import {
   Button,
   Dialog,
   Flex,
+  IconButton,
   Input,
   InputGroup,
+  Menu,
+  Portal,
   Stack,
   Table,
   Text,
@@ -16,6 +19,7 @@ import {
   LuArrowUpDown,
   LuCake,
   LuCalendarDays,
+  LuEllipsis,
   LuMail,
   LuMessageCircle,
   LuShoppingBag,
@@ -356,24 +360,128 @@ export function CustomerTableSection({
     rfvClassifications?.length ?? 0,
   ].reduce((sum, value) => sum + value, 0)
 
+  const filterControls = (
+      <Flex
+        align="center"
+        display="flex"
+        gap={2}
+        wrap="wrap"
+      >
+        <MultiSelectFilter
+          icon={<LuMail size={14} />}
+          label="E-mail"
+          minH="44px"
+          onChange={(next) => updateExclusiveFilter('hasEmail', next)}
+          options={EMAIL_OPTIONS}
+          placeholder="Todos"
+          value={filters.hasEmail}
+        />
+        <MultiSelectFilter
+          icon={<LuCake size={14} />}
+          label="Aniversário"
+          minH="44px"
+          onChange={handleBirthDateFilterChange}
+          options={BIRTHDATE_OPTIONS}
+          placeholder="Todos"
+          value={filters.hasBirthDate}
+        />
+        {isBirthMonthVisible(filters.hasBirthDate) && (
+          <MultiSelectFilter
+          icon={<LuCalendarDays size={14} />}
+            label="Mês"
+            minH="44px"
+            onChange={handleBirthMonthChange}
+            options={MONTH_FILTER_OPTIONS}
+            placeholder="Todos"
+            value={birthMonthValue}
+          />
+        )}
+        <MultiSelectFilter
+          icon={<LuMessageCircle size={14} />}
+          label="Opt-in"
+          minH="44px"
+          onChange={(next) => updateExclusiveFilter('whatsappOptin', next)}
+          options={OPTIN_OPTIONS}
+          placeholder="Todos"
+          value={filters.whatsappOptin}
+        />
+        <MultiSelectFilter
+          icon={<RiWhatsappLine size={14} />}
+          label="WhatsApp"
+          minH="44px"
+          onChange={(next) => updateExclusiveFilter('whatsappVerified', next)}
+          options={VERIFIED_OPTIONS}
+          placeholder="Todos"
+          value={filters.whatsappVerified}
+        />
+        <MultiSelectFilter
+          icon={<LuShoppingBag size={14} />}
+          label="Vendas"
+          minH="44px"
+          onChange={(next) => updateExclusiveFilter('hasOrders', next)}
+          options={ORDERS_OPTIONS}
+          placeholder="Todos"
+          value={filters.hasOrders}
+        />
+        <MultiSelectFilter
+          icon={<LuArrowDownUp size={14} />}
+          label="Ordenar"
+          minH="44px"
+          onChange={(next) => updateExclusiveFilter('orderBy', next)}
+          options={ORDER_BY_OPTIONS}
+          placeholder="Cadastro"
+          value={filters.orderBy}
+        />
+        <MultiSelectFilter
+          icon={<LuArrowUpDown size={14} />}
+          label="Direção"
+          minH="44px"
+          onChange={(next) => updateExclusiveFilter('orderDirection', next)}
+          options={ORDER_DIRECTION_OPTIONS}
+          placeholder="Decrescente"
+          value={filters.orderDirection}
+        />
+
+        {showClearFilters && (
+          <Box
+            _hover={{ color: 'fg' }}
+            as="button"
+            color="fg.muted"
+            fontSize="xs"
+            fontWeight="medium"
+            onClick={handleClearFilters}
+            px={2}
+            py={1}
+            rounded="md"
+            textDecoration="underline"
+            transition="color 120ms ease"
+          >
+            Limpar filtros
+          </Box>
+        )}
+      </Flex>
+  )
+
   return (
     <Stack gap={3}>
       {phone ? (
         <Stack gap={2}>
           <Flex gap={2}>
             <InputGroup flex={1}>
-              <Input
-                bg="bg.panel"
-                h="44px"
-                onChange={handleSearchChange}
-                placeholder="Buscar nome ou telefone"
-                rounded="lg"
-                value={searchQuery}
-              />
+          <Input
+            bg="bg.panel"
+            h="44px"
+            minH="44px"
+            onChange={handleSearchChange}
+            placeholder="Buscar nome ou telefone"
+            rounded="lg"
+            value={searchQuery}
+          />
             </InputGroup>
             <Button
               aria-label="Filtros"
               h="44px"
+              minH="44px"
               minW="44px"
               onClick={() => setFiltersOpen(true)}
               position="relative"
@@ -391,6 +499,39 @@ export function CustomerTableSection({
                 </Badge>
               ) : null}
             </Button>
+            <Menu.Root>
+              <Menu.Trigger asChild>
+                <IconButton
+                  aria-label="Mais ações"
+                  minH="44px"
+                  minW="44px"
+                  variant="outline"
+                >
+                  <LuEllipsis />
+                </IconButton>
+              </Menu.Trigger>
+              <Portal>
+                <Menu.Positioner>
+                  <Menu.Content minW="220px" p={2}>
+                    <Stack gap={2}>
+                      <Button
+                        colorPalette="green"
+                        disabled={!isWhatsAppConnected}
+                        onClick={handleOpenWhatsAppModal}
+                        variant="surface"
+                        w="full"
+                      >
+                        <RiWhatsappLine />
+                        Importar Clientes
+                      </Button>
+                      <ImportCustomersWizard />
+                      <ExportCustomersButton />
+                      <CreateCustomerForm />
+                    </Stack>
+                  </Menu.Content>
+                </Menu.Positioner>
+              </Portal>
+            </Menu.Root>
           </Flex>
           <Flex
             fontSize="13px"
@@ -420,7 +561,10 @@ export function CustomerTableSection({
                   <Dialog.CloseTrigger />
                 </Dialog.Header>
                 <Dialog.Body>
-                  <Stack gap={3}>{filterExtra}</Stack>
+                  <Stack gap={3}>
+                    {filterExtra}
+                    {filterControls}
+                  </Stack>
                 </Dialog.Body>
                 <Dialog.Footer>
                   <Button
@@ -444,100 +588,12 @@ export function CustomerTableSection({
           </Dialog.Root>
         </Stack>
       ) : null}
-      <Flex
-        align="center"
-        display="flex"
-        gap={2}
-        wrap="wrap"
-      >
-        <MultiSelectFilter
-          icon={<LuMail size={14} />}
-          label="E-mail"
-          onChange={(next) => updateExclusiveFilter('hasEmail', next)}
-          options={EMAIL_OPTIONS}
-          placeholder="Todos"
-          value={filters.hasEmail}
-        />
-        <MultiSelectFilter
-          icon={<LuCake size={14} />}
-          label="Aniversário"
-          onChange={handleBirthDateFilterChange}
-          options={BIRTHDATE_OPTIONS}
-          placeholder="Todos"
-          value={filters.hasBirthDate}
-        />
-        {isBirthMonthVisible(filters.hasBirthDate) && (
-          <MultiSelectFilter
-            icon={<LuCalendarDays size={14} />}
-            label="Mês"
-            onChange={handleBirthMonthChange}
-            options={MONTH_FILTER_OPTIONS}
-            placeholder="Todos"
-            value={birthMonthValue}
-          />
-        )}
-        <MultiSelectFilter
-          icon={<LuMessageCircle size={14} />}
-          label="Opt-in"
-          onChange={(next) => updateExclusiveFilter('whatsappOptin', next)}
-          options={OPTIN_OPTIONS}
-          placeholder="Todos"
-          value={filters.whatsappOptin}
-        />
-        <MultiSelectFilter
-          icon={<RiWhatsappLine size={14} />}
-          label="WhatsApp"
-          onChange={(next) => updateExclusiveFilter('whatsappVerified', next)}
-          options={VERIFIED_OPTIONS}
-          placeholder="Todos"
-          value={filters.whatsappVerified}
-        />
-        <MultiSelectFilter
-          icon={<LuShoppingBag size={14} />}
-          label="Vendas"
-          onChange={(next) => updateExclusiveFilter('hasOrders', next)}
-          options={ORDERS_OPTIONS}
-          placeholder="Todos"
-          value={filters.hasOrders}
-        />
-        <MultiSelectFilter
-          icon={<LuArrowDownUp size={14} />}
-          label="Ordenar"
-          onChange={(next) => updateExclusiveFilter('orderBy', next)}
-          options={ORDER_BY_OPTIONS}
-          placeholder="Cadastro"
-          value={filters.orderBy}
-        />
-        <MultiSelectFilter
-          icon={<LuArrowUpDown size={14} />}
-          label="Direção"
-          onChange={(next) => updateExclusiveFilter('orderDirection', next)}
-          options={ORDER_DIRECTION_OPTIONS}
-          placeholder="Decrescente"
-          value={filters.orderDirection}
-        />
+      {!phone && filterControls}
 
-        {showClearFilters && (
-          <Box
-            _hover={{ color: 'fg' }}
-            as="button"
-            color="fg.muted"
-            fontSize="xs"
-            fontWeight="medium"
-            onClick={handleClearFilters}
-            px={2}
-            py={1}
-            rounded="md"
-            textDecoration="underline"
-            transition="color 120ms ease"
-          >
-            Limpar filtros
-          </Box>
-        )}
-      </Flex>
 
       <Flex
         alignItems="center"
+        display={phone ? 'none' : 'flex'}
         flexDirection={{ base: 'column', md: 'row' }}
         gap={2}
       >
@@ -545,6 +601,7 @@ export function CustomerTableSection({
           <Input
             bg="bg.panel"
             borderColor="border.emphasized"
+            minH="44px"
             onChange={handleSearchChange}
             placeholder="Buscar por nome, telefone ou e-mail..."
             rounded="lg"

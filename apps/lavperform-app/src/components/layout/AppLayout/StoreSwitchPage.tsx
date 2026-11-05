@@ -6,17 +6,18 @@ import { useColorModeValue } from '@/components/ui/color-mode'
 import { useAuth } from '@/context/AuthContext'
 import type { UserCompany } from '@/types'
 
+import { shellDark } from './shellPalette'
 import { filterStoreGroups, groupStores, unitInitials } from './storeGroups'
 
 export function StoreSwitchPage() {
   const { companies, selectedCompany, selectCompany } = useAuth()
   const [query, setQuery] = useState('')
-  const card = useColorModeValue('white', 'gray.900')
-  const border = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
-  const muted = useColorModeValue('#71717A', 'gray.400')
+  const card = useColorModeValue('white', shellDark.card)
+  const border = useColorModeValue('#E4E4E7', shellDark.border)
+  const muted = useColorModeValue('#71717A', shellDark.muted)
   const text = useColorModeValue('#18181B', 'gray.100')
-  const page = useColorModeValue('#F7F7F8', 'gray.950')
-  const line = useColorModeValue('#E4E4E7', 'whiteAlpha.200')
+  const page = useColorModeValue('#F7F7F8', shellDark.background)
+  const line = useColorModeValue('#E4E4E7', shellDark.border)
   const groups = useMemo(
     () => filterStoreGroups(groupStores(companies), query),
     [companies, query]
