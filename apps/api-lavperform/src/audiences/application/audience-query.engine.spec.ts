@@ -21,6 +21,44 @@ describe('AudienceQueryEngine', () => {
       .toThrow('Versão da definição de audiência não suportada');
   });
 
+  it('rejects a period whose start date is after the end date', () => {
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [
+            {
+              type: 'total_orders',
+              operator: 'gte',
+              value: 3,
+              period: { from: '2026-10-31', to: '2026-10-15' },
+            },
+          ],
+        },
+      }),
+    ).toThrow('Data inicial deve ser anterior ou igual à data final');
+  });
+
+  it('accepts a period that ends on or after the start date', () => {
+    expect(() =>
+      engine.validateDefinition({
+        version: 1,
+        include: {
+          operator: 'AND',
+          rules: [
+            {
+              type: 'total_orders',
+              operator: 'gte',
+              value: 3,
+              period: { from: '2026-10-31', to: '2026-11-15' },
+            },
+          ],
+        },
+      }),
+    ).not.toThrow();
+  });
+
   it('resolves include AND group by intersecting criterion ids', async () => {
     prisma.customer.findMany
       .mockResolvedValueOnce([{ id: 'a' }, { id: 'b' }])
