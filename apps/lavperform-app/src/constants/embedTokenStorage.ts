@@ -1,6 +1,2 @@
-/** localStorage key for FoodAds / embed flows */
+/** Token de embed já gravado no browser. O app não busca mais um novo em POST /ads/embed-token. */
 export const EMBED_TOKEN_STORAGE_KEY = 'embed-token'
-
-/** Disparado no mesmo documento após gravar ou limpar o embed token. */
-export const EMBED_TOKEN_UPDATE_EVENT = 'foodcrm:embed-token-updated'
-

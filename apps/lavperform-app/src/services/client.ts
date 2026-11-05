@@ -29,19 +29,11 @@ client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   return config
 })
 
-function isEmbedTokenRequest(config: InternalAxiosRequestConfig | undefined) {
-  const url = config?.url ?? ''
-  return url.includes('/ads/embed-token')
-}
-
 // Interceptor para tratar erros de autenticação
 client.interceptors.response.use(
   (response: AxiosResponse) => response,
   (error: AxiosError) => {
-    if (
-      error.response?.status === 401 &&
-      !isEmbedTokenRequest(error.config)
-    ) {
+    if (error.response?.status === 401) {
       localStorage.removeItem('@FoodCRM:token')
       localStorage.removeItem('@FoodCRM:user')
       localStorage.removeItem(EMBED_TOKEN_STORAGE_KEY)

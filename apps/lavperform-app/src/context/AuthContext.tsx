@@ -8,7 +8,8 @@ import {
   useState,
 } from 'react'
 
-import { adsService, applicationService, authService } from '@/services'
+import { EMBED_TOKEN_STORAGE_KEY } from '@/constants/embedTokenStorage'
+import { applicationService, authService } from '@/services'
 import type { AuthArgs, User, UserCompany } from '@/types'
 import { mapPreloadCompaniesToUserCompanies } from '@/utils/preloadCompanies'
 
@@ -61,7 +62,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setCompanies(userCompanies)
       if (userCompanies.length === 0) {
         setSelectedCompany(null)
-        adsService.clearStoredEmbedToken()
+        localStorage.removeItem(EMBED_TOKEN_STORAGE_KEY)
         return null
       }
       const lastSelectedCompanyId = localStorage.getItem(
@@ -93,15 +94,12 @@ export function AuthProvider({ children }: PropsWithChildren) {
         const userCompanies = mapPreloadCompaniesToUserCompanies(
           res.data.companies ?? []
         )
-        const company = applyPreloadCompanies(userCompanies)
-        if (company) {
-          void adsService.syncEmbedToken(company.id)
-        }
+        applyPreloadCompanies(userCompanies)
       })
       .catch(() => {
         setCompanies([])
         setSelectedCompany(null)
-        adsService.clearStoredEmbedToken()
+        localStorage.removeItem(EMBED_TOKEN_STORAGE_KEY)
       })
       .finally(() => {
         setIsPreloadLoading(false)
@@ -114,7 +112,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
       setSelectedCompany(company)
       // Armazena o ID da empresa selecionada no localStorage
       localStorage.setItem('@FoodCRM:lastSelectedCompanyId', companyId)
-      void adsService.syncEmbedToken(companyId)
+      localStorage.removeItem(EMBED_TOKEN_STORAGE_KEY)
       // Removido o reload para evitar re-renderização completa do Layout
       // Os componentes que dependem da empresa selecionada devem usar selectedCompany do contexto
       // e invalidar suas queries do React Query quando necessário
@@ -196,10 +194,8 @@ export function AuthProvider({ children }: PropsWithChildren) {
     const userCompanies = mapPreloadCompaniesToUserCompanies(
       preloadRes.data.companies ?? []
     )
-    const company = applyPreloadCompanies(userCompanies)
-    if (company) {
-      void adsService.syncEmbedToken(company.id)
-    }
+    localStorage.removeItem(EMBED_TOKEN_STORAGE_KEY)
+    applyPreloadCompanies(userCompanies)
 
     window.location.href = '/'
   }
@@ -208,7 +204,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
     localStorage.removeItem('@FoodCRM:token')
     localStorage.removeItem('@FoodCRM:user')
     localStorage.removeItem('@FoodCRM:lastSelectedCompanyId')
-    adsService.clearStoredEmbedToken()
+    localStorage.removeItem(EMBED_TOKEN_STORAGE_KEY)
     setUser(null)
     setCompanies([])
     setSelectedCompany(null)
