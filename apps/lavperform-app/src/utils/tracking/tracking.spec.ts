@@ -65,6 +65,15 @@ height="0" width="0" style="display:none;visibility:hidden"></iframe></noscript>
 <!-- End Google Tag Manager (noscript) -->`
 }
 
+function gtmCurrent(id = 'GTM-P38BJKSJ', quote = '"') {
+  return `<script async src=${quote}https://www.googletagmanager.com/gtm.js?id=${id}${quote}></script>
+<script>
+window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+</script>`
+}
+
 describe('parseMetaPixelCode', () => {
   it('aceita o snippet oficial, pt_BR, aspas duplas e ids de 10 e 20 dígitos', () => {
     expect(parseMetaPixelCode(pixelSnippet())).toBe(PIXEL_ID)
@@ -120,6 +129,22 @@ describe('parseGoogleTagManagerCode', () => {
     )
   })
 
+  it('aceita o código novo do Google, com aspas simples, src antes do async e noscript', () => {
+    expect(parseGoogleTagManagerCode(gtmCurrent())).toBe('GTM-P38BJKSJ')
+    expect(parseGoogleTagManagerCode(gtmCurrent('GTM-ABCD', "'"))).toBe('GTM-ABCD')
+    expect(
+      parseGoogleTagManagerCode(
+        gtmCurrent('GTM-ABCD12345678').replace(
+          '<script async src=',
+          '<script src='
+        ).replace('></script>', ' async></script>')
+      )
+    ).toBe('GTM-ABCD12345678')
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\n${gtmNoscript('GTM-P38BJKSJ')}`)).toBe(
+      'GTM-P38BJKSJ'
+    )
+  })
+
   it('recusa noscript sozinho, outro host, outra camada, duas chamadas, ids inválidos e código perigoso', () => {
     expect(parseGoogleTagManagerCode(gtmNoscript())).toBeNull()
     expect(
@@ -146,6 +171,23 @@ describe('parseGoogleTagManagerCode', () => {
     expect(
       parseGoogleTagManagerCode(`${gtmHead()}\n${gtmNoscript('GTM-ZZZZZZZZ')}`)
     ).toBeNull()
+    expect(parseGoogleTagManagerCode(gtmCurrent().split('</script>')[0] + '</script>')).toBeNull()
+    expect(
+      parseGoogleTagManagerCode(
+        gtmCurrent().replace("gtag('js', new Date());", "gtag('js', new Date());\nalert(1)")
+      )
+    ).toBeNull()
+    expect(
+      parseGoogleTagManagerCode(gtmCurrent().replace('www.googletagmanager.com', 'evil.example'))
+    ).toBeNull()
+    expect(
+      parseGoogleTagManagerCode(
+        gtmCurrent().replace('/gtm.js?id=', '/gtag/js?id=')
+      )
+    ).toBeNull()
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\n${gtmCurrent()}`)).toBeNull()
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\njavascript:`)).toBeNull()
+    expect(parseGoogleTagManagerCode(`${gtmCurrent()}\nonerror=`)).toBeNull()
   })
 })
 
