@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, StreamableFile, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiParam, ApiQuery, ApiResponse, ApiTags } from '@nestjs/swagger';
 import { CompanyStatus } from '@prisma/client';
 import { PaginationDto } from '../../common/dto/pagination.dto';
+import { exportFileMeta, normalizeExportFormat } from '../../common/spreadsheet/rows-to-xlsx';
 import { CompaniesService } from '../../companies/application/companies.service';
 import { CreateCompanyDto } from '../../companies/application/dto/create-company.dto';
 import { UpdateCompanyDto } from '../../companies/application/dto/update-company.dto';
@@ -10,6 +11,7 @@ import { CouponsService } from '../../coupons/application/coupons.service';
 import { CustomersService } from '../../customers/application/customers.service';
 import { RfvEngineService } from '../../rfv-engine/application/rfv-engine.service';
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
+import { AdminCompaniesExportService } from './admin-companies-export.service';
 
 @ApiTags('Admin Companies')
 @ApiBearerAuth()
@@ -21,6 +23,7 @@ export class AdminCompaniesController {
     private readonly couponsService: CouponsService,
     private readonly customersService: CustomersService,
     private readonly rfvEngineService: RfvEngineService,
+    private readonly companiesExportService: AdminCompaniesExportService,
   ) {}
 
   @Get()
@@ -36,6 +39,28 @@ export class AdminCompaniesController {
   @ApiQuery({ name: 'endDate', required: false, type: String })
   findAll(@Query() paginationDto: PaginationDto) {
     return this.companiesService.findAll(paginationDto);
+  }
+
+  @Get('export')
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'xls', 'xlsx'] })
+  @ApiOperation({
+    summary:
+      'Exportar todas as lavanderias cadastradas, inclusive inativas e excluídas, em CSV ou Excel',
+  })
+  @ApiResponse({ status: 200, description: 'Arquivo com os dados das lavanderias' })
+  async exportCompanies(@Query('format') format?: string) {
+    const normalized = normalizeExportFormat(format);
+    const meta = exportFileMeta(normalized, 'lavanderias');
+    const options = {
+      type: meta.type,
+      disposition: `attachment; filename="${meta.filename}"`,
+    };
+
+    if (normalized === 'xlsx') {
+      return new StreamableFile(await this.companiesExportService.createXlsx(), options);
+    }
+
+    return new StreamableFile(this.companiesExportService.createExportStream(), options);
   }
 
   @Get(':id')
