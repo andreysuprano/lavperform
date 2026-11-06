@@ -8,26 +8,32 @@ export function normalizeExportFormat(value?: string): CustomerExportFormat {
   return 'csv';
 }
 
-export function exportFileMeta(format: CustomerExportFormat): {
+export function exportFileMeta(
+  format: CustomerExportFormat,
+  basename = 'clientes',
+): {
   filename: string;
   type: string;
 } {
   if (format === 'xlsx') {
     return {
-      filename: 'clientes.xlsx',
+      filename: `${basename}.xlsx`,
       type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     };
   }
 
   return {
-    filename: 'clientes.csv',
+    filename: `${basename}.csv`,
     type: 'text/csv; charset=utf-8',
   };
 }
 
-export async function buildXlsx(rows: string[][]): Promise<Buffer> {
+export async function buildXlsx(
+  rows: string[][],
+  sheetName = 'Clientes',
+): Promise<Buffer> {
   const workbook = new ExcelJS.Workbook();
-  const sheet = workbook.addWorksheet('Clientes');
+  const sheet = workbook.addWorksheet(sheetName);
   sheet.addRows(rows);
   if (rows.length > 0) {
     sheet.getRow(1).font = { bold: true };

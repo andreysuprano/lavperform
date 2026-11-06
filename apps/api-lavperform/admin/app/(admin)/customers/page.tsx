@@ -7,22 +7,22 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card"
-import { ExportCustomersButton } from "@/features/customers/export-customers-button"
+import { ExportCompaniesButton } from "@/features/companies/export-companies-button"
 
 export default function CustomersExportPage() {
   return (
     <div className="flex flex-col gap-6 px-4 py-4 md:px-6 md:py-6">
       <Card>
         <CardHeader>
-          <CardTitle>Clientes</CardTitle>
+          <CardTitle>Lavanderias</CardTitle>
           <CardDescription>
-            Baixe todos os clientes de todas as lavanderias. O arquivo traz
-            nome, telefone, e-mail, aniversário, cidade e a lavanderia de cada
-            um.
+            Baixe todas as lavanderias cadastradas, inclusive inativas e
+            excluídas. O arquivo traz os dados da lavanderia e uma coluna de
+            status: ativo, inativo, pendente ou deletado.
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <ExportCustomersButton />
+          <ExportCompaniesButton />
         </CardContent>
       </Card>
     </div>

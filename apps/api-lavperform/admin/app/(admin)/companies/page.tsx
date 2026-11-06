@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { PlusIcon } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
-import { ExportCustomersButton } from "@/features/customers/export-customers-button"
+import { ExportCompaniesButton } from "@/features/companies/export-companies-button"
 import { CompaniesFilters } from "@/features/companies/components/companies-filters"
 import { CompaniesTable } from "@/features/companies/components/companies-table"
 import { DeleteCompanyDialog } from "@/features/companies/components/delete-company-dialog"
@@ -115,7 +115,7 @@ export default function CompaniesPage() {
           </p>
         </div>
         <div className="flex flex-col gap-2 sm:flex-row">
-          <ExportCustomersButton />
+          <ExportCompaniesButton />
           <Button nativeButton={false} render={<Link href="/companies/new" />}>
             <PlusIcon />
             Nova empresa

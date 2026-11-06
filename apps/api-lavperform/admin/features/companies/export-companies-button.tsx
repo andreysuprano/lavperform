@@ -12,25 +12,25 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import {
-  downloadAllCustomers,
-  type CustomerExportFormat,
-} from "@/features/customers/export-customers"
+  downloadAllCompanies,
+  type CompanyExportFormat,
+} from "@/features/companies/export-companies"
 
-export function ExportCustomersButton() {
+export function ExportCompaniesButton() {
   const [isExporting, setIsExporting] = useState(false)
 
-  async function handleExport(format: CustomerExportFormat) {
+  async function handleExport(format: CompanyExportFormat) {
     if (isExporting) return
 
     setIsExporting(true)
     try {
-      await downloadAllCustomers(format)
-      toast.success("Base de clientes exportada")
+      await downloadAllCompanies(format)
+      toast.success("Lavanderias exportadas")
     } catch (error) {
       toast.error(
         error instanceof Error
           ? error.message
-          : "Não foi possível exportar os clientes"
+          : "Não foi possível exportar as lavanderias"
       )
     } finally {
       setIsExporting(false)
@@ -45,7 +45,7 @@ export function ExportCustomersButton() {
         }
       >
         {isExporting ? <Loader2 className="animate-spin" /> : <DownloadIcon />}
-        {isExporting ? "Exportando..." : "Exportar clientes"}
+        {isExporting ? "Exportando..." : "Exportar lavanderias"}
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
         <DropdownMenuItem onClick={() => handleExport("csv")}>
