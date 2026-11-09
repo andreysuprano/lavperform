@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { PrismaModule } from '../../prisma/prisma.module';
 import { CiccloModule } from '../../integrations/cicclo/cicclo.module';
 import { WindelModule } from '../../integrations/windel/windel.module';
+import { WaymoneyModule } from '../../integrations/waymoney/waymoney.module';
 import { ImportHistoryModule } from '../../integrations/import-history.module';
 import { L2AutomateModule } from '../../integrations/l2automate/l2automate.module';
 import { MaxlavModule } from '../../integrations/maxlav/maxlav.module';
@@ -20,6 +21,7 @@ import { AdminIntegrationsService } from './admin-integrations.service';
     VmLavModule,
     CiccloModule,
     WindelModule,
+    WaymoneyModule,
     L2AutomateModule,
     MaxlavModule,
     AgidezModule,
