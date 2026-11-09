@@ -118,6 +118,8 @@ export class LandingPage {
     navigation: NavigationItem[];
     createdAt: Date;
     updatedAt: Date;
+    gtmContainerId?: string | null;
+    metaPixelId?: string | null;
 
     // Relations
     company?: any;

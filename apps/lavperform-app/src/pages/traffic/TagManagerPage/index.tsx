@@ -42,8 +42,9 @@ function TagManagerInstructions() {
         </li>
         <li>Deixe a medição ligada e salve.</li>
         <li>
-          Abra uma página publicada em Minhas páginas, a que o cliente vê, e
-          use o modo Visualizar do Tag Manager. O contêiner deve conectar.
+          A landing publicada e as páginas de Minhas páginas carregam esse
+          contêiner. Abra a landing, a página que o Google verifica, e use o
+          modo Visualizar do Tag Manager. O contêiner deve conectar.
         </li>
         <li>
           Para ver a troca de página dentro do site, crie no contêiner um
