@@ -2,6 +2,8 @@ import { Injectable, Logger, NotFoundException, ConflictException, Inject } from
 import { UpdateLandingPageDto } from './dto/landing-page.dto';
 import { ILandingPageRepository } from '../domain/landing-page.repository.interface';
 import { ICompanyRepository } from '../../companies/domain/company.repository.interface';
+import { LandingPage } from '../domain/landing-page.entity';
+import { PrismaService } from '../../prisma/prisma.service';
 import { generateDefaultLandingPageData } from './default-landing-page.template';
 
 @Injectable()
@@ -13,6 +15,7 @@ export class LandingPageService {
         private readonly landingPageRepository: ILandingPageRepository,
         @Inject('ICompanyRepository')
         private readonly companyRepository: ICompanyRepository,
+        private readonly prisma: PrismaService,
     ) {
         this.logger = new Logger(LandingPageService.name);
     }
@@ -92,7 +95,7 @@ export class LandingPageService {
             throw new NotFoundException('Landing page não encontrada');
         }
 
-        return landingPage;
+        return this.withPublicTracking(landingPage);
     }
 
     async findByCustomDomain(customDomain: string, onlyActive = false) {
@@ -106,6 +109,15 @@ export class LandingPageService {
             throw new NotFoundException('Landing page não encontrada');
         }
 
+        return this.withPublicTracking(landingPage);
+    }
+
+    private async withPublicTracking(landingPage: LandingPage) {
+        const gtm = await this.prisma.companyGtmContainer.findUnique({
+            where: { companyId: landingPage.companyId },
+            select: { containerId: true, enabled: true },
+        });
+        landingPage.gtmContainerId = gtm?.enabled ? gtm.containerId : null;
         return landingPage;
     }
 

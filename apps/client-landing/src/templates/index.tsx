@@ -1,3 +1,4 @@
+import { GoogleTagManager } from "@/components/google-tag-manager"
 import { WhatsappFloat } from "@/components/whatsapp-float"
 import { LaundryData } from "@/types/laundry"
 import { DefaultTemplate } from "./default"
@@ -33,6 +34,7 @@ export function TemplateRenderer({ data }: TemplateRendererProps) {
   // Renderiza o template com os dados
   return (
     <>
+      <GoogleTagManager containerId={data.gtmContainerId} />
       <Template data={data} />
       <WhatsappFloat cta={data.cta} />
     </>

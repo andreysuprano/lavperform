@@ -1,4 +1,5 @@
 export interface LaundryData {
+  gtmContainerId?: string | null
   template?: string // Nome do template a ser usado (ex: "default", "modern", "minimal")
   branding: {
     name: string
