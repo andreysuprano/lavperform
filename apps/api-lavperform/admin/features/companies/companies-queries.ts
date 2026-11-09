@@ -8,6 +8,7 @@ import { ApiClientError } from "@/services/api-client"
 import {
   createCompany,
   deleteCompany,
+  deleteCompanyCustomerBase,
   getCompany,
   listCompanies,
   listCompanyUsers,
@@ -123,6 +124,26 @@ export function useUpdateCompanyState() {
     onError: (error) => {
       toast.error(
         getErrorMessage(error, "Não foi possível alterar o status da empresa")
+      )
+    },
+  })
+}
+
+export function useDeleteCompanyCustomerBase(companyId: string) {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: () => deleteCompanyCustomerBase(companyId),
+    onSuccess: (result) => {
+      queryClient.invalidateQueries({
+        queryKey: companyKeys.duplicates(companyId),
+      })
+      toast.success("Base de clientes excluída", {
+        description: `${result.deletedCustomers} cliente(s) removido(s).`,
+      })
+    },
+    onError: (error) => {
+      toast.error(
+        getErrorMessage(error, "Não foi possível excluir a base de clientes")
       )
     },
   })
