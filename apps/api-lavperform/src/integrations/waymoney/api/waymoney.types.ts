@@ -25,6 +25,8 @@ export interface WaymoneyPayment {
   createdAt?: string | null;
   machineName?: string | null;
   machineType?: string | null;
+  machine?: { name?: string | null; type?: string | null } | null;
+  branch?: { id?: string | null; name?: string | null } | null;
 }
 
 export interface WaymoneyPaymentsResponse {
@@ -43,6 +45,7 @@ export interface WaymoneyPackagePurchase {
   amount?: number | null;
   packageName?: string | null;
   createdAt?: string | null;
+  branch?: { id?: string | null; name?: string | null } | null;
 }
 
 export interface WaymoneyPackagePurchasesResponse {
@@ -54,6 +57,7 @@ export interface WaymoneyClient {
   id?: string;
   name?: string | null;
   phone?: string | null;
+  cpf?: string | null;
   document?: string | null;
   email?: string | null;
 }
