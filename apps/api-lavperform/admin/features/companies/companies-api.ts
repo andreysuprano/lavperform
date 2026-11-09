@@ -86,6 +86,20 @@ export function deleteCompany(id: string): Promise<void> {
   return apiClient<void>(`/admin/companies/${id}`, { method: "DELETE" })
 }
 
+export type DeleteCustomerBaseResponse = {
+  deletedCustomers: number
+  abortedMessages: number
+}
+
+export function deleteCompanyCustomerBase(
+  id: string
+): Promise<DeleteCustomerBaseResponse> {
+  return apiClient<DeleteCustomerBaseResponse>(
+    `/admin/companies/${id}/customers`,
+    { method: "DELETE" }
+  )
+}
+
 export function updateCompanyState(
   id: string,
   state: CompanyStatus

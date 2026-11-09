@@ -12,6 +12,7 @@ import { CustomersService } from '../../customers/application/customers.service'
 import { RfvEngineService } from '../../rfv-engine/application/rfv-engine.service';
 import { AdminJwtGuard } from '../auth/guards/admin-jwt.guard';
 import { AdminCompaniesExportService } from './admin-companies-export.service';
+import { AdminCompanyCustomerBaseService } from './admin-company-customer-base.service';
 
 @ApiTags('Admin Companies')
 @ApiBearerAuth()
@@ -24,6 +25,7 @@ export class AdminCompaniesController {
     private readonly customersService: CustomersService,
     private readonly rfvEngineService: RfvEngineService,
     private readonly companiesExportService: AdminCompaniesExportService,
+    private readonly customerBaseService: AdminCompanyCustomerBaseService,
   ) {}
 
   @Get()
@@ -103,6 +105,16 @@ export class AdminCompaniesController {
   @ApiParam({ name: 'id', description: 'ID da empresa' })
   listCompanyUsers(@Param('id') id: string) {
     return this.companiesService.listCompanyUsers(id);
+  }
+
+  @Delete(':id/customers')
+  @ApiOperation({ summary: 'Apagar a base de clientes da empresa' })
+  @ApiParam({ name: 'id', description: 'ID da empresa' })
+  @ApiResponse({ status: 200, description: 'Base de clientes apagada' })
+  @ApiResponse({ status: 404, description: 'Empresa não encontrada' })
+  async deleteCustomerBase(@Param('id') id: string) {
+    await this.companiesService.findOne(id);
+    return this.customerBaseService.purge(id);
   }
 
   @Post(':id/customers/validate-whatsapp')
