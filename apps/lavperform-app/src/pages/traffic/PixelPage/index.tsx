@@ -36,7 +36,8 @@ function PixelInstructions() {
         <li>Cole esse código no campo abaixo.</li>
         <li>Deixe a medição ligada e salve.</li>
         <li>
-          Abra uma página publicada em Minhas páginas, a que o cliente vê.
+          A landing publicada e as páginas de Minhas páginas disparam o
+          PageView. Abra a landing, a página que a Meta verifica.
         </li>
         <li>
           Volte ao Gerenciador de Eventos. Em alguns minutos deve aparecer um

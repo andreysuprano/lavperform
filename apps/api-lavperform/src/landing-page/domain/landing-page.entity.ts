@@ -119,6 +119,7 @@ export class LandingPage {
     createdAt: Date;
     updatedAt: Date;
     gtmContainerId?: string | null;
+    metaPixelId?: string | null;
 
     // Relations
     company?: any;

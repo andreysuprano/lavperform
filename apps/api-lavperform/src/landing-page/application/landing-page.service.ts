@@ -113,11 +113,18 @@ export class LandingPageService {
     }
 
     private async withPublicTracking(landingPage: LandingPage) {
-        const gtm = await this.prisma.companyGtmContainer.findUnique({
-            where: { companyId: landingPage.companyId },
-            select: { containerId: true, enabled: true },
-        });
+        const [gtm, pixel] = await Promise.all([
+            this.prisma.companyGtmContainer.findUnique({
+                where: { companyId: landingPage.companyId },
+                select: { containerId: true, enabled: true },
+            }),
+            this.prisma.companyMetaPixel.findUnique({
+                where: { companyId: landingPage.companyId },
+                select: { pixelId: true, enabled: true },
+            }),
+        ]);
         landingPage.gtmContainerId = gtm?.enabled ? gtm.containerId : null;
+        landingPage.metaPixelId = pixel?.enabled ? pixel.pixelId : null;
         return landingPage;
     }
 
