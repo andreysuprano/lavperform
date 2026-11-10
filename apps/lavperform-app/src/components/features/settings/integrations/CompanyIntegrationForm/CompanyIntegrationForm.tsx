@@ -50,6 +50,8 @@ function CompanyIntegrationForm({
   const { selectedCompany } = useAuth()
   const isVmLav = partnerSlug?.trim().toUpperCase() === 'VMLAV'
   const isWindel = partnerSlug?.trim().toUpperCase() === 'WINDEL'
+  const usesEmailPassword =
+    isWindel || partnerSlug?.trim().toUpperCase() === 'WAYMONEY'
   const formSchema = useMemo(() => buildSchema(partnerSlug), [partnerSlug])
 
   const {
@@ -213,10 +215,14 @@ function CompanyIntegrationForm({
           <Input
             control={control}
             label={
-              isWindel ? 'E-mail' : isVmLav ? 'CNPJ' : 'Código da loja'
+              usesEmailPassword
+                ? 'E-mail'
+                : isVmLav
+                  ? 'CNPJ'
+                  : 'Código da loja'
             }
             placeholder={
-              isWindel
+              usesEmailPassword
                 ? 'nome@empresa.com.br'
                 : isVmLav
                   ? '00.000.000/0000-00'
@@ -238,9 +244,9 @@ function CompanyIntegrationForm({
         </Stack>
         <Input
           control={control}
-          label={isWindel ? 'Senha' : 'Token / Apikey'}
-          placeholder={isWindel ? 'Senha' : 'Token / Apikey'}
-          type={isWindel ? 'password' : 'text'}
+          label={usesEmailPassword ? 'Senha' : 'Token / Apikey'}
+          placeholder={usesEmailPassword ? 'Senha' : 'Token / Apikey'}
+          type={usesEmailPassword ? 'password' : 'text'}
           required
           {...register('token')}
         />

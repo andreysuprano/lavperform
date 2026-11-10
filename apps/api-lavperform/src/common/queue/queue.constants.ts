@@ -30,6 +30,8 @@ export const QUEUE_NAMES = {
   MAXLAV_SALE_PROCESS: 'maxlav-sale-process',
   AGIDEZ_SALES_IMPORT: 'agidez-sales-import',
   AGIDEZ_SALE_PROCESS: 'agidez-sale-process',
+  WAYMONEY_SALES_IMPORT: 'waymoney-sales-import',
+  WAYMONEY_SALE_PROCESS: 'waymoney-sale-process',
   ACCON_SALES_IMPORT: 'accon-sales-import',
   ACCON_SALE_PROCESS: 'accon-sale-process',
   ASAAS_PAYMENT_PROCESS: 'asaas-payment-process',
