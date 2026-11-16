@@ -9,6 +9,7 @@ import {
 } from 'react'
 
 import { applicationService, authService } from '@/services'
+import { setActiveCompanyId } from '@/services/client'
 import type { AuthArgs, User, UserCompany } from '@/types'
 import { mapPreloadCompaniesToUserCompanies } from '@/utils/preloadCompanies'
 
@@ -40,6 +41,10 @@ export function AuthProvider({ children }: PropsWithChildren) {
     null
   )
   const [isPreloadLoading, setIsPreloadLoading] = useState(false)
+
+  useEffect(() => {
+    setActiveCompanyId(selectedCompany?.id ?? null)
+  }, [selectedCompany?.id])
 
   // isAdmin is computed from the user's email domain compared to Vite env
   const isAdminFromUser = (user: User | null) => {
@@ -106,6 +111,7 @@ export function AuthProvider({ children }: PropsWithChildren) {
   function selectCompany(companyId: string) {
     const company = companies.find((c) => c.id === companyId)
     if (company) {
+      setActiveCompanyId(company.id)
       setSelectedCompany(company)
       // Armazena o ID da empresa selecionada no localStorage
       localStorage.setItem('@FoodCRM:lastSelectedCompanyId', companyId)
