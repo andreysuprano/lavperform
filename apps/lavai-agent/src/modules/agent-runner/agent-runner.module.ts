@@ -17,6 +17,8 @@ import { McpModule } from '../mcp/mcp.module';
 import { AgentTraceModule } from '../agent-trace/agent-trace.module';
 import { CustomerJourneyModule } from '../customer-journey/customer-journey.module';
 import { AgentModule } from '../agent/agent.module';
+import { AttendanceModule } from '../attendance/attendance.module';
+import { MessageBufferModule } from '../messaging/message-buffer.module';
 import { AGENT_REPOSITORY } from '../../application/agent/ports/agent.repository.port';
 import { PrismaAgentRepository } from '../../infrastructure/persistence/repositories/prisma-agent.repository';
 
@@ -26,9 +28,11 @@ import { PrismaAgentRepository } from '../../infrastructure/persistence/reposito
     RagModule,
     MessagingModule,
     McpModule,
+    MessageBufferModule,
     AgentTraceModule,
     forwardRef(() => AgentModule),
     forwardRef(() => CustomerJourneyModule),
+    forwardRef(() => AttendanceModule),
   ],
   providers: [
     PrismaConversationRepository,

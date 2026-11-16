@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server"
 
 import { normalizeLocationData } from "@/lib/normalize-location"
+import { DEFAULT_WHATSAPP_MESSAGE, toWhatsappDigits } from "@/lib/whatsapp"
 
 export const dynamic = "force-dynamic"
 export const revalidate = 0
@@ -12,6 +13,30 @@ const COMMON_DOMAIN = COMMON_DOMAIN_RAW.split(":")[0]
 
 const NO_STORE_HEADERS = {
   "Cache-Control": "no-store, no-cache, must-revalidate",
+}
+
+const WHATSAPP_PLACEHOLDER_NUMBER = "5548999999999"
+
+function resolveCta(data: {
+  cta?: { whatsappNumber?: string; whatsappMessage?: string } & Record<string, unknown>
+  company?: { phone?: string | null }
+}) {
+  const cta = data?.cta && typeof data.cta === "object" ? data.cta : {}
+  const stored = toWhatsappDigits(cta.whatsappNumber)
+  const fromCompany = toWhatsappDigits(data?.company?.phone)
+  const whatsappNumber =
+    (!stored || stored === WHATSAPP_PLACEHOLDER_NUMBER) && fromCompany
+      ? fromCompany
+      : stored || cta.whatsappNumber || ""
+
+  return {
+    ...cta,
+    whatsappNumber,
+    whatsappMessage:
+      typeof cta.whatsappMessage === "string" && cta.whatsappMessage.trim()
+        ? cta.whatsappMessage
+        : DEFAULT_WHATSAPP_MESSAGE,
+  }
 }
 
 /**
@@ -106,6 +131,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json(
       {
         ...data,
+        cta: resolveCta(data),
         location,
         footer: {
           description: '',

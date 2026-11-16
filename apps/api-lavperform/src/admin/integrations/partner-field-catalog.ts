@@ -22,6 +22,18 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },
+  WINDEL: {
+    requiredFields: ['merchantId', 'apiKey'],
+    optionalFields: [],
+    supportsImportHistory: true,
+    importHistoryRoute: 'dedicated',
+  },
+  WAYMONEY: {
+    requiredFields: ['merchantId', 'apiKey'],
+    optionalFields: [],
+    supportsImportHistory: true,
+    importHistoryRoute: 'dedicated',
+  },
   L2AUTOMATE: {
     requiredFields: ['apiKey'],
     optionalFields: ['merchantId', 'digitalMenuUrl'],
@@ -59,6 +71,8 @@ export const UNIFIED_IMPORT_SLUGS = new Set<string>([]);
 export const DEDICATED_IMPORT_SLUGS = new Set([
   'VMLAV',
   'CICCLO',
+  'WINDEL',
+  'WAYMONEY',
   'L2AUTOMATE',
   'MAXLAV',
   'HYBEX',

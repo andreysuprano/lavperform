@@ -41,6 +41,7 @@ import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
 import type { AdjustmentSeed } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
 
+import { MarkdownField } from './MarkdownField'
 import { SelectableIconCard } from './SelectableIconCard'
 
 interface CardOption<T> {
@@ -153,30 +154,16 @@ function formToDocument(values: PersonaFormData): PromptDocument {
   }
 }
 
-function ReadOnlyPromptDocument({ document }: { document: PromptDocument }) {
-  return (
-    <Stack gap={5}>
-      {(Object.keys(DOCUMENT_LABELS) as Array<keyof PromptDocument>).map(
-        (field) => (
-          <Stack key={field} gap={1}>
-            <Text fontWeight="semibold" fontSize="sm">
-              {DOCUMENT_LABELS[field]}
-            </Text>
-            <Text
-              fontSize="sm"
-              whiteSpace="pre-wrap"
-              borderWidth="1px"
-              borderRadius="md"
-              p={3}
-              bg="bg.subtle"
-            >
-              {document[field] || '—'}
-            </Text>
-          </Stack>
-        )
-      )}
-    </Stack>
-  )
+const PROMPT_FIELD_HEIGHT: Record<keyof PromptDocument, number> = {
+  contextPrompt: 200,
+  systemPrompt: 320,
+  behaviorGuidelines: 260,
+  guardrails: 260,
+}
+
+const PROMPT_FIELD_PLACEHOLDER: Partial<Record<keyof PromptDocument, string>> = {
+  contextPrompt: 'Informações da unidade injetadas no prompt...',
+  systemPrompt: 'Cole aqui o prompt customizado...',
 }
 
 function PersonaTabBase({ agent }: PersonaTabProps) {
@@ -239,6 +226,17 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
     setPendingDocument(next)
     setStudioError(null)
   }, [])
+
+  const handlePromptChange = useCallback(
+    (field: keyof PromptDocument, value: string) => {
+      if (pendingDocument) {
+        setPendingDocument({ ...pendingDocument, [field]: value })
+        return
+      }
+      form.setValue(field, value)
+    },
+    [form, pendingDocument]
+  )
 
   const handleAcceptPending = useCallback(async () => {
     if (!pendingDocument) return
@@ -456,7 +454,18 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
                 </Stack>
               ) : null}
 
-              <ReadOnlyPromptDocument document={activeDocument} />
+              {(Object.keys(DOCUMENT_LABELS) as Array<keyof PromptDocument>).map(
+                (field) => (
+                  <MarkdownField
+                    key={field}
+                    label={DOCUMENT_LABELS[field]}
+                    value={activeDocument[field]}
+                    onChange={(value) => handlePromptChange(field, value)}
+                    height={PROMPT_FIELD_HEIGHT[field]}
+                    placeholder={PROMPT_FIELD_PLACEHOLDER[field]}
+                  />
+                )
+              )}
             </Stack>
           </Stack>
         </Card.Body>

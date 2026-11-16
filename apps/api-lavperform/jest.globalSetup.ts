@@ -1,11 +1,15 @@
-import { StartedPostgreSqlContainer, PostgreSqlContainer } from '@testcontainers/postgresql';
+import {
+  StartedPostgreSqlContainer,
+  PostgreSqlContainer,
+} from '@testcontainers/postgresql';
 import { StartedRedisContainer, RedisContainer } from '@testcontainers/redis';
 import { execSync } from 'child_process';
+import * as fs from 'fs';
+import * as path from 'path';
 
 declare global {
-  // eslint-disable-next-line no-var
   var __POSTGRES_CONTAINER__: StartedPostgreSqlContainer;
-  // eslint-disable-next-line no-var
+
   var __REDIS_CONTAINER__: StartedRedisContainer;
 }
 
@@ -15,7 +19,9 @@ export default async function globalSetup() {
   try {
     // Start PostgreSQL container
     console.log('  📦 Starting PostgreSQL container...');
-    const postgresContainer = await new PostgreSqlContainer('postgres:15-alpine')
+    const postgresContainer = await new PostgreSqlContainer(
+      'postgres:15-alpine',
+    )
       .withDatabase('testdb')
       .withUsername('testuser')
       .withPassword('testpass')
@@ -38,6 +44,15 @@ export default async function globalSetup() {
     console.log('  🔗 Database URL:', databaseUrl);
     console.log('  🔗 Redis Host:', redisContainer.getHost());
     console.log('  🔗 Redis Port:', redisContainer.getPort());
+
+    fs.writeFileSync(
+      path.join(__dirname, 'test/e2e/.test-env.json'),
+      JSON.stringify({
+        DATABASE_URL: databaseUrl,
+        REDIS_HOST: redisContainer.getHost(),
+        REDIS_PORT: String(redisContainer.getPort()),
+      }),
+    );
 
     // Run Prisma migrations
     console.log('  🔄 Running database migrations...');

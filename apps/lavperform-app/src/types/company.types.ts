@@ -17,6 +17,7 @@ export interface PreloadCompany {
   showIncentivizedSales?: boolean
   showTodayPurchases?: boolean
   serviceModel?: CompanyServiceModel
+  permissions?: string[]
 }
 
 export interface ApplicationPreloadResponse {

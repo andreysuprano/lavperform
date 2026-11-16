@@ -232,6 +232,7 @@ export class CompanyPrismaRepository implements ICompanyRepository {
         return this.prisma.company.findFirst({
             select: {
                 id: true,
+                slug: true,
                 name: true,
                 avatarUrl: true,
                 address: true,

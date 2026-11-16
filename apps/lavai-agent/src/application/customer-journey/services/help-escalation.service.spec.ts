@@ -22,6 +22,7 @@ describe('HelpEscalationService', () => {
   const messageSender = {
     send: jest.fn(),
   };
+  const idleClose = { cancel: jest.fn() };
 
   const service = new HelpEscalationService(
     journeyRepo as never,
@@ -30,6 +31,7 @@ describe('HelpEscalationService', () => {
     followUpScheduler as never,
     attendantGateway as never,
     messageSender as never,
+    idleClose as never,
   );
 
   const conversation = {
@@ -61,6 +63,32 @@ describe('HelpEscalationService', () => {
     });
     humanTakeover.setTakeover.mockResolvedValue(undefined);
     messageSender.send.mockResolvedValue(undefined);
+  });
+
+  it('não envia WhatsApp quando o chat é o teste do agente', async () => {
+    const agent = {
+      ...baseAgent,
+      journeyConfig: {
+        followUpSteps: [],
+        helpAckMessage: 'Aguarde um atendente',
+      },
+      notificationConfig: {
+        helpNotificationEnabled: true,
+        helpNotificationPhone: '5511999999999',
+      },
+    } as unknown as AgentWithConfigsData;
+
+    await service.escalate({
+      agent,
+      conversation: {
+        ...conversation,
+        chatId: 'playground:550e8400-e29b-41d4-a716-446655440000',
+      } as never,
+      lastMessage: 'quero atendente',
+    });
+
+    expect(messageSender.send).not.toHaveBeenCalled();
+    expect(helpRequestRepo.create).toHaveBeenCalled();
   });
 
   it('não envia alerta ao staff sem notificationConfig', async () => {
@@ -182,5 +210,22 @@ describe('HelpEscalationService', () => {
 
     expect(result.alreadyEscalated).toBe(true);
     expect(messageSender.send).not.toHaveBeenCalled();
+    expect(idleClose.cancel).not.toHaveBeenCalled();
+  });
+
+  it('cancela o prazo de silêncio junto com os follow-ups', async () => {
+    journeyRepo.findByConversationId.mockResolvedValue({
+      id: 'journey-1',
+      status: 'ACTIVE',
+    });
+
+    await service.escalate({
+      agent: baseAgent,
+      conversation: conversation as never,
+      lastMessage: 'quero atendente',
+    });
+
+    expect(followUpScheduler.cancelForJourney).toHaveBeenCalledWith('journey-1', []);
+    expect(idleClose.cancel).toHaveBeenCalledWith('conv-1');
   });
 });

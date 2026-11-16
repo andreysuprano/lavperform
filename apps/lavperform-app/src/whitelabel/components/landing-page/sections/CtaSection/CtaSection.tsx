@@ -3,17 +3,20 @@ import {
   Button,
   Container,
   Heading,
-  Stack,
   Text,
   VStack,
 } from '@chakra-ui/react'
 import { memo } from 'react'
 import { RiWhatsappLine } from 'react-icons/ri'
 
+import { buildWhatsappUrl } from '@/whitelabel/utils'
+
 import { Props } from './CtaSection.types'
 
 function CtaSectionBase({ cta }: Props) {
-  const whatsappLink = `https://wa.me/${cta.whatsappNumber}`
+  const whatsappLink =
+    buildWhatsappUrl(cta.whatsappNumber, cta.whatsappMessage) ??
+    `https://wa.me/${cta.whatsappNumber}`
 
   return (
     <Box bg="primary.500" py={{ base: 12, md: 20 }}>
@@ -34,16 +37,16 @@ function CtaSectionBase({ cta }: Props) {
             {cta.description}
           </Text>
           <Button
-            as="a"
+            asChild
             bg="white"
             color="primary.500"
-            href={whatsappLink}
-            leftIcon={<RiWhatsappLine />}
             size="lg"
-            target="_blank"
             _hover={{ bg: 'whiteAlpha.900' }}
           >
-            {cta.buttonText}
+            <a href={whatsappLink} rel="noopener noreferrer" target="_blank">
+              <RiWhatsappLine />
+              {cta.buttonText}
+            </a>
           </Button>
         </VStack>
       </Container>

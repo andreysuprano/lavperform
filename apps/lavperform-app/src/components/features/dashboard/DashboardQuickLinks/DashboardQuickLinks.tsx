@@ -11,6 +11,9 @@ import {
 import { PiMonitorPlay } from 'react-icons/pi'
 import { Link as RouterLink } from 'react-router-dom'
 
+import { shellDark } from '@/components/layout/AppLayout/shellPalette'
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import { useWhiteLabel } from '@/config'
 import { ACADEMY_MENU_ITEM } from '@/utils/constants/appMenuLinks'
 
@@ -62,6 +65,9 @@ const QUICK_LINKS: QuickLink[] = [
 
 function DashboardQuickLinksBase() {
   const { colorPalette } = useWhiteLabel()
+  const phone = useShellMode() === 'phone'
+  const cardBg = useColorModeValue('white', shellDark.card)
+  const cardBorder = useColorModeValue('#E4E4E7', shellDark.border)
 
   return (
     <Box w="full">
@@ -83,6 +89,8 @@ function DashboardQuickLinksBase() {
               bg: 'bg.subtle',
             }}
             as={RouterLink}
+            bg={phone ? cardBg : undefined}
+            borderColor={phone ? cardBorder : undefined}
             colorPalette={colorPalette}
             key={href}
             size="sm"

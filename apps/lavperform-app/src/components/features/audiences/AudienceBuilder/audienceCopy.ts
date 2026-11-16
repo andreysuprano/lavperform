@@ -240,3 +240,36 @@ export function summarizeAudienceDefinition(definition: {
 export function hasIncludeRules(group: RuleGroup): boolean {
   return group.rules.length > 0
 }
+
+export const INVALID_PERIOD_MESSAGE =
+  'A data inicial precisa ser anterior ou igual à data final.'
+
+export function audiencePeriodError(definition: {
+  include: RuleGroup
+  exclude?: RuleGroup
+}): string | null {
+  if (groupHasInvertedPeriod(definition.include)) return INVALID_PERIOD_MESSAGE
+  if (definition.exclude && groupHasInvertedPeriod(definition.exclude)) {
+    return INVALID_PERIOD_MESSAGE
+  }
+  return null
+}
+
+function groupHasInvertedPeriod(group: RuleGroup): boolean {
+  return group.rules.some((rule) => {
+    if (isRuleGroup(rule)) return groupHasInvertedPeriod(rule)
+    return hasInvertedRange(rule.period) || hasInvertedRange(rule.value)
+  })
+}
+
+function hasInvertedRange(value: unknown): boolean {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const range = value as { from?: unknown; to?: unknown }
+  return (
+    typeof range.from === 'string' &&
+    typeof range.to === 'string' &&
+    range.from !== '' &&
+    range.to !== '' &&
+    range.from > range.to
+  )
+}

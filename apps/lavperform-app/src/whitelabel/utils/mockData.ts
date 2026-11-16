@@ -315,6 +315,8 @@ export const getMockLandingPageConfig = (
         'Venha conhecer a InLaundry e comprove a qualidade dos nossos serviços.',
       buttonText: 'Solicitar Atendimento',
       whatsappNumber: '5548999999999',
+      whatsappMessage:
+        'Olá! Vim pelo site e gostaria de mais informações.',
     },
     footer: {
       description: 'Praticidade e carinho para suas roupas.',

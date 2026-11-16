@@ -1,14 +1,14 @@
 import { Button, Menu, Portal, Text, VStack } from '@chakra-ui/react'
 import { memo } from 'react'
+import { LuRadio } from 'react-icons/lu'
 
 import { useAuth } from '@/context/AuthContext'
 
 import { ActiveChannelBadge } from '../ActiveChannelBadge/ActiveChannelBadge'
-import { ComingSoonBadge } from '../ComingSoonBadge/ComingSoonBadge'
 import { ChannelDropdownCard } from '../ChannelDropdownCard/ChannelDropdownCard'
+import { ComingSoonBadge } from '../ComingSoonBadge/ComingSoonBadge'
 import { MetaIntegrationDropdownCard } from '../MetaIntegrationDropdownCard/MetaIntegrationDropdownCard'
 import { WhatsAppDropdownCard } from '../WhatsAppDropdownCard/WhatsAppDropdownCard'
-
 import { DROPDOWN_CHANNELS } from './channelDropdown.constants'
 
 function ChannelDropdownBase() {
@@ -18,11 +18,24 @@ function ChannelDropdownBase() {
     <Menu.Root>
       <Menu.Trigger asChild>
         <Button
-          display={{ base: 'none', lg: 'flex' }}
+          aria-label="Canais de Comunicação"
+          className="shell-touch-44"
+          display={{ base: 'none', md: 'flex' }}
           size="sm"
           variant="outline"
         >
-          <Text fontSize="sm">Canais de Comunicação</Text>
+          <Text
+            as="span"
+            className="shell-only-below-desktop"
+          >
+            <LuRadio />
+          </Text>
+          <Text
+            className="shell-hide-below-desktop"
+            fontSize="sm"
+          >
+            Canais de Comunicação
+          </Text>
         </Button>
       </Menu.Trigger>
       <Portal>
@@ -32,30 +45,30 @@ function ChannelDropdownBase() {
               {DROPDOWN_CHANNELS.map((channel) =>
                 channel.showStatus && selectedCompany ? (
                   <WhatsAppDropdownCard
-                    key={channel.name}
                     companyId={selectedCompany.id}
                     icon={channel.icon}
+                    key={channel.name}
                     name={channel.name}
                   />
                 ) : channel.showMetaStatus && selectedCompany ? (
                   <MetaIntegrationDropdownCard
-                    key={channel.name}
                     companyId={selectedCompany.id}
                     icon={channel.icon}
+                    key={channel.name}
                     name={channel.name}
                   />
                 ) : channel.showActiveBadge ? (
                   <ChannelDropdownCard
-                    key={channel.name}
                     badge={<ActiveChannelBadge />}
                     icon={channel.icon}
+                    key={channel.name}
                     name={channel.name}
                   />
                 ) : (
                   <ChannelDropdownCard
-                    key={channel.name}
                     badge={<ComingSoonBadge />}
                     icon={channel.icon}
+                    key={channel.name}
                     name={channel.name}
                   />
                 )

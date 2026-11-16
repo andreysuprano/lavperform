@@ -4,11 +4,15 @@ import { whiteLabelManager } from '@/config'
 
 const currentTheme = whiteLabelManager.getTheme()
 
+/** Fundo dos badges "Novidade" e "Novo". Igual nos dois modos. */
+export const NAV_NEW_BADGE_COLOR = '#C2410C'
+
 const config = {
   theme: {
     tokens: {
       colors: {
         primary: { value: currentTheme.colors.primary },
+        navNewBadge: { value: NAV_NEW_BADGE_COLOR },
         app: {
           surface: { value: '#f5f5f6' },
         },

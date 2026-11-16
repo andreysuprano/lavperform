@@ -173,6 +173,13 @@ export const customerService = {
     )
   },
 
+  async exportCustomers(companyId: string, format: 'csv' | 'xlsx' = 'csv') {
+    return await client.get<Blob>(`/companies/${companyId}/customers/export`, {
+      params: { format: format === 'xlsx' ? 'xls' : 'csv' },
+      responseType: 'blob',
+    })
+  },
+
   async listCustomers(
     companyId: string,
     params?: {

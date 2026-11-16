@@ -66,16 +66,27 @@ export class JourneyOrchestratorService {
 
     if (this.isEscalatedStatus(journey.status)) {
       if (this.isJourneyEscalationExpired(journey)) {
-        journey = await this.resetExpiredJourney(agent, journey);
-      } else {
-        return { skipLlm: true, escalated: false };
+        await this.resetExpiredJourney(agent, journey);
+        return { skipLlm: false, escalated: false };
+      }
+      return { skipLlm: true, escalated: false };
+    }
+
+    let reopenedStartedAt: Date | undefined;
+
+    if (journey.status === CustomerJourneyStatus.CLOSED) {
+      try {
+        const reopened = await this.reopenClosedJourney(journey);
+        journey = reopened.journey;
+        reopenedStartedAt = reopened.startedAt;
+      } catch (error: unknown) {
+        const message = error instanceof Error ? error.message : String(error);
+        this.logger.error(`[Journey] Falha ao reabrir | id=${journey.id}: ${message}`);
+        return { skipLlm: false, escalated: false };
       }
     }
 
-    if (
-      journey.status === CustomerJourneyStatus.PURCHASED ||
-      journey.status === CustomerJourneyStatus.CLOSED
-    ) {
+    if (journey.status === CustomerJourneyStatus.PURCHASED) {
       return { skipLlm: false, escalated: false };
     }
 
@@ -97,6 +108,16 @@ export class JourneyOrchestratorService {
         lastMessage: message,
       });
       return { skipLlm: true, escalated: !result.alreadyEscalated || result.helpRequestId !== '' };
+    }
+
+    if (reopenedStartedAt && config.followUpEnabled && config.followUpSteps.length > 0) {
+      await this.followUpScheduler.scheduleForJourney(
+        journey.id,
+        agent.id,
+        journey.conversationId,
+        config.followUpSteps,
+        reopenedStartedAt,
+      );
     }
 
     return { skipLlm: false, escalated: false };
@@ -154,5 +175,16 @@ export class JourneyOrchestratorService {
     }
 
     return journey;
+  }
+
+  private async reopenClosedJourney(
+    journey: CustomerJourneyData,
+  ): Promise<{ journey: CustomerJourneyData; startedAt: Date }> {
+    const startedAt = new Date();
+    const reopened = await this.journeyRepo.updateStatus(journey.id, CustomerJourneyStatus.ACTIVE, {
+      startedAt,
+    });
+
+    return { journey: reopened, startedAt };
   }
 }

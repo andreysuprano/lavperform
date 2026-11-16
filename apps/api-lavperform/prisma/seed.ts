@@ -108,6 +108,30 @@ async function main() {
     },
   });
 
+  await prisma.partner.upsert({
+    where: { id: 'partner-windel' },
+    update: { partnerSlug: 'WINDEL', name: 'Windel' },
+    create: {
+      id: 'partner-windel',
+      name: 'Windel',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'WINDEL',
+    },
+  });
+
+  await prisma.partner.upsert({
+    where: { id: 'partner-waymoney' },
+    update: { partnerSlug: 'WAYMONEY', name: 'WayMoney' },
+    create: {
+      id: 'partner-waymoney',
+      name: 'WayMoney',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'WAYMONEY',
+    },
+  });
+
   const l2automatePartner = await prisma.partner.upsert({
     where: { id: 'partner-l2automate' },
     update: {},

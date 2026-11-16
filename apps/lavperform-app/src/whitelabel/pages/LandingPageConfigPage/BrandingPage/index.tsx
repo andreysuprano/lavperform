@@ -1,19 +1,19 @@
-import { Box, Button, Link, Stack } from '@chakra-ui/react'
+import { Button, Link, Stack } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { LuExternalLink } from 'react-icons/lu'
 import { RiPagesLine, RiSaveLine } from 'react-icons/ri'
 
 import { AppContentLayout, LoadingState, toaster } from '@/components'
+import { StickySaveBar } from '@/components/layout/AppLayout/StickySaveBar'
 import { useAuth } from '@/context/AuthContext'
+import { BrandingForm } from '@/whitelabel/components/landing-page-config/BrandingForm'
 import {
   usePublicLandingPage,
   useRequireLandingPage,
   useUpdateLandingPageConfig,
 } from '@/whitelabel/hooks'
-import { buildLandingPageUrl } from '@/whitelabel/utils/landingPageUrl'
 import type { BrandingData } from '@/whitelabel/types'
-
-import { BrandingForm } from '@/whitelabel/components/landing-page-config/BrandingForm'
+import { buildLandingPageUrl } from '@/whitelabel/utils/landingPageUrl'
 
 function BrandingPageBase() {
   const { selectedCompany } = useAuth()
@@ -82,7 +82,8 @@ function BrandingPageBase() {
           landingPageUrl ? (
             <Button
               asChild
-              size="xs"
+              minH="44px"
+              size="md"
             >
               <Link
                 href={landingPageUrl}
@@ -103,16 +104,7 @@ function BrandingPageBase() {
         />
       </AppContentLayout>
 
-      <Box
-        bg="none"
-        
-        bottom={0}
-        left={0}
-        mt={4}
-        position="sticky"
-        right={0}
-        zIndex={10}
-      >
+      <StickySaveBar>
         <Button
           loading={updateConfig.isPending}
           onClick={handleSave}
@@ -122,7 +114,7 @@ function BrandingPageBase() {
           <RiSaveLine />
           Salvar alterações
         </Button>
-      </Box>
+      </StickySaveBar>
     </Stack>
   )
 }

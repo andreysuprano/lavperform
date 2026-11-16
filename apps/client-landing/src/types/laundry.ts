@@ -1,4 +1,6 @@
 export interface LaundryData {
+  gtmContainerId?: string | null
+  metaPixelId?: string | null
   template?: string // Nome do template a ser usado (ex: "default", "modern", "minimal")
   branding: {
     name: string
@@ -69,6 +71,7 @@ export interface LaundryData {
     description: string
     buttonText: string
     whatsappNumber: string
+    whatsappMessage?: string
   }
   footer: {
     description: string

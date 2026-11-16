@@ -1,0 +1,328 @@
+import {
+  BadRequestException,
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpCode,
+  Param,
+  ParseUUIDPipe,
+  Patch,
+  Post,
+  Put,
+  Req,
+  Res,
+  UploadedFile,
+  UseGuards,
+  UseInterceptors,
+} from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import type { Response } from 'express';
+import { AuthGuard } from '@nestjs/passport';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { UpdateBrandIdentityDto } from './dto/brand-identity.dto';
+import {
+  CreateSocialDraftDto,
+  AttachReferencesDto,
+  CreateReferenceDto,
+  StartGenerationDto,
+  UpdateSocialDraftDto,
+  RegenerateBackgroundDto,
+  ReorderReferencesDto,
+  RewriteCaptionDto,
+  RevisePostDto,
+  SelectVariationDto,
+  SelectVersionDto,
+  UpdateVariationDto,
+} from './dto/social-post.dto';
+import { SocialPostsService } from './social-posts.service';
+import type { CaptionLength } from './domain/social-post.types';
+
+type AuthRequest = { user: { userId: string } };
+
+@UseGuards(AuthGuard('jwt'))
+@ApiBearerAuth()
+@ApiTags('Social posts')
+@Controller('social-posts')
+export class SocialPostsController {
+  constructor(private readonly socialPostsService: SocialPostsService) {}
+
+  @Get('brand/:companyId')
+  getBrand(
+    @Req() req: AuthRequest,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+  ) {
+    return this.socialPostsService.getBrand(req.user.userId, companyId);
+  }
+
+  @Put('brand/:companyId')
+  saveBrand(
+    @Req() req: AuthRequest,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+    @Body() dto: UpdateBrandIdentityDto,
+  ) {
+    return this.socialPostsService.saveBrand(req.user.userId, companyId, dto);
+  }
+
+  @Get('drafts/:companyId')
+  listDrafts(
+    @Req() req: AuthRequest,
+    @Param('companyId', ParseUUIDPipe) companyId: string,
+  ) {
+    return this.socialPostsService.listDrafts(req.user.userId, companyId);
+  }
+
+  @Post('drafts')
+  createDraft(@Req() req: AuthRequest, @Body() dto: CreateSocialDraftDto) {
+    return this.socialPostsService.createDraft(req.user.userId, dto);
+  }
+
+  @Patch('drafts/item/:draftId')
+  updateDraft(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: UpdateSocialDraftDto,
+  ) {
+    return this.socialPostsService.updateDraft(req.user.userId, draftId, dto);
+  }
+
+  @Post('media')
+  @UseInterceptors(
+    FileInterceptor('file', { limits: { fileSize: 10 * 1024 * 1024 } }),
+  )
+  uploadMedia(
+    @Req() req: AuthRequest,
+    @UploadedFile() file: Express.Multer.File,
+    @Body('companyId') companyId: string,
+  ) {
+    if (!file) throw new BadRequestException('Envie uma imagem.');
+    return this.socialPostsService.uploadMedia(
+      req.user.userId,
+      companyId,
+      file,
+    );
+  }
+
+  @Get('media/:mediaId')
+  async readMedia(
+    @Req() req: AuthRequest,
+    @Param('mediaId', ParseUUIDPipe) mediaId: string,
+    @Res() res: Response,
+  ) {
+    const media = await this.socialPostsService.readMedia(
+      req.user.userId,
+      mediaId,
+    );
+    res.setHeader('Content-Type', media.mimeType);
+    res.setHeader('Cache-Control', 'private, max-age=3600');
+    res.send(media.buffer);
+  }
+
+  @Get('drafts/item/:draftId')
+  getDraft(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+  ) {
+    return this.socialPostsService.getDraft(req.user.userId, draftId);
+  }
+
+  @Post('drafts/item/:draftId/generate')
+  @HttpCode(200)
+  generate(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+  ) {
+    return this.socialPostsService.generate(req.user.userId, draftId);
+  }
+
+  @Post('drafts/item/:draftId/generate-async')
+  @HttpCode(202)
+  startGeneration(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: StartGenerationDto,
+  ) {
+    return this.socialPostsService.startGeneration(
+      req.user.userId,
+      draftId,
+      dto,
+    );
+  }
+
+  @Post('drafts/item/:draftId/more')
+  @HttpCode(200)
+  generateMore(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+  ) {
+    return this.socialPostsService.generateMore(req.user.userId, draftId);
+  }
+
+  @Patch('drafts/item/:draftId/selection')
+  selectVariation(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: SelectVariationDto,
+  ) {
+    return this.socialPostsService.selectVariation(
+      req.user.userId,
+      draftId,
+      dto.variationId,
+    );
+  }
+
+  @Patch('variations/:variationId')
+  updateVariation(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: UpdateVariationDto,
+  ) {
+    return this.socialPostsService.updateVariation(
+      req.user.userId,
+      variationId,
+      dto,
+    );
+  }
+
+  @Post('variations/:variationId/background')
+  @HttpCode(200)
+  regenerateBackground(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: RegenerateBackgroundDto,
+  ) {
+    return this.socialPostsService.regenerateBackground(
+      req.user.userId,
+      variationId,
+      dto.slideIndex ?? 0,
+    );
+  }
+
+  @Post('variations/:variationId/revise')
+  @HttpCode(200)
+  revise(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: RevisePostDto,
+  ) {
+    return this.socialPostsService.revise(
+      req.user.userId,
+      variationId,
+      dto.prompt,
+    );
+  }
+
+  @Post('variations/:variationId/restore')
+  @HttpCode(200)
+  restoreVersion(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: SelectVersionDto,
+  ) {
+    return this.socialPostsService.restoreVersion(
+      req.user.userId,
+      variationId,
+      dto.versionId,
+    );
+  }
+
+  @Patch('variations/:variationId/version')
+  selectVersion(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: SelectVersionDto,
+  ) {
+    return this.socialPostsService.selectVersion(
+      req.user.userId,
+      variationId,
+      dto.versionId,
+    );
+  }
+
+  @Post('variations/:variationId/manual')
+  @HttpCode(200)
+  recordManualVersion(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: UpdateVariationDto,
+  ) {
+    return this.socialPostsService.recordManualVersion(
+      req.user.userId,
+      variationId,
+      dto,
+    );
+  }
+
+  @Get('image-model')
+  imageModel() {
+    return this.socialPostsService.imageModelStatus();
+  }
+
+  @Post('references')
+  addReference(@Req() req: AuthRequest, @Body() dto: CreateReferenceDto) {
+    return this.socialPostsService.addReference(
+      req.user.userId,
+      dto.companyId,
+      dto.dataUrl,
+    );
+  }
+
+  @Patch('references/order')
+  reorderReferences(
+    @Req() req: AuthRequest,
+    @Body() dto: ReorderReferencesDto,
+  ) {
+    return this.socialPostsService.reorderReferences(
+      req.user.userId,
+      dto.companyId,
+      dto.ids,
+    );
+  }
+
+  @Get('references/:referenceId')
+  getReference(
+    @Req() req: AuthRequest,
+    @Param('referenceId', ParseUUIDPipe) referenceId: string,
+  ) {
+    return this.socialPostsService.getReference(req.user.userId, referenceId);
+  }
+
+  @Delete('references/:referenceId')
+  removeReference(
+    @Req() req: AuthRequest,
+    @Param('referenceId', ParseUUIDPipe) referenceId: string,
+  ) {
+    return this.socialPostsService.removeReference(
+      req.user.userId,
+      referenceId,
+    );
+  }
+
+  @Post('drafts/item/:draftId/references')
+  @HttpCode(200)
+  attachReferences(
+    @Req() req: AuthRequest,
+    @Param('draftId', ParseUUIDPipe) draftId: string,
+    @Body() dto: AttachReferencesDto,
+  ) {
+    return this.socialPostsService.attachReferences(
+      req.user.userId,
+      draftId,
+      dto.referenceIds,
+    );
+  }
+
+  @Post('variations/:variationId/rewrite')
+  @HttpCode(200)
+  rewriteCaption(
+    @Req() req: AuthRequest,
+    @Param('variationId', ParseUUIDPipe) variationId: string,
+    @Body() dto: RewriteCaptionDto,
+  ) {
+    return this.socialPostsService.rewriteCaption(
+      req.user.userId,
+      variationId,
+      dto.length as CaptionLength,
+    );
+  }
+}

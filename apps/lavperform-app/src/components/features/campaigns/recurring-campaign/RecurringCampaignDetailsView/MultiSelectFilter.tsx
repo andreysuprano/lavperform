@@ -30,6 +30,7 @@ interface MultiSelectFilterProps<T extends string = string> {
   /** Largura mínima do popover. Default 220px. */
   minWidth?: number | string
   placeholder?: string
+  minH?: string
 }
 
 /**
@@ -46,6 +47,7 @@ function MultiSelectFilterComponent<T extends string = string>({
   size = 'sm',
   minWidth = 220,
   placeholder = 'Todos',
+  minH,
 }: MultiSelectFilterProps<T>) {
   const [open, setOpen] = useState(false)
 
@@ -91,6 +93,7 @@ function MultiSelectFilterComponent<T extends string = string>({
           fontWeight="medium"
           gap={2}
           maxW={{ base: 'full', md: 'none' }}
+          minH={minH}
           minW={0}
           overflow="hidden"
           px={3}

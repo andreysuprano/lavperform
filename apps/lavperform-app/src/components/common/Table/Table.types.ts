@@ -8,4 +8,5 @@ export interface Props<T> extends PropsWithChildren, TablePaginationProps<T> {
   header: ReactNode
   isLoading: boolean
   maxHeight?: string | number
+  stickyFirstColumn?: boolean
 }

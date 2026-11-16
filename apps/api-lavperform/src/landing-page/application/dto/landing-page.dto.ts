@@ -244,6 +244,15 @@ export class CtaDto {
     @ApiProperty({ example: '5548999999999' })
     @IsString()
     whatsappNumber: string;
+
+    @ApiProperty({
+        example: 'Olá! Vim pelo site e gostaria de mais informações.',
+        required: false,
+        description: 'Mensagem pré-preenchida do botão flutuante de WhatsApp',
+    })
+    @IsOptional()
+    @IsString()
+    whatsappMessage?: string;
 }
 
 // Footer DTOs

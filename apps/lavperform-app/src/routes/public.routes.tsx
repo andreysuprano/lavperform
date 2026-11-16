@@ -63,6 +63,10 @@ export function PublicRoutes() {
       </Route>
       <Route
         element={<ClientPage />}
+        path="/p/:slug/:pageSlug"
+      />
+      <Route
+        element={<ClientPage />}
         path="/p/:slug"
       />
       <Route

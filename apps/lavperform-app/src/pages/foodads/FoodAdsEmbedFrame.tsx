@@ -3,11 +3,6 @@ import { memo, useEffect, useMemo, useState } from 'react'
 
 import { LoadingState } from '@/components'
 import { useAuth } from '@/context/AuthContext'
-import {
-  EMBED_TOKEN_STORAGE_KEY,
-  EMBED_TOKEN_UPDATE_EVENT,
-} from '@/constants/embedTokenStorage'
-import { adsService } from '@/services'
 
 const SOLVEFY_EMBED_SSO = 'https://solvefyads.netlify.app/embed/sso'
 
@@ -15,17 +10,12 @@ const LOADING_TITLE = 'Carregando painel…'
 
 export type FoodAdsEmbedScreen = 'dashboard' | 'campaigns' | 'overview'
 
-function readStoredEmbedToken(): string | null {
-  return localStorage.getItem(EMBED_TOKEN_STORAGE_KEY)
-}
-
 function FoodAdsEmbedFrameBase({ screen }: { screen: FoodAdsEmbedScreen }) {
   const { selectedCompany } = useAuth()
   const [readyToken, setReadyToken] = useState<string | null>(null)
   const [tokenError, setTokenError] = useState(false)
   const [isFrameLoaded, setIsFrameLoaded] = useState(false)
 
-  /** Garante token no storage antes de montar o iframe; gera via API se ausente. */
   useEffect(() => {
     if (!selectedCompany?.id) {
       setReadyToken(null)
@@ -34,43 +24,9 @@ function FoodAdsEmbedFrameBase({ screen }: { screen: FoodAdsEmbedScreen }) {
       return
     }
 
-    let cancelled = false
-
-    ;(async () => {
-      setTokenError(false)
-      setReadyToken(null)
-      setIsFrameLoaded(false)
-
-      let t = readStoredEmbedToken()
-      if (!t) {
-        await adsService.syncEmbedToken(selectedCompany.id)
-        t = readStoredEmbedToken()
-      }
-
-      if (cancelled) return
-      if (!t) {
-        setTokenError(true)
-        return
-      }
-      setReadyToken(t)
-    })()
-
-    return () => {
-      cancelled = true
-    }
-  }, [selectedCompany?.id])
-
-  /** Outro fluxo (ex.: AuthContext) pode gravar o token; atualiza o estado. */
-  useEffect(() => {
-    const onTokenUpdate = () => {
-      const t = readStoredEmbedToken()
-      if (!t || !selectedCompany?.id) return
-      setReadyToken(t)
-      setTokenError(false)
-    }
-    window.addEventListener(EMBED_TOKEN_UPDATE_EVENT, onTokenUpdate)
-    return () =>
-      window.removeEventListener(EMBED_TOKEN_UPDATE_EVENT, onTokenUpdate)
+    setReadyToken(null)
+    setTokenError(true)
+    setIsFrameLoaded(false)
   }, [selectedCompany?.id])
 
   const src = useMemo(() => {
@@ -80,7 +36,6 @@ function FoodAdsEmbedFrameBase({ screen }: { screen: FoodAdsEmbedScreen }) {
       embed: '1',
       page: screen,
     })
-    console.log(`${SOLVEFY_EMBED_SSO}?${params.toString()}`)
     return `${SOLVEFY_EMBED_SSO}?${params.toString()}`
   }, [readyToken, screen])
 

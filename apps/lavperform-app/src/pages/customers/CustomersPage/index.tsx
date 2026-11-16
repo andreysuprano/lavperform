@@ -1,12 +1,13 @@
+import { Stack } from '@chakra-ui/react'
 import { useCallback, useMemo, useState } from 'react'
 import { RiUserLine } from 'react-icons/ri'
-
-import { Stack } from '@chakra-ui/react'
 
 import {
   AppContentLayout,
   CustomerSummaryWidget,
 } from '@/components'
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+
 import { CustomerTableSection } from '../DetailClientsPage'
 
 export function CustomersPage() {
@@ -27,6 +28,13 @@ export function CustomersPage() {
       selectedSegmentations.length > 0 ? selectedSegmentations : undefined,
     [selectedSegmentations]
   )
+  const phone = useShellMode() === 'phone'
+  const segments = (
+    <CustomerSummaryWidget
+      onSegmentationToggle={handleSegmentationToggle}
+      selectedSegmentations={selectedSegmentations}
+    />
+  )
 
   return (
     <AppContentLayout
@@ -34,11 +42,11 @@ export function CustomersPage() {
       title="Clientes"
     >
       <Stack gap={4}>
-        <CustomerSummaryWidget
-          onSegmentationToggle={handleSegmentationToggle}
-          selectedSegmentations={selectedSegmentations}
+        {phone ? null : segments}
+        <CustomerTableSection
+          filterExtra={phone ? segments : undefined}
+          rfvClassifications={rfvClassifications}
         />
-        <CustomerTableSection rfvClassifications={rfvClassifications} />
       </Stack>
     </AppContentLayout>
   )

@@ -3,6 +3,7 @@
 Quick navigation to all project documentation.
 
 ## Getting Started
+- [Homologação](./homolog.md) - Seed idempotente da lavanderia de teste e travas de ambiente
 - [Product Requirements](./01-PRODUCT.md) - Vision, features, success criteria
 - [System Architecture](./02-ARCHITECTURE.md) - Current state, patterns, constraints
 - [API Reference](./03-API-REFERENCE.md) - Endpoint catalog

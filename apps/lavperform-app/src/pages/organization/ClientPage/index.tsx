@@ -16,7 +16,7 @@ import { BsWhatsapp } from 'react-icons/bs'
 import { FaDoorOpen } from 'react-icons/fa'
 import { FiLink } from 'react-icons/fi'
 import { LuClock, LuMapPinned } from 'react-icons/lu'
-import { useParams } from 'react-router-dom'
+import { useLocation, useParams } from 'react-router-dom'
 
 import { CustomDrawer, LazyImage, LoadingState } from '@/components'
 import { useWhiteLabel } from '@/config'
@@ -27,11 +27,16 @@ import type { Company } from '@/types'
 import { OrganizationPage } from '@/types/organization-page.types'
 import { checkIfOpen, sortOpeningHours } from '@/utils/businessHours'
 import { clearPhone } from '@/utils/strings'
+import {
+  formatPublicLinkResponse,
+  syncPublicTracking,
+} from '@/utils/tracking/public-page'
 
 function ClientPage({ isPreview = false }: { isPreview?: boolean }) {
   const { images, texts } = useWhiteLabel()
 
-  const { slug } = useParams<{ slug: string }>()
+  const { slug, pageSlug } = useParams<{ slug: string; pageSlug?: string }>()
+  const location = useLocation()
 
   const { selectedCompany } = useAuth()
   const { data } = useCompanyPage()
@@ -84,16 +89,14 @@ function ClientPage({ isPreview = false }: { isPreview?: boolean }) {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const response = await organizationPageService.getBySlug(
-          slug || selectedCompany?.slug || ''
-        )
+        const companySlug = slug || selectedCompany?.slug || ''
+        const response = pageSlug
+          ? await organizationPageService.getByPageSlug(companySlug, pageSlug)
+          : await organizationPageService.getBySlug(companySlug)
 
         if (!response) return
 
-        const companyFormated = {
-          ...response,
-          ...response.linkPages?.[0],
-        }
+        const companyFormated = formatPublicLinkResponse(response, pageSlug)
 
         setCompanyData((prev) => ({
           ...prev,
@@ -104,7 +107,20 @@ function ClientPage({ isPreview = false }: { isPreview?: boolean }) {
       }
     }
     fetchData()
-  }, [slug, selectedCompany])
+  }, [pageSlug, slug, selectedCompany])
+
+  useEffect(() => {
+    syncPublicTracking({
+      isPreview,
+      metaPixelId: companyData?.metaPixelId,
+      gtmContainerId: companyData?.gtmContainerId,
+    })
+  }, [
+    companyData?.gtmContainerId,
+    companyData?.metaPixelId,
+    isPreview,
+    location.pathname,
+  ])
 
   if (!companyData) return <LoadingState />
 

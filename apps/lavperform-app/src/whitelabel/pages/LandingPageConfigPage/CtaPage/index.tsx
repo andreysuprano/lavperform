@@ -1,29 +1,33 @@
-import { Box, Button, Stack } from '@chakra-ui/react'
+import { Button, Stack } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { RiPagesLine, RiSaveLine } from 'react-icons/ri'
 
 import { AppContentLayout, LoadingState } from '@/components'
+import { StickySaveBar } from '@/components/layout/AppLayout/StickySaveBar'
 import { useAuth } from '@/context/AuthContext'
+import { useCompany } from '@/hooks/queries'
+import { CtaForm } from '@/whitelabel/components/landing-page-config/CtaForm'
 import {
   useRequireLandingPage,
   useUpdateLandingPageConfig,
 } from '@/whitelabel/hooks'
 import type { CtaData } from '@/whitelabel/types'
-
-import { CtaForm } from '@/whitelabel/components/landing-page-config/CtaForm'
+import { withWhatsappDefaults } from '@/whitelabel/utils'
 
 function CtaPageBase() {
   const { selectedCompany } = useAuth()
   const { canEdit, isLoading, data } = useRequireLandingPage()
+  const companyQuery = useCompany(selectedCompany?.id)
   const updateConfig = useUpdateLandingPageConfig()
+  const waitingCompany =
+    !!selectedCompany?.id && companyQuery.isPending && !companyQuery.isError
 
   const [formData, setFormData] = useState<CtaData | null>(null)
 
   useEffect(() => {
-    if (data) {
-      setFormData(data.data.cta)
-    }
-  }, [data])
+    if (!data || waitingCompany || formData) return
+    setFormData(withWhatsappDefaults(data.data.cta, companyQuery.data?.phone))
+  }, [companyQuery.data?.phone, data, formData, waitingCompany])
 
   const handleChange = useCallback((newData: CtaData) => {
     setFormData(newData)
@@ -39,9 +43,9 @@ function CtaPageBase() {
     }
   }, [formData, selectedCompany, updateConfig])
 
-  if (isLoading || !canEdit) {
+  if (isLoading || waitingCompany || !canEdit) {
     return (
-      <AppContentLayout icon={<RiPagesLine />} title="CTA Final">
+      <AppContentLayout icon={<RiPagesLine />} title="CTA e WhatsApp">
         <LoadingState title="Carregando configuração..." />
       </AppContentLayout>
     )
@@ -49,7 +53,7 @@ function CtaPageBase() {
 
   if (!formData) {
     return (
-      <AppContentLayout icon={<RiPagesLine />} title="CTA Final">
+      <AppContentLayout icon={<RiPagesLine />} title="CTA e WhatsApp">
         <LoadingState title="Carregando dados..." />
       </AppContentLayout>
     )
@@ -59,7 +63,7 @@ function CtaPageBase() {
     <Stack gap={0}>
       <AppContentLayout
         icon={<RiPagesLine />}
-        title="CTA Final"
+        title="CTA e WhatsApp"
       >
         <CtaForm
           branding={data?.data.branding}
@@ -68,15 +72,7 @@ function CtaPageBase() {
         />
       </AppContentLayout>
 
-      <Box
-        bg="none"
-        bottom={0}
-        left={0}
-        mt={4}
-        position="sticky"
-        right={0}
-        zIndex={10}
-      >
+      <StickySaveBar>
         <Button
           loading={updateConfig.isPending}
           onClick={handleSave}
@@ -86,7 +82,7 @@ function CtaPageBase() {
           <RiSaveLine />
           Salvar alterações
         </Button>
-      </Box>
+      </StickySaveBar>
     </Stack>
   )
 }

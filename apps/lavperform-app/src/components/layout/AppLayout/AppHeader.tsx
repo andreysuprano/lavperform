@@ -20,17 +20,19 @@ import {
   RiMenuUnfoldLine,
   RiSettings4Line,
 } from 'react-icons/ri'
-import { Link, NavLink } from 'react-router-dom'
+import { NavLink } from 'react-router-dom'
 
 import {
   ChannelDropdown,
   ColorModeButton,
   OrganizationSelect,
-  ThemeImage,
 } from '@/components'
 import { CreditsHeaderCard } from '@/components/features/credits/CreditsHeaderCard/CreditsHeaderCard'
-import { WeatherStatus } from '@/whitelabel/components/weather/WeatherStatus'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import type { UserCompany } from '@/types'
+import { WeatherStatus } from '@/whitelabel/components/weather/WeatherStatus'
+
+import { shellDark } from './shellPalette'
 
 const Header = memo(
   ({
@@ -42,6 +44,7 @@ const Header = memo(
     onLogout,
     onCompanyChange,
     onMobileMenuOpen,
+    variant = 'desktop',
   }: {
     open: boolean
     setOpen: (open: boolean) => void
@@ -51,7 +54,11 @@ const Header = memo(
     onLogout: () => void
     onCompanyChange: (details: SelectValueChangeDetails<UserCompany>) => void
     onMobileMenuOpen: () => void
+    variant?: 'desktop' | 'tablet'
   }) => {
+    const tablet = variant === 'tablet'
+    const headerBg = useColorModeValue('white', shellDark.background)
+    const headerBorder = useColorModeValue('border', shellDark.border)
     const handleToggleSidebar = useCallback(() => {
       const newOpenState = !open
       setOpen(newOpenState)
@@ -72,12 +79,14 @@ const Header = memo(
 
     return (
       <Center
-        bg="bg"
+        bg={headerBg}
         borderBottomWidth={1}
+        borderColor={headerBorder}
         gap={{ base: 2, lg: 4 }}
-        h={16}
+        h="calc(64px + env(safe-area-inset-top, 0px))"
         justifyContent={'space-between'}
         position={'sticky'}
+        pt="env(safe-area-inset-top, 0px)"
         px={{ base: 4, md: 6 }}
         top="0"
         zIndex="11"
@@ -88,35 +97,30 @@ const Header = memo(
           justifyContent={{ base: 'space-between', lg: 'flex-start' }}
         >
           {/* Logo e Botão de menu mobile */}
-          <Link to="/">
-            <ThemeImage
-              display={{ base: 'block', lg: 'none' }}
-              h="8"
-              imageKey="logo"
-              variant="auto"
-            />
-          </Link>
           <IconButton
             aria-label="Abrir menu"
-            display={{ base: 'flex', lg: 'none' }}
+            className={tablet ? 'shell-touch-44' : undefined}
+            display={tablet ? 'flex' : 'none'}
+            minH={tablet ? '44px' : undefined}
+            minW={tablet ? '44px' : undefined}
             onClick={onMobileMenuOpen}
             size={'sm'}
             variant="outline"
           >
             <RiMenuLine />
           </IconButton>
-          {/* Botão de toggle sidebar desktop */}
           <IconButton
             aria-label={open ? 'Esconder menu' : 'Mostrar menu'}
-            display={{ base: 'none', lg: 'flex' }}
+            display={tablet ? 'none' : 'flex'}
             onClick={handleToggleSidebar}
             size={'sm'}
             variant="outline"
           >
             {open ? <RiMenuFoldLine /> : <RiMenuUnfoldLine />}
           </IconButton>
-          <Box display={{ base: 'none', lg: 'block' }}>
+          <Box maxW={tablet ? '72px' : '280px'}>
             <OrganizationSelect
+              compact={tablet}
               companies={companies}
               key={companies.map((c) => c.avatarUrl).join(',')}
               onCompanyChange={onCompanyChange}
@@ -131,7 +135,9 @@ const Header = memo(
           <Menu.Root>
             <Menu.Trigger asChild>
               <IconButton
-                display={{ base: 'none', lg: 'flex' }}
+                className={tablet ? 'shell-touch-44' : undefined}
+                minH={tablet ? '44px' : undefined}
+                minW={tablet ? '44px' : undefined}
                 size={'sm'}
                 variant="outline"
               >
@@ -164,7 +170,8 @@ const Header = memo(
           <Menu.Root>
             <Menu.Trigger asChild>
               <Button
-                display={{ base: 'none', lg: 'flex' }}
+                className={tablet ? 'shell-touch-44' : undefined}
+                minH={tablet ? '44px' : undefined}
                 px={2}
                 size={'sm'}
                 variant="outline"
@@ -221,7 +228,11 @@ const Header = memo(
               </Menu.Positioner>
             </Portal>
           </Menu.Root>
-          <ColorModeButton />
+          <ColorModeButton
+            className={tablet ? 'shell-touch-44' : undefined}
+            minH={tablet ? '44px' : undefined}
+            minW={tablet ? '44px' : undefined}
+          />
         </Center>
       </Center>
     )

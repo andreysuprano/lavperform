@@ -7,6 +7,7 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import { CONVERSATION_REPOSITORY, MessageRole } from '../ports/conversation.repository.port';
 import type { ConversationRepositoryPort } from '../ports/conversation.repository.port';
 import { AgentRunnerService } from '../../agent-runner/services/agent-runner.service';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
 import { JourneyOrchestratorService } from '../../customer-journey/services/journey-orchestrator.service';
 
 @Injectable()
@@ -20,6 +21,7 @@ export class TextMessageHandler implements MessageHandlerPort {
     private readonly conversationRepository: ConversationRepositoryPort,
     private readonly agentRunner: AgentRunnerService,
     private readonly journeyOrchestrator: JourneyOrchestratorService,
+    private readonly idleClose: IdleCloseSchedulerService,
   ) {}
 
   async handle(message: IncomingMessage, agent: AgentWithConfigsData): Promise<void> {
@@ -69,6 +71,8 @@ export class TextMessageHandler implements MessageHandlerPort {
       content: prompt.userMessage,
       originalType: prompt.originalMessageType,
     });
+
+    await this.idleClose.cancel(conversation.id);
 
     const journeyResult = await this.journeyOrchestrator.onInboundMessage({
       agent,

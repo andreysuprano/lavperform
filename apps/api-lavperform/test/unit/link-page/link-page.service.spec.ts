@@ -1,5 +1,6 @@
 import { NotFoundException } from '@nestjs/common';
 import { LinkPageService } from 'src/link-page/application/link-page.service';
+import { PrismaService } from 'src/prisma/prisma.service';
 import { Test, TestingModule } from '@nestjs/testing';
 
 describe('LinkPageService', () => {
@@ -48,8 +49,15 @@ describe('LinkPageService', () => {
     findBySlug: jest.fn(),
   };
 
+  const prisma = {
+    companyMetaPixel: { findUnique: jest.fn() },
+    companyGtmContainer: { findUnique: jest.fn() },
+  };
+
   beforeEach(async () => {
     jest.clearAllMocks();
+    prisma.companyMetaPixel.findUnique.mockResolvedValue(null);
+    prisma.companyGtmContainer.findUnique.mockResolvedValue(null);
     const module: TestingModule = await Test.createTestingModule({
       providers: [
         LinkPageService,
@@ -57,6 +65,7 @@ describe('LinkPageService', () => {
         { provide: 'ILinkRepository', useValue: linkRepository },
         { provide: 'IGalleryRepository', useValue: galleryRepository },
         { provide: 'ICompanyRepository', useValue: companyRepository },
+        { provide: PrismaService, useValue: prisma },
       ],
     }).compile();
 
@@ -70,8 +79,35 @@ describe('LinkPageService', () => {
 
   it('returns link page data', async () => {
     companyRepository.findWithLinksAndMenu.mockResolvedValue({ id: 'comp', linkPages: [] });
+    prisma.companyMetaPixel.findUnique.mockResolvedValue(null);
+    prisma.companyGtmContainer.findUnique.mockResolvedValue(null);
     const result = await service.getLinkPage('slug');
-    expect(result).toEqual({ id: 'comp', linkPages: [] });
+    expect(result).toEqual({
+      id: 'comp',
+      linkPages: [],
+      metaPixelId: null,
+      gtmContainerId: null,
+    });
+  });
+
+  it('publishes enabled ids on both public reads and keeps the other when one is paused', async () => {
+    companyRepository.findWithLinksAndMenu.mockResolvedValue({ id: 'comp', linkPages: [] });
+    prisma.companyMetaPixel.findUnique.mockResolvedValue({ pixelId: '1234567890', enabled: false });
+    prisma.companyGtmContainer.findUnique.mockResolvedValue({ containerId: 'GTM-ABCDEFGH', enabled: true });
+
+    const main = await service.getLinkPage('pizzaria');
+    const specific = await service.getLinkPageByPage('pizzaria', 'promocoes');
+
+    expect(main).toMatchObject({ metaPixelId: null, gtmContainerId: 'GTM-ABCDEFGH' });
+    expect(specific).toMatchObject({ metaPixelId: null, gtmContainerId: 'GTM-ABCDEFGH' });
+
+    prisma.companyMetaPixel.findUnique.mockResolvedValue({ pixelId: '1234567890', enabled: true });
+    const active = await service.getLinkPage('pizzaria');
+    const activePage = await service.getLinkPageByPage('pizzaria', 'promocoes');
+    expect(active.metaPixelId).toBe('1234567890');
+    expect(active.gtmContainerId).toBe('GTM-ABCDEFGH');
+    expect(activePage.metaPixelId).toBe('1234567890');
+    expect(activePage.gtmContainerId).toBe('GTM-ABCDEFGH');
   });
 
   it('updates link page creating and updating links and galleries', async () => {

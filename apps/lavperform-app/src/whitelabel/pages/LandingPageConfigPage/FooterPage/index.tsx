@@ -1,16 +1,16 @@
-import { Box, Button, Stack } from '@chakra-ui/react'
+import { Button, Stack } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { RiPagesLine, RiSaveLine } from 'react-icons/ri'
 
 import { AppContentLayout, LoadingState } from '@/components'
+import { StickySaveBar } from '@/components/layout/AppLayout/StickySaveBar'
 import { useAuth } from '@/context/AuthContext'
+import { FooterForm } from '@/whitelabel/components/landing-page-config/FooterForm'
 import {
   useRequireLandingPage,
   useUpdateLandingPageConfig,
 } from '@/whitelabel/hooks'
 import type { FooterData } from '@/whitelabel/types'
-
-import { FooterForm } from '@/whitelabel/components/landing-page-config/FooterForm'
 
 function FooterPageBase() {
   const { selectedCompany } = useAuth()
@@ -68,15 +68,7 @@ function FooterPageBase() {
         />
       </AppContentLayout>
 
-      <Box
-        bg="none"
-        bottom={0}
-        left={0}
-        mt={4}
-        position="sticky"
-        right={0}
-        zIndex={10}
-      >
+      <StickySaveBar>
         <Button
           loading={updateConfig.isPending}
           onClick={handleSave}
@@ -86,7 +78,7 @@ function FooterPageBase() {
           <RiSaveLine />
           Salvar alterações
         </Button>
-      </Box>
+      </StickySaveBar>
     </Stack>
   )
 }

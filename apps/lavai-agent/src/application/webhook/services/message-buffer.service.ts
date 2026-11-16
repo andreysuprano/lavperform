@@ -52,44 +52,43 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
     webhookEventId: string,
     agentId: string,
     chatId: string,
+    delayOverrideMs?: number,
   ): Promise<string> {
     const bufferKey = this.buildBufferKey(agentId, chatId);
-    const jobId = this.buildJobId(agentId, chatId);
-    const timeoutMs = this.configService.get<number>('MESSAGE_BUFFER_TIMEOUT_MS', 3000);
+    const timeoutMs =
+      delayOverrideMs !== undefined && delayOverrideMs > 0
+        ? delayOverrideMs
+        : this.configService.get<number>('MESSAGE_BUFFER_TIMEOUT_MS', 3000);
 
-    // Appenda o ID ao fim da lista Redis
     await this.redis.rpush(bufferKey, webhookEventId);
-    // TTL de segurança: timeout + 2 minutos para evitar vazamento em caso de falha
     await this.redis.expire(bufferKey, Math.ceil(timeoutMs / 1000) + 120);
 
-    // Cancela o job anterior para reiniciar o timer
-    try {
-      const existingJob = await this.queue.getJob(jobId);
-      if (existingJob) {
-        await existingJob.remove();
-        this.logger.debug(`[Buffer] Timer reiniciado | chatId=${chatId}`);
-      }
-    } catch {
-      // Job pode já ter sido consumido; sem problema
-    }
-
-    // Agenda novo job com o delay completo
-    const job = await this.queue.add(
-      BUFFER_JOB_NAME,
-      { agentId, chatId, bufferKey } satisfies BufferJobData,
-      {
-        jobId,
-        delay: timeoutMs,
-        removeOnComplete: 100,
-        removeOnFail: 500,
-      },
-    );
+    const jobId = await this.scheduleProcessJob(agentId, chatId, timeoutMs);
 
     this.logger.log(
       `[Buffer] Evento enfileirado | agentId=${agentId} | chatId=${chatId} | webhookEventId=${webhookEventId} | delay=${timeoutMs}ms`,
     );
 
-    return String(job.id);
+    return jobId;
+  }
+
+  async hasItems(agentId: string, chatId: string): Promise<boolean> {
+    const length = await this.redis.llen(this.buildBufferKey(agentId, chatId));
+    return length > 0;
+  }
+
+  async reschedule(agentId: string, chatId: string, delayMs: number): Promise<void> {
+    const bufferKey = this.buildBufferKey(agentId, chatId);
+    if (await this.redis.exists(bufferKey)) {
+      await this.redis.expire(bufferKey, Math.ceil(delayMs / 1000) + 120);
+    }
+    await this.scheduleProcessJob(agentId, chatId, delayMs);
+  }
+
+  async discard(agentId: string, chatId: string): Promise<void> {
+    await this.redis.del(this.buildBufferKey(agentId, chatId));
+    await this.removeExistingJob(this.buildJobId(agentId, chatId));
+    await this.removeExistingJob(this.buildHoldJobId(agentId, chatId));
   }
 
   /**
@@ -104,11 +103,73 @@ export class MessageBufferService implements OnModuleInit, OnModuleDestroy {
     return (results?.[0]?.[1] as string[] | null) ?? [];
   }
 
+  private async scheduleProcessJob(
+    agentId: string,
+    chatId: string,
+    delayMs: number,
+  ): Promise<string> {
+    const bufferKey = this.buildBufferKey(agentId, chatId);
+    const canonicalJobId = this.buildJobId(agentId, chatId);
+    const holdJobId = this.buildHoldJobId(agentId, chatId);
+
+    // Dentro do job ativo o id canônico está travado: remover falha e o add
+    // com o mesmo id seria ignorado. Nesse caso a continuação usa o id de hold.
+    const canonicalActive = await this.isJobActive(canonicalJobId);
+    let jobId = canonicalJobId;
+    if (canonicalActive) {
+      jobId = holdJobId;
+      await this.removeExistingJob(holdJobId, chatId);
+    } else {
+      await this.removeExistingJob(canonicalJobId, chatId);
+      await this.removeExistingJob(holdJobId);
+    }
+
+    const job = await this.queue.add(
+      BUFFER_JOB_NAME,
+      { agentId, chatId, bufferKey } satisfies BufferJobData,
+      {
+        jobId,
+        delay: delayMs,
+        removeOnComplete: 100,
+        removeOnFail: 500,
+      },
+    );
+
+    return String(job.id);
+  }
+
+  private async isJobActive(jobId: string): Promise<boolean> {
+    try {
+      const job = await this.queue.getJob(jobId);
+      return job ? (await job.getState()) === 'active' : false;
+    } catch {
+      return false;
+    }
+  }
+
+  private async removeExistingJob(jobId: string, chatId?: string): Promise<void> {
+    try {
+      const existingJob = await this.queue.getJob(jobId);
+      if (existingJob) {
+        await existingJob.remove();
+        if (chatId) {
+          this.logger.debug(`[Buffer] Timer reiniciado | chatId=${chatId}`);
+        }
+      }
+    } catch {
+      // Job pode já ter sido consumido; sem problema
+    }
+  }
+
   private buildBufferKey(agentId: string, chatId: string): string {
     return `msg-buffer:${agentId}:${chatId}`;
   }
 
   private buildJobId(agentId: string, chatId: string): string {
     return `buffer:${agentId}:${chatId}`;
+  }
+
+  private buildHoldJobId(agentId: string, chatId: string): string {
+    return `${this.buildJobId(agentId, chatId)}:hold`;
   }
 }

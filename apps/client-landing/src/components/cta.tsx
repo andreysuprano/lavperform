@@ -11,6 +11,7 @@ import {
   Text,
 } from "@chakra-ui/react"
 import { FaWhatsapp } from "react-icons/fa"
+import { buildWhatsappUrl } from "@/lib/whatsapp"
 import { LaundryData } from "@/types/laundry"
 
 interface CTAProps {
@@ -19,6 +20,8 @@ interface CTAProps {
 }
 
 export function CTA({ data }: CTAProps) {
+  const whatsappUrl = buildWhatsappUrl(data.whatsappNumber, data.whatsappMessage)
+
   return (
     <Box
       as="section"
@@ -57,9 +60,11 @@ export function CTA({ data }: CTAProps) {
                 color: "var(--brand-primary)",
                 "&:hover": { opacity: 0.9 },
               }}
-              onClick={() =>
-                window.open(`https://wa.me/${data.whatsappNumber}`, "_blank")
-              }
+              onClick={() => {
+                if (whatsappUrl) {
+                  window.open(whatsappUrl, "_blank", "noopener,noreferrer")
+                }
+              }}
               aria-label="Solicitar atendimento via WhatsApp"
             >
               <HStack gap={3} align="center">

@@ -12,6 +12,8 @@ const FIELD_LABELS: Record<IntegrationFieldName, string> = {
 const SLUG_LABELS: Record<string, string> = {
   VMLAV: "VM Lav",
   CICCLO: "Cicclo",
+  WINDEL: "Windel",
+  WAYMONEY: "WayMoney",
   L2AUTOMATE: "L2 Automate",
   MAXLAV: "Maxlav",
   HYBEX: "Hybex",
@@ -26,12 +28,28 @@ export function integrationFieldLabel(
   if (partnerSlug?.toUpperCase() === "VMLAV" && field === "merchantId") {
     return "CNPJ"
   }
+  if (
+    (partnerSlug?.toUpperCase() === "WINDEL" ||
+      partnerSlug?.toUpperCase() === "WAYMONEY") &&
+    field === "merchantId"
+  ) {
+    return "E-mail"
+  }
+  if (
+    (partnerSlug?.toUpperCase() === "WINDEL" ||
+      partnerSlug?.toUpperCase() === "WAYMONEY") &&
+    field === "apiKey"
+  ) {
+    return "Senha"
+  }
   return FIELD_LABELS[field]
 }
 
 const SUPPORTS_IMPORT_HISTORY_SLUGS = new Set([
   "VMLAV",
   "CICCLO",
+  "WINDEL",
+  "WAYMONEY",
   "L2AUTOMATE",
   "MAXLAV",
   "HYBEX",

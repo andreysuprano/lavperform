@@ -63,7 +63,12 @@ export class PrismaCustomerJourneyRepository implements CustomerJourneyRepositor
   async updateStatus(
     id: string,
     status: string,
-    extra?: { purchaseAt?: Date; helpRequestedAt?: Date; metadata?: Record<string, unknown> },
+    extra?: {
+      purchaseAt?: Date;
+      helpRequestedAt?: Date;
+      metadata?: Record<string, unknown>;
+      startedAt?: Date;
+    },
   ): Promise<CustomerJourneyData> {
     const row = await this.prisma.customerJourney.update({
       where: { id },
@@ -74,6 +79,7 @@ export class PrismaCustomerJourneyRepository implements CustomerJourneyRepositor
         ...(extra?.metadata !== undefined
           ? { metadata: extra.metadata as object }
           : {}),
+        ...(extra?.startedAt !== undefined ? { startedAt: extra.startedAt } : {}),
       },
     });
     return this.map(row);

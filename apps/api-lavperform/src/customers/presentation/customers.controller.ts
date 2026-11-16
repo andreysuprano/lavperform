@@ -1,4 +1,4 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Inject } from '@nestjs/common';
+import { Controller, Get, Post, Body, Patch, Param, Delete, Query, UseGuards, Inject, StreamableFile } from '@nestjs/common';
 import { CustomersService } from '../application/customers.service';
 import { CreateCustomerDto } from '../application/dto/create-customer.dto';
 import { UpdateCustomerDto } from '../application/dto/update-customer.dto';
@@ -11,6 +11,7 @@ import { Company } from '../../common/decorators/company.decorator';
 import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
+import { normalizeExportFormat } from '../../common/spreadsheet/rows-to-xlsx';
 
 @ApiTags('Customers')
 @Controller('companies/:companyId/customers')
@@ -150,6 +151,24 @@ export class CustomersController {
     @Query() query: TopBuyersQueryDto,
   ) {
     return this.customersService.getTopBuyers(companyId, query);
+  }
+
+  @Get('export')
+  @ApiQuery({ name: 'format', required: false, enum: ['csv', 'xls', 'xlsx'] })
+  @ApiOperation({ summary: 'Exportar a base de clientes em CSV ou Excel' })
+  @ApiResponse({ status: 200, description: 'Arquivo da base de clientes' })
+  async exportCustomers(
+    @Param('companyId') companyId: string,
+    @Query('format') format?: string,
+  ) {
+    const file = await this.customersService.exportCustomersFile(
+      companyId,
+      normalizeExportFormat(format),
+    );
+    return new StreamableFile(file.body, {
+      type: file.type,
+      disposition: `attachment; filename="${file.filename}"`,
+    });
   }
 
   @Get(':id')

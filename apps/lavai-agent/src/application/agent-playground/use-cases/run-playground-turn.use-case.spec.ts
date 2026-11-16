@@ -166,6 +166,18 @@ describe('RunPlaygroundTurnUseCase', () => {
     expect(conversations.upsert).toHaveBeenCalled();
   });
 
+  it('usa o aviso cordial configurado ao encaminhar para um atendente', async () => {
+    const ack = 'Aguarde, estou solicitando o atendimento humano, em seguida alguém da equipe irá lhe atender!';
+    agents.findById.mockResolvedValue(
+      agent({
+        journeyConfig: { helpAckMessage: ack } as AgentWithConfigsData['journeyConfig'],
+      }),
+    );
+    journey.onInboundMessage.mockResolvedValue({ skipLlm: true, escalated: true });
+
+    await expect(useCase.execute(input)).resolves.toEqual({ content: ack });
+  });
+
   it.each([
     ['sessionId inválido', { sessionId: 'visita' }],
     ['texto vazio', { content: '   ' }],

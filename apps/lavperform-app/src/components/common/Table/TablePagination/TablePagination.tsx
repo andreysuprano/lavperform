@@ -29,6 +29,8 @@ const TablePaginationComponent = <T,>({
       (
         <IconButton
           aria-label={`Página ${item.value}`}
+          minH="44px"
+          minW="44px"
           variant={{ base: 'ghost', _selected: 'solid' }}
         >
           {item.value}
@@ -115,6 +117,8 @@ const TablePaginationComponent = <T,>({
                   <Button
                     borderWidth={0}
                     key={size}
+                    minH="44px"
+                    minW="44px"
                     onClick={handleSizeChange(size)}
                     size="xs"
                     variant={meta?.limit === size ? 'solid' : 'ghost'}
@@ -145,6 +149,8 @@ const TablePaginationComponent = <T,>({
               <IconButton
                 aria-label="Página anterior"
                 disabled={meta?.page === 1}
+                minH="44px"
+                minW="44px"
                 variant="ghost"
               >
                 <RiArrowLeftSLine />
@@ -155,6 +161,8 @@ const TablePaginationComponent = <T,>({
               <IconButton
                 aria-label="Próxima página"
                 disabled={meta?.page === meta?.totalPages}
+                minH="44px"
+                minW="44px"
                 variant="ghost"
               >
                 <RiArrowRightSLine />

@@ -1,16 +1,16 @@
-import { Box, Button, Stack } from '@chakra-ui/react'
+import { Button, Stack } from '@chakra-ui/react'
 import { memo, useCallback, useEffect, useState } from 'react'
 import { RiPagesLine, RiSaveLine } from 'react-icons/ri'
 
 import { AppContentLayout, LoadingState } from '@/components'
+import { StickySaveBar } from '@/components/layout/AppLayout/StickySaveBar'
 import { useAuth } from '@/context/AuthContext'
+import { ServicesForm } from '@/whitelabel/components/landing-page-config/ServicesForm'
 import {
   useRequireLandingPage,
   useUpdateLandingPageConfig,
 } from '@/whitelabel/hooks'
 import type { ServicesData } from '@/whitelabel/types'
-
-import { ServicesForm } from '@/whitelabel/components/landing-page-config/ServicesForm'
 
 function ServicesPageBase() {
   const { selectedCompany } = useAuth()
@@ -68,16 +68,7 @@ function ServicesPageBase() {
         />
       </AppContentLayout>
 
-      <Box
-        bg="none"
-        borderTopWidth="1px"
-        bottom={0}
-        left={0}
-        mt={4}
-        position="sticky"
-        right={0}
-        zIndex={10}
-      >
+      <StickySaveBar>
         <Button
           loading={updateConfig.isPending}
           onClick={handleSave}
@@ -87,7 +78,7 @@ function ServicesPageBase() {
           <RiSaveLine />
           Salvar alterações
         </Button>
-      </Box>
+      </StickySaveBar>
     </Stack>
   )
 }

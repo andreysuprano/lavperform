@@ -1,11 +1,18 @@
-import { lazy, Suspense, useEffect } from 'react'
+import { lazy, type ReactNode,Suspense, useEffect } from 'react'
 import { Navigate, Outlet, Route, Routes, useLocation } from 'react-router-dom'
 
 import { AppLayout, LoadingState } from '@/components'
+import { MorePage } from '@/components/layout/AppLayout/MorePage'
+import { StoreSwitchPage } from '@/components/layout/AppLayout/StoreSwitchPage'
+import { useAuth } from '@/context/AuthContext'
 import { DetailClientsPage } from '@/pages/customers/DetailClientsPage'
 import { RfvAttributionWindowPage } from '@/pages/customers/RfvAttributionWindowPage'
 import { RequireAdmin } from '@/routes/RequireAdmin'
 import { RequireDefaultTheme } from '@/routes/RequireDefaultTheme'
+import {
+  trafficHomePath,
+  trafficRouteRedirect,
+} from '@/utils/tracking/traffic-access'
 import { WhitelabelRoutes } from '@/whitelabel/routes/whitelabel.routes'
 
 // Lazy loading das páginas
@@ -99,6 +106,46 @@ const RenitencyPage = lazy(() =>
     default: module.RenitencyPage,
   }))
 )
+const BrandIdentityPage = lazy(() =>
+  import('@/pages/settings/BrandIdentityPage').then((module) => ({
+    default: module.BrandIdentityPage,
+  }))
+)
+const SocialGeneratorPage = lazy(() =>
+  import('@/pages/social/SocialGeneratorPage').then((module) => ({
+    default: module.SocialGeneratorPage,
+  }))
+)
+const SocialVariationsPage = lazy(() =>
+  import('@/pages/social/SocialVariationsPage').then((module) => ({
+    default: module.SocialVariationsPage,
+  }))
+)
+const SocialPostDetailPage = lazy(() =>
+  import('@/pages/social/SocialPostDetailPage').then((module) => ({
+    default: module.SocialPostDetailPage,
+  }))
+)
+const SocialEditorPage = lazy(() =>
+  import('@/pages/social/SocialEditorPage').then((module) => ({
+    default: module.SocialEditorPage,
+  }))
+)
+const SocialRevisionPage = lazy(() =>
+  import('@/pages/social/SocialRevisionPage').then((module) => ({
+    default: module.SocialRevisionPage,
+  }))
+)
+const SocialCalendarPage = lazy(() =>
+  import('@/pages/social/SocialCalendarPage').then((module) => ({
+    default: module.SocialCalendarPage,
+  }))
+)
+const GoogleBusinessPage = lazy(() =>
+  import('@/pages/social/GoogleBusinessPage').then((module) => ({
+    default: module.GoogleBusinessPage,
+  }))
+)
 const IntegrationPage = lazy(() =>
   import('@/pages/settings/IntegrationPage').then((module) => ({
     default: module.IntegrationPage,
@@ -179,11 +226,54 @@ const FoodAdsOverviewPage = lazy(() =>
     default: module.FoodAdsOverviewPage,
   }))
 )
+const TrafficReportPage = lazy(() =>
+  import('@/pages/traffic/TrafficReportPage').then((module) => ({
+    default: module.TrafficReportPage,
+  }))
+)
+const PixelPage = lazy(() =>
+  import('@/pages/traffic/PixelPage').then((module) => ({
+    default: module.PixelPage,
+  }))
+)
+const TagManagerPage = lazy(() =>
+  import('@/pages/traffic/TagManagerPage').then((module) => ({
+    default: module.TagManagerPage,
+  }))
+)
 const FoodAdsCampaignsPage = lazy(() =>
   import('@/pages/foodads/FoodAdsCampaignsPage').then((module) => ({
     default: module.FoodAdsCampaignsPage,
   }))
 )
+
+function HomeRedirect() {
+  const { selectedCompany } = useAuth()
+  return (
+    <Navigate
+      replace
+      to={trafficHomePath(selectedCompany?.permissions)}
+    />
+  )
+}
+
+function TrafficScreen({ children }: { children: ReactNode }) {
+  const { selectedCompany } = useAuth()
+  const location = useLocation()
+  const redirect = trafficRouteRedirect(
+    selectedCompany?.permissions,
+    location.pathname
+  )
+  if (redirect) {
+    return (
+      <Navigate
+        replace
+        to={redirect}
+      />
+    )
+  }
+  return children
+}
 
 function LayoutWrapper() {
   const location = useLocation()
@@ -206,17 +296,56 @@ export function PrivateRoutes() {
     <Routes>
       <Route element={<LayoutWrapper />}>
         <Route
-          element={
-            <Navigate
-              replace
-              to="/dashboard"
-            />
-          }
+          element={<HomeRedirect />}
           path="/"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <TrafficReportPage />
+            </TrafficScreen>
+          }
+          path="/trafego"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <TrafficReportPage />
+            </TrafficScreen>
+          }
+          path="/trafego/conexao"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <PixelPage />
+            </TrafficScreen>
+          }
+          path="/trafego/pixel"
+        />
+        <Route
+          element={
+            <TrafficScreen>
+              <TagManagerPage />
+            </TrafficScreen>
+          }
+          path="/trafego/gtm"
         />
         <Route
           element={<Home />}
           path="/dashboard"
+        />
+        <Route
+          element={<MorePage />}
+          path="/mais"
+        />
+        <Route
+          element={<MorePage />}
+          path="/mais/secao"
+        />
+        <Route
+          element={<StoreSwitchPage />}
+          path="/trocar-loja"
         />
         <Route
           element={<CustomersPage />}
@@ -348,6 +477,42 @@ export function PrivateRoutes() {
           path="/settings/renitency"
         />
         <Route
+          element={<BrandIdentityPage />}
+          path="/settings/brand-identity"
+        />
+        <Route
+          element={<Navigate replace to="/social/generator" />}
+          path="/social"
+        />
+        <Route
+          element={<SocialGeneratorPage />}
+          path="/social/generator"
+        />
+        <Route
+          element={<SocialPostDetailPage />}
+          path="/social/generator/:draftId"
+        />
+        <Route
+          element={<SocialVariationsPage />}
+          path="/social/variations/:draftId"
+        />
+        <Route
+          element={<SocialRevisionPage />}
+          path="/social/revise/:draftId/:variationId"
+        />
+        <Route
+          element={<SocialEditorPage />}
+          path="/social/editor/:draftId/:variationId"
+        />
+        <Route
+          element={<SocialCalendarPage />}
+          path="/social/calendario"
+        />
+        <Route
+          element={<GoogleBusinessPage />}
+          path="/social/google"
+        />
+        <Route
           element={<MyPage />}
           path="/my-page"
         />
@@ -421,6 +586,10 @@ export function PrivateRoutes() {
           path="/whitelabel/*"
         />
       </Route>
+      <Route
+        element={<ClientPage />}
+        path="/p/:slug/:pageSlug"
+      />
       <Route
         element={<ClientPage />}
         path="/p/:slug"

@@ -3,6 +3,7 @@ import {
   ConflictException,
   Inject,
   Injectable,
+  Logger,
   NotFoundException,
 } from '@nestjs/common';
 import { IAudienceRepository } from '../domain/audience.repository.interface';
@@ -18,6 +19,8 @@ import { CRITERIA_METADATA } from '../domain/audience-definition.types';
 
 @Injectable()
 export class AudiencesService {
+  private readonly logger = new Logger(AudiencesService.name);
+
   constructor(
     @Inject('IAudienceRepository')
     private readonly audienceRepository: IAudienceRepository,
@@ -43,13 +46,23 @@ export class AudiencesService {
     );
 
     const itemsWithCount = await Promise.all(
-      items.map(async (audience) => ({
-        ...audience,
-        customerCount: await this.audienceQueryEngine.countCustomers(
-          companyId,
-          audience.definition,
-        ),
-      })),
+      items.map(async (audience) => {
+        try {
+          return {
+            ...audience,
+            customerCount: await this.audienceQueryEngine.countCustomers(
+              companyId,
+              audience.definition,
+            ),
+          };
+        } catch (error) {
+          this.logger.error(
+            `Falha ao contar clientes da audiência ${audience.id}`,
+            error instanceof Error ? error.stack : undefined,
+          );
+          return { ...audience, customerCount: null };
+        }
+      }),
     );
 
     return {

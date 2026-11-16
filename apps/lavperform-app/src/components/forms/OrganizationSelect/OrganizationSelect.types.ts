@@ -7,4 +7,5 @@ export type Props = {
   selectedCompany: UserCompany | null
   onCompanyChange: (details: SelectValueChangeDetails<UserCompany>) => void
   showLabel?: boolean
+  compact?: boolean
 }

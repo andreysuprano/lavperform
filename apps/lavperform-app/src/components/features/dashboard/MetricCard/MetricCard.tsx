@@ -11,6 +11,10 @@ import {
 } from '@chakra-ui/react'
 import { memo } from 'react'
 
+import { shellDark } from '@/components/layout/AppLayout/shellPalette'
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+import { useColorModeValue } from '@/components/ui/color-mode'
+
 import { Props } from './MetricCard.types'
 
 const MetricCardComponent = ({
@@ -46,9 +50,14 @@ const MetricCardComponent = ({
   }
 
   const isSm = size === 'sm'
+  const phone = useShellMode() === 'phone'
+  const cardBg = useColorModeValue('white', shellDark.card)
+  const cardBorder = useColorModeValue('#E4E4E7', shellDark.border)
 
   return (
     <Card.Root
+      bg={phone ? cardBg : undefined}
+      borderColor={phone ? cardBorder : undefined}
       h="full"
       size="sm"
     >

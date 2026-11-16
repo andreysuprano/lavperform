@@ -7,8 +7,8 @@ import {
   Switch,
   Text,
 } from '@chakra-ui/react'
-import { memo, useCallback, useEffect, useRef } from 'react'
-import { LuBot, LuPlay } from 'react-icons/lu'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { LuBot, LuPlay, LuSettings } from 'react-icons/lu'
 import {
   RiArrowLeftLine,
   RiDeleteBinLine,
@@ -24,6 +24,7 @@ import {
   LoadingState,
 } from '@/components'
 import { useAuth } from '@/context/AuthContext'
+import { AIAgentAdvancedConfigDrawer } from '@/whitelabel/components/ai-agent/AIAgentAdvancedConfigDrawer'
 import { ConversationsTab } from '@/whitelabel/components/ai-agent/tabs'
 import {
   useAIAgent,
@@ -47,6 +48,7 @@ function AIAgentDetailPageBase() {
   const deleteAgent = useDeleteAIAgent()
   const updateWebhook = useUpdateAIAgentWebhook()
   const companyIdWhenMounted = useRef(selectedCompany?.id)
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
 
   useEffect(() => {
     if (!selectedCompany?.id) return
@@ -109,6 +111,14 @@ function AIAgentDetailPageBase() {
       >
         <LuPlay />
         Testar
+      </Button>
+      <Button
+        size="sm"
+        variant="outline"
+        onClick={() => setIsAdvancedOpen(true)}
+      >
+        <LuSettings />
+        Configuração avançada
       </Button>
       <Button
         size="sm"
@@ -176,6 +186,12 @@ function AIAgentDetailPageBase() {
           agent={agent}
         />
       </Box>
+
+      <AIAgentAdvancedConfigDrawer
+        agent={agent}
+        isOpen={isAdvancedOpen}
+        onClose={() => setIsAdvancedOpen(false)}
+      />
     </AppContentLayout>
   )
 }

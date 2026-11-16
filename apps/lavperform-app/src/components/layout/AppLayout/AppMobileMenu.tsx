@@ -1,4 +1,5 @@
 import {
+  Badge,
   Box,
   Button,
   Circle,
@@ -29,6 +30,8 @@ import { useWhatsAppManager } from '@/hooks/useWhatsAppManager'
 import type { UserCompany } from '@/types'
 import { MENU_ITEMS, MOBILE_ONLY_ITEMS } from '@/utils/constants/appMenuLinks'
 import { getLongestPrefixLinkMatch } from '@/utils/menuActiveMatch'
+
+import { NavNewBadge } from './NavNewBadge'
 
 type MenuItemLike = { href: string; links?: { href: string }[] }
 
@@ -139,7 +142,7 @@ const MobileMenu = memo(
                   gap={1}
                   w="full"
                 >
-                  {menuItems.map(({ label, icon, href, links }) => (
+                  {menuItems.map(({ label, icon, href, links, isNew }) => (
                     <Box
                       key={href}
                       w="full"
@@ -185,6 +188,7 @@ const MobileMenu = memo(
                           >
                             {label}
                           </Text>
+                          {isNew && <NavNewBadge>Novidade</NavNewBadge>}
                           {links && (
                             <Icon
                               as={
@@ -253,6 +257,21 @@ const MobileMenu = memo(
                                   >
                                     {link.label}
                                   </Text>
+                                  {'badge' in link &&
+                                    link.badge &&
+                                    ('badgeColorPalette' in link &&
+                                    link.badgeColorPalette === 'orange' ? (
+                                      <NavNewBadge fontSize="10px">
+                                        {link.badge}
+                                      </NavNewBadge>
+                                    ) : (
+                                      <Badge
+                                        colorPalette="gray"
+                                        variant="subtle"
+                                      >
+                                        {link.badge}
+                                      </Badge>
+                                    ))}
                                 </NavLink>
                               </HStack>
                             ))

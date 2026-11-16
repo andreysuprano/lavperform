@@ -13,7 +13,7 @@ import type { Audience, AudienceDefinition } from '@/types'
 import { createEmptyDefinition } from '@/types'
 
 import { WizardNav } from './CriterionEditor'
-import { hasIncludeRules, WIZARD_STEPS } from './audienceCopy'
+import { audiencePeriodError, hasIncludeRules, WIZARD_STEPS } from './audienceCopy'
 import { DetailsStep } from './steps/DetailsStep'
 import { ExcludeStep } from './steps/ExcludeStep'
 import { IncludeStep } from './steps/IncludeStep'
@@ -75,9 +75,10 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
   }, [companyId])
 
   const isSaving = createAudience.isPending || updateAudience.isPending
+  const periodError = useMemo(() => audiencePeriodError(definition), [definition])
   const canContinueInclude = useMemo(
-    () => hasIncludeRules(definition.include),
-    [definition.include],
+    () => hasIncludeRules(definition.include) && !periodError,
+    [definition.include, periodError],
   )
   const canContinueDetails = useMemo(() => name.trim().length > 0, [name])
 
@@ -86,7 +87,7 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
     setStep((current) => Math.min(WIZARD_STEPS.length - 1, current + 1))
 
   const handleSave = async () => {
-    if (!companyId || !canContinueDetails || !canContinueInclude) return
+    if (!companyId || !canContinueDetails || !canContinueInclude || periodError) return
 
     try {
       if (audience?.id) {
@@ -145,6 +146,7 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
         }
       case 1:
         return {
+          nextDisabled: Boolean(periodError),
           nextLabel: definition.exclude ? 'Continuar' : 'Pular esta etapa',
           onBack: goToPrevStep,
           onNext: goToNextStep,
@@ -157,6 +159,7 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
         }
       case 3:
         return {
+          nextDisabled: Boolean(periodError),
           nextLabel: audience ? 'Salvar alterações' : 'Criar audiência',
           nextLoading: isSaving,
           onBack: goToPrevStep,
@@ -176,6 +179,7 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
       minH={0}
       onStepChange={(details) => {
         const nextStep = details.step
+        if (periodError && nextStep > step) return
         if (nextStep > 0 && !canContinueInclude) return
         if (nextStep > 2 && !canContinueDetails) return
         setStep(nextStep)
@@ -275,6 +279,15 @@ export function AudienceBuilder({ audience, onSaved, onCancel }: Props) {
         flexShrink={0}
         pt={3}
       >
+        {periodError ? (
+          <Text
+            color="fg.error"
+            fontSize="sm"
+            mb={2}
+          >
+            {periodError}
+          </Text>
+        ) : null}
         <WizardNav {...navProps} />
       </Box>
     </Steps.Root>

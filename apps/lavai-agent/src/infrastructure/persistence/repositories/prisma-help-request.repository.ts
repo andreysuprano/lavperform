@@ -53,6 +53,13 @@ export class PrismaHelpRequestRepository implements HelpRequestRepositoryPort {
     return rows.map((r) => this.map(r));
   }
 
+  async findOpenByAgentAndChat(agentId: string, chatId: string): Promise<HelpRequestData[]> {
+    const rows = await this.prisma.helpRequest.findMany({
+      where: { agentId, chatId, status: { in: ['PENDING', 'CLAIMED'] as never } },
+    });
+    return rows.map((r) => this.map(r));
+  }
+
   async updateStatus(
     id: string,
     status: string,

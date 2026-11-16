@@ -85,6 +85,7 @@ export interface CtaData {
     description: string;
     buttonText: string;
     whatsappNumber: string;
+    whatsappMessage?: string;
 }
 
 export interface FooterData {
@@ -117,6 +118,8 @@ export class LandingPage {
     navigation: NavigationItem[];
     createdAt: Date;
     updatedAt: Date;
+    gtmContainerId?: string | null;
+    metaPixelId?: string | null;
 
     // Relations
     company?: any;

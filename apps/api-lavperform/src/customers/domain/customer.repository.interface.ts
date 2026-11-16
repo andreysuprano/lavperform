@@ -7,6 +7,7 @@ import { Message } from '@prisma/client';
 export interface ICustomerRepository extends IRepository<Customer> {
     findByPhone(companyId: string, phone: string): Promise<Customer | null>;
     findByCpf(companyId: string, cpf: string): Promise<Customer | null>;
+    findAllByCompany(companyId: string): Promise<Customer[]>;
     createExclusive(
         data: Partial<Customer> & {
             companyId: string;

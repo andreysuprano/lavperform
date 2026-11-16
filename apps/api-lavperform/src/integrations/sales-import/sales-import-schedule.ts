@@ -2,8 +2,10 @@ export type SalesImportPartnerSlug =
   | 'vmlav'
   | 'agidez'
   | 'cicclo'
+  | 'windel'
   | 'maxlav'
-  | 'l2automate';
+  | 'l2automate'
+  | 'waymoney';
 
 export function utcDateOnly(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);

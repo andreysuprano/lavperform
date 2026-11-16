@@ -17,6 +17,9 @@ import { LuCrown, LuShoppingBag, LuTrophy } from 'react-icons/lu'
 
 import { Empty } from '@/components/common'
 import { CustomerDetailsModal } from '@/components/features/customers/CustomerDetailsModal'
+import { shellDark } from '@/components/layout/AppLayout/shellPalette'
+import { useShellMode } from '@/components/layout/AppLayout/useShellMode'
+import { useColorModeValue } from '@/components/ui/color-mode'
 import { useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import { useTopBuyers } from '@/hooks/queries'
@@ -37,9 +40,9 @@ import {
   getCurrentMonthSelection,
   getMonthRange,
   listSelectableMonths,
+  type MonthSelection,
   parseMonthKey,
   toMonthKey,
-  type MonthSelection,
 } from './monthRange'
 
 const RANK_LIMIT = 10
@@ -150,6 +153,13 @@ type MonthlyTopStripProps = {
   showCycles: boolean
 }
 
+function usePhoneCardSurface() {
+  const phone = useShellMode() === 'phone'
+  const bg = useColorModeValue('white', shellDark.card)
+  const borderColor = useColorModeValue('#E4E4E7', shellDark.border)
+  return phone ? { bg, borderColor } : {}
+}
+
 function MonthlyTopStrip({
   data,
   isLoading,
@@ -164,11 +174,13 @@ function MonthlyTopStrip({
 }: MonthlyTopStripProps) {
   const selectedKey = toMonthKey(selectedMonth)
   const showLoading = isLoading || (isFetching && !data)
+  const phoneCard = usePhoneCardSurface()
 
   return (
     <Box
       bg="bg.panel"
       borderColor="border"
+      {...phoneCard}
       borderRadius="lg"
       borderWidth="1px"
       colorPalette={colorPalette}
@@ -432,6 +444,7 @@ function RankList({
 }: RankListProps) {
   const subtitle = getRankSubtitle(sortBy, period, showCycles)
   const showLoading = isLoading || (isFetching && !data)
+  const phoneCard = usePhoneCardSurface()
 
   const maxMetric = useMemo(
     () =>
@@ -456,6 +469,7 @@ function RankList({
       overflow="hidden"
       p={3}
       w="full"
+      {...phoneCard}
     >
       <Flex
         align={{ base: 'stretch', sm: 'flex-start' }}
@@ -728,10 +742,10 @@ function RankList({
                         cursor="pointer"
                         fontSize="xs"
                         fontWeight="semibold"
+                        onClick={() => onOpenDetails(buyer)}
                         textDecoration="underline"
                         textUnderlineOffset="3px"
                         w="fit-content"
-                        onClick={() => onOpenDetails(buyer)}
                       >
                         Ver ficha completa
                       </Text>

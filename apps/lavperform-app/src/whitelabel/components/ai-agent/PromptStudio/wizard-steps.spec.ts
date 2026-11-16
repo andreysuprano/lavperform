@@ -8,6 +8,8 @@ import {
   wizardChoice,
   wizardKeys,
   wizardQuestion,
+  wizardShownAnswer,
+  wizardStepFilled,
   wizardStepForMissing,
 } from './wizard-steps'
 
@@ -63,6 +65,50 @@ describe('wizard steps', () => {
     )
     expect(wizardQuestion('laundryType', 'CONVENTIONAL')).toMatch(/tipo|auto serviço|convencional/i)
     expect(wizardQuestion('store', 'CONVENTIONAL')).toMatch(/dados da loja/i)
+  })
+
+  it('mostra só a resposta já gravada', () => {
+    expect(wizardStepFilled('agentName', empty)).toBe(false)
+    expect(wizardStepFilled('agentName', { ...empty, agentName: 'Aria' })).toBe(true)
+    expect(wizardShownAnswer('agentName', 'CONVENTIONAL', { ...empty, agentName: 'Aria' })).toBe('Aria')
+    expect(
+      wizardShownAnswer('laundryType', 'SELF_SERVICE', {
+        ...empty,
+        agentObjective: objectiveFor('SELF_SERVICE'),
+      })
+    ).toBe('Auto serviço')
+    expect(
+      wizardShownAnswer('payPix', 'CONVENTIONAL', {
+        ...empty,
+        answers: { payPix: 'Sim' },
+      })
+    ).toBe('Sim')
+    expect(
+      wizardShownAnswer('store', 'CONVENTIONAL', {
+        agentName: 'Aria',
+        agentObjective: 'x',
+        answers: {
+          ...storeAnswers,
+          name: 'Loja',
+          phone: '119',
+          address: 'Rua A',
+          hours_seg: '8h às 18h',
+          hours_ter: '8h às 18h',
+          hours_qua: '8h às 18h',
+          hours_qui: '8h às 18h',
+          hours_sex: '8h às 18h',
+          hours_sab: '8h às 18h',
+          hours_dom: '8h às 18h',
+        },
+      })
+    ).toBe('Loja\n119\nRua A\n8h às 18h')
+    expect(
+      wizardShownAnswer('store', 'CONVENTIONAL', {
+        agentName: 'Aria',
+        agentObjective: 'x',
+        answers: { ...storeAnswers, hours_seg: '8h', hours_dom: 'Fechado' },
+      })
+    ).toContain('Horário diferente por dia')
   })
 
   it('não grava Outra resposta como opção pronta', () => {

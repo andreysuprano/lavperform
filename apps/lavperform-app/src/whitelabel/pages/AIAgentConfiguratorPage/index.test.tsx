@@ -16,6 +16,21 @@ vi.mock('@/whitelabel/services', () => ({
   },
 }))
 
+vi.mock('@/whitelabel/hooks', () => ({
+  useAIAgent: () => ({
+    data: {
+      id: 'agent-1',
+      name: 'Lia',
+      active: true,
+      companyId: 'company-1',
+    },
+  }),
+}))
+
+vi.mock('@/whitelabel/components/ai-agent/AIAgentAdvancedConfigDrawer', () => ({
+  AIAgentAdvancedConfigDrawer: () => null,
+}))
+
 describe('AIAgentConfiguratorPage', () => {
   afterEach(() => {
     cleanup()
@@ -37,6 +52,15 @@ describe('AIAgentConfiguratorPage', () => {
     expect(screen.getByRole('button', { name: 'Enviar' })).toBeInTheDocument()
     expect(screen.getByText('Configurar agente')).toBeInTheDocument()
     expect(screen.getByText('Testar')).toBeInTheDocument()
+    const avancada = screen.getByRole('button', { name: 'Configuração avançada' })
+    const conversas = screen.getByRole('button', { name: 'Conversas' })
+    expect(
+      screen.getByText('Testar').compareDocumentPosition(avancada) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
+    expect(
+      avancada.compareDocumentPosition(conversas) & Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy()
     expect(screen.queryByText('Testar agente')).not.toBeInTheDocument()
   })
 

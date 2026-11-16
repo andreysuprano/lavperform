@@ -29,12 +29,22 @@ import { GetDatetimeTool } from '../tools/builtin/get-datetime.tool';
 import { EndConversationTool } from '../tools/builtin/end-conversation.tool';
 import { RequestHumanHelpTool } from '../tools/builtin/request-human-help.tool';
 import { McpToolLoaderService } from '../tools/mcp/mcp-tool-loader.service';
-import type { McpSession } from '../tools/mcp/mcp-tool-loader.service';
-import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import {
+  CustomerJourneyStatus,
+  type AgentWithConfigsData,
+} from '../../agent/ports/agent.repository.port';
 import type { NormalizedAgentPrompt } from '../../webhook/types/normalized-agent-prompt.types';
 import { AGENT_RUN_TRACKER_PORT } from '../../agent-trace/ports/agent-run-tracker.port';
 import type { AgentRunTrackerPort } from '../../agent-trace/ports/agent-run-tracker.port';
 import { CUSTOMER_FALLBACK_REPLY } from '../customer-reply';
+import type { McpSession } from '../tools/mcp/mcp-tool-loader.service';
+import { WaitingAckService } from '../../webhook/services/waiting-ack.service';
+import { CUSTOMER_JOURNEY_REPOSITORY } from '../../customer-journey/ports/customer-journey.repository.port';
+import type { CustomerJourneyRepositoryPort } from '../../customer-journey/ports/customer-journey.repository.port';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
+import { HumanTypingPauseService } from '../../webhook/services/human-typing-pause.service';
+import { HumanTakeoverService } from '../../webhook/services/human-takeover.service';
+import { MessageBufferService } from '../../webhook/services/message-buffer.service';
 
 /** Acima disso o atendimento começa a variar preço, prazo e regra. */
 const TEMPERATURE_CAP = 0.3;
@@ -86,6 +96,13 @@ export class AgentRunnerService implements OnModuleInit {
     private readonly mcpToolLoader: McpToolLoaderService,
     @Inject(AGENT_RUN_TRACKER_PORT)
     private readonly tracker: AgentRunTrackerPort,
+    private readonly waitingAck: WaitingAckService,
+    private readonly idleClose: IdleCloseSchedulerService,
+    @Inject(CUSTOMER_JOURNEY_REPOSITORY)
+    private readonly journeys: CustomerJourneyRepositoryPort,
+    private readonly typing: HumanTypingPauseService,
+    private readonly takeover: HumanTakeoverService,
+    private readonly buffer: MessageBufferService,
   ) {}
 
   onModuleInit(): void {
@@ -192,8 +209,22 @@ export class AgentRunnerService implements OnModuleInit {
 
     const assistantText = progress.assistantText;
 
+    const gate = await this.checkSendGate(agent, conversation);
+    if (gate !== 'send') {
+      this.logger.log(
+        `[Runner] Resposta não enviada (${gate === 'takeover' ? 'atendimento humano' : 'atendente digitando'}) | conv=${conversation.id}`,
+      );
+      await this.tracker.completeRun(
+        runId,
+        assistantText,
+        progress.iterations,
+        progress.totalToolCalls,
+      );
+      return;
+    }
+
     try {
-      await this.conversationRepo.addMessage({
+      const saved = await this.conversationRepo.addMessage({
         conversationId: conversation.id,
         role: MessageRole.ASSISTANT,
         content: assistantText,
@@ -215,6 +246,33 @@ export class AgentRunnerService implements OnModuleInit {
         }
       }
 
+      try {
+        await this.waitingAck.clear(agent.id, conversation.chatId);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Runner] Falha ao liberar a saudação de espera | conv=${conversation.id} | ${msg}`,
+        );
+      }
+
+      try {
+        await this.typing.clearPending(agent.id, conversation.chatId);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Runner] Falha ao apagar o marcador de pausa | conv=${conversation.id} | ${msg}`,
+        );
+      }
+
+      try {
+        await this.scheduleAfterReply(agent, conversation, saved.id);
+      } catch (error) {
+        const msg = error instanceof Error ? error.message : String(error);
+        this.logger.error(
+          `[Runner] Falha ao agendar o prazo de silêncio | conv=${conversation.id} | ${msg}`,
+        );
+      }
+
       this.logger.log(
         `[Runner] Resposta enviada | conv=${conversation.id} | chars=${assistantText.length} | partes=${chunks.length}`,
       );
@@ -234,6 +292,79 @@ export class AgentRunnerService implements OnModuleInit {
       await this.tracker.failRun(runId, errorMessage);
       throw err;
     }
+  }
+
+  /**
+   * Confere takeover e pausa de digitação imediatamente antes de gravar e enviar.
+   * Em dúvida (Redis fora), não envia e tenta agendar nova tentativa.
+   */
+  private async checkSendGate(
+    agent: AgentWithConfigsData,
+    conversation: ConversationData,
+  ): Promise<'send' | 'takeover' | 'held'> {
+    try {
+      if (await this.takeover.isInTakeover(agent.id, conversation.chatId)) {
+        try {
+          await this.typing.clearPending(agent.id, conversation.chatId);
+        } catch (clearError) {
+          const clearMsg = clearError instanceof Error ? clearError.message : String(clearError);
+          this.logger.error(
+            `[Runner] Falha ao apagar o marcador após takeover | conv=${conversation.id} | ${clearMsg}`,
+          );
+        }
+        return 'takeover';
+      }
+
+      if (await this.typing.isPaused(agent.id, conversation.chatId)) {
+        await this.typing.setPending(agent.id, conversation.chatId, conversation.id);
+        const remaining = await this.typing.remainingMs(agent.id, conversation.chatId);
+        await this.buffer.reschedule(
+          agent.id,
+          conversation.chatId,
+          remaining > 0 ? remaining : this.typing.pauseMs,
+        );
+        return 'held';
+      }
+
+      return 'send';
+    } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      this.logger.error(
+        `[Runner] Falha ao conferir a pausa; resposta retida | conv=${conversation.id} | ${msg}`,
+      );
+      try {
+        await this.typing.setPending(agent.id, conversation.chatId, conversation.id);
+        await this.buffer.reschedule(agent.id, conversation.chatId, this.typing.pauseMs);
+      } catch (writeError) {
+        const writeMsg = writeError instanceof Error ? writeError.message : String(writeError);
+        this.logger.error(
+          `[Runner] Falha ao reagendar a resposta retida | conv=${conversation.id} | ${writeMsg}`,
+        );
+      }
+      return 'held';
+    }
+  }
+
+  private async scheduleAfterReply(
+    agent: AgentWithConfigsData,
+    conversation: ConversationData,
+    anchorMessageId: string,
+  ): Promise<void> {
+    const config = agent.journeyConfig;
+    if (!config?.enabled || !config.idleCloseEnabled) return;
+
+    const closeText = config.idleCloseMessage?.trim() ?? '';
+    if (!closeText) return;
+
+    const journey = await this.journeys.findByConversationId(conversation.id);
+    if (!journey || journey.status !== CustomerJourneyStatus.ACTIVE) return;
+
+    await this.idleClose.schedule({
+      conversationId: conversation.id,
+      agentId: agent.id,
+      anchorMessageId,
+      delayMs: config.idleCloseMinutes * 60_000,
+    });
   }
 
   private async recordLoopError(runId: string, errorMessage: string, iteration: number): Promise<void> {

@@ -12,6 +12,7 @@ import {
   PencilIcon,
   PlugIcon,
   RefreshCwIcon,
+  Trash2Icon,
 } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
@@ -34,6 +35,7 @@ import { BusinessPartnerDisplay } from "@/features/business-partners/components/
 import {
   useCompany,
   useDeleteCompany,
+  useDeleteCompanyCustomerBase,
   useReprocessCompanyRfv,
   useUpdateCompanyState,
   useValidateCompanyWhatsapp,
@@ -50,6 +52,7 @@ import { CompanyStatusBadge } from "./company-status-badge"
 import { CompanyUsersSection } from "./company-users-section"
 import { CustomerDuplicatesSection } from "./customer-duplicates-section"
 import { DeleteCompanyDialog } from "./delete-company-dialog"
+import { DeleteCustomerBaseDialog } from "./delete-customer-base-dialog"
 import { ReprocessRfvDialog } from "./reprocess-rfv-dialog"
 import { RevalidateWhatsappDialog } from "./revalidate-whatsapp-dialog"
 
@@ -61,10 +64,12 @@ export function CompanyDetailView({ companyId }: { companyId: string }) {
   const deleteMutation = useDeleteCompany()
   const validateWhatsappMutation = useValidateCompanyWhatsapp()
   const reprocessRfvMutation = useReprocessCompanyRfv()
+  const deleteCustomerBaseMutation = useDeleteCompanyCustomerBase(companyId)
 
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [revalidateOpen, setRevalidateOpen] = useState(false)
   const [reprocessRfvOpen, setReprocessRfvOpen] = useState(false)
+  const [deleteCustomerBaseOpen, setDeleteCustomerBaseOpen] = useState(false)
 
   if (companyQuery.isLoading) {
     return (
@@ -190,6 +195,14 @@ export function CompanyDetailView({ companyId }: { companyId: string }) {
             >
               <ChartNoAxesCombinedIcon />
               Reprocessar RFV
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={() => setDeleteCustomerBaseOpen(true)}
+              disabled={deleteCustomerBaseMutation.isPending}
+            >
+              <Trash2Icon />
+              Excluir base de clientes
             </Button>
             <Button
               variant="outline"
@@ -322,6 +335,18 @@ export function CompanyDetailView({ companyId }: { companyId: string }) {
         onConfirm={() => {
           validateWhatsappMutation.mutate(companyId, {
             onSuccess: () => setRevalidateOpen(false),
+          })
+        }}
+      />
+
+      <DeleteCustomerBaseDialog
+        open={deleteCustomerBaseOpen}
+        onOpenChange={setDeleteCustomerBaseOpen}
+        companyName={company.name}
+        isPending={deleteCustomerBaseMutation.isPending}
+        onConfirm={() => {
+          deleteCustomerBaseMutation.mutate(undefined, {
+            onSuccess: () => setDeleteCustomerBaseOpen(false),
           })
         }}
       />

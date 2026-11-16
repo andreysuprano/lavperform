@@ -26,6 +26,8 @@ import {
   parseCampaignEndDate,
   parseCampaignStartDate,
 } from '../../common/utils/date.utils';
+import { customersToImportCsv, customersToImportTable } from './customer-import-csv';
+import { buildXlsx, type CustomerExportFormat } from '../../common/spreadsheet/rows-to-xlsx';
 
 @Injectable()
 export class CustomersService {
@@ -135,6 +137,29 @@ export class CustomersService {
         limit,
         totalPages: Math.ceil(total / limit),
       },
+    };
+  }
+
+  async exportCustomersCsv(companyId: string): Promise<string> {
+    const file = await this.exportCustomersFile(companyId, 'csv');
+    return file.body.toString('utf-8');
+  }
+
+  async exportCustomersFile(companyId: string, format: CustomerExportFormat) {
+    const customers = await this.customerRepository.findAllByCompany(companyId);
+
+    if (format === 'xlsx') {
+      return {
+        body: await buildXlsx(customersToImportTable(customers)),
+        filename: 'clientes.xlsx',
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      };
+    }
+
+    return {
+      body: Buffer.from(customersToImportCsv(customers), 'utf-8'),
+      filename: 'clientes.csv',
+      type: 'text/csv; charset=utf-8',
     };
   }
 

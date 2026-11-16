@@ -16,5 +16,6 @@ export function mapPreloadCompaniesToUserCompanies(
     showTodayPurchases: c.showTodayPurchases === true,
     serviceModel:
       c.serviceModel === 'SELF_SERVICE' ? 'SELF_SERVICE' : 'CONVENTIONAL',
+    ...(Array.isArray(c.permissions) ? { permissions: c.permissions } : {}),
   }))
 }

@@ -36,8 +36,9 @@ function WeatherStatusBase() {
   if (isLoading) {
     return (
       <Button
+        className="shell-touch-44"
         disabled
-        display={{ base: 'none', lg: 'flex' }}
+        display={{ base: 'none', md: 'flex' }}
         gap={2}
         size="sm"
         variant="outline"
@@ -55,10 +56,11 @@ function WeatherStatusBase() {
   }
 
   // Estado de ERRO
-  if (isError || !weatherData) {
+  if (isError || !weatherData || !Number.isFinite(weatherData.tempC)) {
     return (
       <Button
-        display={{ base: 'none', lg: 'flex' }}
+        className="shell-touch-44"
+        display={{ base: 'none', md: 'flex' }}
         gap={2}
         size="sm"
         variant="outline"
@@ -77,7 +79,8 @@ function WeatherStatusBase() {
   // Estado de SUCESSO - dados disponíveis
   return (
     <Button
-      display={{ base: 'none', lg: 'flex' }}
+      className="shell-touch-44"
+      display={{ base: 'none', md: 'flex' }}
       gap={2}
       size="sm"
       variant="outline"

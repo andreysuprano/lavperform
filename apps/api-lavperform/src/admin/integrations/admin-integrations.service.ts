@@ -10,6 +10,8 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { ImportOrderHistoryDto } from '../../companies/application/dto/import-order-history.dto';
 import { ImportHistoryStrategyFactory } from '../../integrations/import-history-strategy.factory';
 import { CiccloSalesService } from '../../integrations/cicclo/application/cicclo-sales.service';
+import { WindelSalesService } from '../../integrations/windel/application/windel-sales.service';
+import { WaymoneySalesService } from '../../integrations/waymoney/application/waymoney-sales.service';
 import { L2AutomateSalesService } from '../../integrations/l2automate/application/l2automate-sales.service';
 import { MaxlavSalesService } from '../../integrations/maxlav/application/maxlav-sales.service';
 import { AgidezSalesService } from '../../integrations/agidez/application/agidez-sales.service';
@@ -49,6 +51,8 @@ export class AdminIntegrationsService {
     private readonly importHistoryStrategyFactory: ImportHistoryStrategyFactory,
     private readonly vmLavSalesService: VmLavSalesService,
     private readonly ciccloSalesService: CiccloSalesService,
+    private readonly windelSalesService: WindelSalesService,
+    private readonly waymoneySalesService: WaymoneySalesService,
     private readonly l2AutomateSalesService: L2AutomateSalesService,
     private readonly maxlavSalesService: MaxlavSalesService,
     private readonly agidezSalesService: AgidezSalesService,
@@ -330,6 +334,20 @@ export class AdminIntegrationsService {
       }
       if (partnerSlug === 'CICCLO') {
         return this.ciccloSalesService.importHistoricalSales(
+          companyId,
+          dto,
+          integration,
+        );
+      }
+      if (partnerSlug === 'WINDEL') {
+        return this.windelSalesService.importHistoricalSales(
+          companyId,
+          dto,
+          integration,
+        );
+      }
+      if (partnerSlug === 'WAYMONEY') {
+        return this.waymoneySalesService.importHistoricalSales(
           companyId,
           dto,
           integration,

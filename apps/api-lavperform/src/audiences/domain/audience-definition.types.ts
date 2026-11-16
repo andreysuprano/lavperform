@@ -166,6 +166,27 @@ function validateCriterion(criterion: Criterion, path: string): void {
   ) {
     throw new Error(`Mês de aniversário inválido em ${path}`);
   }
+
+  assertChronologicalDates(criterion.period?.from, criterion.period?.to, path);
+
+  if (criterion.value && typeof criterion.value === 'object' && !Array.isArray(criterion.value)) {
+    const range = criterion.value as { from?: unknown; to?: unknown };
+    if ('from' in range || 'to' in range) {
+      assertChronologicalDates(range.from, range.to, path);
+    }
+  }
+}
+
+function assertChronologicalDates(from: unknown, to: unknown, path: string): void {
+  if (typeof from !== 'string' || typeof to !== 'string' || !from || !to) {
+    return;
+  }
+
+  if (from > to) {
+    throw new Error(
+      `Data inicial deve ser anterior ou igual à data final em ${path}`,
+    );
+  }
 }
 
 export const CRITERIA_METADATA = [

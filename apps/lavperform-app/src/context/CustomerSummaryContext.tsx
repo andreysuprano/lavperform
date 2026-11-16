@@ -54,7 +54,7 @@ export function CustomerSummaryProvider({
       const response = await customerService.listCustomersSummary(
         selectedCompany.id
       )
-      setCustomersSummary(response.data)
+      setCustomersSummary(Array.isArray(response.data) ? response.data : [])
     } catch (err) {
       logger.error('Erro ao buscar resumo de clientes:', err)
       setError(err as Error)

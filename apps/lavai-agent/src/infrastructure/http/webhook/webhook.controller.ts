@@ -67,7 +67,13 @@ export class WebhookController {
     @Param('companyId', ParseUUIDPipe) companyId: string,
     @Param('agentId', ParseUUIDPipe) agentId: string,
     @Body() body: Record<string, unknown>,
-  ): Promise<{ jobId: string; webhookEventId: string; companyId: string; agentId: string; message: string }> {
+  ): Promise<{
+    companyId: string;
+    agentId: string;
+    message: string;
+    jobId?: string;
+    webhookEventId?: string;
+  }> {
     const rawPayload = JSON.stringify(body);
     const payloadSize = Buffer.byteLength(rawPayload, 'utf8');
     const eventType = (body?.event as string) ?? (body?.type as string) ?? 'desconhecido';
@@ -78,15 +84,26 @@ export class WebhookController {
     this.logger.debug(`[WEBHOOK] Payload completo: ${rawPayload.slice(0, 500)}${rawPayload.length > 500 ? '...' : ''}`);
 
     try {
-      const { jobId, webhookEventId } = await this.receiveWebhook.execute(rawPayload, companyId, agentId);
+      const result = await this.receiveWebhook.execute(rawPayload, companyId, agentId);
+
+      if (result.kind === 'presence') {
+        this.logger.log(
+          `[WEBHOOK] Presença aceita | companyId=${companyId} | agentId=${agentId}`,
+        );
+        return {
+          companyId,
+          agentId,
+          message: 'Presença aceita.',
+        };
+      }
 
       this.logger.log(
-        `[WEBHOOK] Evento persistido e enfileirado | webhookEventId=${webhookEventId} | jobId=${jobId}`,
+        `[WEBHOOK] Evento persistido e enfileirado | webhookEventId=${result.webhookEventId} | jobId=${result.jobId}`,
       );
 
       return {
-        jobId,
-        webhookEventId,
+        jobId: result.jobId,
+        webhookEventId: result.webhookEventId,
         companyId,
         agentId,
         message: 'Evento recebido, persistido e enfileirado para processamento.',

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  Header,
   Param,
   Patch,
   Post,
@@ -39,6 +40,7 @@ export class AudiencesController {
   }
 
   @Get()
+  @Header('Cache-Control', 'private, no-store')
   @ApiOperation({ summary: 'Listar audiências' })
   findAll(@Param('companyId') companyId: string, @Query() pagination: PaginationDto) {
     return this.audiencesService.findAll(companyId, pagination);

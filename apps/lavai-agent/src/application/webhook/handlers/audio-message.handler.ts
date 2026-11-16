@@ -1,5 +1,8 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
-import type { AudioIncomingMessage, IncomingMessage } from '../types/incoming-message.types';
+import {
+  type AudioIncomingMessage,
+  type IncomingMessage,
+} from '../types/incoming-message.types';
 import { MessageHandlerPort } from './message-handler.port';
 import { MessageNormalizerService } from '../services/message-normalizer.service';
 import { MessageFilterService } from '../services/message-filter.service';
@@ -7,6 +10,8 @@ import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.po
 import { CONVERSATION_REPOSITORY, MessageRole } from '../ports/conversation.repository.port';
 import type { ConversationRepositoryPort } from '../ports/conversation.repository.port';
 import { AgentRunnerService } from '../../agent-runner/services/agent-runner.service';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
+import { WaitingAckService } from '../services/waiting-ack.service';
 
 @Injectable()
 export class AudioMessageHandler implements MessageHandlerPort {
@@ -18,6 +23,8 @@ export class AudioMessageHandler implements MessageHandlerPort {
     @Inject(CONVERSATION_REPOSITORY)
     private readonly conversationRepository: ConversationRepositoryPort,
     private readonly agentRunner: AgentRunnerService,
+    private readonly waitingAck: WaitingAckService,
+    private readonly idleClose: IdleCloseSchedulerService,
   ) {}
 
   async handle(message: IncomingMessage, agent: AgentWithConfigsData): Promise<void> {
@@ -50,6 +57,11 @@ export class AudioMessageHandler implements MessageHandlerPort {
       `[AUDIO] agent=${agent.id} | sender=${prompt.context.senderPhone} | transcrição="${finalUserMessage.slice(0, 80)}"`,
     );
 
+    await this.waitingAck.maybeSend(msg, agent, {
+      dedupe: false,
+      triggerText: prompt.triggerText,
+    });
+
     // 4. Upsert da conversa
     const conversation = await this.conversationRepository.upsert({
       agentId: agent.id,
@@ -73,6 +85,8 @@ export class AudioMessageHandler implements MessageHandlerPort {
     });
 
     this.logger.log(`[AUDIO] conversation=${conversation.id} | invocando LLM`);
+
+    await this.idleClose.cancel(conversation.id);
 
     const finalPrompt = { ...prompt, userMessage: finalUserMessage };
     await this.agentRunner.run(finalPrompt, conversation, agent);

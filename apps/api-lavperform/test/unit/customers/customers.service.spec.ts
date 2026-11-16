@@ -19,6 +19,7 @@ const mockCustomerRepository = {
   findById: jest.fn(),
   findByPhone: jest.fn(),
   findAll: jest.fn(),
+  findAllByCompany: jest.fn(),
   delete: jest.fn(),
   deleteWithAddress: jest.fn(),
   totalCustomersBySegmentation: jest.fn(),
@@ -402,6 +403,39 @@ describe('CustomersService', () => {
         companyId,
         totalEnqueued: 501,
       });
+    });
+  });
+
+  describe('exportCustomersCsv', () => {
+    it('exporta a base inteira no CSV de importação', async () => {
+      mockCustomerRepository.findAllByCompany.mockResolvedValue([
+        {
+          name: 'Ana',
+          phone: '11999999999',
+          email: 'ana@exemplo.com',
+          birthDate: new Date('1990-01-01T00:00:00.000Z'),
+          firstOrderDate: new Date('2023-01-01T00:00:00.000Z'),
+          gender: 'F',
+          observations: null,
+          averageTicket: 42.5,
+          address: {
+            street: 'Rua A',
+            number: '10',
+            complement: null,
+            neighborhood: 'Centro',
+            city: 'São Paulo',
+            state: 'SP',
+            zipCode: '01000-000',
+          },
+        },
+      ]);
+
+      const csv = await service.exportCustomersCsv('company-1');
+
+      expect(repository.findAllByCompany).toHaveBeenCalledWith('company-1');
+      expect(csv).toContain(
+        'Ana,11999999999,ana@exemplo.com,1990-01-01,2023-01-01,F,,42.5,Rua A,10,,Centro,São Paulo,SP,01000-000',
+      );
     });
   });
 });

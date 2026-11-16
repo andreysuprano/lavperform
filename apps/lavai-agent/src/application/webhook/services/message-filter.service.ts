@@ -8,7 +8,12 @@ import type {
   VideoIncomingMessage,
 } from '../types/incoming-message.types';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-close-scheduler.service';
+import { HumanReleaseService } from './human-release.service';
 import { HumanTakeoverService } from './human-takeover.service';
+import { HumanTypingPauseService } from './human-typing-pause.service';
+import { MessageBufferService } from './message-buffer.service';
+import { matchesReleaseKeyword } from './release-keyword';
 import { whatsappPhonesMatch } from '../../customer-journey/services/journey-template.service';
 
 export interface FilterResult {
@@ -26,9 +31,10 @@ export interface FilterResult {
  * Avalia os filtros de acesso e gatilho configurados no agente.
  *
  * Ordem de avaliação:
- *  1. isFromMe + wasSentByApi → mensagens do próprio dispositivo do atendente
- *     ativam o período de espera de 10 min; mensagens da API são descartadas silenciosamente.
- *  2. humanTakeover → bloqueia respostas do bot enquanto atendente está em controle.
+ *  1. isFromMe → a própria conta não recebe resposta. Saudação automática,
+ *     fluxo e mensagem da API não colocam o chat em espera nem apagam a pausa.
+ *     Texto curto digitado no aparelho marca os 10 min e a IA para de responder.
+ *  2. humanTakeover → bloqueia respostas do bot enquanto o atendente está em controle.
  *  3. telefone de notificação ignorado → descarta respostas do responsável do alerta.
  *  4. allowedPhones → rejeita remetentes não autorizados
  *  5. allowedGroups → rejeita grupos não autorizados
@@ -38,7 +44,13 @@ export interface FilterResult {
 export class MessageFilterService {
   private readonly logger = new Logger(MessageFilterService.name);
 
-  constructor(private readonly humanTakeover: HumanTakeoverService) {}
+  constructor(
+    private readonly humanTakeover: HumanTakeoverService,
+    private readonly humanRelease: HumanReleaseService,
+    private readonly idleClose: IdleCloseSchedulerService,
+    private readonly typingPause: HumanTypingPauseService,
+    private readonly messageBuffer: MessageBufferService,
+  ) {}
 
   /**
    * Verifica os filtros de acesso (sem necessidade de texto normalizado).
@@ -47,21 +59,34 @@ export class MessageFilterService {
   async checkAccess(message: IncomingMessage, agent: AgentWithConfigsData): Promise<FilterResult> {
     // Mensagens enviadas pela própria instância (bot ou atendente)
     if (message.isFromMe) {
-      if (!message.wasSentByApi) {
-        // Atendente digitou manualmente no dispositivo → ativa período de espera
+      if (!message.wasSentByApi && !this.isAutomaticOutbound(message)) {
+        await this.typingPause.clearAll(agent.id, message.chatId);
+        await this.messageBuffer.discard(agent.id, message.chatId);
+        if (
+          matchesReleaseKeyword(
+            this.attendantText(message),
+            agent.journeyConfig?.humanReleaseKeyword,
+          )
+        ) {
+          await this.humanRelease.release(agent.id, message.chatId);
+          this.logger.log(
+            `[Filter] Atendimento humano liberado | agentId=${agent.id} | chatId=${message.chatId}`,
+          );
+          return { allowed: false, reason: 'Atendimento humano liberado' };
+        }
+        await this.idleClose.cancelChat(agent.id, message.chatId);
         await this.humanTakeover.setTakeover(agent.id, message.chatId);
         this.logger.log(
-          `[Filter] Intervenção humana detectada — agente em espera | agentId=${agent.id} | chatId=${message.chatId}`,
+          `[Filter] Mensagem do aparelho registrada | agentId=${agent.id} | chatId=${message.chatId}`,
         );
       } else {
         this.logger.log(
-          `[Filter] Descartado (mensagem enviada pela API) | sender=${message.senderPhone} | chatId=${message.chatId}`,
+          `[Filter] Descartado (mensagem automática da conta) | sender=${message.senderPhone} | chatId=${message.chatId}`,
         );
       }
       return { allowed: false, reason: 'Mensagem da própria instância ignorada' };
     }
 
-    // Verifica se o atendente está em controle desta conversa
     const inTakeover = await this.humanTakeover.isInTakeover(agent.id, message.chatId);
     if (inTakeover) {
       this.logger.log(
@@ -195,6 +220,18 @@ export class MessageFilterService {
       default:
         return '';
     }
+  }
+
+  /** Cartão de saudação e fluxo automático não são uma pessoa no aparelho. */
+  private isAutomaticOutbound(message: IncomingMessage): boolean {
+    if (message.sentByAutomation) return true;
+    return this.attendantText(message).trim().length >= 180;
+  }
+
+  private attendantText(message: IncomingMessage): string {
+    if (message.type === MessageType.TEXT) return (message as TextIncomingMessage).text ?? '';
+    if ('caption' in message && typeof message.caption === 'string') return message.caption;
+    return '';
   }
 
   private normalizePhone(phone: string): string {

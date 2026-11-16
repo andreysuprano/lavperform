@@ -97,13 +97,26 @@ export class AiAgentService {
 
     const webhookUrl = this.buildAgentWebhookUrl(overAgentCompanyId, agentId);
     const webhookPathSuffix = `/webhooks/${overAgentCompanyId}/${agentId}`;
+    const events = ['messages', 'presence'];
 
     const existingWebhooks = await this.uazapiClient.getWebhooks(whatsappInstance.token);
 
-    if (existingWebhooks.some((webhook) => webhook.url === webhookUrl)) {
-      this.logger.log(
-        `Webhook do agente ${agentId} já existe na instância ${whatsappInstance.name}: ${webhookUrl}`,
-      );
+    const matchingWebhook = existingWebhooks.find((webhook) => webhook.url === webhookUrl);
+    if (matchingWebhook) {
+      if (matchingWebhook.id) {
+        await this.uazapiClient.setWebhook(whatsappInstance.token, webhookUrl, events, {
+          action: 'update',
+          id: matchingWebhook.id,
+          excludeMessages: ['wasSentByApi', 'isGroupYes'],
+        });
+        this.logger.log(
+          `Webhook do agente ${agentId} atualizado na instância ${whatsappInstance.name}: ${webhookUrl}`,
+        );
+      } else {
+        this.logger.error(
+          `Webhook do agente ${agentId} já existe sem id na instância ${whatsappInstance.name}: ${webhookUrl}`,
+        );
+      }
       return;
     }
 
@@ -125,7 +138,7 @@ export class AiAgentService {
         await this.uazapiClient.setWebhook(
           whatsappInstance.token,
           stale.url ?? webhookUrl,
-          ['messages'],
+          events,
           { action: 'delete', id: stale.id },
         );
         this.logger.log(
@@ -142,7 +155,7 @@ export class AiAgentService {
     await this.uazapiClient.setWebhook(
       whatsappInstance.token,
       webhookUrl,
-      ['messages'],
+      events,
       {
         action: 'add',
         excludeMessages: ['wasSentByApi', 'isGroupYes'],

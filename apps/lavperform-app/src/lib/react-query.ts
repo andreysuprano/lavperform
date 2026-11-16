@@ -153,6 +153,18 @@ export const queryKeys = {
     partner: (partnerId: string) => ['company', 'partner', partnerId] as const,
     renitency: (companyId: string) =>
       ['company', 'renitency', companyId] as const,
+    brandIdentity: (companyId: string) =>
+      ['company', 'brand-identity', companyId] as const,
+    socialDrafts: (companyId: string) =>
+      ['company', 'social-drafts', companyId] as const,
+    socialDraft: (draftId: string) =>
+      ['company', 'social-draft', draftId] as const,
+    socialConnections: (companyId: string) =>
+      ['company', 'social-connections', companyId] as const,
+    scheduledPosts: (companyId: string, from: string, to: string) =>
+      ['company', 'scheduled-posts', companyId, from, to] as const,
+    googleProfile: (companyId: string) =>
+      ['company', 'google-profile', companyId] as const,
   },
 
   subscription: {
@@ -331,6 +343,11 @@ export const queryKeys = {
           alertId,
         ] as const,
     },
+  },
+
+  traffic: {
+    pixel: (companyId: string) => ['traffic', 'pixel', companyId] as const,
+    gtm: (companyId: string) => ['traffic', 'gtm', companyId] as const,
   },
 }
 

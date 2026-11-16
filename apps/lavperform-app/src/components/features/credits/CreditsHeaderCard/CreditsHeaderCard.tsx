@@ -3,9 +3,9 @@ import { useState } from 'react'
 import { LuEye, LuEyeOff, LuWallet } from 'react-icons/lu'
 import { useNavigate } from 'react-router-dom'
 
+import { formatCreditCents } from '@/components/features/admin/credits/utils'
 import { useAuth } from '@/context/AuthContext'
 import { useCreditBalance } from '@/hooks/queries'
-import { formatCreditCents } from '@/components/features/admin/credits/utils'
 
 export function CreditsHeaderCard() {
   const { selectedCompany } = useAuth()
@@ -25,7 +25,8 @@ export function CreditsHeaderCard() {
 
   return (
     <Button
-      display={{ base: 'none', lg: 'flex' }}
+      className="shell-hide-below-desktop"
+      display={{ base: 'none', md: 'flex' }}
       gap={1.5}
       onClick={() => navigate('/settings/wallet')}
       px={2.5}

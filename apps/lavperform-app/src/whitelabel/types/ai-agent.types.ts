@@ -133,6 +133,12 @@ export interface AIAgentJourneyConfig {
   helpAutoEscalate?: boolean
   helpAckMessage?: string | null
   purchaseWebhookEnabled?: boolean
+  waitingAckEnabled?: boolean
+  waitingAckMessage?: string
+  humanReleaseKeyword?: string
+  idleCloseEnabled?: boolean
+  idleCloseMinutes?: number
+  idleCloseMessage?: string
 }
 
 // ─── MCP ─────────────────────────────────────────────────────────────────────

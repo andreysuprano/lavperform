@@ -5,7 +5,9 @@ import { LuCheck, LuSend, LuZap } from 'react-icons/lu'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { useAuth } from '@/context/AuthContext'
+import { AIAgentAdvancedConfigDrawer } from '@/whitelabel/components/ai-agent/AIAgentAdvancedConfigDrawer'
 import { SafeMarkdown } from '@/whitelabel/components/ai-agent/SafeMarkdown/SafeMarkdown'
+import { useAIAgent } from '@/whitelabel/hooks'
 import { AIAgentPlaygroundPage } from '@/whitelabel/pages/AIAgentPlaygroundPage'
 import { aiAgentService } from '@/whitelabel/services'
 import { customerFacingAgentError } from '@/whitelabel/services/customer-agent-error'
@@ -29,8 +31,10 @@ function AIAgentConfiguratorPageBase() {
   const [ready, setReady] = useState(false)
   const [busy, setBusy] = useState(false)
   const [live, setLive] = useState<LiveActivity[] | null>(null)
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const { data: agent } = useAIAgent(companyId, agentId)
 
   const title = messages.find((message) => message.role === 'USER')?.content || 'Configurar agente'
 
@@ -208,6 +212,16 @@ function AIAgentConfiguratorPageBase() {
             variant="outline"
             borderRadius="lg"
             flexShrink={0}
+            disabled={!agent}
+            onClick={() => setIsAdvancedOpen(true)}
+          >
+            Configuração avançada
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            borderRadius="lg"
+            flexShrink={0}
             onClick={() => navigate(agentId ? `/whitelabel/ai-agent/${agentId}` : '/whitelabel/ai-agent')}
           >
             Conversas
@@ -311,6 +325,13 @@ function AIAgentConfiguratorPageBase() {
           </Box>
         )}
       </Flex>
+      {agent ? (
+        <AIAgentAdvancedConfigDrawer
+          agent={agent}
+          isOpen={isAdvancedOpen}
+          onClose={() => setIsAdvancedOpen(false)}
+        />
+      ) : null}
     </Flex>
   )
 }

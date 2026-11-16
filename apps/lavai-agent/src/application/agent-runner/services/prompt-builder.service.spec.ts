@@ -1,5 +1,7 @@
 import { AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentWithConfigsData } from '../../agent/ports/agent.repository.port';
+import { MessageRole } from '../../webhook/ports/conversation.repository.port';
+import { IDLE_CLOSE_DEFAULT } from '../../agent/attendance-defaults';
 import { PromptBuilderService } from './prompt-builder.service';
 
 function agent(): AgentWithConfigsData {
@@ -60,6 +62,26 @@ describe('PromptBuilderService', () => {
     expect(system).not.toContain('Chat ID');
   });
 
+  it('inclui os campos de personalização já salvos na persona', () => {
+    const source = agent();
+    source.persona = {
+      ...source.persona!,
+      personaName: 'Bia',
+      personaDescription: 'Atendente da unidade',
+      voiceTone: 'FRIENDLY' as never,
+      communicationStyle: 'CONCISE' as never,
+      language: 'PT_BR' as never,
+      behaviorGuidelines: 'Envie o link combinado.',
+    };
+    const system = builder.build(source, [], [], 'Oi')[0].content ?? '';
+    expect(system).toContain('Bia');
+    expect(system).toContain('Atendente da unidade');
+    expect(system).toContain('amigável');
+    expect(system).toContain('conciso');
+    expect(system).toContain('português do Brasil');
+    expect(system).toContain('Envie o link combinado.');
+  });
+
   it('mantém telefone e chat no caminho do WhatsApp', () => {
     const messages = builder.build(agent(), [], [], 'Oi', {
       senderName: 'Cliente',
@@ -103,5 +125,40 @@ describe('PromptBuilderService', () => {
     expect(system).toContain('Estes trechos podem não responder à pergunta.');
     expect(system).toContain('A lavagem custa R$ 20');
     expect(system).not.toContain('contexto relevante');
+  });
+
+  it('exclui saudação de espera do histórico enviado ao modelo', () => {
+    const history = [
+      {
+        id: 'm1',
+        conversationId: 'conv-1',
+        role: MessageRole.USER,
+        content: 'Oi',
+        originalType: 'TEXT',
+        createdAt: new Date(),
+      },
+      {
+        id: 'm2',
+        conversationId: 'conv-1',
+        role: MessageRole.ASSISTANT,
+        content: 'Um momento.',
+        originalType: 'WAITING_ACK',
+        createdAt: new Date(),
+      },
+      {
+        id: 'm3',
+        conversationId: 'conv-1',
+        role: MessageRole.ASSISTANT,
+        content: IDLE_CLOSE_DEFAULT,
+        originalType: 'IDLE_CLOSE',
+        createdAt: new Date(),
+      },
+    ];
+
+    const messages = builder.build(agent(), history, [], 'Nova mensagem');
+    const contents = messages.map((message) => message.content);
+
+    expect(contents).not.toContain('Um momento.');
+    expect(contents).toContain(IDLE_CLOSE_DEFAULT);
   });
 });

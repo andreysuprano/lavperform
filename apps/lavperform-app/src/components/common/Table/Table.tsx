@@ -14,6 +14,7 @@ function TableComponent<T>({
   header,
   isLoading,
   maxHeight,
+  stickyFirstColumn,
   ...rest
 }: Props<T>) {
   if (!data || data.length === 0) {
@@ -33,7 +34,22 @@ function TableComponent<T>({
         overflowY={maxHeight ? 'auto' : undefined}
       >
         <Table.Root
-          css={css || {}}
+          css={{
+            ...(css || {}),
+            ...(stickyFirstColumn
+              ? {
+                  '& th:first-of-type, & td:first-of-type': {
+                    position: 'sticky',
+                    left: 0,
+                    zIndex: 1,
+                    background: 'var(--chakra-colors-bg)',
+                  },
+                  '& thead th:first-of-type': {
+                    zIndex: 2,
+                  },
+                }
+              : {}),
+          }}
           interactive
           showColumnBorder
           size="md"
