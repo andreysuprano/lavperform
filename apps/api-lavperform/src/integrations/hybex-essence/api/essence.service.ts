@@ -34,6 +34,30 @@ export class EssenceService {
     this.baseUrl = process.env.HYBEX_ESSENCE_API_URL ?? DEFAULT_BASE_URL;
   }
 
+  /**
+   * Busca tickets paginando sem filtro de data na API (modo recomendado para
+   * histórico; a View Essence responde de forma mais estável assim).
+   */
+  async listAllTickets(credentials: EssenceCredentials): Promise<EssenceTicket[]> {
+    const all: EssenceTicket[] = [];
+    let page = 1;
+
+    for (;;) {
+      const pageRows = await this.select<EssenceTicket>(credentials, 'pAPI_Tickets', [
+        credentials.storeGuid,
+        credentials.integrationKey,
+        page,
+        TICKETS_PAGE_SIZE,
+      ]);
+      all.push(...pageRows);
+      if (pageRows.length < TICKETS_PAGE_SIZE) break;
+      page += 1;
+      await this.sleep(INTER_REQUEST_DELAY_MS);
+    }
+
+    return all;
+  }
+
   async listTicketsForDay(
     credentials: EssenceCredentials,
     date: string,

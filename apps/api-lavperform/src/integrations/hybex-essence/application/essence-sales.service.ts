@@ -2,6 +2,7 @@ import { Injectable, Logger, Inject, NotFoundException } from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { EssenceService } from '../api/essence.service';
+import { filterEssenceTicketsByDateRange } from '../api/essence-ticket-filter';
 import { EssenceCredentials, EssenceTicket } from '../api/essence.types';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
@@ -16,6 +17,7 @@ import {
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import {
   EssenceSaleMapping,
+  essenceCustomerPhone,
   essenceExternalOrderId,
   essenceStoreMerchantId,
   essenceTicketIsCancelled,
@@ -44,10 +46,21 @@ export class HybexEssenceSalesService {
 
   async processDailySales(companyId: string, date: string): Promise<void> {
     const integration = await this.resolveIntegration(companyId);
-    if (!integration) return;
+    if (!integration) {
+      this.logger.error(
+        `Integração Hybex Essence ausente ou incompleta para empresa ${companyId}; importação de vendas ignorada`,
+      );
+      return;
+    }
 
     const credentials = this.toCredentials(integration);
-    const tickets = (await this.essenceService.listTicketsForDay(credentials, date))
+    const catalogPhones = await this.loadCustomerPhonesByCode(
+      companyId,
+      credentials,
+    );
+    const tickets = (
+      await this.essenceService.listTicketsForDay(credentials, date)
+    )
       .filter((ticket) => ticket.Habilitado !== 0)
       .filter((ticket) => !essenceTicketIsCancelled(ticket));
 
@@ -55,21 +68,96 @@ export class HybexEssenceSalesService {
       `${tickets.length} tickets Essence para empresa ${companyId} - ${date}`,
     );
 
+    await this.enqueueTicketsForSale(
+      companyId,
+      credentials.storeGuid,
+      tickets,
+      catalogPhones,
+    );
+  }
+
+  async processSalesBackfill(
+    companyId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<{ ticketsEnqueued: number }> {
+    const integration = await this.resolveIntegration(companyId);
+    if (!integration) {
+      this.logger.error(
+        `Integração Hybex Essence ausente ou incompleta para empresa ${companyId}; importação de vendas ignorada`,
+      );
+      return { ticketsEnqueued: 0 };
+    }
+
+    const credentials = this.toCredentials(integration);
+    const catalogPhones = await this.loadCustomerPhonesByCode(
+      companyId,
+      credentials,
+    );
+    const allTickets = await this.essenceService.listAllTickets(credentials);
+    const inRange = filterEssenceTicketsByDateRange(
+      allTickets,
+      startDate,
+      endDate,
+    );
+    const tickets = inRange
+      .filter((ticket) => ticket.Habilitado !== 0)
+      .filter((ticket) => !essenceTicketIsCancelled(ticket));
+
+    this.logger.log(
+      `${tickets.length} tickets Essence (${startDate} → ${endDate}) para empresa ${companyId} — catálogo API ${allTickets.length} tickets`,
+    );
+
+    await this.enqueueTicketsForSale(
+      companyId,
+      credentials.storeGuid,
+      tickets,
+      catalogPhones,
+    );
+
+    return { ticketsEnqueued: tickets.length };
+  }
+
+  private async enqueueTicketsForSale(
+    companyId: string,
+    storeGuid: string,
+    tickets: EssenceTicket[],
+    catalogPhones: Map<string, string>,
+  ) {
     for (const ticket of tickets) {
       await this.enqueueReplacing(this.saleProcessQueue, {
         name: QUEUE_NAMES.HYBEX_ESSENCE_SALE_PROCESS,
         data: {
           companyId,
           ticket,
-          storeGuid: credentials.storeGuid,
+          storeGuid,
+          clientePhone: ticket.Cliente?.Codigo
+            ? catalogPhones.get(ticket.Cliente.Codigo)
+            : undefined,
         },
         opts: {
           attempts: 3,
           backoff: { type: 'exponential', delay: 2000 },
-          jobId: `essence-sale:${companyId}:${credentials.storeGuid}:${ticket.Sequencia}`,
+          jobId: `essence-sale:${companyId}:${storeGuid}:${ticket.Sequencia}`,
         },
       });
     }
+  }
+
+  private async loadCustomerPhonesByCode(
+    companyId: string,
+    credentials: EssenceCredentials,
+  ): Promise<Map<string, string>> {
+    const storeDdd = await this.storeDddFor(companyId);
+    const customers = await this.essenceService.listAllCustomers(credentials);
+    const map = new Map<string, string>();
+    for (const customer of customers) {
+      const code = customer.Codigo?.trim();
+      if (!code) continue;
+      const phone = essenceCustomerPhone(customer.Telefones, storeDdd);
+      if (phone) map.set(code, phone);
+    }
+    return map;
   }
 
   async syncCustomers(companyId: string): Promise<void> {
@@ -104,6 +192,7 @@ export class HybexEssenceSalesService {
     companyId: string,
     ticket: EssenceTicket,
     storeGuid: string,
+    clientePhone?: string,
   ): Promise<void> {
     if (ticket.Habilitado === 0 || essenceTicketIsCancelled(ticket)) {
       return;
@@ -134,13 +223,24 @@ export class HybexEssenceSalesService {
       return;
     }
 
-    const incoming = EssenceSaleMapping.toCustomerFromTicket(ticket);
-    const customer = await this.customerIdentityService.resolveForSale({
+    const incoming = {
+      ...EssenceSaleMapping.toCustomerFromTicket(ticket),
+      ...(clientePhone ? { phone: clientePhone } : {}),
+    };
+    let customer = await this.customerIdentityService.resolveForSale({
       companyId,
       incoming,
       salesChannel: 'HYBEX_ESSENCE',
       partner: { partnerSlug: PARTNER_SLUG, name: 'Hybex Essence' },
     });
+    if (!customer && incoming.name) {
+      customer = await this.prisma.customer.findFirst({
+        where: {
+          companyId,
+          name: { equals: incoming.name, mode: 'insensitive' },
+        },
+      });
+    }
 
     const orderData = EssenceSaleMapping.toOrder(
       ticket,
@@ -200,28 +300,29 @@ export class HybexEssenceSalesService {
     });
 
     const { startDate, endDate } = resolveImportDateRange(importDto);
+    const start = toDateOnlyString(startDate);
+    const end = toDateOnlyString(endDate);
     const dates = buildUtcDateOnlyRange(startDate, endDate);
 
-    let jobsCreated = 1;
-    for (const date of dates) {
-      await this.enqueueReplacing(this.salesImportQueue, {
-        name: QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT,
-        data: { companyId, date },
-        opts: {
-          attempts: 3,
-          backoff: { type: 'exponential', delay: 5000 },
-          jobId: `essence-import:${companyId}:${date}`,
-        },
-      });
-      jobsCreated += 1;
-    }
+    await this.enqueueReplacing(this.salesImportQueue, {
+      name: QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT,
+      data: {
+        companyId,
+        backfillRange: { startDate: start, endDate: end },
+      },
+      opts: {
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 5000 },
+        jobId: `essence-backfill:${companyId}:${start}:${end}`,
+      },
+    });
 
     return {
       message: 'Importação histórica Hybex Essence iniciada com sucesso',
       totalDays: dates.length,
-      startDate: toDateOnlyString(startDate),
-      endDate: toDateOnlyString(endDate),
-      jobsCreated,
+      startDate: start,
+      endDate: end,
+      jobsCreated: 2,
     };
   }
 
