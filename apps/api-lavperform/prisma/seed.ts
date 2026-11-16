@@ -168,6 +168,18 @@ async function main() {
     },
   });
 
+  await prisma.partner.upsert({
+    where: { id: 'partner-hybex-essence' },
+    update: { partnerSlug: 'HYBEX_ESSENCE', name: 'Hybex Essence' },
+    create: {
+      id: 'partner-hybex-essence',
+      name: 'Hybex Essence',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'HYBEX_ESSENCE',
+    },
+  });
+
   const maxlavPartner = await prisma.partner.upsert({
     where: { id: 'partner-maxlav' },
     update: { partnerSlug: 'MAXLAV' },
