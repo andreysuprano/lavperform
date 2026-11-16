@@ -46,6 +46,9 @@ import { HumanTypingPauseService } from '../../webhook/services/human-typing-pau
 import { HumanTakeoverService } from '../../webhook/services/human-takeover.service';
 import { MessageBufferService } from '../../webhook/services/message-buffer.service';
 
+/** Acima disso o atendimento começa a variar preço, prazo e regra. */
+const TEMPERATURE_CAP = 0.3;
+
 export interface CompleteAgentTurnInput {
   agent: AgentWithConfigsData;
   conversation: ConversationData;
@@ -446,7 +449,7 @@ export class AgentRunnerService implements OnModuleInit {
           model,
           messages,
           tools: allowTools && tools.length > 0 ? tools : undefined,
-          temperature: modelConfig?.temperature,
+          temperature: Math.min(modelConfig?.temperature ?? TEMPERATURE_CAP, TEMPERATURE_CAP),
           maxTokens: modelConfig?.maxTokens,
           topP: modelConfig?.topP,
           frequencyPenalty: modelConfig?.frequencyPenalty,
@@ -523,15 +526,11 @@ export class AgentRunnerService implements OnModuleInit {
         );
       }
 
-      let text = response.content?.trim() ?? '';
+      const text = response.content?.trim() ?? '';
       if (!text) {
         this.logger.warn(
-          `[Runner] Resposta vazia após as ferramentas | conv=${conversation.id}. Pedindo uma resposta direta.`,
+          `[Runner] Resposta vazia do modelo | conv=${conversation.id}. Sem completar com uma frase solta.`,
         );
-        const recoveredStart = Date.now();
-        const recovered = await ask(false);
-        await recordLlm(recovered, recoveredStart, progress.iterations + 1);
-        text = recovered.content?.trim() ?? '';
       }
 
       progress.assistantText = text || CUSTOMER_FALLBACK_REPLY;
