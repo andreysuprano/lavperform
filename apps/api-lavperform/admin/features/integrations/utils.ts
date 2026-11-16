@@ -18,6 +18,7 @@ const SLUG_LABELS: Record<string, string> = {
   MAXLAV: "Maxlav",
   HYBEX: "Hybex",
   AGIDEZ: "Hybex",
+  HYBEX_ESSENCE: "Hybex Essence",
   CONSUMER: "Consumer",
 }
 
@@ -42,6 +43,15 @@ export function integrationFieldLabel(
   ) {
     return "Senha"
   }
+  if (partnerSlug?.toUpperCase() === "HYBEX_ESSENCE" && field === "merchantId") {
+    return "Código da loja (GUID)"
+  }
+  if (partnerSlug?.toUpperCase() === "HYBEX_ESSENCE" && field === "apiKey") {
+    return "Chave de integração"
+  }
+  if (partnerSlug?.toUpperCase() === "HYBEX_ESSENCE" && field === "password") {
+    return "ApiPassword"
+  }
   return FIELD_LABELS[field]
 }
 
@@ -54,6 +64,7 @@ const SUPPORTS_IMPORT_HISTORY_SLUGS = new Set([
   "MAXLAV",
   "HYBEX",
   "AGIDEZ",
+  "HYBEX_ESSENCE",
 ])
 
 export function partnerSupportsImportHistory(

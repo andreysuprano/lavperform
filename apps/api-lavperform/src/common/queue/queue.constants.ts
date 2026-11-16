@@ -32,6 +32,8 @@ export const QUEUE_NAMES = {
   AGIDEZ_SALE_PROCESS: 'agidez-sale-process',
   WAYMONEY_SALES_IMPORT: 'waymoney-sales-import',
   WAYMONEY_SALE_PROCESS: 'waymoney-sale-process',
+  HYBEX_ESSENCE_SALES_IMPORT: 'hybex-essence-sales-import',
+  HYBEX_ESSENCE_SALE_PROCESS: 'hybex-essence-sale-process',
   ACCON_SALES_IMPORT: 'accon-sales-import',
   ACCON_SALE_PROCESS: 'accon-sale-process',
   ASAAS_PAYMENT_PROCESS: 'asaas-payment-process',
