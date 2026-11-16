@@ -5,6 +5,7 @@ import { LoadingState } from '@/components'
 import { LandingSectionTabs } from '@/components/layout/AppLayout/LandingSectionTabs'
 
 import { useWhitelabelActive } from '../hooks/useWhitelabelActive'
+import { AgentCompanyBoundary } from './AgentCompanyBoundary'
 
 function LandingFrame({ children }: { children: ReactNode }) {
   return (
@@ -119,15 +120,15 @@ export function WhitelabelRoutes() {
           path="/ai-agent/novo"
         />
         <Route
-          element={<AIAgentConfiguratorPage />}
+          element={<AgentCompanyBoundary><AIAgentConfiguratorPage /></AgentCompanyBoundary>}
           path="/ai-agent/:agentId/conversa"
         />
         <Route
-          element={<AIAgentPlaygroundPage />}
+          element={<AgentCompanyBoundary><AIAgentPlaygroundPage /></AgentCompanyBoundary>}
           path="/ai-agent/:agentId/teste"
         />
         <Route
-          element={<AIAgentDetailPage />}
+          element={<AgentCompanyBoundary><AIAgentDetailPage /></AgentCompanyBoundary>}
           path="/ai-agent/:agentId"
         />
         <Route

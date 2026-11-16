@@ -272,6 +272,20 @@ export class AiAgentService {
     return this.lavaiAgentApi.getAgent(agentId);
   }
 
+  /**
+   * Garante que o agente é da empresa selecionada. Impede que uma tela aberta
+   * com o agente de uma empresa grave nele com a empresa de outra selecionada.
+   */
+  async assertAgentBelongsToCompany(companyId: string, agentId: string): Promise<void> {
+    const [overAgentCompanyId, agent] = await Promise.all([
+      this.getOverAgentCompanyId(companyId),
+      this.lavaiAgentApi.getAgent(agentId) as Promise<OverAgentAgent | null>,
+    ]);
+    if (!agent || agent.companyId !== overAgentCompanyId) {
+      throw new NotFoundException('Agente não pertence a esta empresa');
+    }
+  }
+
   async updateAgent(agentId: string, dto: UpdateAgentBaseDto) {
     return this.lavaiAgentApi.updateAgent(agentId, dto as unknown as Record<string, unknown>);
   }

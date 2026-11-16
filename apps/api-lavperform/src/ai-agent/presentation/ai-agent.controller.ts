@@ -37,9 +37,11 @@ import {
   UpdateKnowledgeFileDto,
 } from '../application/dto/knowledge-file.dto';
 import { PutPromptSheetAnswerDto } from '../application/dto/put-prompt-sheet-answer.dto';
+import { AgentCompanyGuard } from './agent-company.guard';
 
 @ApiTags('Agentes de IA')
 @Controller()
+@UseGuards(AgentCompanyGuard)
 export class AiAgentController {
   constructor(
     private readonly aiAgentService: AiAgentService,

@@ -18,11 +18,23 @@ const authClient = axios.create({
   },
 })
 
+// Empresa selecionada nesta aba. Fica em memória (não no localStorage) porque
+// cada aba pode estar em uma empresa diferente.
+let activeCompanyId: string | null = null
+
+export function setActiveCompanyId(companyId: string | null) {
+  activeCompanyId = companyId
+}
+
 // Interceptor para adicionar o token em todas as requisições
 client.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const token = localStorage.getItem('@FoodCRM:token')
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
+  }
+  // A API usa este header para recusar alterações num agente de outra empresa.
+  if (activeCompanyId) {
+    config.headers['X-Company-Id'] = activeCompanyId
   }
   return config
 })
