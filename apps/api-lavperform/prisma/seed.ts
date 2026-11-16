@@ -169,10 +169,10 @@ async function main() {
   });
 
   await prisma.partner.upsert({
-    where: { id: 'partner-hybex-essence' },
+    where: { id: '7f3a2c10-8b4e-4d6a-9c1e-0a5b6c7d8e9f' },
     update: { partnerSlug: 'HYBEX_ESSENCE', name: 'Hybex Essence' },
     create: {
-      id: 'partner-hybex-essence',
+      id: '7f3a2c10-8b4e-4d6a-9c1e-0a5b6c7d8e9f',
       name: 'Hybex Essence',
       logoUrl: null,
       baseUrlWebhook: null,
