@@ -30,7 +30,7 @@ export class WeatherAlertTasks {
 
         const now = nowUTC();
         if (!isWithinWeatherAlertSendWindow(now)) {
-            this.logger.debug('Fora da janela de envio de alertas climáticos (08:00–20:00), pulando processamento');
+            this.logger.debug('Fora da janela de envio de alertas climáticos (08:00–18:00), pulando processamento');
             return;
         }
 
