@@ -463,6 +463,7 @@ export class HybexEssenceSalesService {
         jobId: string;
         attempts: number;
         backoff: { type: 'exponential'; delay: number };
+        timeout?: number;
       };
     },
   ) {
