@@ -3,7 +3,11 @@ import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { EssenceService } from '../api/essence.service';
 import { filterEssenceTicketsByDateRange } from '../api/essence-ticket-filter';
-import { EssenceCredentials, EssenceTicket } from '../api/essence.types';
+import {
+  EssenceCliente,
+  EssenceCredentials,
+  EssenceTicket,
+} from '../api/essence.types';
 import { PrismaService } from '../../../prisma/prisma.service';
 import { QUEUE_NAMES } from '../../../common/queue/queue.constants';
 import { IDigitalMenuIntegrationRepository } from '../../../partners/domain/digital-menu-integration.repository.interface';
@@ -54,7 +58,7 @@ export class HybexEssenceSalesService {
     }
 
     const credentials = this.toCredentials(integration);
-    const catalogPhones = await this.loadCustomerPhonesByCode(
+    const catalogPhones = await this.buildCatalogPhoneMap(
       companyId,
       credentials,
     );
@@ -80,6 +84,10 @@ export class HybexEssenceSalesService {
     companyId: string,
     startDate: string,
     endDate: string,
+    options?: {
+      catalogPhones?: Map<string, string>;
+      skipPhoneLoad?: boolean;
+    },
   ): Promise<{
     ticketsEnqueued: number;
     apiTicketCount: number;
@@ -93,13 +101,17 @@ export class HybexEssenceSalesService {
     }
 
     const credentials = this.toCredentials(integration);
-    const catalogPhones = await this.loadCustomerPhonesByCode(
-      companyId,
+    const catalogPhones =
+      options?.catalogPhones ??
+      (await this.buildCatalogPhoneMap(companyId, credentials));
+
+    const { rawTickets, source } = await this.fetchTicketsForBackfill(
       credentials,
+      startDate,
+      endDate,
     );
-    const allTickets = await this.essenceService.listAllTickets(credentials);
     const inRange = filterEssenceTicketsByDateRange(
-      allTickets,
+      rawTickets,
       startDate,
       endDate,
     );
@@ -108,7 +120,7 @@ export class HybexEssenceSalesService {
       .filter((ticket) => !essenceTicketIsCancelled(ticket));
 
     this.logger.log(
-      `${tickets.length} tickets Essence (${startDate} → ${endDate}) para empresa ${companyId} — catálogo API ${allTickets.length} tickets`,
+      `${tickets.length} tickets Essence (${startDate} → ${endDate}) para empresa ${companyId} — API ${rawTickets.length} (${source}), no intervalo ${inRange.length}`,
     );
 
     await this.enqueueTicketsForSale(
@@ -118,21 +130,92 @@ export class HybexEssenceSalesService {
       catalogPhones,
     );
 
-    if (allTickets.length === 0) {
+    if (rawTickets.length === 0) {
       this.logger.warn(
         `Backfill Essence ${startDate}→${endDate}: API retornou 0 tickets para empresa ${companyId}`,
       );
     } else if (tickets.length === 0) {
       this.logger.warn(
-        `Backfill Essence ${startDate}→${endDate}: ${allTickets.length} tickets na API, ${inRange.length} no intervalo, 0 elegíveis após filtros (empresa ${companyId})`,
+        `Backfill Essence ${startDate}→${endDate}: ${rawTickets.length} tickets na API, ${inRange.length} no intervalo, 0 elegíveis após filtros (empresa ${companyId})`,
       );
     }
 
     return {
       ticketsEnqueued: tickets.length,
-      apiTicketCount: allTickets.length,
+      apiTicketCount: rawTickets.length,
       inRangeCount: inRange.length,
     };
+  }
+
+  async processHistoricalImport(
+    companyId: string,
+    startDate: string,
+    endDate: string,
+  ): Promise<{
+    customersSynced: number;
+    customersSkipped: number;
+    apiCustomers: number;
+    ticketsEnqueued: number;
+    apiTicketCount: number;
+  }> {
+    const integration = await this.resolveIntegration(companyId);
+    if (!integration) {
+      throw new Error(
+        `Integração Hybex Essence ausente ou incompleta para empresa ${companyId}`,
+      );
+    }
+
+    const credentials = this.toCredentials(integration);
+    const catalog = await this.essenceService.listAllCustomers(credentials);
+    const { synced, skipped } = await this.syncCustomersFromCatalog(
+      companyId,
+      catalog,
+    );
+    const catalogPhones = await this.buildCatalogPhoneMap(
+      companyId,
+      credentials,
+      catalog,
+    );
+
+    const sales = await this.processSalesBackfill(
+      companyId,
+      startDate,
+      endDate,
+      { catalogPhones, skipPhoneLoad: true },
+    );
+
+    return {
+      customersSynced: synced,
+      customersSkipped: skipped,
+      apiCustomers: catalog.length,
+      ticketsEnqueued: sales.ticketsEnqueued,
+      apiTicketCount: sales.apiTicketCount,
+    };
+  }
+
+  private async fetchTicketsForBackfill(
+    credentials: EssenceCredentials,
+    startDate: string,
+    endDate: string,
+  ): Promise<{ rawTickets: EssenceTicket[]; source: string }> {
+    const ranged = await this.essenceService.listTicketsInDateRange(
+      credentials,
+      startDate,
+      endDate,
+    );
+    if (ranged.length > 0) {
+      return { rawTickets: ranged, source: 'intervalo' };
+    }
+
+    const dates = buildUtcDateOnlyRange(
+      new Date(`${startDate}T00:00:00.000Z`),
+      new Date(`${endDate}T00:00:00.000Z`),
+    );
+    const daily = await this.essenceService.listTicketsForEachDay(
+      credentials,
+      dates,
+    );
+    return { rawTickets: daily, source: 'diário' };
   }
 
   private async enqueueTicketsForSale(
@@ -161,20 +244,64 @@ export class HybexEssenceSalesService {
     }
   }
 
-  private async loadCustomerPhonesByCode(
+  private async buildCatalogPhoneMap(
     companyId: string,
     credentials: EssenceCredentials,
+    customers?: EssenceCliente[],
   ): Promise<Map<string, string>> {
     const storeDdd = await this.storeDddFor(companyId);
-    const customers = await this.essenceService.listAllCustomers(credentials);
+    const rows =
+      customers ?? (await this.essenceService.listAllCustomers(credentials));
     const map = new Map<string, string>();
-    for (const customer of customers) {
+    for (const customer of rows) {
       const code = customer.Codigo?.trim();
       if (!code) continue;
       const phone = essenceCustomerPhone(customer.Telefones, storeDdd);
       if (phone) map.set(code, phone);
     }
     return map;
+  }
+
+  private async syncCustomersFromCatalog(
+    companyId: string,
+    customers: EssenceCliente[],
+  ): Promise<{ synced: number; skipped: number }> {
+    const storeDdd = await this.storeDddFor(companyId);
+    let synced = 0;
+    let skipped = 0;
+
+    this.logger.log(
+      `${customers.length} clientes Essence no catálogo para empresa ${companyId}`,
+    );
+
+    for (const customer of customers) {
+      if (customer.Habilitado === 0) continue;
+      const incoming = EssenceSaleMapping.toCustomerFromCatalog(
+        customer,
+        storeDdd,
+      );
+      if (!incoming.phone && !incoming.cpf) {
+        skipped += 1;
+        continue;
+      }
+      const saved = await this.customerIdentityService.resolveForSale({
+        companyId,
+        incoming,
+        salesChannel: 'HYBEX_ESSENCE',
+        partner: { partnerSlug: PARTNER_SLUG, name: 'Hybex Essence' },
+      });
+      if (saved) {
+        synced += 1;
+      } else {
+        skipped += 1;
+      }
+    }
+
+    this.logger.log(
+      `Sync clientes Essence empresa ${companyId}: ${synced} gravados, ${skipped} ignorados`,
+    );
+
+    return { synced, skipped };
   }
 
   async syncCustomers(companyId: string): Promise<void> {
@@ -187,26 +314,7 @@ export class HybexEssenceSalesService {
 
     const credentials = this.toCredentials(integration);
     const customers = await this.essenceService.listAllCustomers(credentials);
-    const storeDdd = await this.storeDddFor(companyId);
-
-    this.logger.log(
-      `${customers.length} clientes Essence para empresa ${companyId}`,
-    );
-
-    for (const customer of customers) {
-      if (customer.Habilitado === 0) continue;
-      const incoming = EssenceSaleMapping.toCustomerFromCatalog(
-        customer,
-        storeDdd,
-      );
-      if (!incoming.phone) continue;
-      await this.customerIdentityService.resolveForSale({
-        companyId,
-        incoming,
-        salesChannel: 'HYBEX_ESSENCE',
-        partner: { partnerSlug: PARTNER_SLUG, name: 'Hybex Essence' },
-      });
-    }
+    await this.syncCustomersFromCatalog(companyId, customers);
   }
 
   async processSale(
@@ -310,16 +418,6 @@ export class HybexEssenceSalesService {
     );
     this.toCredentials(integration);
 
-    await this.enqueueReplacing(this.salesImportQueue, {
-      name: QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT,
-      data: { companyId, syncCustomers: true },
-      opts: {
-        attempts: 3,
-        backoff: { type: 'exponential', delay: 5000 },
-        jobId: `essence-customers:${companyId}`,
-      },
-    });
-
     const { startDate, endDate } = resolveImportDateRange(importDto);
     const start = toDateOnlyString(startDate);
     const end = toDateOnlyString(endDate);
@@ -329,12 +427,13 @@ export class HybexEssenceSalesService {
       name: QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT,
       data: {
         companyId,
-        backfillRange: { startDate: start, endDate: end },
+        historicalImport: { startDate: start, endDate: end },
       },
       opts: {
         attempts: 3,
         backoff: { type: 'exponential', delay: 5000 },
-        jobId: `essence-backfill:${companyId}:${start}:${end}`,
+        timeout: 3_600_000,
+        jobId: `essence-historical:${companyId}:${start}:${end}`,
       },
     });
 
@@ -343,7 +442,7 @@ export class HybexEssenceSalesService {
       totalDays: dates.length,
       startDate: start,
       endDate: end,
-      jobsCreated: 2,
+      jobsCreated: 1,
     };
   }
 

@@ -1,5 +1,6 @@
 import { CreateOrderDto } from '../../../orders/application/dto/create-order.dto';
 import { CreateOrderItemDto } from '../../../orders/application/dto/create-order-item.dto';
+import { normalizeCpfForLookup } from '../../../public-api/orders/application/order-ingestion.mapper';
 import {
   EssenceCliente,
   EssenceTicket,
@@ -81,9 +82,13 @@ export class EssenceSaleMapping {
     customer: EssenceCliente,
     storeDdd?: string,
   ) {
+    const cpf =
+      normalizeCpfForLookup(customer.CPF ?? undefined) ??
+      normalizeCpfForLookup(customer.CNPJ ?? undefined);
     return {
       name: essenceCustomerName(customer.Nome),
       phone: essenceCustomerPhone(customer.Telefones, storeDdd),
+      cpf,
     };
   }
 

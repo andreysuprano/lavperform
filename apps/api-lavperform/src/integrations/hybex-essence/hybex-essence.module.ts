@@ -31,6 +31,11 @@ import { SalesImportModule } from '../sales-import/sales-import.module';
         defaultJobOptions: {
           attempts: 3,
           backoff: { type: 'exponential', delay: 5000 },
+          timeout: 3_600_000,
+        },
+        settings: {
+          lockDuration: 300_000,
+          stalledInterval: 60_000,
         },
       },
       {

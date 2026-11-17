@@ -15,6 +15,7 @@ interface EssenceSalesJobData {
   syncCustomers?: boolean;
   backfill90?: boolean;
   backfillRange?: { startDate: string; endDate: string };
+  historicalImport?: { startDate: string; endDate: string };
 }
 
 @Processor(QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT)
@@ -28,10 +29,33 @@ export class HybexEssenceSalesProcessor {
 
   @Process({ name: QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT, concurrency: 1 })
   async processImport(job: Job<EssenceSalesJobData>) {
-    const { companyId, date, syncCustomers, backfill90, backfillRange } =
-      job.data;
+    const {
+      companyId,
+      date,
+      syncCustomers,
+      backfill90,
+      backfillRange,
+      historicalImport,
+    } = job.data;
 
     try {
+      if (historicalImport) {
+        this.logger.log(
+          `Importação histórica Hybex Essence para empresa ${companyId} (${historicalImport.startDate} → ${historicalImport.endDate})`,
+        );
+        const result = await this.essenceSalesService.processHistoricalImport(
+          companyId,
+          historicalImport.startDate,
+          historicalImport.endDate,
+        );
+        if (result.ticketsEnqueued === 0) {
+          this.logger.error(
+            `Importação histórica Essence sem vendas enfileiradas (empresa ${companyId}): catálogo=${result.apiCustomers}, tickets API=${result.apiTicketCount}, clientes gravados=${result.customersSynced}`,
+          );
+        }
+        return result;
+      }
+
       if (syncCustomers) {
         this.logger.log(
           `Sincronizando clientes Hybex Essence da empresa ${companyId}`,
