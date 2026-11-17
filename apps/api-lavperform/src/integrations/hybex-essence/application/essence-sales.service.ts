@@ -80,13 +80,16 @@ export class HybexEssenceSalesService {
     companyId: string,
     startDate: string,
     endDate: string,
-  ): Promise<{ ticketsEnqueued: number }> {
+  ): Promise<{
+    ticketsEnqueued: number;
+    apiTicketCount: number;
+    inRangeCount: number;
+  }> {
     const integration = await this.resolveIntegration(companyId);
     if (!integration) {
-      this.logger.error(
-        `Integração Hybex Essence ausente ou incompleta para empresa ${companyId}; importação de vendas ignorada`,
-      );
-      return { ticketsEnqueued: 0 };
+      const message = `Integração Hybex Essence ausente ou incompleta para empresa ${companyId}; backfill abortado`;
+      this.logger.error(message);
+      throw new Error(message);
     }
 
     const credentials = this.toCredentials(integration);
@@ -115,7 +118,21 @@ export class HybexEssenceSalesService {
       catalogPhones,
     );
 
-    return { ticketsEnqueued: tickets.length };
+    if (allTickets.length === 0) {
+      this.logger.warn(
+        `Backfill Essence ${startDate}→${endDate}: API retornou 0 tickets para empresa ${companyId}`,
+      );
+    } else if (tickets.length === 0) {
+      this.logger.warn(
+        `Backfill Essence ${startDate}→${endDate}: ${allTickets.length} tickets na API, ${inRange.length} no intervalo, 0 elegíveis após filtros (empresa ${companyId})`,
+      );
+    }
+
+    return {
+      ticketsEnqueued: tickets.length,
+      apiTicketCount: allTickets.length,
+      inRangeCount: inRange.length,
+    };
   }
 
   private async enqueueTicketsForSale(
@@ -162,7 +179,11 @@ export class HybexEssenceSalesService {
 
   async syncCustomers(companyId: string): Promise<void> {
     const integration = await this.resolveIntegration(companyId);
-    if (!integration) return;
+    if (!integration) {
+      const message = `Integração Hybex Essence ausente ou incompleta para empresa ${companyId}; sync de clientes abortado`;
+      this.logger.error(message);
+      throw new Error(message);
+    }
 
     const credentials = this.toCredentials(integration);
     const customers = await this.essenceService.listAllCustomers(credentials);
