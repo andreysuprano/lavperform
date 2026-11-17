@@ -4,8 +4,8 @@ import { getOpeningHoursTimezone, nowUTC } from '../../common/utils/date.utils';
 /** Início da janela de envio (hora local do estabelecimento, inclusivo). */
 export const WEATHER_ALERT_SEND_START_HOUR = 8;
 
-/** Fim da janela (hora local exclusiva): último envio até 19:59. */
-export const WEATHER_ALERT_SEND_END_HOUR_EXCLUSIVE = 20;
+/** Fim da janela (hora local exclusiva): último envio até 17:59. */
+export const WEATHER_ALERT_SEND_END_HOUR_EXCLUSIVE = 18;
 
 /**
  * Verifica se o instante atual está dentro da janela global de envio dos alertas climáticos.

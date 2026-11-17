@@ -35,21 +35,21 @@ describe('isWithinWeatherAlertSendWindow', () => {
     ).toBe(true);
   });
 
-  it('permite às 19:30 em SP', () => {
-    // 2024-06-15 19:30 SP = 2024-06-15 22:30 UTC
+  it('permite às 17:30 em SP', () => {
+    // 2024-06-15 17:30 SP = 2024-06-15 20:30 UTC
     expect(
       isWithinWeatherAlertSendWindow(
-        new Date('2024-06-15T22:30:00.000Z'),
+        new Date('2024-06-15T20:30:00.000Z'),
         zone,
       ),
     ).toBe(true);
   });
 
-  it('bloqueia às 20:00 em SP', () => {
-    // 2024-06-15 20:00 SP = 2024-06-15 23:00 UTC
+  it('bloqueia às 18:00 em SP', () => {
+    // 2024-06-15 18:00 SP = 2024-06-15 21:00 UTC
     expect(
       isWithinWeatherAlertSendWindow(
-        new Date('2024-06-15T23:00:00.000Z'),
+        new Date('2024-06-15T21:00:00.000Z'),
         zone,
       ),
     ).toBe(false);
