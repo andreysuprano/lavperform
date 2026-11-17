@@ -62,11 +62,17 @@ export class HybexEssenceSalesProcessor {
         this.logger.log(
           `Processando backfill Hybex Essence para empresa ${companyId} (${backfillRange.startDate} → ${backfillRange.endDate})`,
         );
-        return this.essenceSalesService.processSalesBackfill(
+        const result = await this.essenceSalesService.processSalesBackfill(
           companyId,
           backfillRange.startDate,
           backfillRange.endDate,
         );
+        if (result.ticketsEnqueued === 0) {
+          this.logger.error(
+            `Backfill Hybex Essence concluído sem enfileirar vendas (empresa ${companyId}): API=${result.apiTicketCount}, no intervalo=${result.inRangeCount}`,
+          );
+        }
+        return result;
       }
 
       if (syncCustomers && !date && !backfillRange) {
