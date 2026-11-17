@@ -5,7 +5,9 @@ import { Queue } from 'bull';
 import { InjectQueue } from '@nestjs/bull';
 import { QUEUE_NAMES } from '../../common/queue/queue.constants';
 import { PrismaService } from '../../prisma/prisma.service';
+import { getDayOfWeekPtBr, nowUTC } from '../../common/utils/date.utils';
 import { WeatherAlertHistoryService } from '../application/weather-alert-history.service';
+import { isWithinWeatherAlertSendWindow } from '../domain/weather-alert-send-window';
 import { isWeatherAlertEnabled } from '../weather-alert.config';
 
 @Injectable()
@@ -26,12 +28,16 @@ export class WeatherAlertTasks {
             return;
         }
 
+        const now = nowUTC();
+        if (!isWithinWeatherAlertSendWindow(now)) {
+            this.logger.debug('Fora da janela de envio de alertas climáticos (08:00–20:00), pulando processamento');
+            return;
+        }
+
         this.logger.debug('Processando alertas de clima');
 
         try {
-            // Dia da semana atual (seg, ter, qua, etc)
-            const daysOfWeek = ['dom', 'seg', 'ter', 'qua', 'qui', 'sex', 'sab'];
-            const currentDay = daysOfWeek[new Date().getDay()];
+            const currentDay = getDayOfWeekPtBr(now);
 
             this.logger.log(`Dia da semana atual: ${currentDay}`);
 
