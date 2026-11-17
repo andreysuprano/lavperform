@@ -9,6 +9,7 @@ interface EssenceSaleProcessJobData {
   companyId: string;
   ticket: EssenceTicket;
   storeGuid: string;
+  clientePhone?: string;
 }
 
 @Processor(QUEUE_NAMES.HYBEX_ESSENCE_SALE_PROCESS)
@@ -19,10 +20,15 @@ export class HybexEssenceSaleProcessor {
 
   @Process({ name: QUEUE_NAMES.HYBEX_ESSENCE_SALE_PROCESS, concurrency: 20 })
   async processSale(job: Job<EssenceSaleProcessJobData>) {
-    const { companyId, ticket, storeGuid } = job.data;
+    const { companyId, ticket, storeGuid, clientePhone } = job.data;
 
     try {
-      await this.essenceSalesService.processSale(companyId, ticket, storeGuid);
+      await this.essenceSalesService.processSale(
+        companyId,
+        ticket,
+        storeGuid,
+        clientePhone,
+      );
     } catch (error) {
       this.logger.error(
         `Erro ao processar ticket Essence ${ticket.Sequencia} da empresa ${companyId}:`,

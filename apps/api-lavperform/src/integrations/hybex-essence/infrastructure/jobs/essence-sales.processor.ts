@@ -14,6 +14,7 @@ interface EssenceSalesJobData {
   date?: string;
   syncCustomers?: boolean;
   backfill90?: boolean;
+  backfillRange?: { startDate: string; endDate: string };
 }
 
 @Processor(QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT)
@@ -27,7 +28,8 @@ export class HybexEssenceSalesProcessor {
 
   @Process({ name: QUEUE_NAMES.HYBEX_ESSENCE_SALES_IMPORT, concurrency: 1 })
   async processImport(job: Job<EssenceSalesJobData>) {
-    const { companyId, date, syncCustomers, backfill90 } = job.data;
+    const { companyId, date, syncCustomers, backfill90, backfillRange } =
+      job.data;
 
     try {
       if (syncCustomers) {
@@ -42,19 +44,32 @@ export class HybexEssenceSalesProcessor {
           `Processando reexecução de 7 dias Hybex Essence para empresa ${companyId}`,
         );
 
-        const result = await this.essenceSalesService.importHistoricalSales(
+        const range = weeklyReplayRange();
+        const result = await this.essenceSalesService.processSalesBackfill(
           companyId,
-          weeklyReplayRange(),
+          range.startDate,
+          range.endDate,
         );
 
         this.logger.log(
-          `Reexecução de 7 dias concluída para empresa ${companyId}: ${result.jobsCreated} jobs`,
+          `Reexecução de 7 dias concluída para empresa ${companyId}: ${result.ticketsEnqueued} tickets`,
         );
 
         return result;
       }
 
-      if (syncCustomers && !date) {
+      if (backfillRange) {
+        this.logger.log(
+          `Processando backfill Hybex Essence para empresa ${companyId} (${backfillRange.startDate} → ${backfillRange.endDate})`,
+        );
+        return this.essenceSalesService.processSalesBackfill(
+          companyId,
+          backfillRange.startDate,
+          backfillRange.endDate,
+        );
+      }
+
+      if (syncCustomers && !date && !backfillRange) {
         return;
       }
 
