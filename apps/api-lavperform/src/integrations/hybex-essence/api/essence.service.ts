@@ -3,7 +3,6 @@ import { HttpService } from '@nestjs/axios';
 import { catchError, firstValueFrom } from 'rxjs';
 import { formatError } from '../../../common/utils/formatters';
 import {
-  DEFAULT_PARTNER_HTTP_DELAY_MS,
   sleep as paceSleep,
   with429Retry,
 } from '../../sales-import/partner-http-pace';
@@ -12,9 +11,20 @@ import {
   EssenceCredentials,
   EssenceTicket,
 } from './essence.types';
+import {
+  EssenceRateLimitError,
+  parseEssenceSelectRows,
+} from './essence-select.util';
 
 const DEFAULT_BASE_URL = 'https://viewinterface-essence.hybex.com.br';
-const INTER_REQUEST_DELAY_MS = DEFAULT_PARTNER_HTTP_DELAY_MS;
+/** View Essence: limite de ~20 chamadas/min — intervalo seguro entre páginas. */
+const INTER_REQUEST_DELAY_MS = Number(
+  process.env.HYBEX_ESSENCE_REQUEST_DELAY_MS ?? 3_200,
+);
+const RATE_LIMIT_COOLDOWN_MS = Number(
+  process.env.HYBEX_ESSENCE_RATE_LIMIT_COOLDOWN_MS ?? 65_000,
+);
+const RATE_LIMIT_MAX_RETRIES = 8;
 const TICKETS_PAGE_SIZE = 50;
 const CUSTOMERS_PAGE_SIZE = 50;
 
@@ -34,21 +44,31 @@ export class EssenceService {
     this.baseUrl = process.env.HYBEX_ESSENCE_API_URL ?? DEFAULT_BASE_URL;
   }
 
-  /**
-   * Busca tickets paginando sem filtro de data na API (modo recomendado para
-   * histórico; a View Essence responde de forma mais estável assim).
-   */
-  async listAllTickets(credentials: EssenceCredentials): Promise<EssenceTicket[]> {
+  async listTicketsInDateRange(
+    credentials: EssenceCredentials,
+    startDate: string,
+    endDate: string,
+  ): Promise<EssenceTicket[]> {
+    const start = `${startDate} 00:00:00`;
+    const end = `${nextUtcDateOnly(endDate)} 00:00:00`;
     const all: EssenceTicket[] = [];
     let page = 1;
 
     for (;;) {
-      const pageRows = await this.select<EssenceTicket>(credentials, 'pAPI_Tickets', [
-        credentials.storeGuid,
-        credentials.integrationKey,
-        page,
-        TICKETS_PAGE_SIZE,
-      ]);
+      const pageRows = await this.select<EssenceTicket>(
+        credentials,
+        'pAPI_Tickets',
+        [
+          credentials.storeGuid,
+          credentials.integrationKey,
+          page,
+          TICKETS_PAGE_SIZE,
+          '',
+          '',
+          start,
+          end,
+        ],
+      );
       all.push(...pageRows);
       if (pageRows.length < TICKETS_PAGE_SIZE) break;
       page += 1;
@@ -56,6 +76,23 @@ export class EssenceService {
     }
 
     return all;
+  }
+
+  /**
+   * Fallback quando a API não aceita intervalo longo — pagina dia a dia.
+   */
+  async listTicketsForEachDay(
+    credentials: EssenceCredentials,
+    dates: string[],
+  ): Promise<EssenceTicket[]> {
+    const bySequencia = new Map<number, EssenceTicket>();
+    for (const date of dates) {
+      const dayRows = await this.listTicketsForDay(credentials, date);
+      for (const ticket of dayRows) {
+        bySequencia.set(ticket.Sequencia, ticket);
+      }
+    }
+    return [...bySequencia.values()];
   }
 
   async listTicketsForDay(
@@ -126,38 +163,53 @@ export class EssenceService {
     name: string,
     parameters: Array<number | string>,
   ): Promise<T[]> {
-    try {
-      this.logger.log(`Essence ${name} loja ${credentials.storeGuid}`);
+    let lastError: unknown;
+    for (let attempt = 0; attempt <= RATE_LIMIT_MAX_RETRIES; attempt++) {
+      try {
+        this.logger.log(`Essence ${name} loja ${credentials.storeGuid}`);
 
-      const response = await with429Retry(
-        () =>
-          firstValueFrom(
-            this.httpService
-              .post<T[]>(`${this.baseUrl}/api/View/Select`, { name, parameters }, {
-                headers: {
-                  accept: 'application/json',
-                  'Content-Type': 'application/json',
-                  ApiPassword: credentials.apiPassword,
-                },
-              })
-              .pipe(
-                catchError((error) => {
-                  throw error;
-                }),
-              ),
-          ),
-        { logger: this.logger, sleep: (ms) => this.sleep(ms) },
-      );
+        const response = await with429Retry(
+          () =>
+            firstValueFrom(
+              this.httpService
+                .post<unknown>(`${this.baseUrl}/api/View/Select`, { name, parameters }, {
+                  headers: {
+                    accept: 'application/json',
+                    'Content-Type': 'application/json',
+                    ApiPassword: credentials.apiPassword,
+                  },
+                })
+                .pipe(
+                  catchError((error) => {
+                    throw error;
+                  }),
+                ),
+            ),
+          { logger: this.logger, sleep: (ms) => this.sleep(ms) },
+        );
 
-      const rows = Array.isArray(response.data) ? response.data : [];
-      this.logger.log(`Essence ${name}: ${rows.length} registros`);
-      return rows;
-    } catch (error) {
-      const errorMessage = formatError(error);
-      this.logger.error(`Erro ao consultar Essence ${name}: ${errorMessage}`);
-      throw new Error(
-        `Não foi possível consultar Essence ${name}: ${errorMessage}`,
-      );
+        const rows = parseEssenceSelectRows<T>(response.data);
+        this.logger.log(`Essence ${name}: ${rows.length} registros`);
+        return rows;
+      } catch (error) {
+        if (error instanceof EssenceRateLimitError) {
+          lastError = error;
+          this.logger.warn(
+            `${error.message} — aguardando ${RATE_LIMIT_COOLDOWN_MS}ms (tentativa ${attempt + 1}/${RATE_LIMIT_MAX_RETRIES + 1})`,
+          );
+          await this.sleep(RATE_LIMIT_COOLDOWN_MS);
+          continue;
+        }
+        const errorMessage = formatError(error);
+        this.logger.error(`Erro ao consultar Essence ${name}: ${errorMessage}`);
+        throw new Error(
+          `Não foi possível consultar Essence ${name}: ${errorMessage}`,
+        );
+      }
     }
+
+    throw new Error(
+      `Não foi possível consultar Essence ${name}: limite de chamadas persistente (${String(lastError)})`,
+    );
   }
 }
