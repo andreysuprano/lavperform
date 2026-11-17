@@ -1006,7 +1006,7 @@ model LinkPage {
   id              String    @id @default(uuid())
   companyId       String
   company         Company   @relation(fields: [companyId], references: [id])
-  biography       String?   @default("A melhor experiência gastronômica que você pode ter hoje! 👨🏻‍🍳")
+  biography       String?   @default("A melhor experiência em lavanderia que você pode ter hoje! 🧺")
   whatsappMessage String?   @default("Olá, tudo bem?")
   coverImage      String?
   bgColor         String?   @default("white")

@@ -621,7 +621,7 @@ async function main() {
     create: {
       id: 'linkpage-demo',
       companyId: company.id,
-      biography: 'A melhor experiência gastronômica!',
+      biography: 'A melhor experiência em lavanderia que você pode ter hoje! 🧺',
       whatsappMessage: 'Olá, tudo bem?',
       coverImage: 'https://example.com/cover.png',
       bgColor: 'white',
