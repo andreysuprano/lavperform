@@ -6,10 +6,11 @@ import { fileURLToPath } from 'node:url';
 const require = createRequire(import.meta.url);
 const { Client } = require('pg');
 const {
+  conductForServiceModel,
   documentFromBackup,
   migratePersonaPrompt,
   missingAgentIds,
-  standardConductFromTemplate,
+  serviceTemplateFor,
 } = await import('../src/application/agent-configurator/migrate-persona-prompt.ts');
 
 const scriptDir = dirname(fileURLToPath(import.meta.url));
@@ -25,7 +26,7 @@ const revertIndex = args.indexOf('--revert');
 const revertPath = revertIndex >= 0 ? args[revertIndex + 1] : null;
 
 const SELECT = `
-  SELECT a.id AS agent_id, c.name AS company_name, a.name AS agent_name,
+  SELECT a.id AS agent_id, c.id AS lavai_company_id, c.name AS company_name, a.name AS agent_name,
          coalesce(p.system_prompt, '') AS system_prompt,
          coalesce(p.behavior_guidelines, '') AS behavior_guidelines,
          coalesce(p.guardrails, '') AS guardrails,
@@ -36,6 +37,23 @@ const SELECT = `
   WHERE a.kind::text = 'PUBLIC' AND a.platform_code IS NULL
   ORDER BY c.name, a.name
 `;
+
+function envValue(file, key) {
+  if (!existsSync(file)) return '';
+  const line = readFileSync(file, 'utf8')
+    .split(/\r?\n/)
+    .find((entry) => entry.startsWith(key + '='));
+  if (!line) return '';
+  return line.slice(key.length + 1).replace(/^["']|["']$/g, '');
+}
+
+function cadastroModel(rows) {
+  const active = rows.filter((row) => !row.deleted);
+  const pool = active.length > 0 ? active : rows;
+  if (pool.some((row) => row.model === 'SELF_SERVICE')) return 'SELF_SERVICE';
+  if (pool.some((row) => row.model === 'CONVENTIONAL')) return 'CONVENTIONAL';
+  return null;
+}
 
 function rowToCurrent(row) {
   return {
@@ -154,26 +172,56 @@ async function migrate() {
     join(scriptDir, '../src/application/agent-configurator/prompts/whatsapp-agent.prompt.md'),
     'utf8',
   );
-  const standard = standardConductFromTemplate(template);
+  const backupPath = join(scriptDir, 'backups/prompt-padrao-20261118-113409.json');
+  const previous = new Map(
+    JSON.parse(readFileSync(backupPath, 'utf8')).personas.map((persona) => [
+      persona.agentId,
+      [persona.systemPrompt, persona.behaviorGuidelines, persona.guardrails, persona.contextPrompt].join('\n'),
+    ]),
+  );
+  const apiUrl = envValue(join(scriptDir, '../../api-lavperform/.env'), 'DATABASE_URL');
+  if (!apiUrl) {
+    console.error('DATABASE_URL não definido (api-lavperform).');
+    process.exit(1);
+  }
+  const api = new Client({ connectionString: apiUrl });
+  await api.connect();
+  let companies;
+  try {
+    companies = await api.query(
+      `SELECT "overAgentCompanyId"::text AS lavai_id, "serviceModel"::text AS model, "deletedAt" IS NOT NULL AS deleted
+       FROM "Company"`,
+    );
+  } finally {
+    await api.end();
+  }
+  const byLavai = new Map();
+  for (const row of companies.rows) {
+    if (!row.lavai_id) continue;
+    const list = byLavai.get(row.lavai_id) || [];
+    list.push(row);
+    byLavai.set(row.lavai_id, list);
+  }
   await withClient(async (client) => {
     const result = await client.query(SELECT);
     const updates = result.rows.map((row) => {
-      const next = migratePersonaPrompt(rowToCurrent(row), standard);
+      const model = serviceTemplateFor({
+        serviceModel: cadastroModel(byLavai.get(row.lavai_company_id) || []),
+        previousText: previous.get(row.agent_id) || '',
+      });
+      const next = migratePersonaPrompt(rowToCurrent(row), conductForServiceModel(template, model));
+      if (next.contextPrompt !== row.context_prompt) {
+        throw new Error(`Contexto mudaria em ${row.company_name}`);
+      }
       return {
         agentId: row.agent_id,
         companyName: row.company_name,
         agentName: row.agent_name,
-        before: row.context_prompt.length,
-        after: next.contextPrompt.length,
+        model,
         ...next,
       };
     });
-    printPlan(
-      updates.map(
-        (update) =>
-          `${update.companyName} | ${update.agentName} | contexto ${update.before} -> ${update.after}`,
-      ),
-    );
+    printPlan(updates.map((update) => `${update.companyName} | ${update.agentName} | ${update.model}`));
     if (!apply) {
       console.log('Dry-run. Nada foi gravado. Use --apply para gravar.');
       return;
