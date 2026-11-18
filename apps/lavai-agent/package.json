@@ -23,6 +23,7 @@
     "prisma:push": "prisma db push",
     "prisma:baseline": "node scripts/prisma-baseline.mjs",
     "sync:lavperform-companies": "node scripts/sync-lavperform-companies.mjs",
+    "prompt:standard": "node --experimental-strip-types scripts/apply-standard-agent-prompt.mjs",
     "migrate:agents-from-old": "node scripts/migrate-agents-from-old-lavai.mjs",
     "diagnose": "node scripts/diagnose-deployment.mjs"
   },

@@ -7,7 +7,6 @@ import { MessageRole } from '../../webhook/ports/conversation.repository.port';
 import {
   CONFIGURATOR_CODE,
   decideProposal,
-  instructionsWithSummary,
   type ProposalStatus,
   type StoredBlock,
 } from '../configurator-blocks';
@@ -67,10 +66,7 @@ export class DecideConfiguratorProposalUseCase {
     }
 
     if (decision.writeDocument) {
-      await this.agents.updatePersona(
-        target.id,
-        instructionsWithSummary(proposal.document, proposal.behavior),
-      );
+      await this.agents.updatePersona(target.id, proposal.document);
     }
     await this.conversations.updateProposalStatus(message.id, decision.nextStatus);
     if (decision.message) {
