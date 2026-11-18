@@ -7,3 +7,6 @@ src/generated
 # Keep environment variables out of version control
 .env
 
+# Backups do prompt padrão contêm dados das lojas
+scripts/backups/*.json
+
