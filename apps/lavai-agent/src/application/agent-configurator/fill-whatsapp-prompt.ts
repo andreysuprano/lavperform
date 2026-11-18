@@ -1,4 +1,5 @@
 import { scriptFor, type ServiceModel } from '../prompt-studio/sheet-script';
+import { keepServiceBlock } from './migrate-persona-prompt';
 
 export type PromptDocument = {
   contextPrompt: string;
@@ -79,19 +80,16 @@ function assertTemplate(template: string): void {
   if (!template.includes('{{#CONVENTIONAL}}') || !template.includes('{{/CONVENTIONAL}}')) {
     throw new FillPromptError('Prompt padrão inválido');
   }
+  assertBalanced(template, 'SELF_SERVICE');
+  assertBalanced(template, 'CONVENTIONAL');
 }
 
-function keepServiceBlock(template: string, model: ServiceModel): string {
-  const drop = model === 'SELF_SERVICE' ? 'CONVENTIONAL' : 'SELF_SERVICE';
-  const keep = model === 'SELF_SERVICE' ? 'SELF_SERVICE' : 'CONVENTIONAL';
-  const withoutDrop = template.replace(
-    new RegExp(`\\{\\{#${drop}\\}\\}[\\s\\S]*?\\{\\{/${drop}\\}\\}`),
-    '',
-  );
-  return withoutDrop.replace(
-    new RegExp(`\\{\\{#${keep}\\}\\}([\\s\\S]*?)\\{\\{/${keep}\\}\\}`),
-    '$1',
-  );
+function assertBalanced(template: string, model: 'SELF_SERVICE' | 'CONVENTIONAL'): void {
+  const open = template.split(`{{#${model}}}`).length - 1;
+  const close = template.split(`{{/${model}}}`).length - 1;
+  if (open === 0 || open !== close) {
+    throw new FillPromptError('Prompt padrão inválido');
+  }
 }
 
 function splitSections(template: string): PromptDocument {

@@ -6,6 +6,7 @@ import {
   documentFromBackup,
   migratePersonaPrompt,
   missingAgentIds,
+  serviceTemplateFor,
   standardConductFromTemplate,
 } from './migrate-persona-prompt';
 
@@ -59,6 +60,27 @@ describe('migratePersonaPrompt', () => {
       standard,
     );
     expect(next.contextPrompt.startsWith(PRESERVED_TITLE)).toBe(true);
+  });
+});
+
+describe('serviceTemplateFor', () => {
+  it('usa ciclo quando o cadastro é autoatendimento', () => {
+    expect(serviceTemplateFor({ serviceModel: 'SELF_SERVICE', previousText: 'preço por peça' })).toBe(
+      'SELF_SERVICE',
+    );
+  });
+
+  it('usa ciclo quando o texto antigo fala em ciclo, mesmo com cadastro convencional', () => {
+    expect(serviceTemplateFor({ serviceModel: 'CONVENTIONAL', previousText: 'Ciclo de lavagem: R$ 18,50' })).toBe(
+      'SELF_SERVICE',
+    );
+  });
+
+  it('usa convencional quando o cadastro é convencional e o texto antigo não fala em ciclo', () => {
+    expect(serviceTemplateFor({ serviceModel: 'CONVENTIONAL', previousText: 'preço por peça e delivery' })).toBe(
+      'CONVENTIONAL',
+    );
+    expect(serviceTemplateFor({ serviceModel: null, previousText: '' })).toBe('CONVENTIONAL');
   });
 });
 

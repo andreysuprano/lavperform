@@ -23,6 +23,50 @@ export type PromptBackupPersona = {
   contextPrompt: string;
 };
 
+export function serviceTemplateFor(input: {
+  serviceModel: 'SELF_SERVICE' | 'CONVENTIONAL' | null;
+  previousText: string;
+}): 'SELF_SERVICE' | 'CONVENTIONAL' {
+  if (input.serviceModel === 'SELF_SERVICE') return 'SELF_SERVICE';
+  if (/ciclo/i.test(input.previousText)) return 'SELF_SERVICE';
+  return 'CONVENTIONAL';
+}
+
+export function keepServiceBlock(template: string, model: 'SELF_SERVICE' | 'CONVENTIONAL'): string {
+  const drop = model === 'SELF_SERVICE' ? 'CONVENTIONAL' : 'SELF_SERVICE';
+  const keep = model === 'SELF_SERVICE' ? 'SELF_SERVICE' : 'CONVENTIONAL';
+  const withoutDrop = template.replace(
+    new RegExp(`\\{\\{#${drop}\\}\\}[\\s\\S]*?\\{\\{/${drop}\\}\\}`, 'g'),
+    '',
+  );
+  return withoutDrop.replace(
+    new RegExp(`\\{\\{#${keep}\\}\\}([\\s\\S]*?)\\{\\{/${keep}\\}\\}`, 'g'),
+    '$1',
+  );
+}
+
+const CONDUCT_HEADINGS = ['contextPrompt', 'systemPrompt', 'behaviorGuidelines', 'guardrails'] as const;
+
+export function conductForServiceModel(template: string, model: 'SELF_SERVICE' | 'CONVENTIONAL'): PromptDocument {
+  const resolved = keepServiceBlock(template, model);
+  const sections = {} as PromptDocument;
+  for (let index = 0; index < CONDUCT_HEADINGS.length; index += 1) {
+    const heading = CONDUCT_HEADINGS[index];
+    const start = resolved.indexOf(`# ${heading}`);
+    const next = index + 1 < CONDUCT_HEADINGS.length ? resolved.indexOf(`# ${CONDUCT_HEADINGS[index + 1]}`) : resolved.length;
+    if (start < 0 || next < 0) {
+      throw new Error('Prompt padrão inválido');
+    }
+    sections[heading] = resolved.slice(start + `# ${heading}`.length, next).trim();
+  }
+  return {
+    contextPrompt: '',
+    systemPrompt: sections.systemPrompt,
+    behaviorGuidelines: sections.behaviorGuidelines,
+    guardrails: sections.guardrails,
+  };
+}
+
 export function standardConductFromTemplate(template: string): PromptDocument {
   let cursor = -1;
   const starts: number[] = [];
