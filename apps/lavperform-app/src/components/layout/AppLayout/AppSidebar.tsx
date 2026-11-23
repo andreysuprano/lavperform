@@ -116,7 +116,7 @@ const Sidebar = memo(
               // O grupo só ganha ênfase de texto, sem um segundo bloco azul.
               const isParentOfCurrent = isActive && Boolean(activeLink)
               const isCurrent = isActive && !isParentOfCurrent
-              const expanded = open && isParentOfCurrent
+              const expanded = open && isActive && hasLinks
 
               return (
                 <Box key={item.href}>
