@@ -8,7 +8,6 @@ import {
   OpenApiIntegrationSection,
   SocialConnectionsSection,
 } from '@/components'
-import { useWhiteLabel } from '@/config'
 import { useAuth } from '@/context/AuthContext'
 import { integrationService } from '@/services'
 import type { CompanyIntegration } from '@/types'
@@ -18,7 +17,6 @@ export const CompanyIntegrationList = () => {
   const [integrations, setIntegrations] = useState<CompanyIntegration[]>([])
   const [loading, setLoading] = useState(true)
   const { selectedCompany } = useAuth()
-  const { features } = useWhiteLabel()
 
   const fetchIntegrations = useCallback(async () => {
     if (!selectedCompany?.id) return
@@ -78,15 +76,13 @@ export const CompanyIntegrationList = () => {
                 logo={integration.logoUrl}
                 name={integration.name}
                 onSuccess={fetchIntegrations}
+                optionalFields={integration.optionalFields}
                 partnerId={integration.id}
                 partnerSlug={integration.partnerSlug}
                 requiredFields={integration.requiredFields}
+                session={defaultIntegration?.session}
                 token={defaultIntegration?.apiKey}
-                urlCardapio={
-                  features.hasDelivery
-                    ? defaultIntegration?.digitalMenuUrl
-                    : undefined
-                }
+                urlCardapio={defaultIntegration?.digitalMenuUrl}
                 webhook={
                   integration.baseUrlWebhook && selectedCompany.id
                     ? `${integration.baseUrlWebhook}${selectedCompany.id}`

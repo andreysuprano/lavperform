@@ -1,9 +1,16 @@
+export interface IntegrationSessionView {
+  status: 'ACTIVE' | 'NEEDS_REAUTH'
+  expiresAt: string
+  lastError: string | null
+}
+
 export interface DigitalMenuIntegration {
   merchantId?: string
   apiKey?: string
   apiSecret?: string
   password?: string
   digitalMenuUrl?: string
+  session?: IntegrationSessionView | null
 }
 
 export interface CompanyIntegration {
@@ -13,6 +20,7 @@ export interface CompanyIntegration {
   baseUrlWebhook?: string
   partnerSlug?: string
   requiredFields?: string[]
+  optionalFields?: string[]
   digitalMenuIntegrations: DigitalMenuIntegration[]
 }
 

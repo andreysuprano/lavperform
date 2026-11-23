@@ -28,7 +28,15 @@ import { integrationService } from '@/services'
 import { logger } from '@/utils/logger'
 
 import { Props } from './CompanyIntegrationForm.types'
+import { fieldCopy, sessionSetupHint } from './partner-fields'
 import { buildSchema, FormData } from './schema'
+
+function formatSessionDate(value: string) {
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(new Date(value))
+}
 
 function CompanyIntegrationForm({
   name,
@@ -41,18 +49,50 @@ function CompanyIntegrationForm({
   apiSecret,
   apiPassword,
   requiredFields = [],
+  optionalFields = [],
   urlCardapio,
+  session,
   onSuccess,
 }: Props) {
   const { images, features } = useWhiteLabel()
 
   const [isOpen, setIsOpen] = useState(false)
   const { selectedCompany } = useAuth()
-  const isVmLav = partnerSlug?.trim().toUpperCase() === 'VMLAV'
-  const isWindel = partnerSlug?.trim().toUpperCase() === 'WINDEL'
-  const usesEmailPassword =
-    isWindel || partnerSlug?.trim().toUpperCase() === 'WAYMONEY'
-  const formSchema = useMemo(() => buildSchema(partnerSlug), [partnerSlug])
+  const slug = partnerSlug?.trim().toUpperCase()
+  const usesEmailPassword = slug === 'WINDEL' || slug === 'WAYMONEY'
+  const catalog = requiredFields.length > 0
+  const showMerchant =
+    !catalog ||
+    requiredFields.includes('merchantId') ||
+    optionalFields.includes('merchantId')
+  const showSecret =
+    requiredFields.includes('apiSecret') ||
+    (!catalog &&
+      (name.trim().toLowerCase() === 'hybex' ||
+        requiredFields.includes('apiSecret')))
+  const showPassword =
+    requiredFields.includes('password') ||
+    (!catalog &&
+      (name.trim().toLowerCase() === 'hybex' || slug === 'HYBEX_ESSENCE'))
+  const sessionPartner =
+    slug === 'MAXLAV' || slug === 'LAUNDRYKIT' || slug === 'SISLAV'
+  const showApiUrl = sessionPartner || features.hasDelivery
+  const merchantRequired = catalog
+    ? requiredFields.includes('merchantId')
+    : slug !== 'VMLAV' && slug !== 'MAXLAV'
+  const formSchema = useMemo(
+    () => buildSchema(partnerSlug, requiredFields),
+    [partnerSlug, requiredFields],
+  )
+  const merchantCopy = fieldCopy(partnerSlug, 'merchantId')
+  const tokenCopy = fieldCopy(partnerSlug, 'apiKey')
+  const secretCopy = fieldCopy(partnerSlug, 'apiSecret')
+  const passwordCopy = fieldCopy(partnerSlug, 'password')
+  const urlCopy = fieldCopy(
+    partnerSlug,
+    'digitalMenuUrl',
+  )
+  const setupHint = sessionSetupHint(partnerSlug)
 
   const {
     register,
@@ -72,42 +112,16 @@ function CompanyIntegrationForm({
     },
   })
 
-  const isHybex = name.trim().toLowerCase() === 'hybex'
-  const isHybexEssence =
-    partnerSlug?.trim().toUpperCase() === 'HYBEX_ESSENCE'
-  const asksAccountCode =
-    (isHybex && !isHybexEssence) || requiredFields.includes('apiSecret')
-  const asksApiPassword =
-    isHybex || isHybexEssence || requiredFields.includes('password')
-
   const onSubmit = async (data: FormData) => {
     if (!selectedCompany) return
-
-    if (asksAccountCode && !data.apiSecret?.trim()) {
-      toaster.create({
-        title: 'Erro!',
-        description: 'Informe o código da conta.',
-        type: 'error',
-      })
-      return
-    }
-
-    if (asksApiPassword && !data.apiPassword?.trim()) {
-      toaster.create({
-        title: 'Erro!',
-        description: 'Informe o ApiPassword.',
-        type: 'error',
-      })
-      return
-    }
 
     const payload = {
       partnerId,
       apiKey: data.token || '',
-      merchantId: data.codigoLoja || '',
-      digitalMenuUrl: data.urlCardapio || '',
-      ...(asksAccountCode ? { apiSecret: data.apiSecret || '' } : {}),
-      ...(asksApiPassword ? { password: data.apiPassword || '' } : {}),
+      merchantId: showMerchant ? data.codigoLoja || '' : '',
+      digitalMenuUrl: showApiUrl ? data.urlCardapio || '' : '',
+      ...(showSecret ? { apiSecret: data.apiSecret || '' } : {}),
+      ...(showPassword ? { password: data.apiPassword || '' } : {}),
     }
 
     try {
@@ -166,12 +180,28 @@ function CompanyIntegrationForm({
               boxSize="36px"
               src={logo || images.logoIcon}
             />
-            <Card.Title
+            <Stack
               flex={1}
-              fontWeight="medium"
+              gap={0}
             >
-              {name}
-            </Card.Title>
+              <Card.Title fontWeight="medium">{name}</Card.Title>
+              {session?.status === 'NEEDS_REAUTH' && (
+                <Text
+                  color="fg.error"
+                  fontSize="xs"
+                >
+                  Sessão expirada. Cole um token novo.
+                </Text>
+              )}
+              {session?.status === 'ACTIVE' && (
+                <Text
+                  color="fg.muted"
+                  fontSize="xs"
+                >
+                  Sessão até {formatSessionDate(session.expiresAt)}
+                </Text>
+              )}
+            </Stack>
             <FaChevronRight
               color="gray"
               size={20}
@@ -186,116 +216,141 @@ function CompanyIntegrationForm({
         id="hook-form"
         onSubmit={handleSubmit(onSubmit)}
       >
-        <Alert.Root
-          status="warning"
-          variant="surface"
-        >
-          <Alert.Indicator />
-          <Alert.Description>
-            Ao integrar com <strong>{name}</strong>, você consegue muito mais
-            inteligência de dados e resultados nas campanhas!
-          </Alert.Description>
-        </Alert.Root>
-        <Controller
-          control={control}
-          name="webhook"
-          render={({ field }) => (
-            <Clipboard.Root value={field.value ?? ''}>
-              <Clipboard.Label textStyle="label">Webhook</Clipboard.Label>
-              <InputGroup endElement={<ClipboardIconButton />}>
-                <Clipboard.Input asChild>
-                  <ChakraInput
-                    {...field}
-                    disabled
-                    placeholder="Seu Webhook"
-                    value={field.value ?? ''}
-                  />
-                </Clipboard.Input>
-              </InputGroup>
-            </Clipboard.Root>
-          )}
-        />
+        {session?.status === 'NEEDS_REAUTH' ? (
+          <Alert.Root
+            status="error"
+            variant="surface"
+          >
+            <Alert.Indicator />
+            <Alert.Description>
+              {session.lastError ||
+                'A sessão expirou. Cole um token ainda válido para voltar a importar.'}
+            </Alert.Description>
+          </Alert.Root>
+        ) : (
+          <Alert.Root
+            status={setupHint ? 'info' : 'warning'}
+            variant="surface"
+          >
+            <Alert.Indicator />
+            <Alert.Description>
+              {setupHint ??
+                `Ao integrar com ${name}, você consegue muito mais inteligência de dados e resultados nas campanhas!`}
+            </Alert.Description>
+          </Alert.Root>
+        )}
+        {webhook && (
+          <Controller
+            control={control}
+            name="webhook"
+            render={({ field }) => (
+              <Clipboard.Root value={field.value ?? ''}>
+                <Clipboard.Label textStyle="label">Webhook</Clipboard.Label>
+                <InputGroup endElement={<ClipboardIconButton />}>
+                  <Clipboard.Input asChild>
+                    <ChakraInput
+                      {...field}
+                      disabled
+                      placeholder="Seu Webhook"
+                      value={field.value ?? ''}
+                    />
+                  </Clipboard.Input>
+                </InputGroup>
+              </Clipboard.Root>
+            )}
+          />
+        )}
+        {showMerchant && (
+          <Stack gap={1}>
+            <Input
+              control={control}
+              label={merchantCopy.label}
+              placeholder={merchantCopy.placeholder}
+              required={merchantRequired}
+              {...register('codigoLoja')}
+            />
+            {merchantCopy.hint && (
+              <Text
+                color="fg.muted"
+                fontSize="sm"
+              >
+                {merchantCopy.hint}
+              </Text>
+            )}
+          </Stack>
+        )}
         <Stack gap={1}>
           <Input
             control={control}
-            label={
-              usesEmailPassword
-                ? 'E-mail'
-                : isVmLav
-                  ? 'CNPJ'
-                  : isHybexEssence
-                    ? 'Código da loja (GUID)'
-                    : 'Código da loja'
-            }
-            placeholder={
-              usesEmailPassword
-                ? 'nome@empresa.com.br'
-                : isVmLav
-                  ? '00.000.000/0000-00'
-                  : isHybexEssence
-                    ? 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
-                    : 'Código da loja'
-            }
-            required={!isVmLav}
-            {...register('codigoLoja')}
+            label={tokenCopy.label}
+            placeholder={tokenCopy.placeholder}
+            required
+            type={usesEmailPassword ? 'password' : 'text'}
+            {...register('token')}
           />
-          {isVmLav && (
+          {tokenCopy.hint && (
             <Text
               color="fg.muted"
               fontSize="sm"
             >
-              Alguns tokens da VM Lav devolvem vendas de mais de um CNPJ.
-              Informe qual deve ser importado. Se ficar vazio, usamos o CNPJ
-              cadastrado na empresa.
+              {tokenCopy.hint}
             </Text>
           )}
         </Stack>
-        <Input
-          control={control}
-          label={
-            usesEmailPassword
-              ? 'Senha'
-              : isHybexEssence
-                ? 'Chave de integração'
-                : 'Token / Apikey'
-          }
-          placeholder={
-            usesEmailPassword
-              ? 'Senha'
-              : isHybexEssence
-                ? 'Chave de integração'
-                : 'Token / Apikey'
-          }
-          type={usesEmailPassword ? 'password' : 'text'}
-          required
-          {...register('token')}
-        />
-        {asksAccountCode && (
-          <Input
-            control={control}
-            label="Código da conta"
-            placeholder="Código da conta"
-            required
-            {...register('apiSecret')}
-          />
+        {showSecret && (
+          <Stack gap={1}>
+            <Input
+              control={control}
+              label={secretCopy.label}
+              placeholder={secretCopy.placeholder}
+              required={requiredFields.includes('apiSecret')}
+              {...register('apiSecret')}
+            />
+            {secretCopy.hint && (
+              <Text
+                color="fg.muted"
+                fontSize="sm"
+              >
+                {secretCopy.hint}
+              </Text>
+            )}
+          </Stack>
         )}
-        {asksApiPassword && (
+        {showPassword && (
           <Input
             control={control}
-            label="ApiPassword"
-            placeholder="ApiPassword"
+            label={passwordCopy.label}
+            placeholder={passwordCopy.placeholder}
             required
             type="password"
             {...register('apiPassword')}
           />
         )}
-        {features.hasDelivery && (
-          <Input
-            control={control}
-            label={getBusinessCopy().digitalMenuUrlLabel}
-            placeholder={getBusinessCopy().digitalMenuUrlLabel}
-            {...register('urlCardapio')}
-          />
+        {showApiUrl && (
+          <Stack gap={1}>
+            <Input
+              control={control}
+              label={
+                sessionPartner
+                  ? urlCopy.label
+                  : getBusinessCopy().digitalMenuUrlLabel
+              }
+              placeholder={
+                sessionPartner
+                  ? urlCopy.placeholder
+                  : getBusinessCopy().digitalMenuUrlLabel
+              }
+              {...register('urlCardapio')}
+            />
+            {sessionPartner && urlCopy.hint && (
+                <Text
+                  color="fg.muted"
+                  fontSize="sm"
+                >
+                  {urlCopy.hint}
+                </Text>
+              )}
+          </Stack>
         )}
       </Stack>
     </CustomDrawer>

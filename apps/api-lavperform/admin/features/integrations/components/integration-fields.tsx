@@ -13,7 +13,11 @@ import { Input } from "@/components/ui/input"
 
 import type { IntegrationFormInput } from "../schemas"
 import type { IntegrationFieldName, IntegrationPartner } from "../types"
-import { getVisibleFields, integrationFieldLabel } from "../utils"
+import {
+  getVisibleFields,
+  integrationFieldHint,
+  integrationFieldLabel,
+} from "../utils"
 
 export function IntegrationFields({
   partner,
@@ -135,6 +139,10 @@ function CredentialField({
           Alguns tokens da VM Lav devolvem vendas de mais de um CNPJ. Informe
           qual deve ser importado. Se ficar vazio, usamos o CNPJ cadastrado na
           empresa.
+        </FieldDescription>
+      ) : integrationFieldHint(fieldName, partnerSlug) ? (
+        <FieldDescription>
+          {integrationFieldHint(fieldName, partnerSlug)}
         </FieldDescription>
       ) : null}
       <FieldError errors={[form.formState.errors[fieldName]]} />

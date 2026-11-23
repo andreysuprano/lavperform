@@ -411,12 +411,56 @@ describe('OnboardingService', () => {
 
   it('lists digital menu integrations and partners and plans', async () => {
     digitalMenuIntegrationRepository.findByCompanyId.mockResolvedValue({ id: 'dm' });
-    partnerRepository.findAllWithIntegrations.mockResolvedValue([{ id: 'p1' }]);
+    partnerRepository.findAllWithIntegrations.mockResolvedValue([
+      { id: 'p1' },
+      {
+        id: 'sislav',
+        partnerSlug: 'SISLAV',
+        active: true,
+        digitalMenuIntegrations: [
+          {
+            id: 'dm-sislav',
+            apiKey: 'cookie',
+            session: {
+              status: 'ACTIVE',
+              expiresAt: new Date('2026-11-24T18:00:00.000Z'),
+              lastError: null,
+              accessTokenEnc: 'nao-pode-vazar',
+            },
+          },
+        ],
+      },
+    ]);
     planRepository.findActive.mockResolvedValue([{ id: 'plan1' }]);
     businessPartnerRepository.findById.mockResolvedValue({ id: 'bp1' });
 
     expect(await service.getDigitalMenuIntegration('comp')).toEqual({ id: 'dm' });
-    expect(await service.getPartners('comp')).toEqual([{ id: 'p1' }]);
+    expect(await service.getPartners('comp')).toEqual([
+      {
+        id: 'p1',
+        requiredFields: [],
+        optionalFields: ['apiSecret', 'merchantId', 'digitalMenuUrl'],
+        digitalMenuIntegrations: [],
+      },
+      {
+        id: 'sislav',
+        partnerSlug: 'SISLAV',
+        active: true,
+        requiredFields: ['apiKey', 'merchantId', 'apiSecret'],
+        optionalFields: ['digitalMenuUrl'],
+        digitalMenuIntegrations: [
+          {
+            id: 'dm-sislav',
+            apiKey: 'cookie',
+            session: {
+              status: 'ACTIVE',
+              expiresAt: new Date('2026-11-24T18:00:00.000Z'),
+              lastError: null,
+            },
+          },
+        ],
+      },
+    ]);
     expect(await service.getPlans()).toEqual([{ id: 'plan1' }]);
     expect(await service.getBusinessPartnerById('bp1')).toEqual({ id: 'bp1' });
   });

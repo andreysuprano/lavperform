@@ -37,6 +37,15 @@ export class PartnerPrismaRepository implements IPartnerRepository {
                     where: {
                         companyId,
                     },
+                    include: {
+                        session: {
+                            select: {
+                                status: true,
+                                expiresAt: true,
+                                lastError: true,
+                            },
+                        },
+                    },
                 },
             },
         });
