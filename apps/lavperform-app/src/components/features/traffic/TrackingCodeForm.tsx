@@ -1,7 +1,11 @@
 import {
+  Badge,
+  Box,
   Button,
+  Card,
+  Code,
   Field,
-  HStack,
+  Flex,
   Stack,
   Switch,
   Text,
@@ -23,12 +27,14 @@ type TrackingRecord = {
 type Props = {
   companyId?: string
   queryKey: readonly unknown[]
+  title: string
+  idLabel: string
   codeLabel: string
+  codePlaceholder: string
   removeLabel: string
   invalidMessage: string
   savedToast: { title: string; description: string }
   removedToast: { title: string; description: string }
-  statusLine: (id: string, enabled: boolean) => string
   parse: (raw: string) => string | null
   load: (companyId: string) => Promise<TrackingRecord>
   save: (companyId: string, body: TrackingCodeBody) => Promise<TrackingRecord>
@@ -38,12 +44,14 @@ type Props = {
 function TrackingCodeForm({
   companyId,
   queryKey,
+  title,
+  idLabel,
   codeLabel,
+  codePlaceholder,
   removeLabel,
   invalidMessage,
   savedToast,
   removedToast,
-  statusLine,
   parse,
   load,
   save,
@@ -141,36 +149,100 @@ function TrackingCodeForm({
 
   if (waiting) return <LoadingState />
 
+  const savedEnabled = Boolean(query.data?.enabled)
+
   return (
-    <Stack gap={4}>
-      {savedId && (
-        <Text>
-          {statusLine(savedId, query.data?.enabled ?? enabled)}
-        </Text>
-      )}
-      <Field.Root invalid={Boolean(error)}>
-        <Field.Label>{codeLabel}</Field.Label>
-        <Textarea
-          rows={8}
-          value={code}
-          onChange={(event) => {
-            setCode(event.target.value)
-            setError(null)
-          }}
-        />
-        {error && <Field.ErrorText>{error}</Field.ErrorText>}
-      </Field.Root>
-      <Switch.Root
-        checked={enabled}
-        onCheckedChange={({ checked }) => setEnabledOverride(checked)}
-      >
-        <Switch.HiddenInput />
-        <Switch.Control>
-          <Switch.Thumb />
-        </Switch.Control>
-        <Switch.Label>Medir páginas</Switch.Label>
-      </Switch.Root>
-      <HStack>
+    <Card.Root>
+      <Card.Header>
+        <Flex
+          align="center"
+          gap={3}
+          justify="space-between"
+          wrap="wrap"
+        >
+          <Card.Title>{title}</Card.Title>
+          {savedId ? (
+            <Badge colorPalette={savedEnabled ? 'green' : 'orange'}>
+              {savedEnabled ? 'Medição ligada' : 'Medição pausada'}
+            </Badge>
+          ) : (
+            <Badge colorPalette="gray">Não conectado</Badge>
+          )}
+        </Flex>
+      </Card.Header>
+      <Card.Body>
+        <Stack gap={5}>
+          {savedId && (
+            <Flex
+              align="center"
+              bg="bg.muted"
+              borderRadius="md"
+              gap={2}
+              px={3}
+              py={2}
+              wrap="wrap"
+            >
+              <Text
+                color="fg.muted"
+                fontSize="sm"
+              >
+                {idLabel} conectado
+              </Text>
+              <Code>{savedId}</Code>
+            </Flex>
+          )}
+          <Field.Root invalid={Boolean(error)}>
+            <Field.Label>{codeLabel}</Field.Label>
+            <Textarea
+              fontFamily="mono"
+              fontSize="xs"
+              onChange={(event) => {
+                setCode(event.target.value)
+                setError(null)
+              }}
+              placeholder={codePlaceholder}
+              rows={8}
+              value={code}
+            />
+            {error ? (
+              <Field.ErrorText>{error}</Field.ErrorText>
+            ) : (
+              <Field.HelperText>
+                {savedId
+                  ? 'Cole um novo código só se quiser trocar o atual.'
+                  : 'Cole o código inteiro, do jeito que você copiou.'}
+              </Field.HelperText>
+            )}
+          </Field.Root>
+          <Box
+            borderRadius="md"
+            borderWidth="1px"
+            p={3}
+          >
+            <Switch.Root
+              checked={enabled}
+              justifyContent="space-between"
+              onCheckedChange={({ checked }) => setEnabledOverride(checked)}
+              w="full"
+            >
+              <Switch.Label fontWeight="medium">Medir páginas</Switch.Label>
+              <Switch.HiddenInput />
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Root>
+            <Text
+              color="fg.muted"
+              fontSize="sm"
+              mt={1}
+            >
+              A landing publicada e as páginas de Minhas páginas enviam os
+              eventos enquanto estiver ligado.
+            </Text>
+          </Box>
+        </Stack>
+      </Card.Body>
+      <Card.Footer>
         <Button
           loading={saving}
           onClick={handleSave}
@@ -179,6 +251,7 @@ function TrackingCodeForm({
         </Button>
         {savedId && (
           <Button
+            colorPalette="red"
             loading={removing}
             onClick={handleRemove}
             variant="outline"
@@ -186,8 +259,8 @@ function TrackingCodeForm({
             {removeLabel}
           </Button>
         )}
-      </HStack>
-    </Stack>
+      </Card.Footer>
+    </Card.Root>
   )
 }
 

@@ -1,20 +1,19 @@
-import { Text } from '@chakra-ui/react'
 import { LuChartColumn } from 'react-icons/lu'
 
-import { AppContentLayout } from '@/components'
+import { AppContentLayout, TrafficReportEmptyState } from '@/components'
+import { useAuth } from '@/context/AuthContext'
+import { isOnlyTrafficRead } from '@/utils/tracking/traffic-access'
 
 export function TrafficReportPage() {
+  const { selectedCompany } = useAuth()
+  const canConfigure = !isOnlyTrafficRead(selectedCompany?.permissions)
+
   return (
     <AppContentLayout
       icon={<LuChartColumn />}
       title="Relatório de tráfego"
     >
-      <Text
-        color="fg.muted"
-        fontSize="sm"
-      >
-        Relatório de anúncios em breve
-      </Text>
+      <TrafficReportEmptyState canConfigure={canConfigure} />
     </AppContentLayout>
   )
 }
