@@ -6,6 +6,7 @@ import {
   Toaster,
   WhatsAppDisconnectedAlert,
 } from '@/components'
+import { MetaPaymentIssueBanner } from '@/components/features/whatsapp/MetaPaymentIssueBanner/MetaPaymentIssueBanner'
 import { useColorModeValue } from '@/components/ui/color-mode'
 import { useAuth } from '@/context/AuthContext'
 import { useCompanyChange } from '@/hooks/useCompanyChange'
@@ -84,6 +85,7 @@ function AppLayoutBase({ children }: Props) {
           }
           w="full"
         >
+          <MetaPaymentIssueBanner />
           {children}
         </Box>
       </Flex>

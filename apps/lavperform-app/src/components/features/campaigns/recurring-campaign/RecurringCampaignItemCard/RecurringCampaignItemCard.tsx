@@ -315,21 +315,28 @@ function RecurringCampaignItemCard({ data, onEdit, onViewDetails }: Props) {
           justifyContent="space-between"
           w="full"
         >
-          <Badge
-            alignItems="center"
-            colorPalette={statusConfig.colorScheme}
-            display="flex"
-            fontSize="xs"
-            fontWeight="semibold"
-            gap={1}
-            px={2}
-            py={0.5}
-            rounded="full"
-            variant="subtle"
-          >
-            {statusConfig.icon}
-            {statusConfig.label}
-          </Badge>
+          <HStack flexWrap="wrap" gap={1.5}>
+            <Badge
+              alignItems="center"
+              colorPalette={statusConfig.colorScheme}
+              display="flex"
+              fontSize="xs"
+              fontWeight="semibold"
+              gap={1}
+              px={2}
+              py={0.5}
+              rounded="full"
+              variant="subtle"
+            >
+              {statusConfig.icon}
+              {statusConfig.label}
+            </Badge>
+            {data.metaCategoryHoldAt ? (
+              <Badge colorPalette="orange" variant="subtle">
+                Meta mudou para marketing
+              </Badge>
+            ) : null}
+          </HStack>
 
           <HStack gap={1.5}>
             <HStack gap={1.5}>

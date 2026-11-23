@@ -1,9 +1,12 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsBoolean, IsOptional, IsString, IsUUID } from 'class-validator';
+import { IsBoolean, IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class CreateAdminIntegrationDto {
-  @ApiProperty({ description: 'ID do parceiro integrador' })
-  @IsUUID()
+  @ApiProperty({
+    description: 'ID do parceiro integrador (UUID ou id legado do catálogo)',
+  })
+  @IsString()
+  @IsNotEmpty()
   partnerId: string;
 
   @ApiProperty({ required: false })

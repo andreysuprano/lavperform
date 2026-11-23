@@ -7,6 +7,7 @@ import { ImportHistoryModule } from '../../integrations/import-history.module';
 import { L2AutomateModule } from '../../integrations/l2automate/l2automate.module';
 import { MaxlavModule } from '../../integrations/maxlav/maxlav.module';
 import { AgidezModule } from '../../integrations/agidez/agidez.module';
+import { HybexEssenceModule } from '../../integrations/hybex-essence/hybex-essence.module';
 import { VmLavModule } from '../../integrations/vmlav/vmlav.module';
 import { PartnersModule } from '../../partners/partners.module';
 import { SessionRefreshModule } from '../../integrations/session-refresh/session-refresh.module';
@@ -27,6 +28,7 @@ import { AdminIntegrationsService } from './admin-integrations.service';
     L2AutomateModule,
     MaxlavModule,
     AgidezModule,
+    HybexEssenceModule,
   ],
   controllers: [AdminIntegrationsController, AdminCompanyIntegrationsController],
   providers: [AdminIntegrationsService],

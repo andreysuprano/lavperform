@@ -40,6 +40,7 @@ import { MaxlavModule } from './integrations/maxlav/maxlav.module';
 import { SessionRefreshModule } from './integrations/session-refresh/session-refresh.module';
 import { PartnerFeedModule } from './integrations/partner-feed/partner-feed.module';
 import { AgidezModule } from './integrations/agidez/agidez.module';
+import { HybexEssenceModule } from './integrations/hybex-essence/hybex-essence.module';
 import { RfvEngineModule } from './rfv-engine/rfv-engine.module';
 import { ConversionWindowModule } from './conversion-window/conversion-window.module';
 import { SaleAttributionModule } from './sale-attribution/sale-attribution.module';
@@ -108,6 +109,7 @@ import { SocialPublishingModule } from './social-publishing/social-publishing.mo
     SessionRefreshModule,
     PartnerFeedModule,
     AgidezModule,
+    HybexEssenceModule,
     RfvEngineModule,
     ConversionWindowModule,
     SaleAttributionModule,

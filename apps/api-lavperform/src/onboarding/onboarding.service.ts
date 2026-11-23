@@ -148,10 +148,9 @@ export class OnboardingService {
           },
         } as any);
 
-        // Cria estrutura default de links
+        // Cria estrutura default de links (sem capa padrão — o usuário envia na Minha Página)
         linkPage = await this.linkPageRepository.create({
           companyId: createdCompany.id,
-          coverImage: "https://firebasestorage.googleapis.com/v0/b/overfood-foodcrm.firebasestorage.app/o/institucional%2Frestaurant.jpg?alt=media&token=664b1f50-e6df-494a-99c1-7472e31fe094",
         });
 
         // Vincula o Admin ao company (se ADMIN_USER_ID estiver configurado)

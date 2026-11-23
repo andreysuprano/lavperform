@@ -50,6 +50,7 @@ export class AutomaticCampaign {
     sendTimeEnd?: string | null;
     metaMessageTemplateId?: string | null;
     metaTemplateVariableMappings?: unknown;
+    metaCategoryHoldAt?: Date | null;
     gifts?: any[];
     creatives?: AutomaticCampaignCreative[];
     campaignMetric?: any[];

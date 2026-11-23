@@ -38,8 +38,47 @@ describe('fillWhatsappPrompt', () => {
 
   it('no convencional remove o bloco de autoatendimento', () => {
     const document = fillWhatsappPrompt(template, 'CONVENTIONAL', answersFor('CONVENTIONAL'));
+    const voice = [document.systemPrompt, document.behaviorGuidelines, document.guardrails].join('\n');
     expect(document.contextPrompt).toContain('busca e entrega');
     expect(document.contextPrompt).not.toContain('passo a passo');
+    expect(voice).not.toContain('passo a passo');
+    expect(voice).not.toContain('totem');
+    expect(voice).toContain('Não use a palavra ciclo.');
+    expect(voice.replaceAll('Não use a palavra ciclo.', '')).not.toMatch(/ciclo/i);
+    expect(voice).toContain('peça');
+    expect(voice).toContain('pacote');
+    expect(voice).not.toContain('{{#');
+  });
+
+  it('no autoatendimento fala de ciclo e totem e tira o bloco convencional', () => {
+    const document = fillWhatsappPrompt(template, 'SELF_SERVICE', answersFor('SELF_SERVICE'));
+    const voice = [document.systemPrompt, document.behaviorGuidelines, document.guardrails].join('\n');
+    expect(voice).toMatch(/ciclo/i);
+    expect(voice).toContain('totem');
+    expect(voice).toContain('passo a passo');
+    expect(voice).not.toContain('busca e entrega');
+    expect(voice).not.toContain('{{#');
+    expect(document.contextPrompt).not.toContain('busca e entrega');
+  });
+
+  it('remove todos os blocos do outro tipo, não só o primeiro', () => {
+    const twoBlocks = [
+      '# contextPrompt',
+      '{{facts}}',
+      '{{#SELF_SERVICE}}passo a passo{{/SELF_SERVICE}}',
+      '{{#CONVENTIONAL}}busca e entrega{{/CONVENTIONAL}}',
+      '# systemPrompt',
+      '{{#SELF_SERVICE}}totem ciclo{{/SELF_SERVICE}}',
+      '{{#CONVENTIONAL}}peça pacote. Não use a palavra ciclo.{{/CONVENTIONAL}}',
+      '# behaviorGuidelines',
+      'ok',
+      '# guardrails',
+      'ok',
+    ].join('\n');
+    const document = fillWhatsappPrompt(twoBlocks, 'CONVENTIONAL', answersFor('CONVENTIONAL'));
+    expect(document.systemPrompt).not.toContain('totem');
+    expect(document.contextPrompt).not.toContain('passo a passo');
+    expect(document.systemPrompt).toContain('peça');
   });
 
   it('falha sem criar texto quando falta título, facts ou bloco de tipo', () => {

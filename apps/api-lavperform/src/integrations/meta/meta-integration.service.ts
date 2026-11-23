@@ -15,6 +15,7 @@ import {
 } from './dto/meta-integration-response.dto';
 import { MetaGraphClient, MetaPhoneNumberInfo } from './api/meta-graph.client';
 import { MetaIntegration, MetaIntegrationStatus } from '@prisma/client';
+import { MetaPaymentIssueService } from './application/meta-payment-issue.service';
 
 @Injectable()
 export class MetaIntegrationService {
@@ -226,7 +227,7 @@ export class MetaIntegrationService {
   private async performPhoneRegistration(integration: MetaIntegration): Promise<void> {
     if (!integration.phoneNumberId) return;
 
-    const pin = this.computePinFromPhoneNumber(integration.phoneNumber);
+    const pin = this.resolveRegistrationPin(integration.phoneNumber);
 
     try {
       const success = await this.metaGraphClient.registerPhoneNumber(
@@ -276,9 +277,17 @@ export class MetaIntegrationService {
   }
 
   /**
-   * PIN do Cloud API tem exatamente 6 dígitos. Usamos os últimos 6 dígitos do
-   * número da empresa como PIN — convenção definida pelo time.
+   * PIN do Cloud API tem exatamente 6 dígitos. Com META_TWO_STEP_VERIFICATION_PIN
+   * preenchido, esse valor é o PIN. Sem ele, usamos os últimos 6 dígitos do número.
    */
+  private resolveRegistrationPin(phoneNumber: string): string {
+    const configured = process.env.META_TWO_STEP_VERIFICATION_PIN?.trim();
+    if (configured && /^\d{6}$/.test(configured)) {
+      return configured;
+    }
+    return this.computePinFromPhoneNumber(phoneNumber);
+  }
+
   private computePinFromPhoneNumber(phoneNumber: string): string {
     const digits = phoneNumber.replace(/\D/g, '');
     if (digits.length < 6) {
@@ -396,6 +405,9 @@ export class MetaIntegrationService {
       phoneNumberRegistered,
       displayName: integration?.displayName ?? null,
       phoneNumber: integration?.phoneNumber ?? null,
+      metaPaymentIssue: integration
+        ? MetaPaymentIssueService.toIssue(integration)
+        : null,
     };
   }
 

@@ -45,6 +45,20 @@ export class MetaTemplateResponseDto {
     required: false,
     nullable: true,
     description:
+      'Mapeamento índice→chave das variáveis nomeadas. A linha no banco permanece posicional.',
+  })
+  variableBindings: unknown | null;
+
+  @ApiProperty({
+    description:
+      'Indica se os nomes puderam ser reidratados nos components desta resposta.',
+  })
+  variableBindingsApplicable: boolean;
+
+  @ApiProperty({
+    required: false,
+    nullable: true,
+    description:
       'URL pública da mídia usada no header (IMAGE/VIDEO/DOCUMENT), para exibição de prévia no app.',
   })
   headerMediaUrl: string | null;

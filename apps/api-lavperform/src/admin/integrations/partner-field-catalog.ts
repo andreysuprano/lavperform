@@ -70,6 +70,12 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },
+  HYBEX_ESSENCE: {
+    requiredFields: ['apiKey', 'merchantId', 'password'],
+    optionalFields: [],
+    supportsImportHistory: true,
+    importHistoryRoute: 'dedicated',
+  },
   CONSUMER: {
     requiredFields: [],
     optionalFields: [],
@@ -89,6 +95,7 @@ export const DEDICATED_IMPORT_SLUGS = new Set([
   'MAXLAV',
   'HYBEX',
   'AGIDEZ',
+  'HYBEX_ESSENCE',
 ]);
 
 export function getPartnerFieldSchema(partnerSlug?: string): PartnerFieldSchema {

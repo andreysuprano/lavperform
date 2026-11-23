@@ -135,6 +135,8 @@ export interface RecurringCampaign {
   channel?: AutomaticCampaignApiChannel
   metaMessageTemplateId?: string | null
   metaTemplateVariableMappings?: MetaTemplateVariableMapping[]
+  /** Preenchido quando a Meta reclassifica o template de utility para marketing. */
+  metaCategoryHoldAt?: string | null
   /** Status operacional da campanha retornado pela API. */
   status?: RecurringCampaignStatus
   sendMode?: AutomaticCampaignSendMode

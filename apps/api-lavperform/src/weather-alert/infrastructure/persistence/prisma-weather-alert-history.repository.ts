@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { endOfDayInTz, nowUTC, startOfDayInTz } from 'src/common/utils/date.utils';
 import { PrismaService } from 'src/prisma/prisma.service';
 import { IWeatherAlertHistoryRepository } from '../../domain/weather-alert-history.repository.interface';
 import { WeatherAlertHistory } from '../../domain/weather-alert-history.entity';
@@ -36,11 +37,9 @@ export class WeatherAlertHistoryPrismaRepository implements IWeatherAlertHistory
     }
 
     async findTodayByCompanyId(companyId: string): Promise<WeatherAlertHistory | null> {
-        const startOfToday = new Date();
-        startOfToday.setHours(0, 0, 0, 0);
-
-        const endOfToday = new Date();
-        endOfToday.setHours(23, 59, 59, 999);
+        const now = nowUTC();
+        const startOfToday = startOfDayInTz(now);
+        const endOfToday = endOfDayInTz(now);
 
         const history = await this.prisma.weatherAlertHistory.findFirst({
             where: {

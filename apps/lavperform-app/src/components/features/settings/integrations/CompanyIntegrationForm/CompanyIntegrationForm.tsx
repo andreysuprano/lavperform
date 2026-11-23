@@ -73,8 +73,12 @@ function CompanyIntegrationForm({
   })
 
   const isHybex = name.trim().toLowerCase() === 'hybex'
-  const asksAccountCode = isHybex || requiredFields.includes('apiSecret')
-  const asksApiPassword = isHybex || requiredFields.includes('password')
+  const isHybexEssence =
+    partnerSlug?.trim().toUpperCase() === 'HYBEX_ESSENCE'
+  const asksAccountCode =
+    (isHybex && !isHybexEssence) || requiredFields.includes('apiSecret')
+  const asksApiPassword =
+    isHybex || isHybexEssence || requiredFields.includes('password')
 
   const onSubmit = async (data: FormData) => {
     if (!selectedCompany) return
@@ -219,14 +223,18 @@ function CompanyIntegrationForm({
                 ? 'E-mail'
                 : isVmLav
                   ? 'CNPJ'
-                  : 'Código da loja'
+                  : isHybexEssence
+                    ? 'Código da loja (GUID)'
+                    : 'Código da loja'
             }
             placeholder={
               usesEmailPassword
                 ? 'nome@empresa.com.br'
                 : isVmLav
                   ? '00.000.000/0000-00'
-                  : 'Código da loja'
+                  : isHybexEssence
+                    ? 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+                    : 'Código da loja'
             }
             required={!isVmLav}
             {...register('codigoLoja')}
@@ -244,8 +252,20 @@ function CompanyIntegrationForm({
         </Stack>
         <Input
           control={control}
-          label={usesEmailPassword ? 'Senha' : 'Token / Apikey'}
-          placeholder={usesEmailPassword ? 'Senha' : 'Token / Apikey'}
+          label={
+            usesEmailPassword
+              ? 'Senha'
+              : isHybexEssence
+                ? 'Chave de integração'
+                : 'Token / Apikey'
+          }
+          placeholder={
+            usesEmailPassword
+              ? 'Senha'
+              : isHybexEssence
+                ? 'Chave de integração'
+                : 'Token / Apikey'
+          }
           type={usesEmailPassword ? 'password' : 'text'}
           required
           {...register('token')}

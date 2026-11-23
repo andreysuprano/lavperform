@@ -174,6 +174,9 @@ describe('OnboardingService', () => {
     const result = await service.create(onboardingDto);
     expect(result.company.id).toBe('comp1');
     expect(result.user.id).toBe('u1');
+    expect(linkPageRepository.create).toHaveBeenCalledWith({
+      companyId: 'comp1',
+    });
     expect(asaasService.createCustomer).toHaveBeenCalled();
     expect(companySubscriptionRepository.create).toHaveBeenCalled();
   });

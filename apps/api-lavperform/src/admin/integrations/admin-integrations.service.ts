@@ -16,6 +16,7 @@ import { WaymoneySalesService } from '../../integrations/waymoney/application/wa
 import { L2AutomateSalesService } from '../../integrations/l2automate/application/l2automate-sales.service';
 import { MaxlavSalesService } from '../../integrations/maxlav/application/maxlav-sales.service';
 import { AgidezSalesService } from '../../integrations/agidez/application/agidez-sales.service';
+import { HybexEssenceSalesService } from '../../integrations/hybex-essence/application/essence-sales.service';
 import { VmLavSalesService } from '../../integrations/vmlav/application/vmlav-sales.service';
 import { DigitalMenuIntegration } from '../../partners/domain/digital-menu-integration.entity';
 import { IDigitalMenuIntegrationRepository } from '../../partners/domain/digital-menu-integration.repository.interface';
@@ -62,6 +63,7 @@ export class AdminIntegrationsService {
     private readonly l2AutomateSalesService: L2AutomateSalesService,
     private readonly maxlavSalesService: MaxlavSalesService,
     private readonly agidezSalesService: AgidezSalesService,
+    private readonly hybexEssenceSalesService: HybexEssenceSalesService,
     @Optional() private readonly integrationSessions?: IntegrationSessionService,
   ) {}
 
@@ -397,6 +399,13 @@ export class AdminIntegrationsService {
       }
       if (partnerSlug === 'HYBEX' || partnerSlug === 'AGIDEZ') {
         return this.agidezSalesService.importHistoricalSales(
+          companyId,
+          dto,
+          integration,
+        );
+      }
+      if (partnerSlug === 'HYBEX_ESSENCE') {
+        return this.hybexEssenceSalesService.importHistoricalSales(
           companyId,
           dto,
           integration,
