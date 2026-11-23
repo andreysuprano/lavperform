@@ -151,6 +151,27 @@ describe('sidebar no formato do Figma', () => {
     ).toHaveAttribute('href', '/customers/CustomerBase')
   })
 
+  it('abre os subitens do grupo na página raiz, que não casa com nenhum subitem', () => {
+    renderSidebar('/customers')
+    expect(
+      screen.getByRole('link', { name: 'Base de clientes' })
+    ).toHaveAttribute('href', '/customers/CustomerBase')
+    cleanup()
+
+    renderSidebar('/settings')
+    expect(screen.getByRole('link', { name: 'Carteira' })).toHaveAttribute(
+      'href',
+      '/settings/wallet'
+    )
+    cleanup()
+
+    renderSidebar('/trafego')
+    expect(screen.getByRole('link', { name: /Pixel/ })).toHaveAttribute(
+      'href',
+      '/trafego/pixel'
+    )
+  })
+
   it('troca as cores do sidebar entre claro e escuro', async () => {
     render(
       <Provider
