@@ -15,6 +15,7 @@ import { WindelSalesService } from '../../integrations/windel/application/windel
 import { WaymoneySalesService } from '../../integrations/waymoney/application/waymoney-sales.service';
 import { L2AutomateSalesService } from '../../integrations/l2automate/application/l2automate-sales.service';
 import { MaxlavSalesService } from '../../integrations/maxlav/application/maxlav-sales.service';
+import { PartnerFeedService } from '../../integrations/partner-feed/partner-feed.service';
 import { AgidezSalesService } from '../../integrations/agidez/application/agidez-sales.service';
 import { HybexEssenceSalesService } from '../../integrations/hybex-essence/application/essence-sales.service';
 import { VmLavSalesService } from '../../integrations/vmlav/application/vmlav-sales.service';
@@ -65,6 +66,7 @@ export class AdminIntegrationsService {
     private readonly agidezSalesService: AgidezSalesService,
     private readonly hybexEssenceSalesService: HybexEssenceSalesService,
     @Optional() private readonly integrationSessions?: IntegrationSessionService,
+    @Optional() private readonly partnerFeed?: PartnerFeedService,
   ) {}
 
   async listPartners() {
@@ -396,6 +398,14 @@ export class AdminIntegrationsService {
           dto,
           integration,
         );
+      }
+      if (partnerSlug === 'LAUNDRYKIT') {
+        if (!this.partnerFeed) {
+          throw new NotFoundException(
+            'Importação da Laundry Kit indisponível neste processo',
+          );
+        }
+        return this.partnerFeed.importHistorical(companyId, dto);
       }
       if (partnerSlug === 'HYBEX' || partnerSlug === 'AGIDEZ') {
         return this.agidezSalesService.importHistoricalSales(

@@ -1,7 +1,25 @@
-import { Injectable, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
+import { InjectQueue } from '@nestjs/bull';
+import { Queue } from 'bull';
 import { PrismaService } from '../../prisma/prisma.service';
 import { OrderIngestionService } from '../../public-api/orders/application/order-ingestion.service';
 import { IngestOrderDto } from '../../public-api/orders/application/dto/ingest-order.dto';
+import { ImportOrderHistoryDto } from '../../companies/application/dto/import-order-history.dto';
+import { QUEUE_NAMES } from '../../common/queue/queue.constants';
+import {
+  buildUtcDateOnlyRange,
+  formatImportDateRangeResult,
+  resolveImportDateRange,
+} from '../import-date-range.util';
+import {
+  buildSalesImportJobOptions,
+  enqueueSalesImportJob,
+} from '../sales-import/sales-import-queue';
 import { IntegrationSessionService } from '../session-refresh/integration-session.service';
 import { SessionRefreshError } from '../session-refresh/session-refresh.error';
 import { PartnerSalesClient } from './partner-sales.client';
@@ -31,7 +49,79 @@ export class PartnerFeedService {
     private readonly sessions: IntegrationSessionService,
     private readonly sales: PartnerSalesClient,
     private readonly ingestion: OrderIngestionService,
+    @InjectQueue(QUEUE_NAMES.LAUNDRYKIT_SALES_IMPORT)
+    private readonly laundryKitQueue: Queue,
   ) {}
+
+  async importHistorical(companyId: string, dto: ImportOrderHistoryDto = {}) {
+    const integration = await this.findLaundryKit(companyId);
+    if (!integration) {
+      throw new NotFoundException(
+        `Integração Laundry Kit não encontrada para a empresa ${companyId}`,
+      );
+    }
+    if (!integration.merchantId?.trim()) {
+      throw new BadRequestException(
+        'Informe o ID da loja da Laundry Kit antes de importar o histórico.',
+      );
+    }
+
+    const token = await this.sessions.currentAccessToken(
+      integration.id,
+      integration.apiKey,
+    );
+    if (!token) {
+      throw new BadRequestException(
+        'A sessão da Laundry Kit expirou. Cole um token válido.',
+      );
+    }
+
+    const { startDate, endDate } = resolveImportDateRange(dto);
+    const dates = buildUtcDateOnlyRange(startDate, endDate);
+    let jobsCreated = 0;
+
+    for (const date of dates) {
+      const result = await enqueueSalesImportJob(
+        this.laundryKitQueue,
+        QUEUE_NAMES.LAUNDRYKIT_SALES_IMPORT,
+        { companyId, date },
+        buildSalesImportJobOptions(`laundrykit-import:${companyId}:${date}`),
+      );
+      if (result === 'queued') jobsCreated++;
+    }
+
+    this.logger.log(
+      `Importação histórica Laundry Kit iniciada: ${jobsCreated} dias para a empresa ${companyId}`,
+    );
+
+    return formatImportDateRangeResult(
+      startDate,
+      endDate,
+      dates,
+      jobsCreated,
+      'Importação histórica da Laundry Kit iniciada com sucesso',
+    );
+  }
+
+  async importDay(companyId: string, date: string): Promise<void> {
+    const integration = await this.findLaundryKit(companyId);
+    if (!integration) {
+      this.logger.warn(
+        `Integração Laundry Kit ausente para a empresa ${companyId}`,
+      );
+      return;
+    }
+    await this.feedOne(integration, date, { failOnTransient: true });
+  }
+
+  private findLaundryKit(companyId: string) {
+    return this.prisma.digitalMenuIntegration.findFirst({
+      where: { companyId, partner: { partnerSlug: 'LAUNDRYKIT' } },
+      include: {
+        partner: { select: { id: true, partnerSlug: true, name: true } },
+      },
+    });
+  }
 
   async feedDue(now = new Date()): Promise<void> {
     const dates = [brtDate(now), brtDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))];
@@ -53,7 +143,11 @@ export class PartnerFeedService {
     }
   }
 
-  private async feedOne(integration: FeedIntegration, date: string): Promise<void> {
+  private async feedOne(
+    integration: FeedIntegration,
+    date: string,
+    options?: { failOnTransient?: boolean },
+  ): Promise<void> {
     const partnerSlug = integration.partner?.partnerSlug;
     if (!partnerSlug) return;
 
@@ -81,7 +175,9 @@ export class PartnerFeedService {
     } catch (error) {
       if (error instanceof SessionRefreshError && error.kind === 'rejected') {
         await this.sessions.markReauth(integration.id, error.message);
+        return;
       }
+      if (options?.failOnTransient) throw error;
       this.logger.warn(
         `Falha ao consultar ${partnerSlug} em ${date} para a empresa ${integration.companyId}: ${
           error instanceof Error ? error.message : String(error)

@@ -11,6 +11,7 @@ import { HybexEssenceModule } from '../../integrations/hybex-essence/hybex-essen
 import { VmLavModule } from '../../integrations/vmlav/vmlav.module';
 import { PartnersModule } from '../../partners/partners.module';
 import { SessionRefreshModule } from '../../integrations/session-refresh/session-refresh.module';
+import { PartnerFeedModule } from '../../integrations/partner-feed/partner-feed.module';
 import { AdminCompanyIntegrationsController } from './admin-company-integrations.controller';
 import { AdminIntegrationsController } from './admin-integrations.controller';
 import { AdminIntegrationsService } from './admin-integrations.service';
@@ -20,6 +21,7 @@ import { AdminIntegrationsService } from './admin-integrations.service';
     PrismaModule,
     PartnersModule,
     SessionRefreshModule,
+    PartnerFeedModule,
     ImportHistoryModule,
     VmLavModule,
     CiccloModule,

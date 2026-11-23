@@ -12,6 +12,11 @@ export interface FieldCopy {
 
 const SESSION_SLUGS = new Set(['MAXLAV', 'LAUNDRYKIT', 'SISLAV'])
 
+export function supportsHistoryImport(partnerSlug?: string): boolean {
+  const slug = partnerSlug?.trim().toUpperCase()
+  return slug === 'MAXLAV' || slug === 'LAUNDRYKIT'
+}
+
 export function isSessionPartner(partnerSlug?: string): boolean {
   return SESSION_SLUGS.has(partnerSlug?.trim().toUpperCase() ?? '')
 }
@@ -22,7 +27,7 @@ export function sessionSetupHint(partnerSlug?: string): string | null {
     return 'Cole o cookie authjs.session-token ainda válido. A sessão é renovada sozinha enquanto esse cookie responder.'
   }
   if (slug === 'LAUNDRYKIT') {
-    return 'Cole o JWT ainda válido do dashboard e o ID da loja. O token vale até o vencimento.'
+    return 'Cole o JWT ainda válido do dashboard e o ID da loja. O token dura cerca de 10 horas e precisa ser colado de novo depois disso.'
   }
   if (slug === 'MAXLAV') {
     return 'Cole o token Bearer ainda válido do dashboard. Ele vale até o vencimento.'
@@ -69,7 +74,7 @@ export function fieldCopy(
     return {
       label: 'Token de acesso',
       placeholder: 'JWT do dashboard',
-      hint: 'Cole um JWT ainda válido. Ele não gera outro token sozinho.',
+      hint: 'Cole um JWT ainda válido. Ele dura cerca de 10 horas e não gera outro token sozinho.',
     }
   }
   if (slug === 'LAUNDRYKIT' && field === 'merchantId') {
