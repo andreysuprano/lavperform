@@ -27,6 +27,7 @@ export const QUEUE_NAMES = {
   SAIPOS_SALES_WINDOW_IMPORT: 'saipos-sales-window-import',
   SAIPOS_SALE_PROCESS: 'saipos-sale-process',
   MAXLAV_SALES_IMPORT: 'maxlav-sales-import',
+  LAUNDRYKIT_SALES_IMPORT: 'laundrykit-sales-import',
   MAXLAV_SALE_PROCESS: 'maxlav-sale-process',
   AGIDEZ_SALES_IMPORT: 'agidez-sales-import',
   AGIDEZ_SALE_PROCESS: 'agidez-sale-process',

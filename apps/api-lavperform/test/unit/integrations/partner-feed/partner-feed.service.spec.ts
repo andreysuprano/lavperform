@@ -8,6 +8,7 @@ describe('PartnerFeedService', () => {
     const prisma = {
       digitalMenuIntegration: {
         findMany: jest.fn(),
+        findFirst: jest.fn(),
       },
     };
     const sessions = {
@@ -16,13 +17,18 @@ describe('PartnerFeedService', () => {
     };
     const sales = { salesOfDay: jest.fn() };
     const ingestion = { enqueue: jest.fn() };
+    const queue = {
+      add: jest.fn().mockResolvedValue({}),
+      getJob: jest.fn().mockResolvedValue(null),
+    };
     const service = new PartnerFeedService(
       prisma as never,
       sessions as never,
       sales as never,
       ingestion as never,
+      queue as never,
     );
-    return { prisma, sessions, sales, ingestion, service };
+    return { prisma, sessions, sales, ingestion, queue, service };
   }
 
   const integration = {
@@ -97,5 +103,47 @@ describe('PartnerFeedService', () => {
       'integration-1',
       'token recusado',
     );
+  });
+
+  it('enfileira um dia de histórico da Laundry Kit', async () => {
+    const { prisma, sessions, queue, service } = harness();
+    prisma.digitalMenuIntegration.findFirst.mockResolvedValue({
+      ...integration,
+      partner: { id: 'partner-2', partnerSlug: 'LAUNDRYKIT', name: 'Laundry Kit' },
+    });
+    sessions.currentAccessToken.mockResolvedValue('token-atual');
+
+    const result = await service.importHistorical('company-1', {
+      startDate: '2026-11-22',
+      endDate: '2026-11-23',
+    });
+
+    expect(result.totalDays).toBe(2);
+    expect(result.jobsCreated).toBe(2);
+    expect(queue.add).toHaveBeenCalledTimes(2);
+    expect(queue.add).toHaveBeenCalledWith(
+      'laundrykit-sales-import',
+      { companyId: 'company-1', date: '2026-11-22' },
+      expect.objectContaining({
+        jobId: 'laundrykit-import:company-1:2026-11-22',
+      }),
+    );
+  });
+
+  it('repete a consulta do dia quando o motor falha de forma transitória', async () => {
+    const { prisma, sessions, sales, service } = harness();
+    prisma.digitalMenuIntegration.findFirst.mockResolvedValue({
+      ...integration,
+      partner: { id: 'partner-2', partnerSlug: 'LAUNDRYKIT', name: 'Laundry Kit' },
+    });
+    sessions.currentAccessToken.mockResolvedValue('token-atual');
+    sales.salesOfDay.mockRejectedValue(
+      new SessionRefreshError('motor indisponível', 'transient'),
+    );
+
+    await expect(service.importDay('company-1', '2026-11-23')).rejects.toThrow(
+      'motor indisponível',
+    );
+    expect(sessions.markReauth).not.toHaveBeenCalled();
   });
 });

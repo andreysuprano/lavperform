@@ -29,7 +29,7 @@ const FIELD_HINTS: Partial<
   LAUNDRYKIT: {
     apiKey: {
       label: "Token de acesso",
-      hint: "Cole o JWT ainda válido do dashboard Laundry Kit.",
+      hint: "Cole o JWT ainda válido do dashboard. Ele dura cerca de 10 horas e precisa ser colado de novo depois disso.",
     },
     merchantId: {
       label: "ID da loja",
@@ -121,7 +121,7 @@ export function sessionSetupHint(partnerSlug?: string | null): string | null {
     return "Cole o cookie authjs.session-token ainda válido. A sessão é renovada sozinha enquanto esse cookie responder."
   }
   if (slug === "LAUNDRYKIT") {
-    return "Cole o JWT ainda válido do dashboard e o ID da loja. O token vale até o vencimento."
+    return "Cole o JWT ainda válido do dashboard e o ID da loja. O token dura cerca de 10 horas e precisa ser colado de novo depois disso."
   }
   if (slug === "MAXLAV") {
     return "Cole o token Bearer ainda válido do dashboard. Ele vale até o vencimento."
@@ -136,6 +136,7 @@ const SUPPORTS_IMPORT_HISTORY_SLUGS = new Set([
   "WAYMONEY",
   "L2AUTOMATE",
   "MAXLAV",
+  "LAUNDRYKIT",
   "HYBEX",
   "AGIDEZ",
   "HYBEX_ESSENCE",

@@ -28,8 +28,18 @@ import { integrationService } from '@/services'
 import { logger } from '@/utils/logger'
 
 import { Props } from './CompanyIntegrationForm.types'
-import { fieldCopy, sessionSetupHint } from './partner-fields'
+import {
+  fieldCopy,
+  sessionSetupHint,
+  supportsHistoryImport,
+} from './partner-fields'
 import { buildSchema, FormData } from './schema'
+
+function dateOnly(daysAgo: number) {
+  const date = new Date()
+  date.setUTCDate(date.getUTCDate() - daysAgo)
+  return date.toISOString().slice(0, 10)
+}
 
 function formatSessionDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR', {
@@ -93,6 +103,44 @@ function CompanyIntegrationForm({
     'digitalMenuUrl',
   )
   const setupHint = sessionSetupHint(partnerSlug)
+  const canImportHistory = supportsHistoryImport(partnerSlug)
+  const [historyStart, setHistoryStart] = useState(() => dateOnly(90))
+  const [historyEnd, setHistoryEnd] = useState(() => dateOnly(0))
+  const [importingHistory, setImportingHistory] = useState(false)
+
+  const importHistory = async () => {
+    if (!selectedCompany || (slug !== 'MAXLAV' && slug !== 'LAUNDRYKIT')) return
+
+    setImportingHistory(true)
+    try {
+      const response = await integrationService.importHistory({
+        companyId: selectedCompany.id,
+        partnerSlug: slug,
+        startDate: historyStart,
+        endDate: historyEnd,
+      })
+      const jobsCreated = response.data?.jobsCreated
+      toaster.create({
+        title: 'Importação iniciada',
+        description:
+          typeof jobsCreated === 'number'
+            ? `${jobsCreated} dias entraram na fila.`
+            : 'O histórico entrou na fila.',
+        type: 'success',
+      })
+    } catch (error) {
+      toaster.create({
+        title: 'Erro!',
+        description:
+          error instanceof Error
+            ? error.message
+            : 'Não foi possível iniciar a importação do histórico.',
+        type: 'error',
+      })
+    } finally {
+      setImportingHistory(false)
+    }
+  }
 
   const {
     register,
@@ -210,6 +258,7 @@ function CompanyIntegrationForm({
         </Card.Root>
       }
     >
+      <>
       <Stack
         as="form"
         gap={6}
@@ -353,6 +402,66 @@ function CompanyIntegrationForm({
           </Stack>
         )}
       </Stack>
+      {canImportHistory && (
+        <Stack
+          gap={3}
+          pt={2}
+        >
+          <Text fontWeight="medium">Importar histórico</Text>
+          <Text
+            color="fg.muted"
+            fontSize="sm"
+          >
+            {token
+              ? 'Puxa as vendas do período, um dia por vez, com o token já salvo.'
+              : 'Salve o token antes de importar o histórico.'}
+          </Text>
+          <Stack
+            direction="row"
+            gap={3}
+          >
+            <Stack
+              flex={1}
+              gap={1}
+            >
+              <Text fontSize="sm">De</Text>
+              <ChakraInput
+                disabled={!token || session?.status === 'NEEDS_REAUTH'}
+                onChange={(event) => setHistoryStart(event.target.value)}
+                type="date"
+                value={historyStart}
+              />
+            </Stack>
+            <Stack
+              flex={1}
+              gap={1}
+            >
+              <Text fontSize="sm">Até</Text>
+              <ChakraInput
+                disabled={!token || session?.status === 'NEEDS_REAUTH'}
+                onChange={(event) => setHistoryEnd(event.target.value)}
+                type="date"
+                value={historyEnd}
+              />
+            </Stack>
+          </Stack>
+          <Button
+            disabled={
+              !token ||
+              session?.status === 'NEEDS_REAUTH' ||
+              !historyStart ||
+              !historyEnd ||
+              historyStart > historyEnd
+            }
+            loading={importingHistory}
+            onClick={importHistory}
+            type="button"
+          >
+            Importar histórico
+          </Button>
+        </Stack>
+      )}
+      </>
     </CustomDrawer>
   )
 }

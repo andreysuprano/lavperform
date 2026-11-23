@@ -49,8 +49,8 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
   LAUNDRYKIT: {
     requiredFields: ['apiKey', 'merchantId'],
     optionalFields: ['digitalMenuUrl'],
-    supportsImportHistory: false,
-    importHistoryRoute: 'none',
+    supportsImportHistory: true,
+    importHistoryRoute: 'dedicated',
   },
   SISLAV: {
     requiredFields: ['apiKey', 'merchantId', 'apiSecret'],
@@ -93,6 +93,7 @@ export const DEDICATED_IMPORT_SLUGS = new Set([
   'WAYMONEY',
   'L2AUTOMATE',
   'MAXLAV',
+  'LAUNDRYKIT',
   'HYBEX',
   'AGIDEZ',
   'HYBEX_ESSENCE',
