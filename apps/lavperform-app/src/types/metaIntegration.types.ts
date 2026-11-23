@@ -9,6 +9,11 @@ export type MetaIntegrationAvailability = {
   phoneNumberRegistered: boolean
   displayName: string | null
   phoneNumber: string | null
+  metaPaymentIssue?: {
+    detectedAt: string
+    code: number
+    message: string | null
+  } | null
 }
 
 export type MetaIntegrationConnectPayload = {

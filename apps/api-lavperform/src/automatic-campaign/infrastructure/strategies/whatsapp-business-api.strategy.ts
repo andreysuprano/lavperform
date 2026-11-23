@@ -7,17 +7,24 @@ import { generateUniqueToken } from '../../../common/utils/generateUniqueToken';
 import { getScheduleDateForSendWindow } from '../../application/campaign-send-schedule.utils';
 import { nowUTC, startOfDayInTz, endOfDayInTz } from '../../../common/utils/date.utils';
 import {
-    buildBodyParametersFromMappings,
-    countTemplateVariables,
+    buildParametersForIndexes,
     extractComponentText,
+    hasNamedTemplateVariables,
     normalizeMetaTemplateVariableMappings,
     type TemplateVariableContext,
 } from '../../../integrations/meta/application/meta-template-variables.utils';
+import { metaParameterIndexes } from '../../../integrations/meta/application/template-variable-bindings';
+import { MetaTemplateNotReadyError } from './meta-template-not-ready.error';
 import { createAutomaticCampaignMessageIfAbsentToday } from './campaign-message-create.utils';
 import {
     GenerateMessagesContext,
     ICampaignChannelStrategy,
 } from './campaign-channel.strategy.interface';
+
+const RESYNCABLE_TEMPLATE_STATUSES: MetaTemplateStatus[] = [
+    MetaTemplateStatus.PENDING,
+    MetaTemplateStatus.IN_APPEAL,
+];
 
 @Injectable()
 export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
@@ -44,20 +51,39 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
             where: {
                 id: campaign.metaMessageTemplateId!,
                 companyId: campaign.companyId,
-                status: MetaTemplateStatus.APPROVED,
             },
         });
 
         if (!template) {
             throw new Error(
-                `Template Meta ${campaign.metaMessageTemplateId} não encontrado ou não aprovado — mensagens não serão criadas`,
+                `Template Meta ${campaign.metaMessageTemplateId} não encontrado — mensagens não serão criadas`,
+            );
+        }
+
+        if (template.status !== MetaTemplateStatus.APPROVED) {
+            if (RESYNCABLE_TEMPLATE_STATUSES.includes(template.status)) {
+                throw new MetaTemplateNotReadyError(
+                    `Template Meta ${template.id} ainda em ${template.status} — aguardando aprovação da Meta`,
+                );
+            }
+            throw new Error(
+                `Template Meta ${template.id} com status ${template.status} — mensagens não serão criadas`,
             );
         }
 
         const mappings = normalizeMetaTemplateVariableMappings(
             campaign.metaTemplateVariableMappings,
         );
+        const headerText = extractComponentText(template.components, 'HEADER') ?? '';
         const bodyText = extractComponentText(template.components, 'BODY') ?? '';
+        if (
+            hasNamedTemplateVariables(headerText) ||
+            hasNamedTemplateVariables(bodyText)
+        ) {
+            throw new Error(
+                'Template Meta usa parâmetros nomeados; o envio atual só suporta {{1}}, {{2}}, ...',
+            );
+        }
 
         const company = await this.prisma.company.findUnique({
             where: { id: campaign.companyId },
@@ -78,7 +104,8 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
                 const scheduleDate = getScheduleDateForSendWindow(sendTimeWindow);
                 const token = generateUniqueToken(campaign.companyId, customer.id, randomUUID());
                 const messageText = this.buildPreviewMessageText(
-                    bodyText,
+                    template.components,
+                    template.variableBindings,
                     mappings,
                     {
                         customerName: customer.name,
@@ -127,16 +154,18 @@ export class WhatsappBusinessApiStrategy implements ICampaignChannelStrategy {
     }
 
     private buildPreviewMessageText(
-        bodyText: string,
+        components: unknown,
+        storedBindings: unknown,
         mappings: ReturnType<typeof normalizeMetaTemplateVariableMappings>,
         ctx: TemplateVariableContext,
     ): string {
-        const variableCount = countTemplateVariables(bodyText);
-        if (variableCount === 0) {
+        const bodyText = extractComponentText(components, 'BODY') ?? '';
+        const indexes = metaParameterIndexes(components, storedBindings, 'body');
+        if (indexes.length === 0) {
             return bodyText;
         }
 
-        const values = buildBodyParametersFromMappings(variableCount, mappings, ctx);
+        const values = buildParametersForIndexes(indexes, mappings, ctx);
 
         return values.reduce((text, value, offset) => {
             const index = offset + 1;

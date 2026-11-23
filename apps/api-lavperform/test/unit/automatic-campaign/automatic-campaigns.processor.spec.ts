@@ -18,6 +18,7 @@ jest.mock('src/common/utils/date.utils', () => ({
 }));
 
 import { AutomaticCampaignsProcessor } from 'src/automatic-campaign/infrastructure/jobs/automatic-campaigns.processor';
+import { MetaTemplateNotReadyError } from 'src/automatic-campaign/infrastructure/strategies/meta-template-not-ready.error';
 import { getDayOfWeekPtBr } from 'src/common/utils/date.utils';
 
 const freshCustomer = (id: string) => ({
@@ -167,6 +168,20 @@ describe('AutomaticCampaignsProcessor', () => {
 
     expect(campaignCustomerResolver.resolveCustomers).not.toHaveBeenCalled();
     expect(strategy.generateMessages).not.toHaveBeenCalled();
+  });
+
+  it('não marca falha quando o template Meta ainda não foi aprovado', async () => {
+    (getDayOfWeekPtBr as jest.Mock).mockReturnValue('seg');
+    prisma.automaticCampaign.findUnique = jest.fn().mockResolvedValue(
+      whatsappCampaign({ channel: CampaignChannel.WHATSAPP_BUSINESS_API }),
+    );
+    strategy.generateMessages.mockRejectedValue(
+      new MetaTemplateNotReadyError('aguardando aprovação'),
+    );
+
+    await processor.process({ data: { automaticCampaignId: 'ac1' } } as any);
+
+    expect(prisma.automaticCampaign.update).not.toHaveBeenCalled();
   });
 
   it('delegates to the channel strategy and transitions PROCESSING to IN_PROGRESS on first success', async () => {

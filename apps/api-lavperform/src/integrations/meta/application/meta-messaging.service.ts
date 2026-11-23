@@ -12,6 +12,11 @@ import {
   MetaSendMessageResponse,
   MetaTemplateMessageComponent,
 } from '../api/meta-messaging.client';
+import { MetaPaymentIssueService } from './meta-payment-issue.service';
+import {
+  isMetaPaymentErrorCode,
+  META_PAYMENT_ERROR_MESSAGE,
+} from '../utils/meta-payment-error';
 
 export interface SendTestTemplateMessageResult {
   metaMessageId: string;
@@ -26,6 +31,7 @@ export class MetaMessagingService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly metaMessagingClient: MetaMessagingClient,
+    private readonly paymentIssues: MetaPaymentIssueService,
   ) {}
 
   async sendTextMessage(
@@ -35,7 +41,7 @@ export class MetaMessagingService {
   ): Promise<string> {
     const integration = await this.getReadyIntegration(companyId);
     const normalizedTo = this.normalizePhoneNumber(to);
-    const response = await this.callMeta(() =>
+    const response = await this.callMeta(companyId, () =>
       this.metaMessagingClient.sendTextMessage(
         integration.phoneNumberId,
         normalizedTo,
@@ -56,7 +62,7 @@ export class MetaMessagingService {
   ): Promise<string> {
     const integration = await this.getReadyIntegration(companyId);
     const normalizedTo = this.normalizePhoneNumber(to);
-    const response = await this.callMeta(() =>
+    const response = await this.callMeta(companyId, () =>
       this.metaMessagingClient.sendTemplateMessage(
         integration.phoneNumberId,
         normalizedTo,
@@ -121,7 +127,7 @@ export class MetaMessagingService {
         (headerImageUrl ? ' [com header IMAGE via media_id]' : ''),
     );
 
-    const response = await this.callMeta(() =>
+    const response = await this.callMeta(companyId, () =>
       this.metaMessagingClient.sendTemplateMessage(
         integration.phoneNumberId,
         normalizedTo,
@@ -258,6 +264,7 @@ export class MetaMessagingService {
   }
 
   private async callMeta(
+    companyId: string,
     request: () => Promise<MetaSendMessageResponse>,
   ): Promise<MetaSendMessageResponse> {
     try {
@@ -270,6 +277,7 @@ export class MetaMessagingService {
           error_subcode?: number;
           error_user_msg?: string;
           fbtrace_id?: string;
+          error_data?: { details?: string };
         };
       }>;
 
@@ -279,13 +287,28 @@ export class MetaMessagingService {
           metaError.error_user_msg ||
           metaError.message ||
           'Erro desconhecido ao chamar a Meta Cloud API';
+        const details = metaError.error_data?.details;
         this.logger.error(
-          `Meta Cloud API recusou o envio: code=${metaError.code} subcode=${metaError.error_subcode} msg="${message}" fbtrace=${metaError.fbtrace_id}`,
+          `Meta Cloud API recusou o envio: code=${metaError.code} subcode=${metaError.error_subcode} msg="${message}"` +
+            (details ? ` details="${details}"` : '') +
+            ` fbtrace=${metaError.fbtrace_id}`,
         );
+        const isPaymentError = isMetaPaymentErrorCode(metaError.code);
+        if (isPaymentError) {
+          await this.paymentIssues.report(companyId, {
+            code: metaError.code!,
+            message,
+          });
+        }
         throw new UnprocessableEntityException({
-          message,
+          message: isPaymentError
+            ? META_PAYMENT_ERROR_MESSAGE
+            : details
+              ? `${message} (${details})`
+              : message,
           metaCode: metaError.code,
           metaSubcode: metaError.error_subcode,
+          metaDetails: details,
           fbtraceId: metaError.fbtrace_id,
         });
       }

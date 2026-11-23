@@ -37,12 +37,79 @@ import { MetaTemplateResponseDto } from '../../integrations/meta/dto/meta-templa
 import { normalizeSendScheduleFields } from './campaign-send-schedule.utils';
 import {
   countTemplateBodyVariables,
+  countTemplateVariables,
   MetaTemplateVariableMapping,
   normalizeMetaTemplateVariableMappings,
 } from '../../integrations/meta/application/meta-template-variables.utils';
+import {
+  areMetaBindingsInSync,
+  assertTemplateVariableMappings,
+  TemplateVariableBindingError,
+} from '../../integrations/meta/application/template-variable-bindings';
 import { normalizeCampaignTargeting } from '../../audiences/application/campaign-targeting.utils';
 import { AudienceTargetingMode } from '@prisma/client';
 import { CustomSendListsService } from '../../custom-send-lists/application/custom-send-lists.service';
+
+const META_TEMPLATE_STATUSES_ALLOWED_ON_SAVE: MetaTemplateStatus[] = [
+  MetaTemplateStatus.APPROVED,
+  MetaTemplateStatus.PENDING,
+  MetaTemplateStatus.IN_APPEAL,
+];
+
+function storedTemplateBindings(
+  stored: unknown,
+): { index: number; key: string }[] {
+  if (!stored || typeof stored !== 'object') return [];
+  const bindings = (stored as { bindings?: unknown }).bindings;
+  if (!Array.isArray(bindings)) return [];
+  return bindings.filter(
+    (item): item is { index: number; key: string } =>
+      !!item &&
+      typeof item === 'object' &&
+      typeof (item as { index?: unknown }).index === 'number' &&
+      typeof (item as { key?: unknown }).key === 'string',
+  );
+}
+
+function metaLegacyIndexes(components: unknown): number[] {
+  const bodyCount = countTemplateBodyVariables(components);
+  if (bodyCount > 0) {
+    return Array.from({ length: bodyCount }, (_, offset) => offset + 1);
+  }
+  if (!Array.isArray(components)) return [];
+  const header = components.find(
+    (item) =>
+      item &&
+      typeof item === 'object' &&
+      String((item as Record<string, unknown>).type).toUpperCase() === 'HEADER',
+  ) as Record<string, unknown> | undefined;
+  if (!header || String(header.format ?? '').toUpperCase() !== 'TEXT') return [];
+  if (typeof header.text !== 'string' || countTemplateVariables(header.text) === 0) {
+    return [];
+  }
+  return [1];
+}
+
+function assertCampaignTemplateMappings(input: {
+  applicable: boolean;
+  stored: unknown;
+  legacyIndexes: number[];
+  mappings: MetaTemplateVariableMapping[];
+}): void {
+  try {
+    assertTemplateVariableMappings({
+      applicable: input.applicable,
+      bindings: storedTemplateBindings(input.stored),
+      legacyIndexes: input.legacyIndexes,
+      mappings: input.mappings,
+    });
+  } catch (error) {
+    if (error instanceof TemplateVariableBindingError) {
+      throw new BadRequestException(error.message);
+    }
+    throw error;
+  }
+}
 import { CAMPAIGN_PAUSED_ABORT_ERROR } from '../automatic-campaign.constants';
 
 @Injectable()
@@ -194,24 +261,21 @@ export class AutomaticCampaignService {
         throw new BadRequestException('Template Meta não encontrado para esta empresa');
       }
 
-      if (template.status !== MetaTemplateStatus.APPROVED) {
+      if (!META_TEMPLATE_STATUSES_ALLOWED_ON_SAVE.includes(template.status)) {
         throw new BadRequestException(
-          'O template selecionado precisa estar aprovado pela Meta',
+          `O template selecionado não pode ser usado (status: ${template.status})`,
         );
       }
 
-      const variableCount = countTemplateBodyVariables(template.components);
       const mappings = normalizeMetaTemplateVariableMappings(
         dto.metaTemplateVariableMappings,
       );
-
-      for (let index = 1; index <= variableCount; index += 1) {
-        if (!mappings.some((mapping) => mapping.index === index)) {
-          throw new BadRequestException(
-            `Informe a origem dos dados para a variável {{${index}}} do template`,
-          );
-        }
-      }
+      assertCampaignTemplateMappings({
+        applicable: areMetaBindingsInSync(template.variableBindings, template.components),
+        stored: template.variableBindings,
+        legacyIndexes: metaLegacyIndexes(template.components),
+        mappings,
+      });
 
       return;
     }

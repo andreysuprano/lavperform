@@ -45,14 +45,18 @@ import {
   buildDefaultFormValues,
   buildFormValuesFromTemplate,
   canEditMetaTemplateCategory,
-  countTemplateVariables,
   formatMetaTemplateError,
   getTemplateDisplayLabel,
+  listTemplateKeys,
   META_TEMPLATE_CATEGORY_LABELS,
   previewMetaTemplateName,
   sanitizeFooterText,
 } from './metaTemplate.utils'
 import { MetaTemplatePreview } from './MetaTemplatePreview'
+import {
+  exampleForKnownKey,
+  TEMPLATE_VARIABLE_SUGGESTIONS,
+} from '@/utils/campaigns/metaTemplateVariable.constants'
 
 type MetaTemplateWizardProps = {
   onCancel?: () => void
@@ -125,9 +129,9 @@ export function MetaTemplateWizard({
     !isEditMode ||
     (template ? canEditMetaTemplateCategory(template.status) : false)
 
-  const variableCount = useMemo(
-    () => countTemplateVariables(values.bodyText),
-    [values.bodyText]
+  const bodyKeys = useMemo(
+    () => listTemplateKeys(values.bodyText),
+    [values.bodyText],
   )
 
   const updateField = useCallback(
@@ -476,7 +480,7 @@ export function MetaTemplateWizard({
           <StepMessage
             updateField={updateField}
             values={values}
-            variableCount={variableCount}
+            bodyKeys={bodyKeys}
           />
         )}
 
@@ -853,8 +857,8 @@ function StepMedia({
 function StepMessage({
   updateField,
   values,
-  variableCount,
-}: StepProps & { variableCount: number }) {
+  bodyKeys,
+}: StepProps & { bodyKeys: string[] }) {
   return (
     <Stack gap={4}>
       <Field.Root required>
@@ -863,33 +867,48 @@ function StepMessage({
           maxLength={1024}
           minH="140px"
           onChange={(e) => updateField('bodyText', e.target.value)}
-          placeholder="Olá {{1}}, temos uma oferta especial para você!"
+          placeholder="Olá {{primeiro_nome}}, faz {{dias_sem_venda}} dias que não vemos você na {{nome_loja}}."
           value={values.bodyText}
         />
         <Field.HelperText>
-          Use {'{{1}}'}, {'{{2}}'} para variáveis dinâmicas.
-          {variableCount > 0 && ` ${variableCount} variável(is) detectada(s).`}
+          Use um nome, como {'{{primeiro_nome}}'}, ou o índice {'{{1}}'}.
+          {bodyKeys.length > 0 && ` ${bodyKeys.length} variável(is) detectada(s).`}
         </Field.HelperText>
       </Field.Root>
 
-      {variableCount > 0 && (
-        <Stack gap={2}>
-          <Text
-            fontSize="sm"
-            fontWeight="medium"
+      <HStack flexWrap="wrap" gap={2}>
+        {TEMPLATE_VARIABLE_SUGGESTIONS.map((suggestion) => (
+          <Button
+            key={suggestion.key}
+            onClick={() =>
+              updateField(
+                'bodyText',
+                `${values.bodyText}{{${suggestion.key}}}`,
+              )
+            }
+            size="xs"
+            variant="outline"
           >
+            {suggestion.label}
+          </Button>
+        ))}
+      </HStack>
+
+      {bodyKeys.length > 0 && (
+        <Stack gap={2}>
+          <Text fontSize="sm" fontWeight="medium">
             Exemplos das variáveis
           </Text>
-          {Array.from({ length: variableCount }).map((_, index) => (
-            <Field.Root key={index}>
-              <Field.Label>{`Exemplo {{${index + 1}}}`}</Field.Label>
+          {bodyKeys.map((key, index) => (
+            <Field.Root key={key}>
+              <Field.Label>{`Exemplo {{${key}}}`}</Field.Label>
               <Input
                 onChange={(e) => {
                   const next = [...values.bodyExamples]
                   next[index] = e.target.value
                   updateField('bodyExamples', next)
                 }}
-                placeholder={index === 0 ? 'João' : `Valor ${index + 1}`}
+                placeholder={exampleForKnownKey(key) || `Valor de {{${key}}}`}
                 value={values.bodyExamples[index] ?? ''}
               />
             </Field.Root>

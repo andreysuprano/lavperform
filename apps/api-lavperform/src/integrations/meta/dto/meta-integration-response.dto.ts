@@ -71,4 +71,11 @@ export class MetaIntegrationAvailabilityResponseDto {
 
   @ApiPropertyOptional({ example: '5541997269435' })
   phoneNumber: string | null;
+
+  @ApiPropertyOptional({ nullable: true })
+  metaPaymentIssue: {
+    detectedAt: Date;
+    code: number;
+    message: string | null;
+  } | null;
 }

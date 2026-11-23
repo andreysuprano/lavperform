@@ -6,30 +6,41 @@ import {
   Stack,
   Text,
 } from '@chakra-ui/react'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
 import { Empty, LoadingState } from '@/components'
+import { toaster } from '@/components/ui/toaster'
 import { MetaTemplatePreview } from '@/components/features/campaigns/meta-templates/MetaTemplatePreview'
 import {
-  countTemplateVariables,
   extractComponentText,
   getTemplateDisplayLabel,
 } from '@/components/features/campaigns/meta-templates/metaTemplate.utils'
 import { useAuth } from '@/context/AuthContext'
 import { useMetaTemplatesWithAutoSync } from '@/hooks/queries/useMetaTemplates'
 import type { MetaMessageTemplate } from '@/types/metaTemplate.types'
-
-import { getWizardFormId } from '../../wizardFormId'
 import {
-  buildDefaultVariableMappings,
+  applyTemplateMappingLines,
+  automaticFillMessage,
+  completeTemplateVariableMappings,
+  mappingsForTemplate,
   META_TEMPLATE_VARIABLE_OPTIONS,
   type MetaTemplateVariableMapping,
 } from '@/utils/campaigns/metaTemplateVariable.constants'
 
+import { getWizardFormId } from '../../wizardFormId'
 import type { FormStepsProps } from './FormSteps.types'
+
+const SELECTABLE_STATUSES = new Set(['APPROVED', 'PENDING', 'IN_APPEAL'])
 
 function getTemplateBodyText(template: MetaMessageTemplate): string {
   return extractComponentText(template.components, 'BODY') ?? ''
+}
+
+function statusLabel(status: string) {
+  if (status === 'APPROVED') return 'Aprovado'
+  if (status === 'PENDING') return 'Pendente'
+  if (status === 'IN_APPEAL') return 'Em análise'
+  return status
 }
 
 const variableSourceCollection = createListCollection({
@@ -48,8 +59,9 @@ export function TemplateStep(props: FormStepsProps) {
     companyId,
   )
 
-  const approvedTemplates = useMemo(
-    () => templates.filter((template) => template.status === 'APPROVED'),
+  const selectableTemplates = useMemo(
+    () =>
+      templates.filter((template) => SELECTABLE_STATUSES.has(template.status)),
     [templates],
   )
 
@@ -61,47 +73,42 @@ export function TemplateStep(props: FormStepsProps) {
   )
 
   const selectedTemplate = useMemo(
-    () => approvedTemplates.find((template) => template.id === selectedTemplateId),
-    [approvedTemplates, selectedTemplateId],
+    () =>
+      selectableTemplates.find((template) => template.id === selectedTemplateId),
+    [selectableTemplates, selectedTemplateId],
   )
 
   const templatesCollection = useMemo(
     () =>
       createListCollection({
-        items: approvedTemplates.map((template) => ({
+        items: selectableTemplates.map((template) => ({
           value: template.id,
-          label: getTemplateDisplayLabel(template),
+          label: `${getTemplateDisplayLabel(template)} · ${statusLabel(template.status)}`,
         })),
       }),
-    [approvedTemplates],
+    [selectableTemplates],
   )
 
   const bodyText = selectedTemplate ? getTemplateBodyText(selectedTemplate) : ''
-  const variableCount = useMemo(
-    () => countTemplateVariables(bodyText),
-    [bodyText],
+  const variableLines = useMemo(
+    () => (selectedTemplate ? mappingsForTemplate(selectedTemplate) : []),
+    [selectedTemplate],
+  )
+  const automaticMessage = automaticFillMessage(variableLines)
+  const lastTemplateIdRef = useRef<string | undefined>(
+    formData?.metaMessageTemplateId ?? undefined,
   )
 
   useEffect(() => {
     if (!selectedTemplate) return
 
-    setMappings((current) => {
-      if (
-        current.length === variableCount &&
-        current.every((mapping) => mapping.index >= 1 && mapping.index <= variableCount)
-      ) {
-        return current
-      }
+    const inheritUnsourced = lastTemplateIdRef.current === selectedTemplate.id
+    lastTemplateIdRef.current = selectedTemplate.id
 
-      const defaults = buildDefaultVariableMappings(variableCount)
-      return defaults.map((defaultMapping) => {
-        const existing = current.find(
-          (mapping) => mapping.index === defaultMapping.index,
-        )
-        return existing ?? defaultMapping
-      })
-    })
-  }, [selectedTemplate?.id, variableCount])
+    setMappings((current) =>
+      applyTemplateMappingLines(variableLines, current, { inheritUnsourced }),
+    )
+  }, [selectedTemplate, variableLines])
 
   const handleMappingChange = useCallback(
     (index: number, source: MetaTemplateVariableMapping['source']) => {
@@ -125,11 +132,31 @@ export function TemplateStep(props: FormStepsProps) {
   const handleSubmit = (event: React.FormEvent) => {
     event.preventDefault()
 
-    if (!selectedTemplate) return
+    if (!selectedTemplate) {
+      toaster.create({
+        title: 'Template obrigatório',
+        description: 'Selecione um template Meta para continuar.',
+        type: 'error',
+      })
+      return
+    }
+
+    const submittedMappings = completeTemplateVariableMappings(
+      variableLines,
+      mappings,
+    )
+    if (!submittedMappings) {
+      toaster.create({
+        title: 'Origem obrigatória',
+        description: 'Selecione o dado de cada variável sem origem conhecida.',
+        type: 'error',
+      })
+      return
+    }
 
     onSubmit?.({
       metaMessageTemplateId: selectedTemplate.id,
-      metaTemplateVariableMappings: mappings,
+      metaTemplateVariableMappings: submittedMappings,
       selectedMetaTemplateLabel: getTemplateDisplayLabel(selectedTemplate),
       messageText: bodyText,
       creatives: [],
@@ -137,7 +164,7 @@ export function TemplateStep(props: FormStepsProps) {
   }
 
   if (isLoading) {
-    return <LoadingState title="Carregando templates aprovados..." />
+    return <LoadingState title="Carregando templates..." />
   }
 
   return (
@@ -147,19 +174,19 @@ export function TemplateStep(props: FormStepsProps) {
     >
       <Stack gap={4}>
         <Text color="fg.muted" fontSize="sm">
-          Selecione um template já aprovado pela Meta e informe qual dado
-          preencherá cada variável no momento do envio.
+          Selecione um template aprovado, pendente ou em análise. Variável com
+          nome conhecido já traz a origem.
         </Text>
 
-        {approvedTemplates.length === 0 ? (
+        {selectableTemplates.length === 0 ? (
           <Empty
-            description="Crie e aguarde a aprovação de templates na aba Templates antes de configurar esta campanha."
-            title="Nenhum template aprovado"
+            description="Crie um template na aba Templates antes de configurar esta campanha."
+            title="Nenhum template disponível"
           />
         ) : (
           <>
             <Field.Root required>
-              <Field.Label>Template aprovado</Field.Label>
+              <Field.Label>Template</Field.Label>
               <Select.Root
                 collection={templatesCollection}
                 onValueChange={({ value }) =>
@@ -179,10 +206,7 @@ export function TemplateStep(props: FormStepsProps) {
                 <Select.Positioner>
                   <Select.Content>
                     {templatesCollection.items.map((item) => (
-                      <Select.Item
-                        item={item}
-                        key={item.value}
-                      >
+                      <Select.Item item={item} key={item.value}>
                         {item.label}
                         <Select.ItemIndicator />
                       </Select.Item>
@@ -192,31 +216,33 @@ export function TemplateStep(props: FormStepsProps) {
               </Select.Root>
             </Field.Root>
 
-            {selectedTemplate && variableCount > 0 && (
+            {selectedTemplate && variableLines.length > 0 && (
               <Stack gap={3}>
                 <Text fontWeight="semibold">Variáveis do template</Text>
-                {Array.from({ length: variableCount }, (_, offset) => {
-                  const variableIndex = offset + 1
+                {automaticMessage ? (
+                  <Text color="fg.muted" fontSize="sm">
+                    {automaticMessage}
+                  </Text>
+                ) : null}
+                {variableLines.map((line) => {
                   const currentSource =
-                    mappings.find((mapping) => mapping.index === variableIndex)
-                      ?.source ??
-                    META_TEMPLATE_VARIABLE_OPTIONS[0].value
+                    mappings.find((mapping) => mapping.index === line.index)
+                      ?.source ?? ''
+                  const label = line.key ? `{{${line.key}}}` : `{{${line.index}}}`
 
                   return (
-                    <Field.Root
-                      key={variableIndex}
-                      required
-                    >
-                      <Field.Label>{`{{${variableIndex}}}`}</Field.Label>
+                    <Field.Root key={line.index} required>
+                      <Field.Label>{label}</Field.Label>
                       <Select.Root
                         collection={variableSourceCollection}
+                        disabled={Boolean(line.source)}
                         onValueChange={({ value }) =>
                           handleMappingChange(
-                            variableIndex,
+                            line.index,
                             value[0] as MetaTemplateVariableMapping['source'],
                           )
                         }
-                        value={[currentSource]}
+                        value={currentSource ? [currentSource] : []}
                       >
                         <Select.HiddenSelect />
                         <Select.Control>
@@ -230,10 +256,7 @@ export function TemplateStep(props: FormStepsProps) {
                         <Select.Positioner>
                           <Select.Content>
                             {variableSourceCollection.items.map((item) => (
-                              <Select.Item
-                                item={item}
-                                key={item.value}
-                              >
+                              <Select.Item item={item} key={item.value}>
                                 {item.label}
                                 <Select.ItemIndicator />
                               </Select.Item>
@@ -249,10 +272,7 @@ export function TemplateStep(props: FormStepsProps) {
 
             {selectedTemplate && (
               <Box>
-                <Text
-                  fontWeight="semibold"
-                  mb={2}
-                >
+                <Text fontWeight="semibold" mb={2}>
                   Prévia
                 </Text>
                 <MetaTemplatePreview

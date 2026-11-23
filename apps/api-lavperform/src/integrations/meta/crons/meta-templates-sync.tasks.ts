@@ -6,6 +6,7 @@ import {
   AutomaticCampaignStatus,
   CampaignChannel,
   MetaIntegrationStatus,
+  MetaTemplateCategory,
   MetaTemplateStatus,
 } from '@prisma/client';
 import { PrismaService } from '../../../prisma/prisma.service';
@@ -63,18 +64,16 @@ export class MetaTemplatesSyncTasks {
       return;
     }
 
-    if (pendingTemplates.length === 0) {
-      this.logger.log('Nenhum template Meta pendente para sincronizar');
-      return;
-    }
-
-    this.logger.log(
-      `Encontrados ${pendingTemplates.length} templates Meta pendentes   sincronizando`,
-    );
-
     const approvedTemplateIds: string[] = [];
 
-    for (const template of pendingTemplates) {
+    if (pendingTemplates.length === 0) {
+      this.logger.log('Nenhum template Meta pendente para sincronizar');
+    } else {
+      this.logger.log(
+        `Encontrados ${pendingTemplates.length} templates Meta pendentes   sincronizando`,
+      );
+
+      for (const template of pendingTemplates) {
       try {
         const result = await this.metaTemplatesService.syncStatus(
           template.companyId,
@@ -101,16 +100,18 @@ export class MetaTemplatesSyncTasks {
             (err instanceof Error ? err.message : String(err)),
         );
       }
+      }
     }
 
     if (approvedTemplateIds.length === 0) {
       this.logger.log(
         'Nenhum template virou APPROVED nesta execução   sem campanhas a enfileirar',
       );
-      return;
+    } else {
+      await this.enqueueCampaignsForApprovedTemplates(approvedTemplateIds);
     }
 
-    await this.enqueueCampaignsForApprovedTemplates(approvedTemplateIds);
+    await this.syncApprovedUtilityTemplates();
   }
 
   /**
@@ -134,14 +135,19 @@ export class MetaTemplatesSyncTasks {
         automaticCampaignCreative: {
           select: { automaticCampaignId: true },
         },
+        automaticCampaigns: {
+          where: { deletedAt: null },
+          select: { id: true },
+        },
       },
     });
 
     const campaignIds = Array.from(
       new Set(
-        templatesWithCampaign
-          .map((t) => t.automaticCampaignCreative?.automaticCampaignId)
-          .filter((id): id is string => Boolean(id)),
+        templatesWithCampaign.flatMap((template) => [
+          template.automaticCampaignCreative?.automaticCampaignId,
+          ...template.automaticCampaigns.map((campaign) => campaign.id),
+        ]).filter((id): id is string => Boolean(id)),
       ),
     );
 
@@ -204,6 +210,61 @@ export class MetaTemplatesSyncTasks {
         this.logger.error(
           `Falha ao enfileirar campanha ${campaign.id} após aprovação de template (jobId=${jobId})`,
           err instanceof Error ? err.stack : err,
+        );
+      }
+    }
+  }
+
+  private async syncApprovedUtilityTemplates(): Promise<void> {
+    let templates;
+    try {
+      templates = await this.prisma.metaMessageTemplate.findMany({
+        where: {
+          status: MetaTemplateStatus.APPROVED,
+          category: MetaTemplateCategory.UTILITY,
+          metaTemplateId: { not: null },
+          company: {
+            metaIntegration: { status: MetaIntegrationStatus.ACTIVE },
+          },
+          OR: [
+            {
+              automaticCampaigns: {
+                some: { active: true, deletedAt: null },
+              },
+            },
+            {
+              automaticCampaignCreative: {
+                automaticCampaign: { active: true, deletedAt: null },
+              },
+            },
+          ],
+        },
+        select: { id: true, companyId: true, name: true },
+      });
+    } catch (err) {
+      this.logger.error(
+        'Falha ao listar templates utility para sincronizar a categoria',
+        err instanceof Error ? err.stack : err,
+      );
+      return;
+    }
+
+    if (templates.length === 0) return;
+
+    this.logger.log(
+      `Sincronizando categoria de ${templates.length} templates utility em campanhas ativas`,
+    );
+
+    for (const template of templates) {
+      try {
+        await this.metaTemplatesService.syncStatus(
+          template.companyId,
+          template.id,
+        );
+      } catch (err) {
+        this.logger.warn(
+          `Falha ao sincronizar categoria do template ${template.id} (empresa ${template.companyId}): ` +
+            (err instanceof Error ? err.message : String(err)),
         );
       }
     }

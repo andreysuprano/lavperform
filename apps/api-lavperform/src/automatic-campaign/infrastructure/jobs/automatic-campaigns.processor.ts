@@ -6,6 +6,7 @@ import { AutomaticCampaignStatus, AudienceTargetingMode, CampaignChannel, Messag
 import { PrismaService } from '../../../prisma/prisma.service';
 import { getDayOfWeekPtBr, nowUTC, startOfDayInTz, endOfDayInTz } from '../../../common/utils/date.utils';
 import { extractErrorMessage } from '../../../common/utils/error.utils';
+import { MetaTemplateNotReadyError } from '../strategies/meta-template-not-ready.error';
 import { CampaignChannelStrategyFactory } from '../strategies/campaign-channel-strategy.factory';
 import { RenitencyEvaluatorService } from '../../../renitency/application/renitency-evaluator.service';
 import { resolveSendTimeWindow } from '../../application/campaign-send-schedule.utils';
@@ -361,6 +362,13 @@ export class AutomaticCampaignsProcessor {
       }
 
     } catch (error) {
+      if (error instanceof MetaTemplateNotReadyError) {
+        this.logger.log(
+          `Campanha ${automaticCampaignId}: template ainda não aprovado — retry permitido (${error.message})`,
+        );
+        return;
+      }
+
       const errorMessage = extractErrorMessage(error);
       this.logger.error(
         `Erro ao processar campanha ${automaticCampaignId}: ${errorMessage}`,

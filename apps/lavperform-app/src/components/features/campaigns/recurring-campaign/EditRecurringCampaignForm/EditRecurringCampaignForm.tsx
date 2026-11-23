@@ -15,6 +15,7 @@ import {
 import { resolveCampaignTargetingFromApi } from '@/utils/campaigns/resolveCampaignTargetingFromApi'
 import { isWhatsAppBusinessApiChannel } from '@/utils/campaigns/isWhatsAppBusinessApiChannel'
 import { uploadCampaignCreativeImages } from '@/utils/campaigns/uploadCampaignCreativeImages'
+import { toKnownTemplateMappings } from '@/utils/campaigns/metaTemplateVariable.constants'
 import { toHtmlDateInputValue } from '@/utils/date'
 import { logger } from '@/utils/logger'
 import { WEEKDAYS } from '@/utils/weekdays'
@@ -235,7 +236,9 @@ function mapCampaignToFormData(campaignData: RecurringCampaign): FormDataProps {
     sendTimeStart: campaignData.sendTimeStart ?? null,
     sendTimeEnd: campaignData.sendTimeEnd ?? null,
     metaMessageTemplateId: campaignData.metaMessageTemplateId ?? null,
-    metaTemplateVariableMappings: campaignData.metaTemplateVariableMappings ?? [],
+    metaTemplateVariableMappings: toKnownTemplateMappings(
+      campaignData.metaTemplateVariableMappings,
+    ),
     sendMode: campaignData.sendMode ?? 'COVER_BATCH',
   }
 }

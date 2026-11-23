@@ -27,6 +27,14 @@ import {
   MetaTemplateResponseDto,
   MetaTemplateSyncResponseDto,
 } from '../dto/meta-template-response.dto';
+import { MetaTemplateCategoryHoldService } from './meta-template-category-hold.service';
+import {
+  rehydrateMetaComponents,
+  resolveMetaExamples,
+  translateMetaCustomerTexts,
+  TemplateVariableBindingError,
+  type TemplateVariableBindings,
+} from './template-variable-bindings';
 
 /**
  * Tipo auxiliar para representar uma linha de `MetaMessageTemplate` carregada
@@ -59,6 +67,7 @@ export type MetaMessageTemplateRow = {
   language: string;
   category: MetaTemplateCategory;
   components: Prisma.JsonValue;
+  variableBindings?: Prisma.JsonValue | null;
   headerMediaUrl: string | null;
   status: MetaTemplateStatus;
   rejectedReason: string | null;
@@ -74,6 +83,7 @@ export class MetaTemplatesService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly metaTemplatesClient: MetaTemplatesClient,
+    private readonly categoryHold?: MetaTemplateCategoryHoldService,
   ) {}
 
   async createFromCreative(
@@ -185,10 +195,10 @@ export class MetaTemplatesService {
 
     const displayName = dto.displayName.trim();
     const name = this.generateMetaTemplateName(displayName);
-    const { components, headerMediaUrl } = await this.buildComponentsFromDto(
-      dto,
-      { accessToken: integration.accessToken },
-    );
+    const { components, headerMediaUrl, variableBindings } =
+      await this.buildComponentsFromDto(dto, {
+        accessToken: integration.accessToken,
+      });
 
     const payload: MetaCreateTemplatePayload = {
       name,
@@ -216,6 +226,9 @@ export class MetaTemplatesService {
             this.toTemplateCategory(metaResponse.category) ?? payload.category,
           components: components as unknown as Prisma.InputJsonValue,
           headerMediaUrl,
+          variableBindings: variableBindings
+            ? (variableBindings as unknown as Prisma.InputJsonValue)
+            : undefined,
           status: this.toTemplateStatus(metaResponse.status),
         },
       });
@@ -237,6 +250,9 @@ export class MetaTemplatesService {
           category: payload.category,
           components: components as unknown as Prisma.InputJsonValue,
           headerMediaUrl,
+          variableBindings: variableBindings
+            ? (variableBindings as unknown as Prisma.InputJsonValue)
+            : undefined,
           status: MetaTemplateStatus.ERROR,
           rejectedReason: this.extractErrorMessage(error),
         },
@@ -293,10 +309,10 @@ export class MetaTemplatesService {
       );
     }
 
-    const { components, headerMediaUrl } = await this.buildComponentsFromDto(
-      dto,
-      { accessToken: integration.accessToken },
-    );
+    const { components, headerMediaUrl, variableBindings } =
+      await this.buildComponentsFromDto(dto, {
+        accessToken: integration.accessToken,
+      });
 
     const payload: MetaEditTemplatePayload = { components };
 
@@ -321,6 +337,9 @@ export class MetaTemplatesService {
           displayName: dto.displayName.trim(),
           components: components as unknown as Prisma.InputJsonValue,
           headerMediaUrl,
+          variableBindings: variableBindings
+            ? (variableBindings as unknown as Prisma.InputJsonValue)
+            : undefined,
           category: dto.category,
           status: MetaTemplateStatus.PENDING,
           rejectedReason: null,
@@ -344,6 +363,9 @@ export class MetaTemplatesService {
           displayName: dto.displayName.trim(),
           components: components as unknown as Prisma.InputJsonValue,
           headerMediaUrl,
+          variableBindings: variableBindings
+            ? (variableBindings as unknown as Prisma.InputJsonValue)
+            : undefined,
           category: dto.category,
           status: MetaTemplateStatus.ERROR,
           rejectedReason: this.extractErrorMessage(error),
@@ -772,6 +794,11 @@ export class MetaTemplatesService {
     );
     const nextStatus = this.toTemplateStatus(metaStatus.status);
     const nextRejectedReason = metaStatus.rejected_reason ?? null;
+    const nextCategory = this.toTemplateCategory(metaStatus.category);
+    if (nextCategory && nextCategory !== template.category && this.categoryHold) {
+      await this.categoryHold.apply(template.id, nextCategory);
+      template.category = nextCategory;
+    }
     const previousStatus = template.status;
     const statusChanged =
       previousStatus !== nextStatus ||
@@ -798,7 +825,48 @@ export class MetaTemplatesService {
   private async buildComponentsFromDto(
     dto: CreateMetaTemplateDto,
     integration: { accessToken: string },
-  ): Promise<{ components: MetaTemplateComponent[]; headerMediaUrl: string | null }> {
+  ): Promise<{
+    components: MetaTemplateComponent[];
+    headerMediaUrl: string | null;
+    variableBindings: TemplateVariableBindings | null;
+  }> {
+    let translated: ReturnType<typeof translateMetaCustomerTexts>;
+    try {
+      translated = translateMetaCustomerTexts({
+        headerText:
+          dto.header?.format === MetaTemplateHeaderFormat.TEXT
+            ? dto.header.text
+            : undefined,
+        bodyText: dto.body.text,
+        footerText: dto.footer,
+        buttonUrls: dto.buttons
+          ?.map((button) => button.url)
+          .filter((url): url is string => Boolean(url)),
+      });
+    } catch (error) {
+      if (error instanceof TemplateVariableBindingError) {
+        throw new BadRequestException(error.message);
+      }
+      throw error;
+    }
+
+    let resolvedExamples: { headerExample: string; bodyExamples: string[] } | null =
+      null;
+    if (translated.bindings) {
+      try {
+        resolvedExamples = resolveMetaExamples({
+          bindings: translated.bindings,
+          headerExample: dto.header?.example,
+          bodyExamples: dto.body.examples,
+        });
+      } catch (error) {
+        if (error instanceof TemplateVariableBindingError) {
+          throw new BadRequestException(error.message);
+        }
+        throw error;
+      }
+    }
+
     const components: MetaTemplateComponent[] = [];
     let headerMediaUrl: string | null = null;
 
@@ -807,17 +875,18 @@ export class MetaTemplatesService {
 
       if (header.format === MetaTemplateHeaderFormat.TEXT) {
         if (!header.text?.trim()) {
-          throw new BadRequestException(
-            'Header TEXT exige o campo text',
-          );
+          throw new BadRequestException('Header TEXT exige o campo text');
         }
+        const headerText = (translated.headerText ?? header.text).trim();
         components.push({
           type: 'HEADER',
           format: 'TEXT',
-          text: header.text.trim(),
-          ...(header.text.includes('{{1}}') && header.example?.trim()
-            ? { example: { header_text: [header.example.trim()] } }
-            : {}),
+          text: headerText,
+          ...(resolvedExamples && headerText.includes('{{1}}')
+            ? { example: { header_text: [resolvedExamples.headerExample] } }
+            : header.text.includes('{{1}}') && header.example?.trim()
+              ? { example: { header_text: [header.example.trim()] } }
+              : {}),
         });
       } else {
         if (!header.mediaUrl?.trim()) {
@@ -842,14 +911,21 @@ export class MetaTemplatesService {
       throw new BadRequestException('O corpo do template é obrigatório');
     }
 
+    const bodyText = (translated.bodyText ?? dto.body.text).trim();
     const bodyComponent: MetaTemplateComponent = {
       type: 'BODY',
-      text: dto.body.text.trim(),
+      text: bodyText,
     };
 
-    if (dto.body.examples?.length) {
+    if (resolvedExamples) {
+      if (resolvedExamples.bodyExamples.length > 0) {
+        bodyComponent.example = {
+          body_text: [resolvedExamples.bodyExamples],
+        };
+      }
+    } else if (dto.body.examples?.length) {
       bodyComponent.example = {
-        body_text: [dto.body.examples.map((e) => e.trim())],
+        body_text: [dto.body.examples.map((example) => example.trim())],
       };
     } else if (dto.body.text.includes('{{1}}')) {
       bodyComponent.example = {
@@ -878,9 +954,7 @@ export class MetaTemplatesService {
 
         if (button.type === MetaTemplateButtonType.URL) {
           if (!button.url?.trim()) {
-            throw new BadRequestException(
-              'Botão URL exige o campo url',
-            );
+            throw new BadRequestException('Botão URL exige o campo url');
           }
           const urlButton: Record<string, unknown> = {
             type: 'URL',
@@ -912,7 +986,11 @@ export class MetaTemplatesService {
       });
     }
 
-    return { components, headerMediaUrl };
+    return {
+      components,
+      headerMediaUrl,
+      variableBindings: translated.bindings,
+    };
   }
 
   private async buildTemplateComponents(
@@ -1027,6 +1105,10 @@ export class MetaTemplatesService {
   }
 
   private toResponseDto(template: MetaMessageTemplateRow): MetaTemplateResponseDto {
+    const rehydrated = rehydrateMetaComponents(
+      template.components,
+      template.variableBindings,
+    );
     return {
       id: template.id,
       companyId: template.companyId,
@@ -1036,7 +1118,9 @@ export class MetaTemplatesService {
       displayName: template.displayName,
       language: template.language,
       category: template.category,
-      components: template.components,
+      components: rehydrated.components,
+      variableBindings: template.variableBindings ?? null,
+      variableBindingsApplicable: rehydrated.variableBindingsApplicable,
       headerMediaUrl: template.headerMediaUrl,
       status: template.status,
       rejectedReason: template.rejectedReason,

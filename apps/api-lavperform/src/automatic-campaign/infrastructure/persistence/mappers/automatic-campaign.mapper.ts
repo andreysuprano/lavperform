@@ -46,6 +46,7 @@ export class AutomaticCampaignMapper {
             lastProcessedAt: prismaCampaign.lastProcessedAt,
             metaMessageTemplateId: (prismaCampaign as any).metaMessageTemplateId ?? null,
             metaTemplateVariableMappings: (prismaCampaign as any).metaTemplateVariableMappings ?? null,
+            metaCategoryHoldAt: (prismaCampaign as any).metaCategoryHoldAt ?? null,
         });
 
         if (prismaCampaign.gifts) {
