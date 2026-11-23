@@ -32,6 +32,10 @@ export type MetaMessageTemplate = {
   language: string
   category: MetaTemplateCategory
   components: MetaTemplateComponent[]
+  variableBindings?: {
+    bindings?: Array<{ index: number; key: string }>
+  } | null
+  variableBindingsApplicable?: boolean
   headerMediaUrl: string | null
   status: MetaTemplateStatus
   rejectedReason: string | null

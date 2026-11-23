@@ -9,7 +9,14 @@ import './instrument';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule, { bodyParser: false });
-  app.use(json({ limit: '15mb' }));
+  app.use(
+    json({
+      limit: '15mb',
+      verify: (req, _res, buf) => {
+        (req as { rawBody?: Buffer }).rawBody = buf;
+      },
+    }),
+  );
   app.use(urlencoded({ extended: true, limit: '15mb' }));
   app.enableCors({
     origin: parseCorsOrigins(process.env.CORS_ORIGIN),

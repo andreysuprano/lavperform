@@ -251,6 +251,23 @@ function CampaignDetailsTabComponent({
       w="full"
     >
       <Stack gap={{ base: 6, md: 8 }}>
+        {campaign.metaCategoryHoldAt ? (
+          <Box
+            bg="bg.subtle"
+            borderColor="border.muted"
+            borderRadius="xl"
+            borderWidth="1px"
+            p={{ base: 4, md: 5 }}
+          >
+            <Text fontSize="sm" fontWeight="semibold">
+              A Meta mudou o template de utilidade para marketing
+            </Text>
+            <Text color="fg.muted" fontSize="sm" mt={1}>
+              O disparo foi pausado. Revise o template antes de ativar de novo:
+              os próximos envios saem na tarifa de marketing.
+            </Text>
+          </Box>
+        ) : null}
         <Grid
           gap={{ base: 5, lg: 6 }}
           templateColumns={{

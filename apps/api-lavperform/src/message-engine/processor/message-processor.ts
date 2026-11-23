@@ -8,11 +8,12 @@ import { WhatsappService } from 'src/whatsapp/application/whatsapp.service';
 import { MetaMessagingService } from 'src/integrations/meta/application/meta-messaging.service';
 import { MetaTemplateMessageComponent } from 'src/integrations/meta/api/meta-messaging.client';
 import {
-    buildBodyParametersFromMappings,
-    countTemplateVariables,
+    buildParametersForIndexes,
     extractComponentText,
+    hasNamedTemplateVariables,
     normalizeMetaTemplateVariableMappings,
 } from 'src/integrations/meta/application/meta-template-variables.utils';
+import { metaParameterIndexes } from 'src/integrations/meta/application/template-variable-bindings';
 import { DisparoProClient } from 'src/integrations/disparo-pro/api/disparo-pro.client';
 import { EventEmitter2 } from '@nestjs/event-emitter';
 import {
@@ -376,15 +377,23 @@ export class MessageProcessor {
             customer,
             company?.name ?? null,
             template.headerMediaUrl,
+            template.variableBindings,
         );
 
-        await this.metaMessagingService.sendTemplateMessage(
+        const metaMessageId = await this.metaMessagingService.sendTemplateMessage(
             campaign.companyId,
             message.phone,
             template.name,
             template.language,
             components,
         );
+        await this.prisma.message.update({
+            where: { id: message.id },
+            data: {
+                externalProviderMessageId: metaMessageId ?? null,
+                sentAt: new Date(),
+            },
+        });
         this.logger.log(`Mensagem Meta enviada para ${message.phone}`);
 
         await this.markSentIfStillProcessing(message, customer);
@@ -397,6 +406,7 @@ export class MessageProcessor {
         customer: Customer,
         companyName: string | null,
         templateHeaderMediaUrl?: string | null,
+        storedBindings?: unknown,
     ): Promise<MetaTemplateMessageComponent[]> {
         if (!Array.isArray(components)) {
             return [];
@@ -411,6 +421,14 @@ export class MessageProcessor {
         });
 
         const headerMediaUrl = message.mediaUrl ?? templateHeaderMediaUrl ?? null
+        const mappings = normalizeMetaTemplateVariableMappings(
+            campaign.metaTemplateVariableMappings,
+        );
+        const parameterContext = {
+            customerName: message.customerName,
+            lastOrderDate: customer.lastOrderDate,
+            companyName,
+        };
 
         if (hasImageHeader && headerMediaUrl) {
             if (!this.metaMessagingService) {
@@ -431,23 +449,40 @@ export class MessageProcessor {
                     },
                 ],
             });
+        } else if (!hasImageHeader) {
+            const headerText = extractComponentText(components, 'HEADER') ?? '';
+            if (hasNamedTemplateVariables(headerText)) {
+                throw new Error(
+                    'Template Meta usa parâmetros nomeados no header; o envio atual só suporta {{1}}, {{2}}, ...',
+                );
+            }
+            const headerIndexes = metaParameterIndexes(components, storedBindings, 'header');
+            if (headerIndexes.length > 0) {
+                const [headerValue] = buildParametersForIndexes(
+                    headerIndexes,
+                    mappings,
+                    parameterContext,
+                );
+                runtimeComponents.push({
+                    type: 'header',
+                    parameters: [{ type: 'text' as const, text: headerValue }],
+                });
+            }
         }
 
         const bodyText = extractComponentText(components, 'BODY') ?? '';
-        const variableCount = countTemplateVariables(bodyText);
-
-        if (variableCount > 0) {
-            const mappings = normalizeMetaTemplateVariableMappings(
-                campaign.metaTemplateVariableMappings,
+        if (hasNamedTemplateVariables(bodyText)) {
+            throw new Error(
+                'Template Meta usa parâmetros nomeados no body; o envio atual só suporta {{1}}, {{2}}, ...',
             );
-            const bodyParameters = buildBodyParametersFromMappings(
-                variableCount,
+        }
+        const bodyIndexes = metaParameterIndexes(components, storedBindings, 'body');
+
+        if (bodyIndexes.length > 0) {
+            const bodyParameters = buildParametersForIndexes(
+                bodyIndexes,
                 mappings,
-                {
-                    customerName: message.customerName,
-                    lastOrderDate: customer.lastOrderDate,
-                    companyName,
-                },
+                parameterContext,
             );
 
             runtimeComponents.push({

@@ -73,6 +73,18 @@ export function countTemplateVariables(text: string): number {
   return Math.max(0, ...indices)
 }
 
+export function listTemplateKeys(text: string): string[] {
+  const keys: string[] = []
+  const seen = new Set<string>()
+  for (const match of text.matchAll(/\{\{([^{}]+)\}\}/g)) {
+    const key = match[1].trim()
+    if (!key || seen.has(key)) continue
+    seen.add(key)
+    keys.push(key)
+  }
+  return keys
+}
+
 export function extractComponentText(
   components: Array<{ type?: string; text?: string }> | undefined,
   type: string

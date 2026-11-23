@@ -92,21 +92,47 @@ export function resolveTemplateVariableValue(
   }
 }
 
-export function buildBodyParametersFromMappings(
-  variableCount: number,
+export function sanitizeTemplateParameterText(
+  value: string,
+  fallback = 'Cliente',
+): string {
+  const sanitized = (value ?? '')
+    .replace(/[\r\n\t]+/g, ' ')
+    .replace(/ {4,}/g, '   ')
+    .trim();
+  return sanitized || fallback;
+}
+
+export function buildParametersForIndexes(
+  indexes: number[],
   mappings: MetaTemplateVariableMapping[],
   ctx: TemplateVariableContext,
 ): string[] {
   const byIndex = new Map(mappings.map((mapping) => [mapping.index, mapping.source]));
 
-  return Array.from({ length: variableCount }, (_, offset) => {
-    const index = offset + 1;
+  return indexes.map((index) => {
     const source = byIndex.get(index);
     if (!source) {
-      return extractCustomerFirstName(ctx.customerName);
+      throw new Error(`Informe a origem dos dados para a variável {{${index}}}`);
     }
-    return resolveTemplateVariableValue(source, ctx);
+    const raw = resolveTemplateVariableValue(source, ctx);
+    const fallback =
+      source === META_TEMPLATE_VARIABLE_SOURCE.STORE_NAME ? 'Loja' : 'Cliente';
+    return sanitizeTemplateParameterText(raw, fallback);
   });
+}
+
+export function hasNamedTemplateVariables(text: string): boolean {
+  return /\{\{[a-z][a-z0-9_]*\}\}/i.test(text);
+}
+
+export function buildBodyParametersFromMappings(
+  variableCount: number,
+  mappings: MetaTemplateVariableMapping[],
+  ctx: TemplateVariableContext,
+): string[] {
+  const indexes = Array.from({ length: variableCount }, (_, offset) => offset + 1);
+  return buildParametersForIndexes(indexes, mappings, ctx);
 }
 
 export function normalizeMetaTemplateVariableMappings(
