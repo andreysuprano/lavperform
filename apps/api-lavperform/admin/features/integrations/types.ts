@@ -33,6 +33,11 @@ export interface CompanyIntegration {
   merchantId: string | null
   digitalMenuUrl: string | null
   active: boolean
+  session: {
+    status: "ACTIVE" | "NEEDS_REAUTH"
+    expiresAt: string
+    lastError: string | null
+  } | null
   hasApiKey: boolean
   hasApiSecret: boolean
   hasUsername: boolean

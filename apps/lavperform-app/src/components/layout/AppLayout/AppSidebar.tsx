@@ -1,5 +1,6 @@
-import { Box, Button, Center, Icon, Stack, Text } from '@chakra-ui/react'
+import { Box, Center, Icon, Stack, Text } from '@chakra-ui/react'
 import { type ElementType, memo } from 'react'
+import { LuChevronRight } from 'react-icons/lu'
 import { Link, useLocation } from 'react-router-dom'
 
 import { ThemeImage, Tooltip } from '@/components'
@@ -56,12 +57,11 @@ const Sidebar = memo(
     const line = useColorModeValue('gray.200', 'whiteAlpha.100')
     const idleText = useColorModeValue('#3F3F46', 'gray.300')
     const idleIcon = useColorModeValue('gray.500', 'gray.400')
+    const strongText = useColorModeValue('#18181B', 'white')
+    const chevron = useColorModeValue('gray.400', 'gray.500')
     const hoverBg = useColorModeValue('gray.100', 'whiteAlpha.100')
     const hoverPaint = useColorModeValue('#F4F4F5', 'rgba(255, 255, 255, 0.1)')
     const subActiveBg = useColorModeValue('#E8F6FD', 'rgba(123,201,241,0.16)')
-    const subActiveText = useColorModeValue('#093A58', '#7BC9F1')
-    const academyText = useColorModeValue('#27272A', 'gray.400')
-    const academyLine = useColorModeValue('#D4D4D8', 'whiteAlpha.100')
 
     return (
       <Box
@@ -108,9 +108,15 @@ const Sidebar = memo(
           <Stack gap="4px">
             {menuItems.map((item) => {
               const isActive = activeHref === item.href
+              const hasLinks = Boolean(item.links?.length)
               const activeLink = isActive
                 ? getLongestPrefixLinkMatch(item.links, location.pathname)
                 : undefined
+              // Com subitem aberto, quem destaca a página atual é o subitem.
+              // O grupo só ganha ênfase de texto, sem um segundo bloco azul.
+              const isParentOfCurrent = isActive && Boolean(activeLink)
+              const isCurrent = isActive && !isParentOfCurrent
+              const expanded = open && isParentOfCurrent
 
               return (
                 <Box key={item.href}>
@@ -121,16 +127,22 @@ const Sidebar = memo(
                   >
                     <ShellNavLink
                       _hover={
-                        isActive
+                        isCurrent
                           ? undefined
                           : { bg: hoverBg, textDecoration: 'none' }
                       }
                       alignItems="center"
-                      bg={isActive ? '#7BC9F1' : 'transparent'}
+                      bg={isCurrent ? '#7BC9F1' : 'transparent'}
                       borderRadius="8px"
-                      color={isActive ? '#18181B' : idleText}
+                      color={
+                        isCurrent
+                          ? '#18181B'
+                          : isParentOfCurrent
+                            ? strongText
+                            : idleText
+                      }
                       css={
-                        isActive
+                        isCurrent
                           ? undefined
                           : {
                               '&:hover': {
@@ -140,7 +152,7 @@ const Sidebar = memo(
                       }
                       display="flex"
                       fontSize="14px"
-                      fontWeight="medium"
+                      fontWeight={isParentOfCurrent ? 'semibold' : 'medium'}
                       gap="8px"
                       h="40px"
                       justifyContent={open ? 'flex-start' : 'center'}
@@ -152,13 +164,19 @@ const Sidebar = memo(
                       <Icon
                         as={item.icon}
                         boxSize="18px"
-                        color={isActive ? '#18181B' : idleIcon}
+                        color={
+                          isCurrent
+                            ? '#18181B'
+                            : isParentOfCurrent
+                              ? strongText
+                              : idleIcon
+                        }
                       />
                       {open && (
                         <Text
                           flex="1"
                           fontSize="14px"
-                          fontWeight="medium"
+                          fontWeight="inherit"
                           truncate
                         >
                           {item.label}
@@ -169,84 +187,129 @@ const Sidebar = memo(
                           Novidade
                         </NavNewBadge>
                       )}
+                      {open && hasLinks && (
+                        <Icon
+                          as={LuChevronRight}
+                          boxSize="14px"
+                          color={isCurrent ? '#18181B' : chevron}
+                          flexShrink={0}
+                          style={{
+                            transform: expanded
+                              ? 'rotate(90deg)'
+                              : 'rotate(0deg)',
+                            transition: 'transform 0.2s ease-out',
+                          }}
+                        />
+                      )}
                     </ShellNavLink>
                   </Tooltip>
-                  {open &&
-                    isActive &&
-                    item.links?.map((link) => {
-                      const subActive = activeLink?.href === link.href
-                      return (
-                        <ShellNavLink
-                          _hover={
-                            subActive
-                              ? undefined
-                              : { bg: hoverBg, textDecoration: 'none' }
-                          }
-                          alignItems="center"
-                          bg={subActive ? subActiveBg : 'transparent'}
-                          borderRadius="8px"
-                          color={subActive ? subActiveText : idleText}
-                          css={
-                            subActive
-                              ? undefined
-                              : {
-                                  '&:hover': {
-                                    backgroundColor: `${hoverPaint} !important`,
-                                  },
-                                }
-                          }
-                          display="flex"
-                          fontSize="13px"
-                          fontWeight={subActive ? 'semibold' : 'normal'}
-                          h="34px"
-                          key={link.href}
-                          pl="44px"
-                          pr="12px"
-                          textDecoration="none"
-                          to={link.href}
-                        >
-                          <Text
-                            flex="1"
+                  {expanded && (
+                    <Stack
+                      borderColor={line}
+                      borderLeftWidth="1px"
+                      gap="2px"
+                      ml="21px"
+                      my="4px"
+                    >
+                      {item.links?.map((link) => {
+                        const subActive = activeLink?.href === link.href
+                        return (
+                          <ShellNavLink
+                            _hover={
+                              subActive
+                                ? undefined
+                                : { bg: hoverBg, textDecoration: 'none' }
+                            }
+                            alignItems="center"
+                            bg={subActive ? '#7BC9F1' : 'transparent'}
+                            borderRadius="8px"
+                            color={subActive ? '#18181B' : idleText}
+                            css={
+                              subActive
+                                ? undefined
+                                : {
+                                    '&:hover': {
+                                      backgroundColor: `${hoverPaint} !important`,
+                                    },
+                                  }
+                            }
+                            display="flex"
                             fontSize="13px"
                             fontWeight={subActive ? 'semibold' : 'normal'}
-                            truncate
+                            h="34px"
+                            key={link.href}
+                            ml="-1px"
+                            pl="16px"
+                            pr="12px"
+                            textDecoration="none"
+                            to={link.href}
                           >
-                            {link.label}
-                          </Text>
-                          {link.badge && (
-                            <NavNewBadge
-                              fontSize="10px"
-                              testId={`nav-badge-${link.href}`}
+                            <Text
+                              flex="1"
+                              fontSize="13px"
+                              fontWeight="inherit"
+                              truncate
                             >
-                              {link.badge}
-                            </NavNewBadge>
-                          )}
-                        </ShellNavLink>
-                      )
-                    })}
+                              {link.label}
+                            </Text>
+                            {link.badge && (
+                              <NavNewBadge
+                                fontSize="10px"
+                                testId={`nav-badge-${link.href}`}
+                              >
+                                {link.badge}
+                              </NavNewBadge>
+                            )}
+                          </ShellNavLink>
+                        )
+                      })}
+                    </Stack>
+                  )}
                 </Box>
               )
             })}
           </Stack>
           {ACADEMY_MENU_ITEM && (
-            <Link to={ACADEMY_MENU_ITEM.href}>
-              <Button
-                bg={surface}
-                borderColor={academyLine}
-                borderTopWidth="1px"
-                color={academyText}
-                fontWeight="semibold"
-                h="40px"
-                variant="outline"
-                w="full"
+            <Box
+              borderColor={line}
+              borderTopWidth="1px"
+              pt="12px"
+            >
+              <Tooltip
+                content={ACADEMY_MENU_ITEM.label}
+                disabled={open}
+                positioning={{ placement: 'right' }}
               >
-                <Icon
-                  as={ACADEMY_MENU_ITEM.icon}
-                  boxSize="16px"
-                />
-                {open && ACADEMY_MENU_ITEM.label}
-              </Button>
-            </Link>
+                <ShellNavLink
+                  _hover={{ bg: hoverBg, textDecoration: 'none' }}
+                  alignItems="center"
+                  borderRadius="8px"
+                  color={idleText}
+                  css={{
+                    '&:hover': {
+                      backgroundColor: `${hoverPaint} !important`,
+                    },
+                  }}
+                  display="flex"
+                  fontSize="14px"
+                  fontWeight="medium"
+                  gap="8px"
+                  h="40px"
+                  justifyContent={open ? 'flex-start' : 'center'}
+                  px="12px"
+                  textDecoration="none"
+                  to={ACADEMY_MENU_ITEM.href}
+                  w="full"
+                >
+                  <Icon
+                    as={ACADEMY_MENU_ITEM.icon}
+                    boxSize="18px"
+                    color={idleIcon}
+                  />
+                  {open && ACADEMY_MENU_ITEM.label}
+                </ShellNavLink>
+              </Tooltip>
+            </Box>
           )}
         </Stack>
       </Box>

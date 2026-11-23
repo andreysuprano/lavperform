@@ -169,6 +169,30 @@ async function main() {
   });
 
   await prisma.partner.upsert({
+    where: { id: 'partner-laundrykit' },
+    update: { partnerSlug: 'LAUNDRYKIT', name: 'Laundry Kit' },
+    create: {
+      id: 'partner-laundrykit',
+      name: 'Laundry Kit',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'LAUNDRYKIT',
+    },
+  });
+
+  await prisma.partner.upsert({
+    where: { id: 'partner-sislav' },
+    update: { partnerSlug: 'SISLAV', name: 'SisLav' },
+    create: {
+      id: 'partner-sislav',
+      name: 'SisLav',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'SISLAV',
+    },
+  });
+
+  await prisma.partner.upsert({
     where: { id: '7f3a2c10-8b4e-4d6a-9c1e-0a5b6c7d8e9f' },
     update: { partnerSlug: 'HYBEX_ESSENCE', name: 'Hybex Essence' },
     create: {

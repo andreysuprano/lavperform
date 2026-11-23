@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, Inject, Logger } from '@nestjs/common';
+import { Injectable, BadRequestException, Inject, Logger, Optional } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { CompaniesService } from '../companies/application/companies.service';
 import { OnboardingDto } from '../users/application/dto/onboarding.dto';
@@ -23,6 +23,8 @@ import { Plan } from '../plans/domain/plan.entity';
 import { resolveSubscriptionBillingType } from '../plans/domain/resolve-subscription-billing-type';
 import { PutCardDto } from '../integrations/asaas/dto/put-card.dto';
 import { getPartnerFieldSchema } from '../admin/integrations/partner-field-catalog';
+import { IntegrationSessionService } from '../integrations/session-refresh/integration-session.service';
+import { planPastedToken } from '../integrations/session-refresh/session-window';
 
 @Injectable()
 export class OnboardingService {
@@ -42,6 +44,7 @@ export class OnboardingService {
     private asaasService: AsaasService,
     private configService: ConfigService,
     private prisma: PrismaService,
+    @Optional() private readonly integrationSessions?: IntegrationSessionService,
   ) { }
 
   async getSubscriptionPlan() {
@@ -399,20 +402,44 @@ export class OnboardingService {
   }
 
   async createDigitalMenuIntegration(companyId: string, digitalMenuIntegrationDto: CreateDigitalMenuIntegrationDto) {
+    const partner = await this.partnerRepository.findById(
+      digitalMenuIntegrationDto.partnerId,
+    );
+    const pasted = planPastedToken(
+      partner?.partnerSlug,
+      digitalMenuIntegrationDto.apiKey,
+    );
+    if (pasted.kind === 'expired') {
+      throw new BadRequestException(pasted.message);
+    }
+
     const existingDigitalMenuIntegration = await this.digitalMenuIntegrationRepository.findByCompanyAndPartner(companyId, digitalMenuIntegrationDto.partnerId);
 
-    if (existingDigitalMenuIntegration) {
-      return await this.digitalMenuIntegrationRepository.update(
-        existingDigitalMenuIntegration.id,
-        digitalMenuIntegrationDto
+    const saved = existingDigitalMenuIntegration
+      ? await this.digitalMenuIntegrationRepository.update(
+          existingDigitalMenuIntegration.id,
+          digitalMenuIntegrationDto,
+        )
+      : await this.digitalMenuIntegrationRepository.create({
+          ...digitalMenuIntegrationDto,
+          companyId,
+          active: digitalMenuIntegrationDto.active ?? true,
+        });
+
+    if (
+      this.integrationSessions &&
+      partner?.partnerSlug &&
+      (pasted.kind === 'static' || pasted.kind === 'track')
+    ) {
+      await this.integrationSessions.persist(
+        saved.id,
+        companyId,
+        partner.partnerSlug,
+        pasted,
       );
     }
 
-    return await this.digitalMenuIntegrationRepository.create({
-      ...digitalMenuIntegrationDto,
-      companyId,
-      active: digitalMenuIntegrationDto.active ?? true,
-    });
+    return saved;
   }
 
   async createPartner(partnerDto: CreatePartnerDto) {

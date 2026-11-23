@@ -46,6 +46,18 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },
+  LAUNDRYKIT: {
+    requiredFields: ['apiKey', 'merchantId'],
+    optionalFields: ['digitalMenuUrl'],
+    supportsImportHistory: false,
+    importHistoryRoute: 'none',
+  },
+  SISLAV: {
+    requiredFields: ['apiKey', 'merchantId', 'apiSecret'],
+    optionalFields: ['digitalMenuUrl'],
+    supportsImportHistory: false,
+    importHistoryRoute: 'none',
+  },
   HYBEX: {
     requiredFields: ['apiKey', 'apiSecret', 'merchantId', 'password'],
     optionalFields: [],

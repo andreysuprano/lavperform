@@ -10,6 +10,7 @@ import { AgidezModule } from '../../integrations/agidez/agidez.module';
 import { HybexEssenceModule } from '../../integrations/hybex-essence/hybex-essence.module';
 import { VmLavModule } from '../../integrations/vmlav/vmlav.module';
 import { PartnersModule } from '../../partners/partners.module';
+import { SessionRefreshModule } from '../../integrations/session-refresh/session-refresh.module';
 import { AdminCompanyIntegrationsController } from './admin-company-integrations.controller';
 import { AdminIntegrationsController } from './admin-integrations.controller';
 import { AdminIntegrationsService } from './admin-integrations.service';
@@ -18,6 +19,7 @@ import { AdminIntegrationsService } from './admin-integrations.service';
   imports: [
     PrismaModule,
     PartnersModule,
+    SessionRefreshModule,
     ImportHistoryModule,
     VmLavModule,
     CiccloModule,
