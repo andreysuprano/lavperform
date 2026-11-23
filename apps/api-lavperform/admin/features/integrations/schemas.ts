@@ -1,6 +1,11 @@
 import { z } from "zod"
 
-import type { CompanyIntegration, IntegrationPartner } from "./types"
+import type {
+  CompanyIntegration,
+  IntegrationFieldName,
+  IntegrationPartner,
+} from "./types"
+import { integrationFieldLabel } from "./utils"
 
 export const integrationFormSchema = z.object({
   partnerId: z.string().min(1, "Selecione um parceiro integrador"),
@@ -53,7 +58,11 @@ export function validateIntegrationForm(
       continue
     }
 
-    return `O campo "${field}" é obrigatório para ${partner.name}`
+    const label = integrationFieldLabel(
+      field as IntegrationFieldName,
+      partner.partnerSlug,
+    )
+    return `${label} é obrigatório para ${partner.name}`
   }
 
   return null

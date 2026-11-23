@@ -459,10 +459,26 @@ export class OnboardingService {
       await this.partnerRepository.findAllWithIntegrations(companyId);
     return partners
       .filter((partner) => partner.active !== false)
-      .map((partner) => ({
-        ...partner,
-        requiredFields: getPartnerFieldSchema(partner.partnerSlug).requiredFields,
-      }));
+      .map((partner) => {
+        const schema = getPartnerFieldSchema(partner.partnerSlug);
+        return {
+          ...partner,
+          requiredFields: schema.requiredFields,
+          optionalFields: schema.optionalFields,
+          digitalMenuIntegrations: (partner.digitalMenuIntegrations ?? []).map(
+            (integration) => ({
+              ...integration,
+              session: integration.session
+                ? {
+                    status: integration.session.status,
+                    expiresAt: integration.session.expiresAt,
+                    lastError: integration.session.lastError ?? null,
+                  }
+                : null,
+            }),
+          ),
+        };
+      });
   }
 
   async getPlans() {

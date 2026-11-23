@@ -138,7 +138,8 @@ export function IntegrationsTable({
                     <IntegrationStatusBadge active={integration.active} />
                     {integration.session?.status === "NEEDS_REAUTH" && (
                       <span className="text-xs text-destructive">
-                        Sessão expirada
+                        {integration.session.lastError ||
+                          "Sessão expirada. Cole um token novo."}
                       </span>
                     )}
                     {integration.session?.status === "ACTIVE" && (

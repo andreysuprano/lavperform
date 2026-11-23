@@ -9,6 +9,57 @@ const FIELD_LABELS: Record<IntegrationFieldName, string> = {
   digitalMenuUrl: "URL do PDV",
 }
 
+const FIELD_HINTS: Partial<
+  Record<string, Partial<Record<IntegrationFieldName, { label: string; hint: string }>>>
+> = {
+  MAXLAV: {
+    apiKey: {
+      label: "Token de acesso",
+      hint: "Cole um token Bearer ainda válido do dashboard. Ele vale até o vencimento.",
+    },
+    merchantId: {
+      label: "ID da loja",
+      hint: "Opcional. Informe quando o token atende mais de uma loja.",
+    },
+    digitalMenuUrl: {
+      label: "URL da API",
+      hint: "Opcional. Em branco, usamos https://api-dashboard.maxpan.com.br.",
+    },
+  },
+  LAUNDRYKIT: {
+    apiKey: {
+      label: "Token de acesso",
+      hint: "Cole o JWT ainda válido do dashboard Laundry Kit.",
+    },
+    merchantId: {
+      label: "ID da loja",
+      hint: "STORE_ID usado nas consultas do Laundry Kit.",
+    },
+    digitalMenuUrl: {
+      label: "URL da rota",
+      hint: "Opcional. Em branco, usamos a rota padrão do dashboard.",
+    },
+  },
+  SISLAV: {
+    apiKey: {
+      label: "Token da sessão",
+      hint: "Cole o cookie authjs.session-token, ou só o valor, ainda válido. A sessão é renovada sozinha.",
+    },
+    merchantId: {
+      label: "ID da lavanderia",
+      hint: "laundryId usado na consulta de vendas.",
+    },
+    apiSecret: {
+      label: "ID da organização",
+      hint: "Valor do header x-organization-id.",
+    },
+    digitalMenuUrl: {
+      label: "URL do app",
+      hint: "Opcional. Em branco, usamos https://app.sislav.com.br.",
+    },
+  },
+}
+
 const SLUG_LABELS: Record<string, string> = {
   VMLAV: "VM Lav",
   CICCLO: "Cicclo",
@@ -16,6 +67,8 @@ const SLUG_LABELS: Record<string, string> = {
   WAYMONEY: "WayMoney",
   L2AUTOMATE: "L2 Automate",
   MAXLAV: "Maxlav",
+  LAUNDRYKIT: "Laundry Kit",
+  SISLAV: "SisLav",
   HYBEX: "Hybex",
   AGIDEZ: "Hybex",
   HYBEX_ESSENCE: "Hybex Essence",
@@ -52,7 +105,28 @@ export function integrationFieldLabel(
   if (partnerSlug?.toUpperCase() === "HYBEX_ESSENCE" && field === "password") {
     return "ApiPassword"
   }
-  return FIELD_LABELS[field]
+  return FIELD_HINTS[partnerSlug?.toUpperCase() ?? ""]?.[field]?.label ?? FIELD_LABELS[field]
+}
+
+export function integrationFieldHint(
+  field: IntegrationFieldName,
+  partnerSlug?: string | null,
+): string | null {
+  return FIELD_HINTS[partnerSlug?.toUpperCase() ?? ""]?.[field]?.hint ?? null
+}
+
+export function sessionSetupHint(partnerSlug?: string | null): string | null {
+  const slug = partnerSlug?.toUpperCase()
+  if (slug === "SISLAV") {
+    return "Cole o cookie authjs.session-token ainda válido. A sessão é renovada sozinha enquanto esse cookie responder."
+  }
+  if (slug === "LAUNDRYKIT") {
+    return "Cole o JWT ainda válido do dashboard e o ID da loja. O token vale até o vencimento."
+  }
+  if (slug === "MAXLAV") {
+    return "Cole o token Bearer ainda válido do dashboard. Ele vale até o vencimento."
+  }
+  return null
 }
 
 const SUPPORTS_IMPORT_HISTORY_SLUGS = new Set([

@@ -30,6 +30,7 @@ import {
 } from "../schemas"
 import type { CompanyIntegration } from "../types"
 import { IntegrationFields } from "./integration-fields"
+import { sessionSetupHint } from "../utils"
 import { PartnerSelect } from "./partner-select"
 
 export function IntegrationFormDialog({
@@ -150,6 +151,14 @@ export function IntegrationFormDialog({
                 <FieldLabel htmlFor="reveal-secrets" className="mb-0">
                   Exibir credenciais salvas
                 </FieldLabel>
+              </Field>
+            )}
+
+            {sessionSetupHint(selectedPartner?.partnerSlug) && (
+              <Field>
+                <FieldDescription>
+                  {sessionSetupHint(selectedPartner?.partnerSlug)}
+                </FieldDescription>
               </Field>
             )}
 

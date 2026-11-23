@@ -1,3 +1,5 @@
+import type { IntegrationSessionView } from './partner-fields'
+
 export interface Props {
   name: string
   logo?: string
@@ -9,6 +11,8 @@ export interface Props {
   apiSecret?: string
   apiPassword?: string
   requiredFields?: string[]
+  optionalFields?: string[]
   urlCardapio?: string
+  session?: IntegrationSessionView | null
   onSuccess: () => void
 }
