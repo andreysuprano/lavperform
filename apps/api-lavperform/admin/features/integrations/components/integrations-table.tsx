@@ -134,7 +134,19 @@ export function IntegrationsTable({
                   </div>
                 </TableCell>
                 <TableCell>
-                  <IntegrationStatusBadge active={integration.active} />
+                  <div className="flex flex-col gap-1">
+                    <IntegrationStatusBadge active={integration.active} />
+                    {integration.session?.status === "NEEDS_REAUTH" && (
+                      <span className="text-xs text-destructive">
+                        Sessão expirada
+                      </span>
+                    )}
+                    {integration.session?.status === "ACTIVE" && (
+                      <span className="text-xs text-muted-foreground">
+                        Sessão até {formatDate(integration.session.expiresAt)}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <CredentialSummary integration={integration} />

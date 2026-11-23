@@ -37,6 +37,8 @@ import { WaymoneyModule } from './integrations/waymoney/waymoney.module';
 import { L2AutomateModule } from './integrations/l2automate/l2automate.module';
 import { ConsumerModule } from './integrations/consumer/consumer.module';
 import { MaxlavModule } from './integrations/maxlav/maxlav.module';
+import { SessionRefreshModule } from './integrations/session-refresh/session-refresh.module';
+import { PartnerFeedModule } from './integrations/partner-feed/partner-feed.module';
 import { AgidezModule } from './integrations/agidez/agidez.module';
 import { RfvEngineModule } from './rfv-engine/rfv-engine.module';
 import { ConversionWindowModule } from './conversion-window/conversion-window.module';
@@ -103,6 +105,8 @@ import { SocialPublishingModule } from './social-publishing/social-publishing.mo
     L2AutomateModule,
     ConsumerModule,
     MaxlavModule,
+    SessionRefreshModule,
+    PartnerFeedModule,
     AgidezModule,
     RfvEngineModule,
     ConversionWindowModule,

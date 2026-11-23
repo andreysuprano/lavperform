@@ -168,6 +168,30 @@ async function main() {
     },
   });
 
+  await prisma.partner.upsert({
+    where: { id: 'partner-laundrykit' },
+    update: { partnerSlug: 'LAUNDRYKIT', name: 'Laundry Kit' },
+    create: {
+      id: 'partner-laundrykit',
+      name: 'Laundry Kit',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'LAUNDRYKIT',
+    },
+  });
+
+  await prisma.partner.upsert({
+    where: { id: 'partner-sislav' },
+    update: { partnerSlug: 'SISLAV', name: 'SisLav' },
+    create: {
+      id: 'partner-sislav',
+      name: 'SisLav',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'SISLAV',
+    },
+  });
+
   const maxlavPartner = await prisma.partner.upsert({
     where: { id: 'partner-maxlav' },
     update: { partnerSlug: 'MAXLAV' },

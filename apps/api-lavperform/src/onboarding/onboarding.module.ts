@@ -9,6 +9,7 @@ import { PartnersModule } from '../partners/partners.module';
 import { LinkPageModule } from '../link-page/link-page.module';
 import { AsaasModule } from '../integrations/asaas/asaas.module';
 import { WeatherAlertModule } from '../weather-alert/weather-alert.module';
+import { SessionRefreshModule } from '../integrations/session-refresh/session-refresh.module';
 
 @Module({
   imports: [
@@ -20,6 +21,7 @@ import { WeatherAlertModule } from '../weather-alert/weather-alert.module';
     PartnersModule,
     LinkPageModule,
     WeatherAlertModule,
+    SessionRefreshModule,
   ],
   controllers: [OnboardingController],
   providers: [OnboardingService],

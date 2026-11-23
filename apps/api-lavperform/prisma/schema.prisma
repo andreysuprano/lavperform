@@ -68,6 +68,7 @@ model Company {
   whatsappConnectionLinks   WhatsappConnectionLink[]
   whatsappCompanyConnection WhatsappCompanyConnection?
   digitalMenuIntegration    DigitalMenuIntegration[]
+  integrationSessions       IntegrationSession[]
   orders                    Order[]
   automaticCampaigns        AutomaticCampaign[]
   companySubscriptions      CompanySubscription[]
@@ -268,8 +269,38 @@ model DigitalMenuIntegration {
   active         Boolean  @default(true)
   merchantId     String?
   digitalMenuUrl String?
+  session        IntegrationSession?
 
   @@index([companyId, partnerId])
+}
+
+enum IntegrationSessionStatus {
+  ACTIVE
+  NEEDS_REAUTH
+}
+
+/// Sessão renovável de um parceiro cujo acesso é um token com validade.
+/// O access token fica cifrado. apiKey da integração espelha o token corrente.
+model IntegrationSession {
+  id              String                   @id @default(uuid())
+  integrationId   String                   @unique
+  integration     DigitalMenuIntegration   @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  companyId       String
+  company         Company                  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  partnerSlug     String
+  accessTokenEnc  String                   @db.Text
+  expiresAt       DateTime
+  refreshAfter    DateTime
+  status          IntegrationSessionStatus @default(ACTIVE)
+  lockedUntil     DateTime?
+  lastRefreshedAt DateTime?
+  lastError       String?                  @db.Text
+  createdAt       DateTime                 @default(now())
+  updatedAt       DateTime                 @updatedAt
+
+  @@index([status, refreshAfter])
+  @@index([companyId, partnerSlug])
+  @@map("integration_sessions")
 }
 
 model Partner {

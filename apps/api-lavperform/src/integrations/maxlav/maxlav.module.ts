@@ -16,12 +16,14 @@ import { MaxlavSalesTasks } from './crons/maxlav-sales-tasks';
 import { MaxlavController } from './presentation/maxlav.controller';
 import { workerProviders } from '../../common/queue/worker-runtime.config';
 import { SalesImportModule } from '../sales-import/sales-import.module';
+import { SessionRefreshModule } from '../session-refresh/session-refresh.module';
 
 @Module({
   imports: [
     HttpModule,
     PrismaModule,
     SalesImportModule,
+    SessionRefreshModule,
     PartnersModule,
     CustomersModule,
     OrderModule,

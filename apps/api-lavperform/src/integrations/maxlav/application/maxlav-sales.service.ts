@@ -1,4 +1,10 @@
-import { Injectable, Logger, Inject, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  Logger,
+  Inject,
+  NotFoundException,
+  Optional,
+} from '@nestjs/common';
 import { InjectQueue } from '@nestjs/bull';
 import { Queue } from 'bull';
 import { MaxlavService } from '../api/maxlav.service';
@@ -21,6 +27,7 @@ import {
 import { DigitalMenuIntegration } from '../../../partners/domain/digital-menu-integration.entity';
 import { MaxlavSaleMapping } from '../mappings/maxlav-sale-mapping';
 import { MaxlavImportHistoricalSalesDto } from './dto/import-historical-sales.dto';
+import { IntegrationSessionService } from '../../session-refresh/integration-session.service';
 
 const PARTNER_SLUG = 'MAXLAV';
 
@@ -39,6 +46,7 @@ export class MaxlavSalesService {
     private readonly maxlavSalesQueue: Queue,
     @InjectQueue(QUEUE_NAMES.MAXLAV_SALE_PROCESS)
     private readonly maxlavSaleProcessQueue: Queue,
+    @Optional() private readonly sessions?: IntegrationSessionService,
   ) {}
 
   // ─── helpers ──────────────────────────────────────────────────────────────
@@ -75,6 +83,14 @@ export class MaxlavSalesService {
     return integration;
   }
 
+  private async tokenFor(integration: {
+    id: string;
+    apiKey?: string;
+  }): Promise<string | null> {
+    if (!this.sessions) return integration.apiKey ?? null;
+    return this.sessions.currentAccessToken(integration.id, integration.apiKey);
+  }
+
   // ─── cron entry point ─────────────────────────────────────────────────────
 
   /**
@@ -90,10 +106,15 @@ export class MaxlavSalesService {
       const integration = await this.resolveIntegration(companyId);
       if (!integration) return;
 
-      const orders = await this.maxlavService.getDailySales(
-        integration.apiKey!,
-        date,
-      );
+      const token = await this.tokenFor(integration);
+      if (!token) {
+        this.logger.warn(
+          `Sessão MaxLav expirada para a empresa ${companyId}. Cole um token válido.`,
+        );
+        return;
+      }
+
+      const orders = await this.maxlavService.getDailySales(token, date);
 
       this.logger.log(
         `${orders.length} pedidos Maxlav encontrados para empresa ${companyId} - ${date}`,
@@ -253,6 +274,12 @@ export class MaxlavSalesService {
       if (!integration.apiKey) {
         throw new NotFoundException(
           `Token de API não configurado para empresa ${companyId}`,
+        );
+      }
+
+      if (!(await this.tokenFor(integration))) {
+        throw new NotFoundException(
+          `A sessão MaxLav expirou para a empresa ${companyId}. Cole um token válido.`,
         );
       }
 

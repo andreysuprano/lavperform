@@ -47,6 +47,7 @@ describe('OnboardingService', () => {
     create: jest.fn(),
     update: jest.fn(),
     findAllWithIntegrations: jest.fn(),
+    findById: jest.fn(),
   };
 
   const businessPartnerRepository = {

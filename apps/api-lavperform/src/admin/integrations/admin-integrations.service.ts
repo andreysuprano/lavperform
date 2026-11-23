@@ -4,6 +4,7 @@ import {
   Inject,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,6 +28,11 @@ import {
   UNIFIED_IMPORT_SLUGS,
   validateIntegrationFields,
 } from './partner-field-catalog';
+import {
+  IntegrationSessionService,
+  IntegrationSessionView,
+} from '../../integrations/session-refresh/integration-session.service';
+import { planPastedToken } from '../../integrations/session-refresh/session-window';
 
 const MASKED_SECRET = '••••••••';
 
@@ -56,6 +62,7 @@ export class AdminIntegrationsService {
     private readonly l2AutomateSalesService: L2AutomateSalesService,
     private readonly maxlavSalesService: MaxlavSalesService,
     private readonly agidezSalesService: AgidezSalesService,
+    @Optional() private readonly integrationSessions?: IntegrationSessionService,
   ) {}
 
   async listPartners() {
@@ -186,9 +193,7 @@ export class AdminIntegrationsService {
     await this.ensureCompanyExists(companyId);
     const integrations =
       await this.digitalMenuIntegrationRepository.findAllByCompanyId(companyId);
-    return integrations.map((integration) =>
-      this.toResponse(integration, revealSecrets),
-    );
+    return this.respondAll(integrations, revealSecrets);
   }
 
   async getCompanyIntegration(
@@ -197,7 +202,7 @@ export class AdminIntegrationsService {
     revealSecrets = false,
   ) {
     const integration = await this.getIntegrationForCompany(companyId, integrationId);
-    return this.toResponse(integration, revealSecrets);
+    return this.respond(integration, revealSecrets);
   }
 
   async createCompanyIntegration(
@@ -208,6 +213,7 @@ export class AdminIntegrationsService {
     const partner = await this.getPartnerOrThrow(dto.partnerId);
     const merged = this.mergeFields({}, dto);
     this.assertValidFields(partner.partnerSlug, merged);
+    const pasted = this.guardPastedToken(partner.partnerSlug, dto.apiKey);
 
     const existing =
       await this.digitalMenuIntegrationRepository.findByCompanyAndPartner(
@@ -223,7 +229,13 @@ export class AdminIntegrationsService {
       const withPartner = await this.digitalMenuIntegrationRepository.findById(
         updated.id,
       );
-      return this.toResponse(withPartner!, false);
+      await this.rememberPastedToken(
+        withPartner!.id,
+        companyId,
+        partner.partnerSlug,
+        pasted,
+      );
+      return this.respond(withPartner!, false);
     }
 
     const created = await this.digitalMenuIntegrationRepository.create({
@@ -235,7 +247,13 @@ export class AdminIntegrationsService {
     const withPartner = await this.digitalMenuIntegrationRepository.findById(
       created.id,
     );
-    return this.toResponse(withPartner!, false);
+    await this.rememberPastedToken(
+      withPartner!.id,
+      companyId,
+      partner.partnerSlug,
+      pasted,
+    );
+    return this.respond(withPartner!, false);
   }
 
   async updateCompanyIntegration(
@@ -246,13 +264,23 @@ export class AdminIntegrationsService {
     const existing = await this.getIntegrationForCompany(companyId, integrationId);
     const merged = this.mergeFields(existing, dto);
     this.assertValidFields(existing.partner?.partnerSlug, merged);
+    const pasted =
+      dto.apiKey !== undefined
+        ? this.guardPastedToken(existing.partner?.partnerSlug, dto.apiKey)
+        : { kind: 'ignore' as const };
 
     await this.digitalMenuIntegrationRepository.update(
       integrationId,
       this.toPersistencePayload(merged, dto),
     );
     const updated = await this.digitalMenuIntegrationRepository.findById(integrationId);
-    return this.toResponse(updated!, false);
+    await this.rememberPastedToken(
+      integrationId,
+      companyId,
+      existing.partner?.partnerSlug,
+      pasted,
+    );
+    return this.respond(updated!, false);
   }
 
   async toggleIntegrationActive(
@@ -263,7 +291,7 @@ export class AdminIntegrationsService {
     await this.getIntegrationForCompany(companyId, integrationId);
     await this.digitalMenuIntegrationRepository.update(integrationId, { active });
     const updated = await this.digitalMenuIntegrationRepository.findById(integrationId);
-    return this.toResponse(updated!, false);
+    return this.respond(updated!, false);
   }
 
   async deleteCompanyIntegration(companyId: string, integrationId: string) {
@@ -475,7 +503,66 @@ export class AdminIntegrationsService {
     }
   }
 
-  private toResponse(integration: DigitalMenuIntegration, revealSecrets: boolean) {
+  private guardPastedToken(
+    partnerSlug: string | undefined,
+    apiKey: string | undefined,
+  ) {
+    const plan = planPastedToken(partnerSlug, apiKey);
+    if (plan.kind === 'expired') {
+      throw new BadRequestException(plan.message);
+    }
+    return plan;
+  }
+
+  private async rememberPastedToken(
+    integrationId: string,
+    companyId: string,
+    partnerSlug: string | undefined,
+    plan: ReturnType<typeof planPastedToken>,
+  ) {
+    if (!this.integrationSessions || !partnerSlug) return;
+    if (plan.kind !== 'static' && plan.kind !== 'track') return;
+    await this.integrationSessions.persist(
+      integrationId,
+      companyId,
+      partnerSlug,
+      plan,
+    );
+  }
+
+  private async respond(
+    integration: DigitalMenuIntegration,
+    revealSecrets: boolean,
+  ) {
+    const sessions = await this.integrationSessions?.summarize([integration.id]);
+    return this.toResponse(
+      integration,
+      revealSecrets,
+      sessions?.get(integration.id) ?? null,
+    );
+  }
+
+  private async respondAll(
+    integrations: DigitalMenuIntegration[],
+    revealSecrets: boolean,
+  ) {
+    const sessions = await this.integrationSessions?.summarize(
+      integrations.map((integration) => integration.id),
+    );
+    return integrations.map((integration) =>
+      this.toResponse(
+        integration,
+        revealSecrets,
+        sessions?.get(integration.id) ?? null,
+      ),
+    );
+  }
+
+  private toResponse(
+    integration: DigitalMenuIntegration,
+    revealSecrets: boolean,
+    session: IntegrationSessionView | null = null,
+  ) {
     const mask = (value?: string) => {
       if (!value) return null;
       return revealSecrets ? value : MASKED_SECRET;
@@ -492,6 +579,13 @@ export class AdminIntegrationsService {
       merchantId: integration.merchantId ?? null,
       digitalMenuUrl: integration.digitalMenuUrl ?? null,
       active: integration.active,
+      session: session
+        ? {
+            status: session.status,
+            expiresAt: session.expiresAt,
+            lastError: session.lastError,
+          }
+        : null,
       hasApiKey: Boolean(integration.apiKey),
       hasApiSecret: Boolean(integration.apiSecret),
       hasUsername: Boolean(integration.username),

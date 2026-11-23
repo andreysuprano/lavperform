@@ -1,0 +1,101 @@
+import { PartnerFeedService } from 'src/integrations/partner-feed/partner-feed.service';
+import { SessionRefreshError } from 'src/integrations/session-refresh/session-refresh.error';
+
+const NOW = new Date('2026-11-23T18:00:00.000Z');
+
+describe('PartnerFeedService', () => {
+  function harness() {
+    const prisma = {
+      digitalMenuIntegration: {
+        findMany: jest.fn(),
+      },
+    };
+    const sessions = {
+      currentAccessToken: jest.fn(),
+      markReauth: jest.fn(),
+    };
+    const sales = { salesOfDay: jest.fn() };
+    const ingestion = { enqueue: jest.fn() };
+    const service = new PartnerFeedService(
+      prisma as never,
+      sessions as never,
+      sales as never,
+      ingestion as never,
+    );
+    return { prisma, sessions, sales, ingestion, service };
+  }
+
+  const integration = {
+    id: 'integration-1',
+    companyId: 'company-1',
+    apiKey: 'token-legado',
+    apiSecret: 'org-1',
+    merchantId: 'loja-1',
+    digitalMenuUrl: null,
+    partner: { id: 'partner-1', partnerSlug: 'SISLAV', name: 'SisLav' },
+  };
+
+  const order = {
+    externalOrderId: 'sale-1',
+    customer: { name: 'Ana', phone: '11988887777' },
+  };
+
+  it('consulta o dia com o token da sessão e enfileira o pedido', async () => {
+    const { prisma, sessions, sales, ingestion, service } = harness();
+    prisma.digitalMenuIntegration.findMany.mockResolvedValue([integration]);
+    sessions.currentAccessToken.mockResolvedValue('token-atual');
+    sales.salesOfDay.mockResolvedValue([order]);
+
+    await service.feedDue(NOW);
+
+    expect(sessions.currentAccessToken).toHaveBeenCalledWith(
+      'integration-1',
+      'token-legado',
+    );
+    expect(sales.salesOfDay).toHaveBeenCalledWith(
+      expect.objectContaining({
+        partnerSlug: 'SISLAV',
+        accessToken: 'token-atual',
+        date: '2026-11-23',
+        merchantId: 'loja-1',
+        organizationId: 'org-1',
+      }),
+    );
+    expect(ingestion.enqueue).toHaveBeenCalledWith(
+      { apiKeyId: 'partner-session-feed', companyId: 'company-1' },
+      expect.objectContaining({
+        externalOrderId: 'sale-1',
+        partnerId: 'partner-1',
+      }),
+    );
+  });
+
+  it('não enfileira pedido sem telefone e sem CPF', async () => {
+    const { prisma, sessions, sales, ingestion, service } = harness();
+    prisma.digitalMenuIntegration.findMany.mockResolvedValue([integration]);
+    sessions.currentAccessToken.mockResolvedValue('token-atual');
+    sales.salesOfDay.mockResolvedValue([
+      { externalOrderId: 'sem-contato', customer: { name: 'Ana' } },
+    ]);
+
+    await service.feedDue(NOW);
+
+    expect(ingestion.enqueue).not.toHaveBeenCalled();
+  });
+
+  it('pede um token novo quando o parceiro recusa a sessão', async () => {
+    const { prisma, sessions, sales, service } = harness();
+    prisma.digitalMenuIntegration.findMany.mockResolvedValue([integration]);
+    sessions.currentAccessToken.mockResolvedValue('token-atual');
+    sales.salesOfDay.mockRejectedValue(
+      new SessionRefreshError('token recusado', 'rejected'),
+    );
+
+    await service.feedDue(NOW);
+
+    expect(sessions.markReauth).toHaveBeenCalledWith(
+      'integration-1',
+      'token recusado',
+    );
+  });
+});
