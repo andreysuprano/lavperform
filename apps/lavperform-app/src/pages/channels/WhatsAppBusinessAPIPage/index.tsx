@@ -3,13 +3,8 @@ import {
   Box,
   Button,
   Card,
-  EmptyState,
-  Field,
   HStack,
   Icon,
-  Input as ChakraInput,
-  NativeSelect,
-  RadioGroup,
   Separator,
   SimpleGrid,
   Stack,
@@ -32,7 +27,6 @@ import {
   LuSparkles,
   LuZap,
 } from 'react-icons/lu'
-import { PiEmpty } from 'react-icons/pi'
 import { TbBrandMeta } from 'react-icons/tb'
 import { Link } from 'react-router-dom'
 
@@ -41,8 +35,6 @@ import { useAuth } from '@/context/AuthContext'
 import { useMetaIntegration } from '@/hooks/queries'
 import { queryKeys } from '@/lib/react-query'
 import { metaIntegrationService } from '@/services'
-
-type MetaPhoneUseCase = 'new' | 'existing'
 
 type FacebookAuthResponse = {
   code?: string
@@ -56,10 +48,24 @@ type FacebookLoginResponse = {
   status?: string
 }
 
+const COMPLETED_SIGNUP_EVENTS = new Set([
+  'FINISH',
+  'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',
+])
+
 type WaSignupData = {
   phone_number_id?: string
   waba_id?: string
   business_id?: string
+  phone_number?: string
+  display_phone_number?: string
+  event?: string
+}
+
+type WaSignupMessage = {
+  type?: string
+  event?: string
+  data?: Omit<WaSignupData, 'event'>
 }
 
 type FacebookSdk = {
@@ -115,19 +121,16 @@ function formatDateTime(value: string | null | undefined) {
   }).format(date)
 }
 
-function normalizePhoneNumber(value: string) {
-  const trimmedValue = value.trim()
-  const withoutSpaces = trimmedValue.replace(/\s/g, '')
-
-  if (!withoutSpaces.startsWith('+')) {
-    return withoutSpaces
+function isFacebookOrigin(origin: string) {
+  try {
+    const url = new URL(origin)
+    return (
+      url.protocol === 'https:' &&
+      (url.hostname === 'facebook.com' || url.hostname.endsWith('.facebook.com'))
+    )
+  } catch {
+    return false
   }
-
-  return `+${withoutSpaces.slice(1).replace(/\D/g, '')}`
-}
-
-function isValidGlobalPhoneNumber(value: string) {
-  return /^\+[1-9]\d{7,14}$/.test(normalizePhoneNumber(value))
 }
 
 type InfoCardProps = {
@@ -269,297 +272,54 @@ function StatusIndicatorCard({ icon: IconComponent, title, description, isOk }: 
   )
 }
 
-type MetaNumberTypeStepProps = {
-  value: MetaPhoneUseCase | null
-  onChange: (value: MetaPhoneUseCase) => void
-}
-
-function MetaNumberTypeStep({ value, onChange }: MetaNumberTypeStepProps) {
-  const options: Array<{
-    value: MetaPhoneUseCase
-    title: string
-    description: string
-  }> = [
-    {
-      value: 'new',
-      title: 'Usar número novo',
-      description:
-        'Vou conectar um número que ainda não está em uso no WhatsApp Business.',
-    },
-    {
-      value: 'existing',
-      title: 'Usar número já existente',
-      description:
-        'Meu número já está ativo no WhatsApp Business e depende de COEX.',
-    },
-  ]
-
-  return (
-    <RadioGroup.Root
-      onValueChange={(details) => onChange(details.value as MetaPhoneUseCase)}
-      value={value ?? undefined}
-    >
-      <SimpleGrid
-        columns={{ base: 1, md: 2 }}
-        gap={3}
-      >
-        {options.map((option) => {
-          const isSelected = option.value === value
-
-          return (
-            <RadioGroup.Item
-              key={option.value}
-              asChild
-              value={option.value}
-            >
-              <Box
-                as="label"
-                bg="bg"
-                borderColor={isSelected ? 'fg' : 'border.emphasized'}
-                borderRadius="md"
-                borderWidth="2px"
-                cursor="pointer"
-                opacity={isSelected ? 1 : 0.72}
-                px={4}
-                py={3}
-                transition="all 0.2s"
-                _dark={{
-                  borderColor: isSelected ? 'white' : 'border.emphasized',
-                }}
-                _hover={{ opacity: 1 }}
-              >
-                <RadioGroup.ItemHiddenInput />
-                <Stack gap={2}>
-                  <HStack gap={2}>
-                    <Icon
-                      as={TbBrandMeta}
-                      boxSize={5}
-                    />
-                    <Text fontWeight="semibold">{option.title}</Text>
-                  </HStack>
-                  <Text
-                    color="fg.muted"
-                    fontSize="sm"
-                  >
-                    {option.description}
-                  </Text>
-                </Stack>
-              </Box>
-            </RadioGroup.Item>
-          )
-        })}
-      </SimpleGrid>
-    </RadioGroup.Root>
-  )
-}
-
-const DIAL_CODES = [
-  { code: '+55', label: '🇧🇷 Brasil (+55)' },
-  { code: '+1', label: '🇺🇸 EUA/Canadá (+1)' },
-  { code: '+54', label: '🇦🇷 Argentina (+54)' },
-  { code: '+56', label: '🇨🇱 Chile (+56)' },
-  { code: '+57', label: '🇨🇴 Colômbia (+57)' },
-  { code: '+51', label: '🇵🇪 Peru (+51)' },
-  { code: '+598', label: '🇺🇾 Uruguai (+598)' },
-  { code: '+595', label: '🇵🇾 Paraguai (+595)' },
-  { code: '+52', label: '🇲🇽 México (+52)' },
-  { code: '+34', label: '🇪🇸 Espanha (+34)' },
-  { code: '+351', label: '🇵🇹 Portugal (+351)' },
-  { code: '+44', label: '🇬🇧 Reino Unido (+44)' },
-  { code: '+49', label: '🇩🇪 Alemanha (+49)' },
-  { code: '+33', label: '🇫🇷 França (+33)' },
-  { code: '+39', label: '🇮🇹 Itália (+39)' },
-]
-
-type NewPhoneNumberStepProps = {
-  appId: string | undefined
-  phoneNumber: string
-  isSdkReady: boolean
-  sdkError: string | null
-  isConnecting: boolean
-  connectError: string | null
-  onPhoneNumberChange: (value: string) => void
-  onOpenMetaDialog: () => void
-}
-
-function NewPhoneNumberStep({
-  appId,
-  phoneNumber,
-  isSdkReady,
-  sdkError,
-  isConnecting,
-  connectError,
-  onPhoneNumberChange,
-  onOpenMetaDialog,
-}: NewPhoneNumberStepProps) {
-  const [dialCode, setDialCode] = useState('+55')
-  const [localNumber, setLocalNumber] = useState('')
-
-  const isValidPhoneNumber = isValidGlobalPhoneNumber(phoneNumber)
-  const canOpenMetaDialog =
-    !!appId && isSdkReady && isValidPhoneNumber && !isConnecting
-
-  const handleDialCodeChange = (newCode: string) => {
-    setDialCode(newCode)
-    onPhoneNumberChange(newCode + localNumber)
-  }
-
-  const handleLocalNumberChange = (value: string) => {
-    const digitsOnly = value.replace(/\D/g, '')
-    setLocalNumber(digitsOnly)
-    onPhoneNumberChange(dialCode + digitsOnly)
-  }
-
-  return (
-    <Card.Root variant="subtle">
-      <Card.Body>
-        <Stack gap={4}>
-          <Stack gap={1}>
-            <Text fontWeight="semibold">Qual número deseja usar?</Text>
-            <Text
-              color="fg.muted"
-              fontSize="sm"
-            >
-              Informe o número que irá usar na API oficial
-            </Text>
-          </Stack>
-
-          <Field.Root invalid={!!localNumber && !isValidPhoneNumber}>
-            <HStack
-              align="stretch"
-              gap={2}
-            >
-              <NativeSelect.Root
-                flexShrink={0}
-                w="180px"
-              >
-                <NativeSelect.Field
-                  onChange={(event) => handleDialCodeChange(event.target.value)}
-                  value={dialCode}
-                >
-                  {DIAL_CODES.map(({ code, label }) => (
-                    <option
-                      key={code}
-                      value={code}
-                    >
-                      {label}
-                    </option>
-                  ))}
-                </NativeSelect.Field>
-                <NativeSelect.Indicator />
-              </NativeSelect.Root>
-              <ChakraInput
-                flex={1}
-                onChange={(event) => handleLocalNumberChange(event.target.value)}
-                placeholder="41999999999"
-                type="tel"
-                value={localNumber}
-              />
-            </HStack>
-            <Field.ErrorText>
-              Número inválido. Verifique e tente novamente.
-            </Field.ErrorText>
-          </Field.Root>
-
-          {!appId && (
-            <Text
-              color="orange.fg"
-              fontSize="sm"
-            >
-              Configure VITE_META_APP_ID no ambiente para habilitar o botão da
-              Meta.
-            </Text>
-          )}
-
-          {sdkError && (
-            <Text
-              color="red.fg"
-              fontSize="sm"
-            >
-              {sdkError}
-            </Text>
-          )}
-
-          {connectError && (
-            <Text
-              color="red.fg"
-              fontSize="sm"
-            >
-              {connectError}
-            </Text>
-          )}
-
-          <Button
-            alignSelf="flex-start"
-            disabled={!canOpenMetaDialog}
-            loading={isConnecting || (!!appId && !isSdkReady && !sdkError)}
-            loadingText={isConnecting ? 'Conectando...' : 'Carregando Meta...'}
-            onClick={onOpenMetaDialog}
-          >
-            <TbBrandMeta />
-            Continuar com a Meta
-          </Button>
-        </Stack>
-      </Card.Body>
-    </Card.Root>
-  )
-}
-
-type CoexUnavailableStateProps = {
-  onBack: () => void
-}
-
-function CoexUnavailableState({ onBack }: CoexUnavailableStateProps) {
-  return (
-    <Card.Root>
-      <Card.Body py={10}>
-        <EmptyState.Root>
-          <EmptyState.Content>
-            <EmptyState.Indicator>
-              <PiEmpty />
-            </EmptyState.Indicator>
-            <VStack textAlign="center">
-              <EmptyState.Title>COEX ainda não está disponível</EmptyState.Title>
-              <EmptyState.Description>
-                A conexão de números que já estão em uso no WhatsApp Business
-                será liberada em uma próxima etapa.
-              </EmptyState.Description>
-              <Box pt={2}>
-                <Button
-                  onClick={onBack}
-                  variant="outline"
-                >
-                  Voltar
-                </Button>
-              </Box>
-            </VStack>
-          </EmptyState.Content>
-        </EmptyState.Root>
-      </Card.Body>
-    </Card.Root>
-  )
-}
 
 export const WhatsAppBusinessAPIPage = () => {
   const { selectedCompany } = useAuth()
   const queryClient = useQueryClient()
   const [isStartingIntegration, setIsStartingIntegration] = useState(false)
-  const [phoneUseCase, setPhoneUseCase] = useState<MetaPhoneUseCase | null>(
-    null
-  )
-  const [phoneNumber, setPhoneNumber] = useState('')
   const [isMetaSdkReady, setIsMetaSdkReady] = useState(false)
   const [metaSdkError, setMetaSdkError] = useState<string | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [connectError, setConnectError] = useState<string | null>(null)
   const [isDisconnecting, setIsDisconnecting] = useState(false)
   const waSignupDataRef = useRef<WaSignupData>({})
+  const signupWaitersRef = useRef<Array<(data: WaSignupData) => void>>([])
   const { data: integration, isLoading } = useMetaIntegration(selectedCompany?.id)
   const metaAppId = import.meta.env.VITE_META_APP_ID as string | undefined
   const metaConfigId = import.meta.env.VITE_META_CONFIG_ID as string | undefined
 
+  const publishSignupData = useCallback((data: WaSignupData) => {
+    waSignupDataRef.current = data
+    const waiters = signupWaitersRef.current
+    signupWaitersRef.current = []
+    waiters.forEach((waiter) => waiter(data))
+  }, [])
+
+  const waitForSignupData = useCallback(() => {
+    const current = waSignupDataRef.current
+    if (current.waba_id || current.phone_number_id) {
+      return Promise.resolve(current)
+    }
+
+    return new Promise<WaSignupData>((resolve) => {
+      const timeoutId = window.setTimeout(() => {
+        signupWaitersRef.current = signupWaitersRef.current.filter(
+          (waiter) => waiter !== onData,
+        )
+        resolve(waSignupDataRef.current)
+      }, 4000)
+
+      const onData = (data: WaSignupData) => {
+        window.clearTimeout(timeoutId)
+        resolve(data)
+      }
+
+      signupWaitersRef.current.push(onData)
+    })
+  }, [])
+
   useEffect(() => {
-    if (!isStartingIntegration || phoneUseCase !== 'new' || !metaAppId) {
+    if (!isStartingIntegration || !metaAppId) {
       return
     }
 
@@ -585,7 +345,18 @@ export const WhatsAppBusinessAPIPage = () => {
     }
 
     if (document.getElementById('facebook-jssdk')) {
-      return
+      const intervalId = window.setInterval(() => {
+        if (!window.FB) return
+        window.FB.init({
+          appId: metaAppId,
+          autoLogAppEvents: true,
+          xfbml: true,
+          version: 'v25.0',
+        })
+        setIsMetaSdkReady(true)
+        window.clearInterval(intervalId)
+      }, 200)
+      return () => window.clearInterval(intervalId)
     }
 
     const firstScript = document.getElementsByTagName('script')[0]
@@ -598,36 +369,42 @@ export const WhatsAppBusinessAPIPage = () => {
       setMetaSdkError('Não foi possível carregar o SDK da Meta.')
     }
     firstScript.parentNode?.insertBefore(sdkScript, firstScript)
-  }, [isStartingIntegration, metaAppId, phoneUseCase])
+  }, [isStartingIntegration, metaAppId])
 
   useEffect(() => {
     if (!isStartingIntegration) return
 
     const handleMessage = (event: MessageEvent) => {
-      if (event.origin !== 'https://www.facebook.com') return
+      if (!isFacebookOrigin(event.origin)) return
       try {
-        const parsed = JSON.parse(event.data as string) as {
-          type?: string
-          event?: string
-          data?: WaSignupData
+        const parsed = (
+          typeof event.data === 'string' ? JSON.parse(event.data) : event.data
+        ) as WaSignupMessage
+        if (
+          parsed.type === 'WA_EMBEDDED_SIGNUP' &&
+          parsed.event &&
+          COMPLETED_SIGNUP_EVENTS.has(parsed.event)
+        ) {
+          publishSignupData({
+            ...(parsed.data ?? {}),
+            event: parsed.event,
+          })
         }
-        if (parsed.type === 'WA_EMBEDDED_SIGNUP' && parsed.event === 'FINISH') {
-          waSignupDataRef.current = parsed.data ?? {}
-        }
-      } catch {}
+      } catch {
+        // Mensagens do SDK que não são JSON do Embedded Signup.
+      }
     }
 
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
-  }, [isStartingIntegration])
+  }, [isStartingIntegration, publishSignupData])
 
   const resetWizard = useCallback(() => {
     setIsStartingIntegration(false)
-    setPhoneUseCase(null)
-    setPhoneNumber('')
     setMetaSdkError(null)
     setConnectError(null)
     waSignupDataRef.current = {}
+    signupWaitersRef.current = []
   }, [])
 
   const handleStartIntegration = useCallback(() => {
@@ -654,89 +431,83 @@ export const WhatsAppBusinessAPIPage = () => {
     }
   }, [selectedCompany, queryClient])
 
-  const handleBackToNumberChoice = useCallback(() => {
-    setPhoneUseCase(null)
-    setMetaSdkError(null)
-    setConnectError(null)
-  }, [])
-
   const handleOpenMetaDialog = useCallback(() => {
-    if (
-      !window.FB ||
-      !isValidGlobalPhoneNumber(phoneNumber) ||
-      !selectedCompany?.id
-    )
-      return
+    if (!window.FB || !selectedCompany?.id || !metaConfigId) return
 
     setConnectError(null)
+    waSignupDataRef.current = {}
 
     window.FB.login(
       (response) => {
-        const auth = response.authResponse
-        const token = auth?.code ?? auth?.accessToken
+        void (async () => {
+          const auth = response.authResponse
+          const token = auth?.code ?? auth?.accessToken
 
-        if (!token || response.status !== 'connected') {
-          setConnectError(
-            'A autenticação com a Meta não foi concluída. Tente novamente.'
-          )
-          return
-        }
+          if (!token || response.status !== 'connected') {
+            setConnectError(
+              'A autenticação com a Meta não foi concluída. Tente novamente.',
+            )
+            return
+          }
 
-        const { phone_number_id, waba_id, business_id } =
-          waSignupDataRef.current
+          const signup = await waitForSignupData()
+          const selectedPhoneNumber =
+            signup.display_phone_number ?? signup.phone_number
 
-        if (!phone_number_id || !waba_id || !business_id) {
-          setConnectError(
-            'O cadastro do número na Meta não foi finalizado corretamente. Conclua todas as etapas do fluxo e tente novamente.'
-          )
-          return
-        }
+          if (!signup.waba_id) {
+            setConnectError(
+              'O cadastro do número na Meta não foi finalizado corretamente. Conclua todas as etapas do fluxo e tente novamente.',
+            )
+            return
+          }
 
-        setIsConnecting(true)
+          setIsConnecting(true)
 
-        metaIntegrationService
-          .connect(selectedCompany.id, {
-            number: normalizePhoneNumber(phoneNumber),
-            access_token: token,
-            token_type: auth?.tokenType ?? 'bearer',
-            phone_number_id,
-            waba_id,
-            business_id,
-          })
-          .then(() => {
+          try {
+            await metaIntegrationService.connect(selectedCompany.id, {
+              ...(selectedPhoneNumber ? { number: selectedPhoneNumber } : {}),
+              access_token: token,
+              token_type: auth?.tokenType ?? 'bearer',
+              ...(signup.phone_number_id
+                ? { phone_number_id: signup.phone_number_id }
+                : {}),
+              waba_id: signup.waba_id,
+              ...(signup.business_id ? { business_id: signup.business_id } : {}),
+              ...(signup.event ? { signup_event: signup.event } : {}),
+            })
             void queryClient.invalidateQueries({
               queryKey: queryKeys.channels.whatsappBusinessApi.detail(
-                selectedCompany.id
+                selectedCompany.id,
               ),
             })
             void queryClient.invalidateQueries({
               queryKey: queryKeys.channels.whatsappBusinessApi.availability(
-                selectedCompany.id
+                selectedCompany.id,
               ),
             })
             resetWizard()
-          })
-          .catch(() => {
+          } catch {
             setConnectError(
-              'Não foi possível finalizar a integração. Verifique os dados e tente novamente.'
+              'Não foi possível finalizar a integração. Verifique os dados e tente novamente.',
             )
-          })
-          .finally(() => {
+          } finally {
             setIsConnecting(false)
-          })
+          }
+        })()
       },
       {
         config_id: metaConfigId,
         response_type: 'code',
         override_default_response_type: true,
         extras: {
-          setup: {
-            phone_number: normalizePhoneNumber(phoneNumber),
-          },
+          setup: {},
+          featureType: 'whatsapp_business_app_onboarding',
+          sessionInfoVersion: '3',
+          version: 'v4',
         },
-      }
+      },
     )
-  }, [phoneNumber, selectedCompany, queryClient, metaConfigId, resetWizard])
+  }, [metaConfigId, queryClient, resetWizard, selectedCompany, waitForSignupData])
 
   return (
     <AppContentLayout
@@ -999,8 +770,8 @@ export const WhatsAppBusinessAPIPage = () => {
                     color="fg.muted"
                     fontSize="sm"
                   >
-                    Informe como o número será conectado para continuar com o
-                    onboarding da Meta.
+                    A Meta pergunta se o número é novo ou se já está no
+                    WhatsApp Business. Os dois caminhos seguem neste cadastro.
                   </Text>
                 </Stack>
                 <Button
@@ -1012,27 +783,44 @@ export const WhatsAppBusinessAPIPage = () => {
                 </Button>
               </HStack>
 
-              <MetaNumberTypeStep
-                onChange={setPhoneUseCase}
-                value={phoneUseCase}
-              />
-
-              {phoneUseCase === 'new' && (
-                <NewPhoneNumberStep
-                  appId={metaAppId}
-                  connectError={connectError}
-                  isConnecting={isConnecting}
-                  isSdkReady={isMetaSdkReady}
-                  onOpenMetaDialog={handleOpenMetaDialog}
-                  onPhoneNumberChange={setPhoneNumber}
-                  phoneNumber={phoneNumber}
-                  sdkError={metaSdkError}
-                />
+              {!metaAppId && (
+                <Text color="orange.fg" fontSize="sm">
+                  Configure VITE_META_APP_ID no ambiente para habilitar o botão
+                  da Meta.
+                </Text>
               )}
 
-              {phoneUseCase === 'existing' && (
-                <CoexUnavailableState onBack={handleBackToNumberChoice} />
+              {!metaConfigId && (
+                <Text color="orange.fg" fontSize="sm">
+                  Configure VITE_META_CONFIG_ID no ambiente para habilitar o
+                  botão da Meta.
+                </Text>
               )}
+
+              {metaSdkError && (
+                <Text color="red.fg" fontSize="sm">
+                  {metaSdkError}
+                </Text>
+              )}
+
+              {connectError && (
+                <Text color="red.fg" fontSize="sm">
+                  {connectError}
+                </Text>
+              )}
+
+              <Button
+                alignSelf="flex-start"
+                disabled={!metaAppId || !metaConfigId || !isMetaSdkReady}
+                loading={
+                  isConnecting || (!!metaAppId && !isMetaSdkReady && !metaSdkError)
+                }
+                loadingText={isConnecting ? 'Conectando...' : 'Carregando Meta...'}
+                onClick={handleOpenMetaDialog}
+              >
+                <TbBrandMeta />
+                Continuar com a Meta
+              </Button>
             </Stack>
           </Card.Body>
         </Card.Root>
