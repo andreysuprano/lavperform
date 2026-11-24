@@ -58,23 +58,44 @@ export class MetaIntegrationService {
     let phoneNumberRegistered = false;
     let webhooksSubscribed = false;
     let status: MetaIntegrationStatus = MetaIntegrationStatus.PENDING;
+    let phoneInfo: MetaPhoneNumberInfo | null = null;
+
+    if (!phoneNumberId && wabaId) {
+      phoneInfo = await this.resolvePhoneFromWaba(
+        wabaId,
+        access_token,
+        dto.number,
+      );
+      phoneNumberId = phoneInfo?.id ?? null;
+    }
 
     if (phoneNumberId) {
       try {
-        const phoneInfo = await this.metaGraphClient.getPhoneNumberInfo(
+        phoneInfo = await this.metaGraphClient.getPhoneNumberInfo(
           phoneNumberId,
           access_token,
         );
-        displayName = phoneInfo.verified_name ?? null;
-        qualityRating = phoneInfo.quality_rating ?? null;
-        messagingLimitTier = phoneInfo.messaging_limit_tier ?? null;
-        phoneNumberRegistered = MetaGraphClient.isPhoneNumberRegistered(phoneInfo);
         this.logger.log(
           `Informações do número obtidas da Meta: ${JSON.stringify(phoneInfo)}`,
         );
       } catch (err) {
         this.logger.warn(`Não foi possível obter informações do número na Meta: ${err}`);
       }
+    }
+
+    const isBusinessAppOnboarding =
+      dto.signup_event === 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING' ||
+      phoneInfo?.is_on_biz_app === true;
+
+    if (phoneInfo) {
+      displayName = phoneInfo.verified_name ?? null;
+      qualityRating = phoneInfo.quality_rating ?? null;
+      messagingLimitTier = phoneInfo.messaging_limit_tier ?? null;
+      phoneNumberRegistered =
+        isBusinessAppOnboarding ||
+        MetaGraphClient.isPhoneNumberRegistered(phoneInfo);
+    } else if (isBusinessAppOnboarding) {
+      phoneNumberRegistered = true;
     }
 
     if (wabaId) {
@@ -95,8 +116,13 @@ export class MetaIntegrationService {
       status = MetaIntegrationStatus.ACTIVE;
     }
 
+    const phoneNumber = this.resolveStoredPhoneNumber(
+      phoneInfo?.display_phone_number,
+      dto.number,
+    );
+
     const upsertData = {
-      phoneNumber: dto.number,
+      phoneNumber,
       accessToken: access_token,
       tokenType: token_type,
       phoneNumberId,
@@ -124,7 +150,11 @@ export class MetaIntegrationService {
       `Integração Meta ${existing ? 'atualizada' : 'criada'} para empresa ${companyId}   status: ${status}`,
     );
 
-    if (integration.phoneNumberId && !integration.phoneNumberRegistered) {
+    if (
+      integration.phoneNumberId &&
+      !integration.phoneNumberRegistered &&
+      !isBusinessAppOnboarding
+    ) {
       integration = await this.tryRegisterAndSync(integration);
     }
 
@@ -335,7 +365,9 @@ export class MetaIntegrationService {
         integration.accessToken,
       );
 
-      const registered = MetaGraphClient.isPhoneNumberRegistered(phoneInfo);
+      const registered =
+        phoneInfo.is_on_biz_app === true ||
+        MetaGraphClient.isPhoneNumberRegistered(phoneInfo);
 
       this.logger.log(
         `Status do número ${integration.phoneNumberId} para empresa ${integration.companyId}: ${this.formatPhoneInfoForLog(phoneInfo)}`,
@@ -370,7 +402,68 @@ export class MetaIntegrationService {
       `quality=${phoneInfo.quality_rating ?? 'n/a'}`,
       `throughput=${phoneInfo.throughput?.level ?? 'n/a'}`,
       `last_onboarded_time=${phoneInfo.last_onboarded_time ?? 'n/a'}`,
+      `is_on_biz_app=${phoneInfo.is_on_biz_app === true}`,
     ].join(' ');
+  }
+
+  private async resolvePhoneFromWaba(
+    wabaId: string,
+    accessToken: string,
+    hintedNumber?: string,
+  ): Promise<MetaPhoneNumberInfo | null> {
+    try {
+      const phones = await this.metaGraphClient.getPhoneNumbersByWaba(
+        wabaId,
+        accessToken,
+      );
+      return this.pickOnboardedPhone(phones, hintedNumber);
+    } catch (err) {
+      this.logger.warn(
+        `Não foi possível listar os números da WABA ${wabaId}: ${err}`,
+      );
+      return null;
+    }
+  }
+
+  private pickOnboardedPhone(
+    phones: MetaPhoneNumberInfo[],
+    hintedNumber?: string,
+  ): MetaPhoneNumberInfo | null {
+    if (phones.length === 0) return null;
+
+    const hintedDigits = hintedNumber?.replace(/\D/g, '');
+    if (hintedDigits) {
+      const match = phones.find(
+        (phone) =>
+          phone.display_phone_number?.replace(/\D/g, '') === hintedDigits,
+      );
+      if (match) return match;
+    }
+
+    return phones.length === 1 ? phones[0] : null;
+  }
+
+  private resolveStoredPhoneNumber(
+    displayPhoneNumber: string | null | undefined,
+    fallback: string | undefined,
+  ): string {
+    const source = displayPhoneNumber?.trim() || fallback?.trim();
+    if (!source) {
+      throw new BadRequestException(
+        'Não foi possível identificar o número selecionado no onboarding da Meta.',
+      );
+    }
+    return this.normalizeStoredPhoneNumber(source);
+  }
+
+  private normalizeStoredPhoneNumber(value: string): string {
+    const digits = value.replace(/\D/g, '');
+    if (digits.length < 8) {
+      throw new BadRequestException(
+        `Número de telefone "${value}" retornado pela Meta é inválido.`,
+      );
+    }
+    return `+${digits}`;
   }
 
   async getAvailability(

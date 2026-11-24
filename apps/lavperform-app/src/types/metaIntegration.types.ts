@@ -17,12 +17,13 @@ export type MetaIntegrationAvailability = {
 }
 
 export type MetaIntegrationConnectPayload = {
-  number: string
+  number?: string
   access_token: string
   token_type: string
-  phone_number_id: string
+  phone_number_id?: string
   waba_id: string
-  business_id: string
+  business_id?: string
+  signup_event?: string
 }
 
 export type MetaIntegration = {

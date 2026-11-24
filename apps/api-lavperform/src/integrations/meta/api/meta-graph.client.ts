@@ -39,6 +39,10 @@ export interface MetaPhoneNumberInfo {
    * Formato ISO 8601. Quando presente, indica que o registro foi concluído com sucesso.
    */
   last_onboarded_time?: string;
+  /**
+   * Verdadeiro quando o número continua no aplicativo WhatsApp Business (Coex).
+   */
+  is_on_biz_app?: boolean;
 }
 
 export interface MetaWabaInfo {
@@ -123,6 +127,7 @@ export class MetaGraphClient {
             'platform_type',
             'throughput',
             'last_onboarded_time',
+            'is_on_biz_app',
           ].join(','),
         },
       }),
@@ -244,8 +249,23 @@ export class MetaGraphClient {
     const { data } = await firstValueFrom(
       this.httpService.get<{ data: MetaPhoneNumberInfo[] }>(url, {
         headers: { Authorization: `Bearer ${accessToken}` },
+        params: {
+          fields: [
+            'id',
+            'display_phone_number',
+            'verified_name',
+            'quality_rating',
+            'messaging_limit_tier',
+            'status',
+            'code_verification_status',
+            'platform_type',
+            'throughput',
+            'last_onboarded_time',
+            'is_on_biz_app',
+          ].join(','),
+        },
       }),
     );
-    return data.data;
+    return data.data ?? [];
   }
 }

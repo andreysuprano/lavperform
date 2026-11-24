@@ -2,13 +2,14 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { IsNotEmpty, IsOptional, IsString } from 'class-validator';
 
 export class ConnectMetaIntegrationDto {
-  @ApiProperty({
-    description: 'Número de telefone no formato internacional (sem + nem espaços)',
-    example: '5541997269435',
+  @ApiPropertyOptional({
+    description:
+      'Número informado pelo Embedded Signup. Quando ausente, o número exibido é lido da Graph API.',
+    example: '+5541997269435',
   })
+  @IsOptional()
   @IsString()
-  @IsNotEmpty()
-  number: string;
+  number?: string;
 
   @ApiProperty({
     description: 'Business Integration System User Access Token obtido via Embedded Signup',
@@ -51,4 +52,13 @@ export class ConnectMetaIntegrationDto {
   @IsOptional()
   @IsString()
   business_id?: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Evento de conclusão do Embedded Signup. FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING indica número já em uso no app (Coex) e dispensa o registro do PIN.',
+    example: 'FINISH_WHATSAPP_BUSINESS_APP_ONBOARDING',
+  })
+  @IsOptional()
+  @IsString()
+  signup_event?: string;
 }
