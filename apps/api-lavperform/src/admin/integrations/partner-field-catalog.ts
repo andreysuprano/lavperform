@@ -42,7 +42,7 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
   },
   MAXLAV: {
     requiredFields: ['apiKey'],
-    optionalFields: ['merchantId', 'digitalMenuUrl'],
+    optionalFields: ['apiSecret', 'merchantId', 'digitalMenuUrl'],
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },

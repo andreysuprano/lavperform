@@ -77,6 +77,7 @@ function CompanyIntegrationForm({
     optionalFields.includes('merchantId')
   const showSecret =
     requiredFields.includes('apiSecret') ||
+    optionalFields.includes('apiSecret') ||
     (!catalog &&
       (name.trim().toLowerCase() === 'hybex' ||
         requiredFields.includes('apiSecret')))
@@ -168,7 +169,11 @@ function CompanyIntegrationForm({
       apiKey: data.token || '',
       merchantId: showMerchant ? data.codigoLoja || '' : '',
       digitalMenuUrl: showApiUrl ? data.urlCardapio || '' : '',
-      ...(showSecret ? { apiSecret: data.apiSecret || '' } : {}),
+      ...(showSecret &&
+      data.apiSecret &&
+      data.apiSecret !== '••••••••'
+        ? { apiSecret: data.apiSecret }
+        : {}),
       ...(showPassword ? { password: data.apiPassword || '' } : {}),
     }
 

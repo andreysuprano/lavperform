@@ -15,7 +15,11 @@ const FIELD_HINTS: Partial<
   MAXLAV: {
     apiKey: {
       label: "Token de acesso",
-      hint: "Cole um token Bearer ainda válido do dashboard. Ele vale até o vencimento.",
+      hint: "No app.linvo.com.br, copie localStorage laundry#token. Vale cerca de 2 horas.",
+    },
+    apiSecret: {
+      label: "Token de renovação",
+      hint: "Copie localStorage laundry#refreshToken. Vale cerca de 30 dias e renova o acesso sozinho.",
     },
     merchantId: {
       label: "ID da loja",
@@ -66,7 +70,7 @@ const SLUG_LABELS: Record<string, string> = {
   WINDEL: "Windel",
   WAYMONEY: "WayMoney",
   L2AUTOMATE: "L2 Automate",
-  MAXLAV: "Maxlav",
+  MAXLAV: "Linvo",
   LAUNDRYKIT: "Laundry Kit",
   SISLAV: "SisLav",
   HYBEX: "Hybex",
@@ -124,7 +128,7 @@ export function sessionSetupHint(partnerSlug?: string | null): string | null {
     return "Cole o JWT ainda válido do dashboard e o ID da loja. O token dura cerca de 10 horas e precisa ser colado de novo depois disso."
   }
   if (slug === "MAXLAV") {
-    return "Cole o token Bearer ainda válido do dashboard. Ele vale até o vencimento."
+    return "Cole o token de acesso e o token de renovação da Linvo. O acesso dura cerca de 2 horas e o de renovação, 30 dias. Com os dois, a sessão se renova sozinha."
   }
   return null
 }

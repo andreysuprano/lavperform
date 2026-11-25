@@ -113,7 +113,15 @@ export function readJwtExpiry(token: string): Date | null {
 }
 
 export function normalizeAccessToken(rawToken: string | undefined): string {
-  const trimmed = rawToken?.trim() ?? '';
+  let trimmed = rawToken?.trim() ?? '';
+  if (trimmed.startsWith('"') && trimmed.endsWith('"')) {
+    try {
+      const parsed = JSON.parse(trimmed) as unknown;
+      if (typeof parsed === 'string') trimmed = parsed.trim();
+    } catch {
+      // Mantém o texto colado quando não é um JSON de string.
+    }
+  }
   const cookieMatch = trimmed.match(
     /(?:^|;\s*)(?:__Secure-|__Host-)?authjs\.session-token=([^;]+)/i,
   );

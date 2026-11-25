@@ -30,7 +30,7 @@ export function sessionSetupHint(partnerSlug?: string): string | null {
     return 'Cole o JWT ainda válido do dashboard e o ID da loja. O token dura cerca de 10 horas e precisa ser colado de novo depois disso.'
   }
   if (slug === 'MAXLAV') {
-    return 'Cole o token Bearer ainda válido do dashboard. Ele vale até o vencimento.'
+    return 'Cole o token de acesso e o token de renovação da Linvo. O acesso dura cerca de 2 horas e o de renovação, 30 dias. Com os dois, a sessão se renova sozinha.'
   }
   return null
 }
@@ -95,8 +95,15 @@ export function fieldCopy(
   if (slug === 'MAXLAV' && field === 'apiKey') {
     return {
       label: 'Token de acesso',
-      placeholder: 'Bearer do dashboard MaxLav',
-      hint: 'Cole um token ainda válido. Ele vale até o vencimento.',
+      placeholder: 'laundry#token',
+      hint: 'No app.linvo.com.br, copie localStorage laundry#token. Vale cerca de 2 horas.',
+    }
+  }
+  if (slug === 'MAXLAV' && field === 'apiSecret') {
+    return {
+      label: 'Token de renovação',
+      placeholder: 'laundry#refreshToken',
+      hint: 'Copie localStorage laundry#refreshToken. Vale cerca de 30 dias e renova o acesso sozinho.',
     }
   }
   if (slug === 'MAXLAV' && field === 'merchantId') {
