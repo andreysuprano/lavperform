@@ -136,7 +136,11 @@ export class SwlService {
               params,
             }),
           ),
-        { logger: this.logger, sleep: (ms) => sleep(ms) },
+        {
+          logger: this.logger,
+          sleep: (ms) => sleep(ms),
+          retryStatuses: [429, 503],
+        },
       );
       return response.data;
     } catch (error) {

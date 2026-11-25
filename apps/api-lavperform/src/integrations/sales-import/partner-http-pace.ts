@@ -74,20 +74,31 @@ export type With429RetryOptions = {
   sleep?: (ms: number) => Promise<void>;
   logger?: With429RetryLogger;
   fallbackMs?: number;
+  /** Status HTTP que espera o Retry-After e tenta de novo. Padrão: só 429. */
+  retryStatuses?: readonly number[];
 };
+
+function httpStatusFromError(error: unknown): number | undefined {
+  if (typeof error !== 'object' || error === null) {
+    return undefined;
+  }
+  return (error as { response?: { status?: number } }).response?.status;
+}
 
 export async function with429Retry<T>(
   run: () => Promise<T>,
   options?: With429RetryOptions,
 ): Promise<T> {
   const sleepFn = options?.sleep ?? sleep;
+  const retryStatuses = options?.retryStatuses ?? [429];
   let retriesLeft = MAX_RETRIES_ON_429;
 
   while (true) {
     try {
       return await run();
     } catch (error) {
-      if (!isHttp429(error)) {
+      const status = httpStatusFromError(error);
+      if (status === undefined || !retryStatuses.includes(status)) {
         throw error;
       }
       if (retriesLeft <= 0) {
@@ -99,7 +110,7 @@ export async function with429Retry<T>(
         options?.fallbackMs ?? DEFAULT_PARTNER_HTTP_DELAY_MS,
       );
       options?.logger?.warn?.(
-        `HTTP 429: aguardando ${delayMs}ms antes de tentar novamente (${retriesLeft} retries restantes)`,
+        `HTTP ${status}: aguardando ${delayMs}ms antes de tentar novamente (${retriesLeft} retries restantes)`,
       );
       await sleepFn(delayMs);
     }

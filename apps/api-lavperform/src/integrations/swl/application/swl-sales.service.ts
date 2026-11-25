@@ -23,6 +23,10 @@ import {
   buildSalesImportJobOptions,
   enqueueSalesImportJob,
 } from '../../sales-import/sales-import-queue';
+import {
+  DEFAULT_PARTNER_HTTP_DELAY_MS,
+  sleep,
+} from '../../sales-import/partner-http-pace';
 import { SwlService } from '../api/swl.service';
 import { SwlPermanentHttpError } from '../api/swl-http.error';
 import { SwlAtendimento, SwlCliente } from '../api/swl.types';
@@ -295,6 +299,7 @@ export class SwlSalesService {
       !fullLists && watermark ? swlWatermarkQuery(watermark) : undefined;
 
     const customersSince = sinceFor(state?.customersWatermark);
+    await sleep(DEFAULT_PARTNER_HTTP_DELAY_MS);
     const clientes = await this.swlService.listAll((cursor) =>
       this.swlService.listClientes(
         token,
@@ -313,6 +318,7 @@ export class SwlSalesService {
     );
 
     const deletionsSince = sinceFor(state?.deletionsWatermark);
+    await sleep(DEFAULT_PARTNER_HTTP_DELAY_MS);
     const excluidos = await this.swlService.listAll((cursor) =>
       this.swlService.listExcluidos(
         token,
@@ -336,6 +342,7 @@ export class SwlSalesService {
       const { startDate, endDate } = this.resolveCivilRange(range ?? {});
       const windows = swlHistoricalWindows(startDate, endDate);
       for (const window of windows) {
+        await sleep(DEFAULT_PARTNER_HTTP_DELAY_MS);
         const atendimentos = await this.swlService.listAll((cursor) =>
           this.swlService.listAtendimentos(
             token,
@@ -355,6 +362,7 @@ export class SwlSalesService {
       }
     } else {
       const since = swlWatermarkQuery(attendancesWatermark as Date);
+      await sleep(DEFAULT_PARTNER_HTTP_DELAY_MS);
       const atendimentos = await this.swlService.listAll((cursor) =>
         this.swlService.listAtendimentos(
           token,

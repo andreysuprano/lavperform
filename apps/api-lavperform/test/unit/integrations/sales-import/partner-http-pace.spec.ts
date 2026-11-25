@@ -90,6 +90,38 @@ describe('partner-http-pace', () => {
     expect(sleep).toHaveBeenCalledWith(15 * 60 * 1000);
   });
 
+  it('por padrão não repete 503', async () => {
+    const sleep = jest.fn().mockResolvedValue(undefined);
+    const run = jest.fn().mockImplementation(async () => {
+      const error: any = new Error('unavailable');
+      error.response = { status: 503, headers: { 'retry-after': '1' } };
+      throw error;
+    });
+
+    await expect(with429Retry(run, { sleep })).rejects.toThrow('unavailable');
+    expect(run).toHaveBeenCalledTimes(1);
+    expect(sleep).not.toHaveBeenCalled();
+  });
+
+  it('repete 503 quando retryStatuses inclui 503', async () => {
+    const sleep = jest.fn().mockResolvedValue(undefined);
+    let calls = 0;
+    const run = jest.fn().mockImplementation(async () => {
+      calls += 1;
+      if (calls === 1) {
+        const error: any = new Error('unavailable');
+        error.response = { status: 503, headers: { 'retry-after': '2' } };
+        throw error;
+      }
+      return 'ok';
+    });
+
+    await expect(
+      with429Retry(run, { sleep, retryStatuses: [429, 503] }),
+    ).resolves.toBe('ok');
+    expect(sleep).toHaveBeenCalledWith(2000);
+  });
+
   it('falha depois de 3 retries em 429', async () => {
     const sleep = jest.fn().mockResolvedValue(undefined);
     const run = jest.fn().mockImplementation(async () => {

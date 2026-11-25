@@ -1,3 +1,4 @@
+import { safeFormatPhoneNumber } from '../../../common/utils/formatters';
 import { SwlCliente } from '../api/swl.types';
 
 export interface SwlCustomerIncoming {
@@ -29,7 +30,9 @@ function compact<T extends object>(value: T): T | undefined {
 }
 
 export function swlCustomerIncoming(cliente: SwlCliente): SwlCustomerIncoming {
-  const phone = text(cliente.celular?.e164) ?? text(cliente.telefone?.e164);
+  const phone = [cliente.celular?.e164, cliente.telefone?.e164]
+    .map(text)
+    .find((candidate) => safeFormatPhoneNumber(candidate) !== null);
   const cpf = text(cliente.documento?.replace(/\D/g, ''));
   const sex = cliente.sexo?.trim().toUpperCase();
   const address = compact({

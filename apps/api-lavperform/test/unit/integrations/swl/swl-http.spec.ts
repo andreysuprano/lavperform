@@ -227,6 +227,47 @@ describe('SwlService (HTTP)', () => {
     expect(sleepMock).toHaveBeenCalledWith(2000);
   });
 
+  it('503 espera o Retry-After antes da próxima tentativa', async () => {
+    const order: string[] = [];
+    get.mockImplementationOnce(() => {
+      order.push('get');
+      return throwError(() => httpError(503, { 'retry-after': '3' }));
+    });
+    get.mockImplementationOnce(() => {
+      order.push('get');
+      return of({ data: { nome: 'Lav', centrosDeCusto: [] } });
+    });
+    sleepMock.mockImplementationOnce(async () => {
+      order.push('sleep');
+    });
+
+    const result = await service.getLavanderia('t');
+
+    expect(result.nome).toBe('Lav');
+    expect(get).toHaveBeenCalledTimes(2);
+    expect(sleepMock).toHaveBeenCalledWith(3000);
+    expect(order).toEqual(['get', 'sleep', 'get']);
+  });
+
+  it('503 sem Retry-After espera ao menos o intervalo padrão', async () => {
+    get
+      .mockReturnValueOnce(throwError(() => httpError(503)))
+      .mockReturnValueOnce(of({ data: { nome: 'Lav', centrosDeCusto: [] } }));
+
+    await service.getLavanderia('t');
+
+    expect(sleepMock).toHaveBeenCalledWith(400);
+  });
+
+  it('503 persistente falha depois das tentativas', async () => {
+    get.mockReturnValue(throwError(() => httpError(503)));
+
+    const error = await service.getLavanderia('t').catch((e) => e);
+
+    expect(error.response.status).toBe(503);
+    expect(get).toHaveBeenCalledTimes(4);
+  });
+
   it('outros erros HTTP passam sem virar erro permanente', async () => {
     get.mockReturnValue(throwError(() => httpError(500)));
 

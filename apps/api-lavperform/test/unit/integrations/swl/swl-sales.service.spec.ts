@@ -8,6 +8,15 @@ import {
 import { QUEUE_NAMES } from 'src/common/queue/queue.constants';
 import { SwlAtendimento } from 'src/integrations/swl/api/swl.types';
 
+import { sleep } from 'src/integrations/sales-import/partner-http-pace';
+
+jest.mock('src/integrations/sales-import/partner-http-pace', () => ({
+  ...jest.requireActual('src/integrations/sales-import/partner-http-pace'),
+  sleep: jest.fn().mockResolvedValue(undefined),
+}));
+
+const sleepMock = sleep as unknown as jest.Mock;
+
 const TOKEN = 'swl_lavperform_key_secret';
 const NOW = new Date('2026-11-25T15:00:00.000Z');
 
@@ -122,6 +131,8 @@ function harness() {
 
 describe('SwlSalesService', () => {
   beforeEach(() => {
+    sleepMock.mockReset();
+    sleepMock.mockResolvedValue(undefined);
     jest.useFakeTimers();
     jest.setSystemTime(NOW);
   });
@@ -195,6 +206,57 @@ describe('SwlSalesService', () => {
         },
         expect.objectContaining({ attempts: 3 }),
       );
+    });
+
+    it('espera 400 ms entre getLavanderia, as listas e as janelas históricas', async () => {
+      const { service, swl } = harness();
+      const events: string[] = [];
+      const track = (name: string, mock: jest.Mock) => {
+        const original = mock.getMockImplementation();
+        mock.mockImplementation(async (...args: unknown[]) => {
+          events.push(name);
+          return original ? original(...args) : undefined;
+        });
+      };
+      track('lavanderia', swl.getLavanderia);
+      track('clientes', swl.listClientes);
+      track('excluidos', swl.listExcluidos);
+      track('atendimentos', swl.listAtendimentos);
+      sleepMock.mockImplementation(async (ms: number) => {
+        events.push(`sleep:${ms}`);
+      });
+
+      await service.syncCompany('company-1', 'historical', {
+        startDate: '2026-08-01',
+        endDate: '2026-09-15',
+      });
+
+      // 45 dias: 31 + 14 = duas janelas
+      expect(events).toEqual([
+        'lavanderia',
+        'sleep:400',
+        'clientes',
+        'sleep:400',
+        'excluidos',
+        'sleep:400',
+        'atendimentos',
+        'sleep:400',
+        'atendimentos',
+      ]);
+    });
+
+    it('no incremental espera 400 ms antes de cada lista', async () => {
+      const { service, prisma } = harness();
+      const watermark = new Date('2026-11-25T14:00:00.000Z');
+      prisma.swlSyncState.findUnique.mockResolvedValue({
+        customersWatermark: watermark,
+        deletionsWatermark: watermark,
+        attendancesWatermark: watermark,
+      });
+
+      await service.syncCompany('company-1', 'incremental');
+
+      expect(sleepMock.mock.calls).toEqual([[400], [400], [400]]);
     });
 
     it('no histórico sem datas usa os últimos 90 dias', async () => {

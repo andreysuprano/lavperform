@@ -702,6 +702,24 @@ describe('mapeamento SWL', () => {
       );
     });
 
+    it('celular e164 inutilizável cai para o telefone', () => {
+      expect(
+        swlCustomerIncoming(
+          cliente({ celular: { original: '123', e164: '+123' } }),
+        ).phone,
+      ).toBe('+554733334444');
+    });
+
+    it('sem telefone utilizável, phone fica ausente', () => {
+      const incoming = swlCustomerIncoming(
+        cliente({
+          celular: { original: '123', e164: '+123' },
+          telefone: { original: '456', e164: 'abc' },
+        }),
+      );
+      expect(incoming.phone).toBeUndefined();
+    });
+
     it('sem telefone e sem documento, phone e cpf ficam ausentes', () => {
       const incoming = swlCustomerIncoming(
         cliente({ celular: null, telefone: null, documento: null }),
