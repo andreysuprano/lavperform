@@ -5,6 +5,16 @@ import { TokenCipher } from 'src/social-publishing/token-cipher';
 
 const NOW = new Date('2026-11-23T18:00:00.000Z');
 
+function jwtWithExp(expSeconds: number): string {
+  const header = Buffer.from(JSON.stringify({ alg: 'none' })).toString(
+    'base64url',
+  );
+  const payload = Buffer.from(
+    JSON.stringify({ exp: expSeconds, type: 'refresh' }),
+  ).toString('base64url');
+  return `${header}.${payload}.sig`;
+}
+
 describe('IntegrationSessionService', () => {
   const cipher = new TokenCipher();
 
@@ -112,6 +122,44 @@ describe('IntegrationSessionService', () => {
         }),
       }),
     );
+  });
+
+  it('renova a Linvo com o token de renovação depois que o acesso vence', async () => {
+    const { prisma, engine, service } = harness();
+    const refreshToken = jwtWithExp(
+      Math.floor(NOW.getTime() / 1000) + 30 * 24 * 60 * 60,
+    );
+    const nextExpiry = new Date(NOW.getTime() + 2 * 60 * 60 * 1000);
+    prisma.integrationSession.findMany.mockResolvedValue([
+      {
+        ...dueSession('token-vencido'),
+        expiresAt: new Date(NOW.getTime() - 60 * 1000),
+        integration: {
+          merchantId: 'loja-1',
+          digitalMenuUrl: null,
+          apiSecret: refreshToken,
+        },
+      },
+    ]);
+    prisma.integrationSession.updateMany.mockResolvedValue({ count: 1 });
+    engine.refresh.mockResolvedValue({
+      accessToken: 'token-novo',
+      expiresAt: nextExpiry,
+      refreshToken: 'refresh-novo',
+    });
+
+    await service.refreshDue(NOW);
+
+    expect(engine.refresh).toHaveBeenCalledWith(
+      expect.objectContaining({
+        partnerSlug: 'MAXLAV',
+        refreshToken,
+      }),
+    );
+    expect(prisma.digitalMenuIntegration.update).toHaveBeenCalledWith({
+      where: { id: 'integration-1' },
+      data: { apiKey: 'token-novo', apiSecret: 'refresh-novo' },
+    });
   });
 
   it('usa o horário de renovação devolvido pelo parceiro', async () => {

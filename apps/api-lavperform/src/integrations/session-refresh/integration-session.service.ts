@@ -7,6 +7,8 @@ import { SessionRefreshError } from './session-refresh.error';
 import {
   clipError,
   PastedTokenPlan,
+  normalizeAccessToken,
+  readJwtExpiry,
   refreshAfterFor,
   SESSION_LOCK_MS,
   SESSION_REFRESH_BACKOFF_MS,
@@ -25,7 +27,11 @@ type DueSession = {
   partnerSlug: string;
   accessTokenEnc: string;
   expiresAt: Date;
-  integration: { merchantId: string | null; digitalMenuUrl: string | null };
+  integration: {
+    merchantId: string | null;
+    digitalMenuUrl: string | null;
+    apiSecret: string | null;
+  };
 };
 
 @Injectable()
@@ -135,7 +141,9 @@ export class IntegrationSessionService {
       orderBy: { refreshAfter: 'asc' },
       take: 20,
       include: {
-        integration: { select: { merchantId: true, digitalMenuUrl: true } },
+        integration: {
+          select: { merchantId: true, digitalMenuUrl: true, apiSecret: true },
+        },
       },
     });
 
@@ -156,10 +164,22 @@ export class IntegrationSessionService {
     });
     if (claimed.count !== 1) return;
 
-    if (session.expiresAt.getTime() <= now.getTime()) {
+    const linvoRefreshToken =
+      session.partnerSlug === 'MAXLAV'
+        ? normalizeAccessToken(session.integration.apiSecret ?? undefined)
+        : '';
+    const linvoRefreshExpiry = linvoRefreshToken
+      ? readJwtExpiry(linvoRefreshToken)
+      : null;
+    const linvoCanRefresh =
+      linvoRefreshExpiry != null && linvoRefreshExpiry.getTime() > now.getTime();
+
+    if (session.expiresAt.getTime() <= now.getTime() && !linvoCanRefresh) {
       await this.markNeedsReauth(
         session.id,
-        'O token expirou antes de ser renovado. Cole um token ainda válido.',
+        session.partnerSlug === 'MAXLAV'
+          ? 'A sessão da Linvo expirou. Cole o token de acesso e o token de renovação de novo.'
+          : 'O token expirou antes de ser renovado. Cole um token ainda válido.',
       );
       return;
     }
@@ -183,6 +203,7 @@ export class IntegrationSessionService {
         accessToken: current,
         merchantId: session.integration.merchantId,
         apiUrl: session.integration.digitalMenuUrl,
+        ...(linvoRefreshToken ? { refreshToken: linvoRefreshToken } : {}),
       });
       if (next.expiresAt.getTime() <= now.getTime()) {
         await this.markNeedsReauth(
@@ -206,7 +227,10 @@ export class IntegrationSessionService {
       });
       await this.prisma.digitalMenuIntegration.update({
         where: { id: session.integrationId },
-        data: { apiKey: next.accessToken },
+        data: {
+          apiKey: next.accessToken,
+          ...(next.refreshToken ? { apiSecret: next.refreshToken } : {}),
+        },
       });
       this.logger.log(
         `Sessão ${session.partnerSlug} renovada para a empresa ${session.companyId}`,

@@ -7,6 +7,7 @@ export interface RefreshedPartnerSession {
   accessToken: string;
   expiresAt: Date;
   refreshAfter?: Date;
+  refreshToken?: string;
 }
 
 @Injectable()
@@ -18,6 +19,7 @@ export class IntegrationsEngineSessionClient {
     accessToken: string;
     merchantId?: string | null;
     apiUrl?: string | null;
+    refreshToken?: string | null;
   }): Promise<RefreshedPartnerSession> {
     const baseUrl = (
       process.env.INTEGRATIONS_ENGINE_URL ??
@@ -43,6 +45,7 @@ export class IntegrationsEngineSessionClient {
             accessToken: input.accessToken,
             merchantId: input.merchantId || undefined,
             apiUrl: input.apiUrl || undefined,
+            refreshToken: input.refreshToken || undefined,
           },
           {
             headers: {
@@ -109,6 +112,7 @@ function readRefreshedSession(body: unknown): RefreshedPartnerSession | null {
     accessToken?: unknown;
     expiresAt?: unknown;
     refreshAfter?: unknown;
+    refreshToken?: unknown;
   };
   if (typeof record.accessToken !== 'string' || !record.accessToken.trim()) {
     return null;
@@ -122,5 +126,14 @@ function readRefreshedSession(body: unknown): RefreshedPartnerSession | null {
     const parsed = new Date(record.refreshAfter);
     if (!Number.isNaN(parsed.getTime())) refreshAfter = parsed;
   }
-  return { accessToken: record.accessToken.trim(), expiresAt, refreshAfter };
+  const refreshToken =
+    typeof record.refreshToken === 'string' && record.refreshToken.trim()
+      ? record.refreshToken.trim()
+      : undefined;
+  return {
+    accessToken: record.accessToken.trim(),
+    expiresAt,
+    refreshAfter,
+    refreshToken,
+  };
 }

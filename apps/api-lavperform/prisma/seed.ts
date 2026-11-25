@@ -206,10 +206,10 @@ async function main() {
 
   const maxlavPartner = await prisma.partner.upsert({
     where: { id: 'partner-maxlav' },
-    update: { partnerSlug: 'MAXLAV' },
+    update: { partnerSlug: 'MAXLAV', name: 'Linvo' },
     create: {
       id: 'partner-maxlav',
-      name: 'Maxlav',
+      name: 'Linvo',
       logoUrl: null,
       baseUrlWebhook: null,
       partnerSlug: 'MAXLAV',
