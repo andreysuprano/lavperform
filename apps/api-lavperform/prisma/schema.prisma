@@ -102,6 +102,8 @@ model Company {
   socialPostReferences      SocialPostReference[]
   scheduledSocialPosts      ScheduledSocialPost[]
   storeSocialConnections    StoreSocialConnection[]
+  swlSyncState              SwlSyncState?
+  swlCustomerLinks          SwlCustomerLink[]
 
   @@index([businessPartnerId])
   @@index([deletedAt])
@@ -303,6 +305,37 @@ model IntegrationSession {
   @@map("integration_sessions")
 }
 
+/// Marcos de sincronização com a SWL, um registro por empresa.
+model SwlSyncState {
+  id                   String    @id @default(uuid())
+  companyId            String    @unique
+  company              Company   @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  customersWatermark   DateTime?
+  deletionsWatermark   DateTime?
+  attendancesWatermark DateTime?
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  @@map("swl_sync_states")
+}
+
+/// Vínculo entre o cliente da SWL e o cliente local. customerId não é único:
+/// vários clientes da SWL podem apontar para o mesmo cliente local.
+model SwlCustomerLink {
+  id            String   @id @default(uuid())
+  companyId     String
+  company       Company  @relation(fields: [companyId], references: [id], onDelete: Cascade)
+  swlCustomerId Int
+  customerId    String
+  customer      Customer @relation(fields: [customerId], references: [id], onDelete: Cascade)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([companyId, swlCustomerId])
+  @@index([customerId])
+  @@map("swl_customer_links")
+}
+
 model Partner {
   id                      String                   @id @default(uuid())
   name                    String
@@ -412,6 +445,7 @@ model Customer {
   messages           Message[]
   rfvHistory         CustomerRfvHistory[]
   customSendListMembers CustomSendListMember[]
+  swlCustomerLinks   SwlCustomerLink[]
 
   @@index([companyId])
   @@index([phone])
