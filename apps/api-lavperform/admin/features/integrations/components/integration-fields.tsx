@@ -124,7 +124,9 @@ function CredentialField({
       <Input
         id={fieldName}
         type={
-          fieldName === "password" || fieldName === "apiSecret"
+          fieldName === "password" ||
+          fieldName === "apiSecret" ||
+          (partnerSlug?.toUpperCase() === "SWL" && fieldName === "apiKey")
             ? "password"
             : fieldName === "digitalMenuUrl"
               ? "url"

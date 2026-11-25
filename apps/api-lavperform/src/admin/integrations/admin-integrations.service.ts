@@ -13,6 +13,7 @@ import { ImportHistoryStrategyFactory } from '../../integrations/import-history-
 import { CiccloSalesService } from '../../integrations/cicclo/application/cicclo-sales.service';
 import { WindelSalesService } from '../../integrations/windel/application/windel-sales.service';
 import { WaymoneySalesService } from '../../integrations/waymoney/application/waymoney-sales.service';
+import { SwlSalesService } from '../../integrations/swl/application/swl-sales.service';
 import { L2AutomateSalesService } from '../../integrations/l2automate/application/l2automate-sales.service';
 import { MaxlavSalesService } from '../../integrations/maxlav/application/maxlav-sales.service';
 import { PartnerFeedService } from '../../integrations/partner-feed/partner-feed.service';
@@ -61,6 +62,7 @@ export class AdminIntegrationsService {
     private readonly ciccloSalesService: CiccloSalesService,
     private readonly windelSalesService: WindelSalesService,
     private readonly waymoneySalesService: WaymoneySalesService,
+    private readonly swlSalesService: SwlSalesService,
     private readonly l2AutomateSalesService: L2AutomateSalesService,
     private readonly maxlavSalesService: MaxlavSalesService,
     private readonly agidezSalesService: AgidezSalesService,
@@ -384,6 +386,9 @@ export class AdminIntegrationsService {
           dto,
           integration,
         );
+      }
+      if (partnerSlug === 'SWL') {
+        return this.swlSalesService.importHistoricalSales(companyId, dto);
       }
       if (partnerSlug === 'L2AUTOMATE') {
         return this.l2AutomateSalesService.importHistoricalSales(

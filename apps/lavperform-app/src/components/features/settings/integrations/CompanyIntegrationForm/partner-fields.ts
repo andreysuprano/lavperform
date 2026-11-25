@@ -127,6 +127,9 @@ export function fieldCopy(
   if ((slug === 'WINDEL' || slug === 'WAYMONEY') && field === 'apiKey') {
     return { label: 'Senha', placeholder: 'Senha' }
   }
+  if (slug === 'SWL' && field === 'apiKey') {
+    return { label: 'Token', placeholder: 'Token' }
+  }
   if (slug === 'HYBEX_ESSENCE' && field === 'merchantId') {
     return {
       label: 'Código da loja (GUID)',

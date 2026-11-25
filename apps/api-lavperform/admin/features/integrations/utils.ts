@@ -65,6 +65,7 @@ const SLUG_LABELS: Record<string, string> = {
   CICCLO: "Cicclo",
   WINDEL: "Windel",
   WAYMONEY: "WayMoney",
+  SWL: "SWL",
   L2AUTOMATE: "L2 Automate",
   MAXLAV: "Maxlav",
   LAUNDRYKIT: "Laundry Kit",
@@ -95,6 +96,9 @@ export function integrationFieldLabel(
     field === "apiKey"
   ) {
     return "Senha"
+  }
+  if (partnerSlug?.toUpperCase() === "SWL" && field === "apiKey") {
+    return "Token"
   }
   if (partnerSlug?.toUpperCase() === "HYBEX_ESSENCE" && field === "merchantId") {
     return "Código da loja (GUID)"
@@ -134,6 +138,7 @@ const SUPPORTS_IMPORT_HISTORY_SLUGS = new Set([
   "CICCLO",
   "WINDEL",
   "WAYMONEY",
+  "SWL",
   "L2AUTOMATE",
   "MAXLAV",
   "LAUNDRYKIT",

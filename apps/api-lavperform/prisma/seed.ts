@@ -132,6 +132,18 @@ async function main() {
     },
   });
 
+  await prisma.partner.upsert({
+    where: { id: 'partner-swl' },
+    update: { partnerSlug: 'SWL', name: 'SWL' },
+    create: {
+      id: 'partner-swl',
+      name: 'SWL',
+      logoUrl: null,
+      baseUrlWebhook: null,
+      partnerSlug: 'SWL',
+    },
+  });
+
   const l2automatePartner = await prisma.partner.upsert({
     where: { id: 'partner-l2automate' },
     update: {},

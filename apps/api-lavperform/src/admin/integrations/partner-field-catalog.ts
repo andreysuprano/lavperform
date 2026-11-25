@@ -34,6 +34,12 @@ export const PARTNER_FIELD_CATALOG: Record<string, PartnerFieldSchema> = {
     supportsImportHistory: true,
     importHistoryRoute: 'dedicated',
   },
+  SWL: {
+    requiredFields: ['apiKey'],
+    optionalFields: [],
+    supportsImportHistory: true,
+    importHistoryRoute: 'dedicated',
+  },
   L2AUTOMATE: {
     requiredFields: ['apiKey'],
     optionalFields: ['merchantId', 'digitalMenuUrl'],
@@ -91,6 +97,7 @@ export const DEDICATED_IMPORT_SLUGS = new Set([
   'CICCLO',
   'WINDEL',
   'WAYMONEY',
+  'SWL',
   'L2AUTOMATE',
   'MAXLAV',
   'LAUNDRYKIT',

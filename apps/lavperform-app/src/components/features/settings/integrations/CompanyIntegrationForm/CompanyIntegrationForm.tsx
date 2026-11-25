@@ -69,7 +69,8 @@ function CompanyIntegrationForm({
   const [isOpen, setIsOpen] = useState(false)
   const { selectedCompany } = useAuth()
   const slug = partnerSlug?.trim().toUpperCase()
-  const usesEmailPassword = slug === 'WINDEL' || slug === 'WAYMONEY'
+  const usesEmailPassword =
+    slug === 'WINDEL' || slug === 'WAYMONEY' || slug === 'SWL'
   const catalog = requiredFields.length > 0
   const showMerchant =
     !catalog ||
