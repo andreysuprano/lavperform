@@ -6,7 +6,8 @@ export type SalesImportPartnerSlug =
   | 'maxlav'
   | 'l2automate'
   | 'waymoney'
-  | 'essence';
+  | 'essence'
+  | 'swl';
 
 export function utcDateOnly(now: Date = new Date()): string {
   return now.toISOString().slice(0, 10);

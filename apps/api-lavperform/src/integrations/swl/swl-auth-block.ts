@@ -16,3 +16,9 @@ export function isSwlAuthBlocked(
 ): boolean {
   return storedHash !== null && storedHash === swlTokenHash(token);
 }
+
+/**
+ * RedisService.setJson exige TTL. O bloqueio só cai quando o token muda
+ * (o cron compara o hash), então o prazo é de 10 anos.
+ */
+export const SWL_AUTH_BLOCK_TTL_SECONDS = 10 * 365 * 24 * 60 * 60;

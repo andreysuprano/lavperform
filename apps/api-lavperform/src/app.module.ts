@@ -34,6 +34,7 @@ import { VmLavModule } from './integrations/vmlav/vmlav.module';
 import { CiccloModule } from './integrations/cicclo/cicclo.module';
 import { WindelModule } from './integrations/windel/windel.module';
 import { WaymoneyModule } from './integrations/waymoney/waymoney.module';
+import { SwlModule } from './integrations/swl/swl.module';
 import { L2AutomateModule } from './integrations/l2automate/l2automate.module';
 import { ConsumerModule } from './integrations/consumer/consumer.module';
 import { MaxlavModule } from './integrations/maxlav/maxlav.module';
@@ -103,6 +104,7 @@ import { SocialPublishingModule } from './social-publishing/social-publishing.mo
     CiccloModule,
     WindelModule,
     WaymoneyModule,
+    SwlModule,
     L2AutomateModule,
     ConsumerModule,
     MaxlavModule,
