@@ -104,7 +104,7 @@ export function swlAttendanceAction(
   if (CANCEL_SITUATIONS.includes(situation)) {
     return orderExists ? 'cancel' : 'skip';
   }
-  if (situation === ACTIVE && atendimento.situacaoPagamento === PAID) {
+  if (situation === ACTIVE && atendimento.status?.pagamento === PAID) {
     return orderExists ? 'update' : 'create';
   }
   return orderExists ? 'update' : 'skip';
@@ -125,7 +125,7 @@ function mapItem(item: SwlAtendimentoItem): CreateOrderItemDto {
     parsedQuantity > 0;
 
   const base = {
-    itemId: inInt32Range(item.servicoId) ? item.servicoId : 0,
+    itemId: inInt32Range(item.itemId) ? item.itemId : 0,
     externalCode: String(item.id),
     name: item.descricao?.trim() || 'Serviço',
     kind: 'service',
@@ -136,7 +136,7 @@ function mapItem(item: SwlAtendimentoItem): CreateOrderItemDto {
 
   if (!isWholeQuantity) {
     const lineTotal = total ?? 0;
-    const unitLabel = item.unidade?.trim();
+    const unitLabel = item.unidadeMedida?.trim();
     const original = rawQuantity === '' ? 'não informada' : rawQuantity;
     return {
       ...base,
@@ -161,7 +161,7 @@ function mapDiscounts(atendimento: SwlAtendimento): CreateOrderDiscountDto[] {
   const valores = atendimento.valores;
   const discounts: CreateOrderDiscountDto[] = [];
 
-  const amount = parseSwlMoney(valores?.desconto);
+  const amount = parseSwlMoney(valores?.descontoValor);
   if (amount > 0) {
     discounts.push({
       type: 'discount',
@@ -181,7 +181,7 @@ function mapDiscounts(atendimento: SwlAtendimento): CreateOrderDiscountDto[] {
 
   const percent = moneyOrNull(valores?.descontoPercentual) ?? 0;
   if (percent > 0) {
-    const value = roundMoney((parseSwlMoney(valores?.bruto) * percent) / 100);
+    const value = roundMoney((parseSwlMoney(valores?.total) * percent) / 100);
     if (value > 0) {
       discounts.push({
         type: 'discount',
@@ -232,7 +232,7 @@ function mapPayments(atendimento: SwlAtendimento): CreateOrderPaymentDto[] {
     payments.push(paidPayment('Crédito SWL', credit));
   }
 
-  if (payments.length === 0 && atendimento.situacaoPagamento === PAID) {
+  if (payments.length === 0 && atendimento.status?.pagamento === PAID) {
     const paid = parseSwlMoney(atendimento.valores?.pago);
     const total = paid > 0 ? paid : parseSwlMoney(atendimento.valores?.liquido);
     if (total > 0) {
@@ -261,8 +261,8 @@ export function swlToOrder(
     externalOrderId: swlExternalOrderId(atendimento.id),
     integratorOrderId,
     displayId: integratorOrderId,
-    merchantId: inInt32Range(atendimento.centroCustoId)
-      ? atendimento.centroCustoId
+    merchantId: inInt32Range(atendimento.centroDeCustoId)
+      ? atendimento.centroDeCustoId
       : 0,
     status: cancelled ? 'cancelled' : 'closed',
     orderType: 'takeout',

@@ -11,19 +11,31 @@ import { swlCustomerIncoming } from 'src/integrations/swl/mappings/swl-customer-
 import { waymoneyHash } from 'src/integrations/waymoney/mappings/waymoney-sale-mapping';
 import { SwlAtendimento, SwlCliente } from 'src/integrations/swl/api/swl.types';
 
+const statusPagamento = (pagamento: string): SwlAtendimento['status'] => ({
+  pagamento: pagamento as SwlAtendimento['status']['pagamento'],
+  entrega: 'ENTREGUE',
+});
+
 const atendimento = (
   overrides: Partial<SwlAtendimento> = {},
 ): SwlAtendimento => ({
   id: 42,
   situacao: 'ATIVO',
-  situacaoPagamento: 'PAGO',
+  concluido: true,
+  status: statusPagamento('PAGO'),
   clienteId: 7,
-  centroCustoId: 3,
-  datas: { abertura: '2026-08-27T09:13:00-03:00' },
+  centroDeCustoId: 3,
+  datas: {
+    abertura: '2026-08-27T09:13:00-03:00',
+    previsaoEntrega: '2026-08-29T18:00:00-03:00',
+    entrega: null,
+  },
   atualizadoEm: '2026-08-28T10:00:00-03:00',
   valores: {
-    bruto: '75.50',
-    desconto: '0.00',
+    quantidadePecas: 2,
+    totalItens: 1,
+    total: '75.50',
+    descontoValor: '0.00',
     voucherFidelidade: '0.00',
     descontoPercentual: null,
     liquido: '75.50',
@@ -34,17 +46,19 @@ const atendimento = (
   itens: [
     {
       id: 900,
-      servicoId: 15,
+      itemId: 15,
       descricao: 'Lavagem de edredom',
       quantidade: '2.000',
-      unidade: 'UN',
+      unidadeMedida: 'UN',
       valorUnitario: '37.75',
       valorTotal: '75.50',
+      entregaExpressa: false,
     },
   ],
   pagamentos: [
     {
       id: 501,
+      data: '2026-08-27',
       situacao: 'ATIVO',
       forma: 'Pix',
       valor: '75.50',
@@ -59,11 +73,12 @@ const cliente = (overrides: Partial<SwlCliente> = {}): SwlCliente => ({
   id: 7,
   nome: 'Maria Souza',
   documento: '123.456.789-01',
+  tipoDocumento: 'CPF',
   email: 'maria@exemplo.com',
   dataNascimento: '1990-05-17',
   sexo: 'F',
-  celular: { e164: '+5547988509191' },
-  telefone: { e164: '+554733334444' },
+  celular: { original: '(47) 98850-9191', e164: '+5547988509191' },
+  telefone: { original: '(47) 3333-4444', e164: '+554733334444' },
   endereco: {
     logradouro: 'Rua das Flores',
     numero: '100',
@@ -197,32 +212,44 @@ describe('mapeamento SWL', () => {
     });
 
     it('PARCIAL e EM_ABERTO só atualizam pedido existente', () => {
-      for (const situacaoPagamento of ['PARCIAL', 'EM_ABERTO']) {
+      for (const situacaoPagamento of ['PARCIAL', 'EM_ABERTO'] as const) {
         expect(
-          swlAttendanceAction(atendimento({ situacaoPagamento }), false),
+          swlAttendanceAction(
+            atendimento({ status: statusPagamento(situacaoPagamento) }),
+            false,
+          ),
         ).toBe('skip');
         expect(
-          swlAttendanceAction(atendimento({ situacaoPagamento }), true),
+          swlAttendanceAction(
+            atendimento({ status: statusPagamento(situacaoPagamento) }),
+            true,
+          ),
         ).toBe('update');
       }
     });
 
     it('situação desconhecida não cria nem cancela', () => {
       expect(
-        swlAttendanceAction(atendimento({ situacao: 'NOVO_VALOR' }), false),
-      ).toBe('skip');
-      expect(
-        swlAttendanceAction(atendimento({ situacao: 'NOVO_VALOR' }), true),
-      ).toBe('update');
-      expect(
         swlAttendanceAction(
-          atendimento({ situacaoPagamento: 'NOVO_VALOR' }),
+          atendimento({ situacao: 'NOVO_VALOR' as never }),
           false,
         ),
       ).toBe('skip');
       expect(
         swlAttendanceAction(
-          atendimento({ situacaoPagamento: 'NOVO_VALOR' }),
+          atendimento({ situacao: 'NOVO_VALOR' as never }),
+          true,
+        ),
+      ).toBe('update');
+      expect(
+        swlAttendanceAction(
+          atendimento({ status: statusPagamento('NOVO_VALOR') }),
+          false,
+        ),
+      ).toBe('skip');
+      expect(
+        swlAttendanceAction(
+          atendimento({ status: statusPagamento('NOVO_VALOR') }),
           true,
         ),
       ).toBe('update');
@@ -281,7 +308,7 @@ describe('mapeamento SWL', () => {
 
     it('centro vazio usa merchantId 0 e observação com Centro de custo', () => {
       const order = swlToOrder(
-        atendimento({ centroCustoId: null }),
+        atendimento({ centroDeCustoId: null }),
         null,
         'company-1',
         '  ',
@@ -329,7 +356,7 @@ describe('mapeamento SWL', () => {
 
     it('PARCIAL reescreve como closed, sem cancelar', () => {
       const order = swlToOrder(
-        atendimento({ situacaoPagamento: 'PARCIAL' }),
+        atendimento({ status: statusPagamento('PARCIAL') }),
         null,
         'company-1',
         'Matriz',
@@ -367,10 +394,10 @@ describe('mapeamento SWL', () => {
           itens: [
             {
               id: 901,
-              servicoId: null,
+              itemId: null,
               descricao: '',
               quantidade: '2.500',
-              unidade: 'KG',
+              unidadeMedida: 'KG',
               valorUnitario: '10.00',
               valorTotal: '25.00',
             },
@@ -399,10 +426,10 @@ describe('mapeamento SWL', () => {
           itens: [
             {
               id: 902,
-              servicoId: 1,
+              itemId: 1,
               descricao: 'Serviço X',
               quantidade: null,
-              unidade: null,
+              unidadeMedida: null,
               valorUnitario: null,
               valorTotal: null,
             },
@@ -423,10 +450,10 @@ describe('mapeamento SWL', () => {
           itens: [
             {
               id: 903,
-              servicoId: 1,
+              itemId: 1,
               descricao: 'Serviço Y',
               quantidade: '4.000',
-              unidade: 'UN',
+              unidadeMedida: 'UN',
               valorUnitario: '',
               valorTotal: '30.00',
             },
@@ -443,13 +470,13 @@ describe('mapeamento SWL', () => {
   });
 
   describe('descontos', () => {
-    it('gera as linhas de desconto, voucher e percentual sobre o bruto', () => {
+    it('gera as linhas de desconto, voucher e percentual sobre o total bruto', () => {
       const order = swlToOrder(
         atendimento({
           valores: {
             ...atendimento().valores,
-            bruto: '100.00',
-            desconto: '10.00',
+            total: '100.00',
+            descontoValor: '10.00',
             voucherFidelidade: '5.00',
             descontoPercentual: '10.00',
           },
@@ -625,7 +652,7 @@ describe('mapeamento SWL', () => {
 
     it('atendimento não pago sem pagamento não ganha Fatura', () => {
       const order = swlToOrder(
-        atendimento({ situacaoPagamento: 'EM_ABERTO', pagamentos: [] }),
+        atendimento({ status: statusPagamento('EM_ABERTO'), pagamentos: [] }),
         null,
         'company-1',
         'Matriz',
@@ -666,7 +693,9 @@ describe('mapeamento SWL', () => {
 
     it('sem e164 de celular, usa o telefone', () => {
       expect(
-        swlCustomerIncoming(cliente({ celular: { e164: null } })).phone,
+        swlCustomerIncoming(
+          cliente({ celular: { original: null, e164: null } }),
+        ).phone,
       ).toBe('+554733334444');
       expect(swlCustomerIncoming(cliente({ celular: null })).phone).toBe(
         '+554733334444',
