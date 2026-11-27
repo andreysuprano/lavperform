@@ -249,13 +249,33 @@ export class RunConfiguratorTurnUseCase {
         (block): block is Extract<StoredBlock, { type: 'proposal' }> => block.type === 'proposal',
       );
       let proposalStatus: ProposalStatus | null = null;
+      let contextPrompt = persona.contextPrompt ?? '';
       if (proposalBlock?.changes && proposalBlock.changes.length > 0) {
         await this.agents.updatePersona(target.id, {
           contextPrompt: proposalBlock.document.contextPrompt,
         });
+        contextPrompt = proposalBlock.document.contextPrompt;
         proposalStatus = 'accepted';
       } else if (proposalBlock) {
         proposalStatus = 'pending';
+      } else {
+        const fallback = tryDirectContextInstruction(input.text, contextPrompt);
+        if (fallback?.writesContext) {
+          const merged = applyContextEdits(contextPrompt, {
+            replacements: fallback.replacements,
+            addition: fallback.addition,
+          });
+          if (merged.ok) {
+            const savedPersona = await this.agents.updatePersona(target.id, {
+              contextPrompt: merged.context,
+            });
+            contextPrompt = savedPersona.contextPrompt ?? merged.context;
+            stored.unshift({
+              type: 'markdown',
+              content: fallback.confirmationMessage,
+            });
+          }
+        }
       }
       const saved = await this.conversations.addMessage({
         conversationId: conversation.id,

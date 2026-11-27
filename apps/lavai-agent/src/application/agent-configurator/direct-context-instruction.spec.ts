@@ -32,6 +32,18 @@ describe('tryDirectContextInstruction', () => {
     expect(result?.writesContext).toBe(false);
   });
 
+  it('grava parágrafo informativo sem comando mágico', () => {
+    const text =
+      'no sábado o horário da lavanderia é até às 16h porque a equipe sai mais cedo no fim de semana';
+    const result = tryDirectContextInstruction(text, '');
+    expect(result?.writesContext).toBe(true);
+    expect(result?.confirmationMessage).toContain('Gravei');
+  });
+
+  it('não grava pergunta curta', () => {
+    expect(tryDirectContextInstruction('Qual é a saudação?', '')).toBeNull();
+  });
+
   it('grava preços informados em texto livre (cobertor)', () => {
     const text =
       'valor para lavar cobertor de casal o valor para lavar é de R$ 50,00. qual valor do cobertor solteiro? o valor é de R$ 40,00';
