@@ -1,4 +1,8 @@
-import { isConfiguratorQuestion, tryDirectContextInstruction } from './direct-context-instruction';
+import {
+  extractPriceFactLines,
+  isConfiguratorQuestion,
+  tryDirectContextInstruction,
+} from './direct-context-instruction';
 
 describe('isConfiguratorQuestion', () => {
   it('trata pergunta sem instrução', () => {
@@ -26,5 +30,19 @@ describe('tryDirectContextInstruction', () => {
       'Olá Qualito! já aqui',
     );
     expect(result?.writesContext).toBe(false);
+  });
+
+  it('grava preços informados em texto livre (cobertor)', () => {
+    const text =
+      'valor para lavar cobertor de casal o valor para lavar é de R$ 50,00. qual valor do cobertor solteiro? o valor é de R$ 40,00';
+    expect(extractPriceFactLines(text)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/cobertor de casal/i),
+        expect.stringMatching(/cobertor solteiro/i),
+      ]),
+    );
+    const result = tryDirectContextInstruction(text, '');
+    expect(result?.writesContext).toBe(true);
+    expect(result?.addition).toContain('R$ 40,00');
   });
 });

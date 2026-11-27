@@ -51,14 +51,59 @@ export function tryDirectContextInstruction(
     );
   }
 
-  const add = userText.match(/(?:adicione|grave|coloque|inclua)\s+(?:no\s+)?contexto\s*:\s*([\s\S]+)/i);
+  const add = userText.match(
+    /(?:adicione|grave|coloque|inclua|salve|registre)\s+(?:no\s+)?contexto\s*[-:]\s*([\s\S]+)/i,
+  );
   if (add) {
     const value = add[1].trim();
     if (value === '') return null;
     return buildInstruction('Instrução', value, contextPrompt, (v) => v);
   }
 
+  const priceLines = extractPriceFactLines(userText);
+  if (priceLines.length > 0) {
+    const body = priceLines.join('\n');
+    return buildInstruction('Preços e serviços', body, contextPrompt, (lines) =>
+      ['### Preços e serviços (confirmados pela lavanderia)', '', lines].join('\n'),
+    );
+  }
+
   return null;
+}
+
+/** Blocos com R$ no texto do usuário (ex.: cobertor solteiro R$ 40). */
+export function extractPriceFactLines(userText: string): string[] {
+  const seen = new Set<string>();
+  const lines: string[] = [];
+
+  const push = (rawLabel: string, priceRaw: string) => {
+    let label = rawLabel.replace(/\s+/g, ' ').trim();
+    label = label.replace(/^(?:o\s+)?valor\s+para\s+lavar\s+/i, '');
+    label = label.replace(/\s+o valor para lavar\s*$/i, '');
+    label = label.replace(/^(?:também\s+)?(?:é|e)\s+/i, '');
+    label = label.replace(/^(?:o\s+)?valor\s*$/i, '');
+    if (label.length < 4 || /^(qual|quanto|como)\b/i.test(label)) return;
+    const price = priceRaw.replace(/\s/g, '');
+    const line = `- Lavagem ${label}: R$ ${price}`;
+    const key = `${label.toLowerCase()}|${price}`;
+    if (seen.has(key)) return;
+    seen.add(key);
+    lines.push(line);
+  };
+
+  const afterQuestion =
+    /(?:qual\s+(?:o\s+)?valor\s+(?:do|da|de)\s*)([^?]{4,80})\?\s*[\s\S]{0,120}?R\$\s*([\d.,]+)/gi;
+  let match: RegExpExecArray | null;
+  while ((match = afterQuestion.exec(userText)) !== null) {
+    push(match[1], match[2]);
+  }
+
+  const pattern = /([^?\n]{8,120}?)\s+(?:é\s+de\s+|de\s+)?R\$\s*([\d.,]+)/gi;
+  while ((match = pattern.exec(userText)) !== null) {
+    push(match[1], match[2]);
+  }
+
+  return lines;
 }
 
 function buildInstruction(
