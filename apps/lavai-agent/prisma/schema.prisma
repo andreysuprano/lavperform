@@ -204,9 +204,9 @@ model AgentModelConfig {
   /// Slug do modelo no OpenRouter (ex: "openai/gpt-4o", "anthropic/claude-3-5-sonnet").
   modelName        String      @default("openai/gpt-4o") @map("model_name")
   /// 0.0 = determinístico, 2.0 = mais criativo.
-  temperature      Float       @default(0.7)
+  temperature      Float       @default(0.3)
   /// Limite máximo de tokens na resposta.
-  maxTokens        Int         @default(1024) @map("max_tokens")
+  maxTokens        Int         @default(16384) @map("max_tokens")
   /// Nucleus sampling — 1.0 considera todos os tokens.
   topP             Float       @default(1.0) @map("top_p")
   /// Penalidade de frequência para reduzir repetições.
@@ -230,7 +230,7 @@ model AgentMemoryConfig {
   /// Tipo de memória: BUFFER (janela fixa), SUMMARY (resumo), VECTOR (busca semântica), NONE.
   memoryType       AgentMemoryType @default(BUFFER) @map("memory_type")
   /// Quantidade de mensagens mantidas na janela (BUFFER).
-  windowSize       Int             @default(10) @map("window_size")
+  windowSize       Int             @default(100) @map("window_size")
   /// Limite de tokens do resumo gerado (SUMMARY).
   maxSummaryTokens Int             @default(2000) @map("max_summary_tokens")
   /// Habilita memória de longo prazo (vector store persistente).

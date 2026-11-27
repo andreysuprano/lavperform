@@ -5,6 +5,10 @@ import type { KnowledgeChunkWithScore } from '../../knowledge/ports/knowledge-ch
 import type { LlmMessage } from '../ports/llm-provider.port';
 import type { AgentMessageContext } from '../../webhook/types/normalized-agent-prompt.types';
 import { PRESERVED_TITLE } from '../../agent-configurator/migrate-persona-prompt';
+import {
+  AGENT_MAX_TOKENS,
+  AGENT_MODEL_CONTEXT_TOKENS,
+} from '../../agent/agent-model-defaults';
 
 export interface SenderContext {
   senderName: string;
@@ -52,9 +56,9 @@ function contextPriorityRule(context: string): string {
  *  [user/assistant]... histórico da conversa
  *  [user] mensagem atual do usuário
  *
- * Token budget: estimativa por caracteres (~4 chars por token) — sem dependência
- * externa. Se o histórico exceder o orçamento, as mensagens mais antigas são
- * descartadas primeiro.
+ * O histórico usa o que cabe no contexto do modelo (128k), menos o sistema,
+ * a mensagem atual e a reserva da resposta. Estimativa de ~4 caracteres por
+ * token. As mensagens mais antigas saem primeiro.
  */
 @Injectable()
 export class PromptBuilderService {
@@ -69,7 +73,7 @@ export class PromptBuilderService {
     session?: PlatformSessionContext,
   ): LlmMessage[] {
     const persona = agent.persona;
-    const maxTokens = agent.modelConfig?.maxTokens ?? 1024;
+    const maxTokens = agent.modelConfig?.maxTokens ?? AGENT_MAX_TOKENS;
 
     const systemParts: string[] = [];
 
@@ -141,7 +145,12 @@ export class PromptBuilderService {
       (message) => message.originalType !== 'WAITING_ACK',
     );
 
-    const tokenBudget = Math.floor(maxTokens * 0.75);
+    const systemTokens = Math.ceil((messages[0].content ?? '').length / this.CHARS_PER_TOKEN);
+    const userTokens = Math.ceil(userMessage.length / this.CHARS_PER_TOKEN);
+    const tokenBudget = Math.max(
+      0,
+      AGENT_MODEL_CONTEXT_TOKENS - systemTokens - userTokens - maxTokens,
+    );
     const trimmedHistory = this.trimHistory(visibleHistory, tokenBudget);
 
     for (const msg of trimmedHistory) {

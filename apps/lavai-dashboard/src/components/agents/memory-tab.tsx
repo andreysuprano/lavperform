@@ -75,7 +75,7 @@ export function MemoryTab({ agentId, memoryConfig, scope = 'company' }: MemoryTa
     resolver: zodResolver(memorySchema),
     defaultValues: {
       memoryType: memoryConfig?.memoryType || 'BUFFER',
-      windowSize: memoryConfig?.windowSize || 10,
+      windowSize: memoryConfig?.windowSize || 100,
       maxSummaryTokens: memoryConfig?.maxSummaryTokens || 500,
       useLongTermMemory: memoryConfig?.useLongTermMemory || false,
     },

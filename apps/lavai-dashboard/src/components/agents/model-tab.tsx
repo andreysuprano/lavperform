@@ -374,8 +374,8 @@ export function ModelTab({ agentId, modelConfig, scope = 'company' }: ModelTabPr
     resolver: zodResolver(modelSchema),
     defaultValues: {
       modelName: modelConfig?.modelName || '',
-      temperature: modelConfig?.temperature ?? 0.7,
-      maxTokens: modelConfig?.maxTokens ?? 1024,
+      temperature: modelConfig?.temperature ?? 0.3,
+      maxTokens: modelConfig?.maxTokens ?? 16384,
       topP: modelConfig?.topP ?? 1,
       frequencyPenalty: modelConfig?.frequencyPenalty ?? 0,
       presencePenalty: modelConfig?.presencePenalty ?? 0,

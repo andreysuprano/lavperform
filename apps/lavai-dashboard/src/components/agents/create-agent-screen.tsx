@@ -123,14 +123,14 @@ export function CreateAgentScreen({ companyId }: { companyId?: string }) {
   const form = useForm<AgentFormValues>({
     resolver: zodResolver(agentSchema),
     defaultValues: {
-      temperature: 0.7,
-      maxTokens: 1024,
+      temperature: 0.3,
+      maxTokens: 16384,
       topP: 1,
       frequencyPenalty: 0,
       presencePenalty: 0,
       streaming: true,
       memoryType: 'BUFFER',
-      windowSize: 10,
+      windowSize: 100,
       useLongTermMemory: false,
     },
   });

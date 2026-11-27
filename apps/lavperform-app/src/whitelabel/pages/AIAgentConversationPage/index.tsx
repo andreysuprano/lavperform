@@ -316,10 +316,10 @@ function AIAgentConversationPageBase() {
           persona,
           modelConfig: {
             modelName: 'openai/gpt-5',
-            temperature: 0.7,
-            maxTokens: 8048,
+            temperature: 0.3,
+            maxTokens: 16384,
           },
-          memoryConfig: { memoryType: 'BUFFER', windowSize: 10 },
+          memoryConfig: { memoryType: 'BUFFER', windowSize: 100 },
         })
         id = created.data.id
         await aiAgentService.adoptPromptSheet(companyId, id)

@@ -1,6 +1,11 @@
 import { BadGatewayException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import {
+  AGENT_CONTEXT_WINDOW,
+  AGENT_MAX_TOKENS,
+  AGENT_TEMPERATURE,
+} from '../../agent/agent-model-defaults';
 import { AGENT_REPOSITORY, AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentRepositoryPort } from '../../agent/ports/agent.repository.port';
 import { LLM_PROVIDER_PORT } from '../../agent-runner/ports/llm-provider.port';
@@ -85,7 +90,7 @@ export class RunConfiguratorTurnUseCase {
     const history = await this.conversations.findRecentMessagesExcept(
       conversation.id,
       userMessage.id,
-      configurator.memoryConfig?.windowSize ?? 10,
+      configurator.memoryConfig?.windowSize ?? AGENT_CONTEXT_WINDOW,
     );
     const persona = target.persona;
     const baseUpdatedAt = persona.updatedAt.toISOString();
@@ -141,7 +146,8 @@ export class RunConfiguratorTurnUseCase {
         const started = Date.now();
         const response = await this.llm.complete({
           model,
-          temperature: 0.2,
+          temperature: AGENT_TEMPERATURE,
+          maxTokens: configurator.modelConfig?.maxTokens ?? AGENT_MAX_TOKENS,
           messages,
           tools,
         });

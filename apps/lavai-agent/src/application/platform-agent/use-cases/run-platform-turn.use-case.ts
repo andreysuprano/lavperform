@@ -1,4 +1,9 @@
 import { BadGatewayException, Inject, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  AGENT_CONTEXT_WINDOW,
+  AGENT_MAX_TOKENS,
+  AGENT_TEMPERATURE,
+} from '../../agent/agent-model-defaults';
 import { AGENT_REPOSITORY, AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentRepositoryPort } from '../../agent/ports/agent.repository.port';
 import { LLM_PROVIDER_PORT } from '../../agent-runner/ports/llm-provider.port';
@@ -60,7 +65,7 @@ export class RunPlatformTurnUseCase {
     const history = await this.conversations.findRecentMessagesExcept(
       conversation.id,
       userMessage.id,
-      agent.memoryConfig?.windowSize ?? 10,
+      agent.memoryConfig?.windowSize ?? AGENT_CONTEXT_WINDOW,
     );
 
     const runId = await this.tracker.startRun({
@@ -83,8 +88,11 @@ export class RunPlatformTurnUseCase {
       const response = await this.llm.complete({
         model: agent.modelConfig?.modelName ?? 'openai/gpt-4o',
         messages,
-        temperature: agent.modelConfig?.temperature,
-        maxTokens: agent.modelConfig?.maxTokens,
+        temperature: Math.min(
+          agent.modelConfig?.temperature ?? AGENT_TEMPERATURE,
+          AGENT_TEMPERATURE,
+        ),
+        maxTokens: agent.modelConfig?.maxTokens ?? AGENT_MAX_TOKENS,
         topP: agent.modelConfig?.topP,
         frequencyPenalty: agent.modelConfig?.frequencyPenalty,
         presencePenalty: agent.modelConfig?.presencePenalty,

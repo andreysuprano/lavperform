@@ -7,6 +7,7 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
+import { AGENT_CONTEXT_WINDOW } from '../../agent/agent-model-defaults';
 import { AGENT_REPOSITORY, AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentRepositoryPort } from '../../agent/ports/agent.repository.port';
 import { AgentRunnerService } from '../../agent-runner/services/agent-runner.service';
@@ -89,7 +90,7 @@ export class RunPlaygroundTurnUseCase {
       return { content: ack || PLAYGROUND_HANDOFF };
     }
 
-    const windowSize = agent.memoryConfig?.windowSize ?? 10;
+    const windowSize = agent.memoryConfig?.windowSize ?? AGENT_CONTEXT_WINDOW;
     try {
       const answer = await this.runner.complete({
         agent,

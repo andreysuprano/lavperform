@@ -245,12 +245,12 @@ function AIAgentWizardBase({ onClose }: Props) {
           },
           modelConfig: {
             modelName: 'openai/gpt-5',
-            temperature: 0.7,
-            maxTokens: 8048,
+            temperature: 0.3,
+            maxTokens: 16384,
           },
           memoryConfig: {
             memoryType: 'BUFFER',
-            windowSize: 10,
+            windowSize: 100,
           },
         })
         agentId = created.data.id
