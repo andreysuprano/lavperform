@@ -528,6 +528,22 @@ export class LavaiAgentApiService {
     }>('post', '/agent-configurator/reconcile', body);
   }
 
+  reconcileAllConfiguratorContexts() {
+    return this.request<{
+      targets: number;
+      changed: number;
+      results: Array<{
+        targetAgentId: string;
+        contextCompanyId: string;
+        conversations: number;
+        appliedDirectInstructions: number;
+        appliedPendingProposals: number;
+        contextChanged: boolean;
+      }>;
+      failures: Array<{ contextCompanyId: string; targetAgentId: string; error: string }>;
+    }>('post', '/agent-configurator/reconcile-all', {});
+  }
+
   runPlaygroundTurn(body: {
     contextCompanyId: string;
     platformUserId: string;
