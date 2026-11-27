@@ -36,6 +36,7 @@ import { AIAgentWizardStep1 } from '../AIAgentWizardStep1'
 import type { Step1FormData } from '../AIAgentWizardStep1'
 import { AIAgentWizardStep3 } from '../AIAgentWizardStep3'
 import type { Step3FormData } from '../AIAgentWizardStep3'
+import { applyAdjustment } from '../PromptStudio/apply-adjustment'
 import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
 import type { AdjustmentSeed } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
@@ -176,9 +177,10 @@ function AIAgentWizardBase({ onClose }: Props) {
 
   const handleAcceptAdjustment = useCallback(
     async (proposal: PromptProposal) => {
-      setDocument((prev) => (prev ? { ...prev, ...proposal.changes } : prev))
+      // Fora do atualizador de estado, para a recusa chegar ao chat e não quebrar a tela.
+      if (document) setDocument(applyAdjustment(document, proposal))
     },
-    []
+    [document]
   )
 
   const handleTest = useCallback(

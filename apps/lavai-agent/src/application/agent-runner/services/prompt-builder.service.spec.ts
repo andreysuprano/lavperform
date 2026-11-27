@@ -161,4 +161,42 @@ describe('PromptBuilderService', () => {
     expect(contents).not.toContain('Um momento.');
     expect(contents).toContain(IDLE_CLOSE_DEFAULT);
   });
+
+  describe('prioridade das instruções da lavanderia', () => {
+    const TITLE = '## Prioridade das instruções da lavanderia';
+
+    function withContext(contextPrompt: string) {
+      const source = agent();
+      source.persona = { ...source.persona!, guardrails: 'limite fixo', contextPrompt };
+      return source;
+    }
+
+    it('faz o contexto valer sobre as regras fixas, menos nas proteções', () => {
+      const system = builder.build(withContext('Peça o nome antes de tudo.'), [], [], 'Oi')[0].content ?? '';
+      expect(system.indexOf(TITLE)).toBeGreaterThan(system.indexOf('Peça o nome antes de tudo.'));
+      expect(system).toContain('siga o Contexto do Negócio');
+      expect(system).toContain('não invente');
+      expect(system).toContain('não peça senha');
+      expect(system).toContain('não prometa reembolso');
+      expect(system).toContain('não se apresente como funcionário humano');
+      expect(system).toContain('não compartilhe dado pessoal de outro cliente');
+      expect(system).not.toContain('Que estava salvo');
+      expect(system).not.toContain('registro antigo');
+    });
+
+    it('mantém o bloco antigo preservado abaixo das regras fixas', () => {
+      const legacy = '## Informações já cadastradas desta lavanderia\n\ntexto antigo';
+      const system = builder.build(withContext(legacy), [], [], 'Oi')[0].content ?? '';
+      expect(system).toContain('registro antigo');
+    });
+
+    it('não entra sem contexto nem no turno de plataforma', () => {
+      expect(builder.build(agent(), [], [], 'Oi')[0].content).not.toContain(TITLE);
+      const platform = builder.build(withContext('algo'), [], [], 'Oi', undefined, {
+        userName: 'Ana',
+        companyName: 'Lavanderia Centro',
+      });
+      expect(platform[0].content).not.toContain(TITLE);
+    });
+  });
 });

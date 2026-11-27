@@ -13,6 +13,7 @@ import type { AgentRunTrackerPort } from '../../agent-trace/ports/agent-run-trac
 import { MessageRole } from '../../webhook/ports/conversation.repository.port';
 import type { PlatformConversationRepositoryPort } from '../../platform-agent/ports/platform-conversation.repository.port';
 import { ACTIVITY } from '../configurator-actions';
+import { NOTHING_CHANGED_MESSAGE } from '../configurator-blocks';
 import type { ConfiguratorActivityEvent } from '../configurator-actions';
 import { RunConfiguratorTurnUseCase } from './run-configurator-turn.use-case';
 
@@ -133,10 +134,8 @@ describe('RunConfiguratorTurnUseCase', () => {
   it('mostra as ações e não devolve o prompt para a interface', async () => {
     const proposal = {
       behavior: 'Passa a informar o horário de abertura.',
-      contextPrompt: 'PROMPT-INTERNO',
-      systemPrompt: 'sistema',
-      behaviorGuidelines: 'diretrizes',
-      guardrails: 'limites',
+      replacements: [],
+      addition: 'Abre às 8h.',
     };
     llm.complete
       .mockResolvedValueOnce({
@@ -176,10 +175,11 @@ describe('RunConfiguratorTurnUseCase', () => {
         messageId: 'msg-assistant',
         behavior: 'Passa a informar o horário de abertura.',
         status: 'pending',
+        changes: [{ before: '', after: 'Abre às 8h.' }],
       },
     ]);
     expect(JSON.stringify(result.blocks)).not.toContain('SEGREDO-NAO-MOSTRAR');
-    expect(JSON.stringify(result.blocks)).not.toContain('PROMPT-INTERNO');
+    expect(JSON.stringify(result.blocks)).not.toContain('contexto-atual');
     expect(JSON.stringify(events)).not.toContain('SEGREDO-NAO-MOSTRAR');
 
     const firstCall = llm.complete.mock.calls[0][0];
@@ -188,9 +188,36 @@ describe('RunConfiguratorTurnUseCase', () => {
     expect(toolMessage?.content).toContain('SEGREDO-NAO-MOSTRAR');
 
     const saved = conversations.addMessage.mock.calls.find((call) => call[0].role === MessageRole.ASSISTANT)?.[0];
-    expect(saved?.blocksJson).toContain('PROMPT-INTERNO');
+    expect(saved?.blocksJson).toContain('contexto-atual');
     expect(saved?.blocksJson).not.toContain('SEGREDO-NAO-MOSTRAR');
     expect(tracker.completeRun).toHaveBeenCalledWith('run-1', expect.stringContaining('O agente passa a informar o horário.'), 3, 2);
+  });
+
+  it('avisa que nada mudou quando a edição não pôde ser preparada', async () => {
+    llm.complete
+      .mockResolvedValueOnce({
+        content: null,
+        finishReason: 'tool_calls',
+        toolCalls: [{
+          id: 'c1',
+          type: 'function',
+          function: {
+            name: 'propor_mudanca',
+            arguments: JSON.stringify({ behavior: 'x', replacements: [{ before: 'não existe', after: 'y' }], addition: '' }),
+          },
+        }],
+      })
+      .mockResolvedValueOnce({ content: 'Pronto, salvei.', finishReason: 'stop', toolCalls: [] });
+
+    const result = await useCase.execute(input);
+
+    expect(result.blocks.at(-1)).toEqual({ type: 'markdown', content: NOTHING_CHANGED_MESSAGE });
+    expect(result.blocks.some((block) => block.type === 'proposal')).toBe(false);
+  });
+
+  it('manda o configurador recusar pedido que exponha dado de outro cliente', async () => {
+    await useCase.execute(input);
+    expect(llm.complete.mock.calls[0][0].messages[0].content).toContain('compartilhar dado pessoal de outro cliente');
   });
 
   it('falha o turno quando o modelo não responde', async () => {

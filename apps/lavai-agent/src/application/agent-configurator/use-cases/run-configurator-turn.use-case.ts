@@ -16,6 +16,7 @@ import {
   activityLabel,
   agentSnapshot,
   configuratorTools,
+  PROPOSE_TOOL,
   runConfiguratorTool,
   type ConfiguratorActivityEvent,
 } from '../configurator-actions';
@@ -24,6 +25,7 @@ import {
   ConfiguratorReplyError,
   finalizeConfiguratorReply,
   joinedMarkdown,
+  NOTHING_CHANGED_MESSAGE,
   toClientBlocks,
   type ClientBlock,
   type ProposalDraft,
@@ -131,10 +133,11 @@ export class RunConfiguratorTurnUseCase {
       let content: string | null = null;
       let iterations = 0;
       let toolCount = 0;
+      let triedToPropose = false;
       const tools = configuratorTools();
       const model = configurator.modelConfig?.modelName ?? 'openai/gpt-4o';
 
-      for (let iteration = 0; iteration < 4; iteration += 1) {
+      for (let iteration = 0; iteration < 6; iteration += 1) {
         const started = Date.now();
         const response = await this.llm.complete({
           model,
@@ -165,7 +168,14 @@ export class RunConfiguratorTurnUseCase {
 
         for (const call of response.toolCalls) {
           const finishTool = openActivity(onActivity, activityLabel(call.function.name), sequence, recorded);
-          const result = runConfiguratorTool(call.function.name, call.function.arguments, snapshot, proposal != null);
+          const result = runConfiguratorTool(
+            call.function.name,
+            call.function.arguments,
+            snapshot,
+            persona.contextPrompt ?? '',
+            proposal != null,
+          );
+          if (call.function.name === PROPOSE_TOOL) triedToPropose = true;
           if (result.proposal) proposal = result.proposal;
           toolCount += 1;
           await this.tracker.addStep(runId, {
@@ -184,7 +194,12 @@ export class RunConfiguratorTurnUseCase {
         }
       }
 
-      const reply = finalizeConfiguratorReply(content, proposal, baseUpdatedAt);
+      const reply: StoredBlock[] = triedToPropose && !proposal
+        ? [
+            ...(content?.trim() ? finalizeConfiguratorReply(content, null, baseUpdatedAt) : []),
+            { type: 'markdown', content: NOTHING_CHANGED_MESSAGE },
+          ]
+        : finalizeConfiguratorReply(content, proposal, baseUpdatedAt);
       const stored: StoredBlock[] = [
         ...recorded.map((label) => ({ type: 'activity' as const, label })),
         ...reply,

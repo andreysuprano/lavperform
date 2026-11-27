@@ -24,9 +24,21 @@ export interface PromptDocument {
 
 export type PromptField = keyof PromptDocument;
 
+/** Resposta do modelo ao chat de ajuste, antes de ser aplicada ao contexto. */
+export interface PromptEditRequest {
+  summary: string;
+  replacements: Array<{ before: string; after: string }>;
+  addition: string;
+  answerKey?: string;
+  answerValue?: string;
+}
+
 export interface PromptProposal {
   summary: string;
-  changes: Partial<PromptDocument>;
+  /** O chat de ajuste só altera o contexto de negócio. */
+  changes: Pick<PromptDocument, 'contextPrompt'>;
+  /** O que sai e o que entra, para a pessoa conferir antes de aceitar. */
+  edits: Array<{ before: string; after: string }>;
   baseUpdatedAt?: string;
   sheetUpdatedAt?: string;
   answerKey?: string;

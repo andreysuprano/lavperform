@@ -8,7 +8,9 @@ import {
   toClientBlocks,
 } from './configurator-blocks';
 
-const document = {
+const document = { contextPrompt: 'contexto-completo' };
+const changes = [{ before: '', after: 'abre às 8h' }];
+const fullDocument = {
   contextPrompt: 'contexto',
   systemPrompt: 'sistema',
   behaviorGuidelines: 'diretrizes',
@@ -16,55 +18,26 @@ const document = {
 };
 
 describe('parseConfiguratorReply', () => {
-  it('aceita markdown e guarda a proposta só no objeto interno', () => {
+  it('ignora proposta escrita no texto: só a ferramenta propõe mudança', () => {
     const blocks = parseConfiguratorReply(
       JSON.stringify({
         blocks: [
           { type: 'markdown', content: 'Vou ajustar o horário.' },
-          { type: 'proposal', behavior: 'Passa a informar que abre às 8h.', document },
+          { type: 'proposal', behavior: 'Passa a informar que abre às 8h.', document: fullDocument },
         ],
       }),
     );
-    const client = toClientBlocks('msg-1', 'pending', blocks.map((block) =>
-      block.type === 'proposal' ? { ...block, baseUpdatedAt: '2026-10-08T00:00:00.000Z' } : block,
-    ));
-    expect(client).toEqual([
-      { type: 'markdown', content: 'Vou ajustar o horário.' },
-      {
-        type: 'proposal',
-        messageId: 'msg-1',
-        behavior: 'Passa a informar que abre às 8h.',
-        status: 'pending',
-      },
-    ]);
-    expect(JSON.stringify(client)).not.toContain('contexto');
+    expect(blocks).toEqual([{ type: 'markdown', content: 'Vou ajustar o horário.' }]);
   });
 
-  it('rejeita JSON inválido, proposta incompleta e mais de uma proposta', () => {
+  it('rejeita JSON inválido e resposta sem texto', () => {
     expect(() => parseConfiguratorReply('não json')).toThrow(ConfiguratorReplyError);
-    expect(() =>
-      parseConfiguratorReply(
-        JSON.stringify({
-          blocks: [{ type: 'markdown', content: 'ok' }, { type: 'proposal', behavior: 'x', document: { contextPrompt: 'a' } }],
-        }),
-      ),
-    ).toThrow(ConfiguratorReplyError);
-    expect(() =>
-      parseConfiguratorReply(
-        JSON.stringify({
-          blocks: [
-            { type: 'markdown', content: 'ok' },
-            { type: 'proposal', behavior: 'um', document },
-            { type: 'proposal', behavior: 'dois', document },
-          ],
-        }),
-      ),
-    ).toThrow(ConfiguratorReplyError);
+    expect(() => parseConfiguratorReply('{"blocks":[]}')).toThrow(ConfiguratorReplyError);
   });
 });
 
 describe('finalizeConfiguratorReply', () => {
-  const proposal = { behavior: 'Passa a avisar o horário.', document };
+  const proposal = { behavior: 'Passa a avisar o horário.', document, changes };
 
   it('mostra a ação concluída e esconde o prompt', () => {
     const client = toClientBlocks('msg-1', 'pending', [
@@ -79,9 +52,10 @@ describe('finalizeConfiguratorReply', () => {
         messageId: 'msg-1',
         behavior: 'Passa a avisar o horário.',
         status: 'pending',
+        changes,
       },
     ]);
-    expect(JSON.stringify(client)).not.toContain('contexto');
+    expect(JSON.stringify(client)).not.toContain('contexto-completo');
   });
 
   it('aceita markdown puro e rejeita resposta vazia', () => {
@@ -95,7 +69,7 @@ describe('finalizeConfiguratorReply', () => {
     const blocks = finalizeConfiguratorReply('{"contextPrompt":"segredo"}', proposal, 't1');
     expect(blocks).toEqual([
       { type: 'markdown', content: 'Passa a avisar o horário.' },
-      { type: 'proposal', behavior: 'Passa a avisar o horário.', document, baseUpdatedAt: 't1' },
+      { type: 'proposal', behavior: 'Passa a avisar o horário.', document, changes, baseUpdatedAt: 't1' },
     ]);
     expect(JSON.stringify(toClientBlocks('msg-1', 'pending', blocks))).not.toContain('segredo');
     expect(JSON.stringify(blocks)).not.toContain('Veja o que o agente passa a fazer.');
@@ -111,7 +85,7 @@ describe('finalizeConfiguratorReply', () => {
 describe('instructionsWithSummary', () => {
   it('devolve o documento intacto e não cola o resumo nas diretrizes', () => {
     const summary = 'Encaminhe para https://wa.me/5516999932179.';
-    expect(instructionsWithSummary(document, summary)).toEqual(document);
+    expect(instructionsWithSummary(fullDocument, summary)).toEqual(fullDocument);
   });
 });
 
@@ -121,7 +95,17 @@ describe('decideProposal', () => {
     baseUpdatedAt: 't1',
     currentUpdatedAt: 't1',
     document,
+    changes,
   };
+
+  it('não grava proposta antiga, feita antes de existir a lista de mudanças', () => {
+    expect(decideProposal({ ...base, changes: undefined, action: 'accept' })).toEqual({
+      nextStatus: 'rejected',
+      writeDocument: false,
+      changed: true,
+      message: STALE_MESSAGE,
+    });
+  });
 
   it('aceitar grava e recusar não grava', () => {
     expect(decideProposal({ ...base, action: 'accept' })).toMatchObject({

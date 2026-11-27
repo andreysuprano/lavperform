@@ -32,24 +32,22 @@ describe('parseGeneratedDocument', () => {
 });
 
 describe('parseProposal', () => {
-  it('aceita só partes conhecidas e não vazias', () => {
+  const edits = { replacements: [{ before: 'a', after: 'b' }], addition: '' };
+
+  it('aceita resumo com edições pontuais do contexto', () => {
     const parsed = parseProposal(JSON.stringify({
-      summary: 'Tira o preço inventado',
-      changes: { guardrails: 'Não informe preço' },
-      baseUpdatedAt: '2026-09-24T00:00:00.000Z',
+      summary: 'Troca o preço',
+      ...edits,
+      answerKey: 'pricing',
+      answerValue: 'R$ 25',
     }));
-    expect(parsed?.changes.guardrails).toBe('Não informe preço');
+    expect(parsed).toEqual({ summary: 'Troca o preço', ...edits, answerKey: 'pricing', answerValue: 'R$ 25' });
   });
 
-  it('recusa campo fora dos quatro, texto vazio ou changes vazias', () => {
-    expect(parseProposal(JSON.stringify({
-      summary: 'x',
-      changes: { welcomeMessage: 'oi' },
-    }))).toBeNull();
-    expect(parseProposal(JSON.stringify({
-      summary: 'x',
-      changes: { guardrails: '  ' },
-    }))).toBeNull();
-    expect(parseProposal(JSON.stringify({ summary: 'x', changes: {} }))).toBeNull();
+  it('recusa reescrita de campos, edição malformada e resposta sem resumo', () => {
+    expect(parseProposal(JSON.stringify({ summary: 'x', changes: { guardrails: 'outro' } }))).toBeNull();
+    expect(parseProposal(JSON.stringify({ summary: 'x', replacements: [{ before: 'a' }], addition: '' }))).toBeNull();
+    expect(parseProposal(JSON.stringify({ ...edits }))).toBeNull();
+    expect(parseProposal('não json')).toBeNull();
   });
 });

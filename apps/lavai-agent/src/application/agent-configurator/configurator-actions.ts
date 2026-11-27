@@ -1,6 +1,7 @@
 import type { LlmTool } from '../agent-runner/ports/llm-provider.port';
 import type { PromptDocument } from './fill-whatsapp-prompt';
 import type { ProposalDraft } from './configurator-blocks';
+import { applyContextEdits, type ContextChange } from './context-edits';
 
 export const READ_AGENT_TOOL = 'ler_agente';
 export const PROPOSE_TOOL = 'propor_mudanca';
@@ -20,8 +21,6 @@ export type ConfiguratorActivityEvent = {
   status: 'running' | 'done';
 };
 
-const FIELDS = ['contextPrompt', 'systemPrompt', 'behaviorGuidelines', 'guardrails'] as const;
-
 export function configuratorTools(): LlmTool[] {
   return [
     {
@@ -37,18 +36,28 @@ export function configuratorTools(): LlmTool[] {
       function: {
         name: PROPOSE_TOOL,
         description:
-          'Só chame quando a mudança estiver decidida e não restar dúvida que impeça de escrever os quatro campos. Se faltar fato ou o pedido for vago, não chame: a resposta deve perguntar. behavior descreve o que o agente de WhatsApp passa a fazer, em markdown, sem colar o prompt. Os quatro campos precisam ter texto.',
+          'Prepara uma edição no contexto de negócio, o único texto que você pode mudar. Só chame quando a mudança estiver decidida. Nada é gravado até a pessoa aceitar. Informação ou instrução nova vai em addition. Para corrigir ou remover algo que já está escrito, use replacements. behavior descreve em markdown o que o agente de WhatsApp passa a fazer.',
         parameters: {
           type: 'object',
           additionalProperties: false,
           properties: {
             behavior: { type: 'string' },
-            contextPrompt: { type: 'string' },
-            systemPrompt: { type: 'string' },
-            behaviorGuidelines: { type: 'string' },
-            guardrails: { type: 'string' },
+            replacements: {
+              type: 'array',
+              description: 'Trocas pontuais. before é cópia exata de um trecho curto do contexto atual; after é o texto que fica no lugar, vazio só quando a pessoa pediu para remover.',
+              items: {
+                type: 'object',
+                additionalProperties: false,
+                properties: { before: { type: 'string' }, after: { type: 'string' } },
+                required: ['before', 'after'],
+              },
+            },
+            addition: {
+              type: 'string',
+              description: 'Texto novo a acrescentar ao contexto. Vazio quando não há nada novo.',
+            },
           },
-          required: ['behavior', 'contextPrompt', 'systemPrompt', 'behaviorGuidelines', 'guardrails'],
+          required: ['behavior', 'replacements', 'addition'],
         },
       },
     },
@@ -65,11 +74,14 @@ export function agentSnapshot(facts: string[], persona: PromptDocument): string 
   return [
     'Ficha:',
     facts.length > 0 ? facts.join('\n') : '(sem respostas na ficha)',
-    'Prompt atual:',
-    `contextPrompt: ${persona.contextPrompt}`,
+    'Regras fixas, somente leitura:',
     `systemPrompt: ${persona.systemPrompt}`,
     `behaviorGuidelines: ${persona.behaviorGuidelines}`,
     `guardrails: ${persona.guardrails}`,
+    'Contexto de negócio gravado hoje, único texto editável (entre as marcas):',
+    '<<<',
+    persona.contextPrompt,
+    '>>>',
   ].join('\n');
 }
 
@@ -77,6 +89,7 @@ export function runConfiguratorTool(
   name: string,
   rawArguments: string,
   snapshot: string,
+  contextPrompt: string,
   alreadyProposed: boolean,
 ): { content: string; proposal: ProposalDraft | null } {
   if (name === READ_AGENT_TOOL) {
@@ -86,22 +99,32 @@ export function runConfiguratorTool(
     if (alreadyProposed) {
       return { content: 'Já existe uma proposta neste turno.', proposal: null };
     }
-    const proposal = readProposal(rawArguments);
-    if (!proposal) {
+    const request = readEditRequest(rawArguments);
+    if (!request) {
       return {
-        content: 'Proposta incompleta. Envie behavior e os quatro campos com texto.',
+        content: 'Proposta incompleta. Envie behavior, replacements e addition.',
         proposal: null,
       };
     }
+    const edited = applyContextEdits(contextPrompt, request);
+    if (!edited.ok) {
+      return { content: `Proposta recusada. ${edited.reason}`, proposal: null };
+    }
     return {
-      content: 'Proposta registrada. Responda sobre o que a pessoa pediu e diga o que muda. Não repita uma frase genérica e não mostre o prompt.',
-      proposal,
+      content: 'Proposta preparada. Nada foi gravado: a pessoa precisa tocar em Aceitar. Diga o que muda e peça para conferir e aceitar.',
+      proposal: {
+        behavior: request.behavior,
+        document: { contextPrompt: edited.context },
+        changes: edited.changes,
+      },
     };
   }
   return { content: 'Ferramenta desconhecida.', proposal: null };
 }
 
-function readProposal(rawArguments: string): ProposalDraft | null {
+function readEditRequest(
+  rawArguments: string,
+): { behavior: string; replacements: ContextChange[]; addition: string } | null {
   let parsed: unknown;
   try {
     parsed = JSON.parse(rawArguments);
@@ -111,11 +134,12 @@ function readProposal(rawArguments: string): ProposalDraft | null {
   if (!parsed || typeof parsed !== 'object') return null;
   const row = parsed as Record<string, unknown>;
   if (typeof row.behavior !== 'string' || row.behavior.trim() === '') return null;
-  const document = {} as PromptDocument;
-  for (const field of FIELDS) {
-    const value = row[field];
-    if (typeof value !== 'string' || value.trim() === '') return null;
-    document[field] = value;
+  if (!Array.isArray(row.replacements) || typeof row.addition !== 'string') return null;
+  const replacements: ContextChange[] = [];
+  for (const item of row.replacements as unknown[]) {
+    const change = item as Partial<ContextChange> | null;
+    if (typeof change?.before !== 'string' || typeof change.after !== 'string') return null;
+    replacements.push({ before: change.before, after: change.after });
   }
-  return { behavior: row.behavior, document };
+  return { behavior: row.behavior, replacements, addition: row.addition };
 }

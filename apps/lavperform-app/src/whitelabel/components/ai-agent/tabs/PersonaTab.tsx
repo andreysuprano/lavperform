@@ -37,6 +37,7 @@ import type {
   VoiceToneType,
 } from '@/whitelabel/types'
 
+import { applyAdjustment } from '../PromptStudio/apply-adjustment'
 import { PromptSheetChat } from '../PromptStudio/PromptSheetChat'
 import type { AdjustmentSeed } from '../PromptStudio/PromptSheetChat'
 import { PromptTestPanel } from '../PromptStudio/PromptTestPanel'
@@ -281,26 +282,19 @@ function PersonaTabBase({ agent }: PersonaTabProps) {
 
   const handleAcceptAdjustment = useCallback(
     async (proposal: PromptProposal) => {
-      const next = {
-        ...activeDocument,
-        ...proposal.changes,
+      const next = applyAdjustment(activeDocument, proposal)
+      // Com um documento gerado ainda não salvo, o ajuste entra nele e espera o aceite.
+      if (pendingDocument) {
+        setPendingDocument(next)
+        return
       }
       await updatePersona.mutateAsync({
         agentId: agent.id,
-        data: {
-          contextPrompt: next.contextPrompt || undefined,
-          systemPrompt: next.systemPrompt || undefined,
-          behaviorGuidelines: next.behaviorGuidelines || undefined,
-          guardrails: next.guardrails || undefined,
-        },
+        data: { contextPrompt: next.contextPrompt },
       })
       form.setValue('contextPrompt', next.contextPrompt)
-      form.setValue('systemPrompt', next.systemPrompt)
-      form.setValue('behaviorGuidelines', next.behaviorGuidelines)
-      form.setValue('guardrails', next.guardrails)
-      setPendingDocument(null)
     },
-    [activeDocument, agent.id, form, updatePersona]
+    [activeDocument, agent.id, form, pendingDocument, updatePersona]
   )
 
   const handleTest = useCallback(

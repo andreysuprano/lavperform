@@ -10,6 +10,7 @@ import {
 import { AxiosError } from 'axios'
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
+import { ContextChange } from '@/whitelabel/components/ai-agent/ContextChange/ContextChange'
 import { aiAgentService } from '@/whitelabel/services'
 import type {
   PromptDocument,
@@ -386,7 +387,7 @@ function PromptSheetChatBase({
             <Textarea
               value={adjustDraft}
               onChange={(e) => setAdjustDraft(e.target.value)}
-              placeholder="O que precisa mudar no prompt?"
+              placeholder="O que o agente precisa saber ou fazer?"
               rows={3}
               disabled={isProposing || isAccepting}
             />
@@ -425,18 +426,13 @@ function PromptSheetChatBase({
                     Proposta de correção
                   </Text>
                   <Text fontSize="sm">{proposal.summary}</Text>
-                  {Object.entries(proposal.changes).map(([key, value]) =>
-                    value ? (
-                      <Stack key={key} gap={1}>
-                        <Text fontSize="xs" color="fg.muted" fontWeight="medium">
-                          {key}
-                        </Text>
-                        <Text fontSize="sm" whiteSpace="pre-wrap">
-                          {value}
-                        </Text>
-                      </Stack>
-                    ) : null
-                  )}
+                  {proposal.edits?.map((edit, index) => (
+                    <ContextChange
+                      key={index}
+                      before={edit.before}
+                      after={edit.after}
+                    />
+                  ))}
                   <HStack>
                     <Button
                       size="sm"
