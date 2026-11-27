@@ -216,6 +216,17 @@ export class AiAgentService {
    * Chamado automaticamente quando uma empresa é criada no sistema.
    */
   async provisionCompany(companyId: string): Promise<void> {
+    const company = await this.findCompanyForProvisioning(companyId);
+
+    if (company.overAgentCompanyId) {
+      this.logger.log(`Empresa ${companyId} já provisionada no over-agent: ${company.overAgentCompanyId}`);
+      return;
+    }
+
+    await this.linkAgentCompany(company);
+  }
+
+  private async findCompanyForProvisioning(companyId: string) {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
       select: { id: true, name: true, slug: true, email: true, phone: true, overAgentCompanyId: true },
@@ -225,34 +236,67 @@ export class AiAgentService {
       throw new NotFoundException('Empresa não encontrada');
     }
 
-    if (company.overAgentCompanyId) {
-      this.logger.log(`Empresa ${companyId} já provisionada no over-agent: ${company.overAgentCompanyId}`);
-      return;
-    }
+    return company;
+  }
 
+  /**
+   * Liga a empresa à company do LavAI Agent e grava o ID. Reaproveita a de mesmo
+   * slug, porque o slug é único lá e uma segunda criação falharia.
+   */
+  private async linkAgentCompany(
+    company: Awaited<ReturnType<AiAgentService['findCompanyForProvisioning']>>,
+  ): Promise<string> {
     const slug = company.slug ?? company.id;
+    const existing = (await this.lavaiAgentApi.listCompanies()).find((item) => item.slug === slug);
 
-    const result = await this.lavaiAgentApi.createCompany({
-      name: company.name,
-      slug,
-      email: company.email ?? undefined,
-      phone: company.phone ?? undefined,
-    });
-
-    const overAgentCompanyId = result['id'] as string;
+    const overAgentCompanyId =
+      existing?.id ??
+      ((
+        await this.lavaiAgentApi.createCompany({
+          name: company.name,
+          slug,
+          email: company.email ?? undefined,
+          phone: company.phone ?? undefined,
+        })
+      )['id'] as string);
 
     await this.prisma.company.update({
-      where: { id: companyId },
+      where: { id: company.id },
       data: { overAgentCompanyId },
     });
 
-    this.logger.log(`Empresa ${companyId} provisionada no over-agent com ID: ${overAgentCompanyId}`);
+    this.logger.log(`Empresa ${company.id} provisionada no over-agent com ID: ${overAgentCompanyId}`);
+    return overAgentCompanyId;
+  }
+
+  /**
+   * Garante que o ID gravado ainda existe no LavAI Agent antes de criar algo nele.
+   * Um ID órfão faz a criação do agente falhar com erro 500.
+   */
+  private async ensureAgentCompany(companyId: string): Promise<string> {
+    const company = await this.findCompanyForProvisioning(companyId);
+
+    if (company.overAgentCompanyId) {
+      try {
+        await this.lavaiAgentApi.getCompany(company.overAgentCompanyId);
+        return company.overAgentCompanyId;
+      } catch (error) {
+        if (!(error instanceof NotFoundException)) {
+          throw error;
+        }
+        this.logger.warn(
+          `Empresa ${companyId}: ID ${company.overAgentCompanyId} não existe no LavAI Agent. Provisionando novamente.`,
+        );
+      }
+    }
+
+    return this.linkAgentCompany(company);
   }
 
   // ─── Agents ─────────────────────────────────────────────────────────────────
 
   async createAgent(companyId: string, dto: CreateAgentDto) {
-    const overAgentCompanyId = await this.getOverAgentCompanyId(companyId);
+    const overAgentCompanyId = await this.ensureAgentCompany(companyId);
     const agent = (await this.lavaiAgentApi.createAgent(
       overAgentCompanyId,
       dto as unknown as Record<string, unknown>,

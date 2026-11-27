@@ -42,6 +42,7 @@ describe('AiAgentService - setupAgentWebhook', () => {
     prisma.whatsappInstance.findUnique = jest
       .fn()
       .mockResolvedValue({ token: 'tok', name: 'inst' });
+    lavaiAgentApi.getCompany = jest.fn().mockResolvedValue({ id: 'over1' });
     lavaiAgentApi.createAgent = jest
       .fn()
       .mockResolvedValue({ id: 'agent1', companyId: 'over1' });
