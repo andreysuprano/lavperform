@@ -557,7 +557,7 @@ export class AiAgentController {
     @User() userId: string,
     @Param('companyId') companyId: string,
     @Param('agentId') agentId: string,
-    @Body() body: { text?: string },
+    @Body() body: { text?: string; forcePersist?: boolean },
     @Res() res: Response,
   ) {
     try {
@@ -567,6 +567,7 @@ export class AiAgentController {
         agentId,
         body.text ?? '',
         res,
+        body.forcePersist,
       );
     } catch (error) {
       const detail = error instanceof Error ? error.message : String(error);
@@ -620,6 +621,24 @@ export class AiAgentController {
     @Param('agentId') agentId: string,
   ) {
     return this.aiAgentService.reconcileConfiguratorContext(userId, companyId, agentId);
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('companies/:companyId/ai-agents/:agentId/configurator/persist')
+  @ApiOperation({ summary: 'Grava manualmente um texto no contexto do agente (configurador)' })
+  persistConfiguratorContext(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+    @Body() body: { text: string; recordInChat?: boolean },
+  ) {
+    return this.aiAgentService.persistConfiguratorContext(
+      userId,
+      companyId,
+      agentId,
+      body.text,
+      body.recordInChat,
+    );
   }
 
   @UseGuards(AuthGuard('jwt'))

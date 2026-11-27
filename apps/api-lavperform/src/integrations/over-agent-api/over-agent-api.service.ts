@@ -503,6 +503,20 @@ export class LavaiAgentApiService {
     );
   }
 
+  persistConfiguratorContext(body: {
+    contextCompanyId: string;
+    platformUserId: string;
+    targetAgentId: string;
+    text: string;
+    recordInChat?: boolean;
+  }) {
+    return this.request<{ contextChanged: boolean; message: string }>(
+      'post',
+      '/agent-configurator/persist',
+      body,
+    );
+  }
+
   reconcileConfiguratorContext(body: { contextCompanyId: string; targetAgentId: string }) {
     return this.request<{
       targetAgentId: string;

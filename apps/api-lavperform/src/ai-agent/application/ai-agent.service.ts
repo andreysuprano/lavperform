@@ -680,9 +680,27 @@ export class AiAgentService {
     agentId: string,
     text: string,
     res: Response,
+    forcePersist?: boolean,
   ) {
     const context = await this.configuratorContext(userId, companyId, agentId);
-    await this.lavaiAgentApi.streamConfiguratorTurn({ ...context, text }, res);
+    await this.lavaiAgentApi.streamConfiguratorTurn({ ...context, text, forcePersist }, res);
+  }
+
+  async persistConfiguratorContext(
+    userId: string,
+    companyId: string,
+    agentId: string,
+    text: string,
+    recordInChat = true,
+  ) {
+    await this.ensureCompanyAccess(userId, companyId);
+    return this.lavaiAgentApi.persistConfiguratorContext({
+      contextCompanyId: companyId,
+      platformUserId: userId,
+      targetAgentId: agentId,
+      text,
+      recordInChat,
+    });
   }
 
   private async configuratorContext(userId: string, companyId: string, agentId: string) {

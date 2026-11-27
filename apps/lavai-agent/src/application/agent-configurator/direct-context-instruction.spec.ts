@@ -1,4 +1,9 @@
-import { isConfiguratorQuestion, tryDirectContextInstruction } from './direct-context-instruction';
+import {
+  extractPriceFactLines,
+  isConfiguratorQuestion,
+  tryDirectContextInstruction,
+  tryManualContextPersist,
+} from './direct-context-instruction';
 
 describe('isConfiguratorQuestion', () => {
   it('trata pergunta sem instrução', () => {
@@ -26,5 +31,36 @@ describe('tryDirectContextInstruction', () => {
       'Olá Qualito! já aqui',
     );
     expect(result?.writesContext).toBe(false);
+  });
+
+  it('grava parágrafo informativo sem comando mágico', () => {
+    const text =
+      'no sábado o horário da lavanderia é até às 16h porque a equipe sai mais cedo no fim de semana';
+    const result = tryDirectContextInstruction(text, '');
+    expect(result?.writesContext).toBe(true);
+    expect(result?.confirmationMessage).toContain('Gravei');
+  });
+
+  it('não grava pergunta curta', () => {
+    expect(tryDirectContextInstruction('Qual é a saudação?', '')).toBeNull();
+  });
+
+  it('gravação manual aceita texto curto informativo', () => {
+    const result = tryManualContextPersist('Cobertor solteiro custa R$ 40', '');
+    expect(result?.writesContext).toBe(true);
+  });
+
+  it('grava preços informados em texto livre (cobertor)', () => {
+    const text =
+      'valor para lavar cobertor de casal o valor para lavar é de R$ 50,00. qual valor do cobertor solteiro? o valor é de R$ 40,00';
+    expect(extractPriceFactLines(text)).toEqual(
+      expect.arrayContaining([
+        expect.stringMatching(/cobertor de casal/i),
+        expect.stringMatching(/cobertor solteiro/i),
+      ]),
+    );
+    const result = tryDirectContextInstruction(text, '');
+    expect(result?.writesContext).toBe(true);
+    expect(result?.addition).toContain('R$ 40,00');
   });
 });
