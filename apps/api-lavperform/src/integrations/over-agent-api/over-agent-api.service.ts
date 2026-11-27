@@ -132,6 +132,10 @@ export class LavaiAgentApiService {
     return this.request<Record<string, unknown>>('post', '/companies', dto);
   }
 
+  async listCompanies() {
+    return this.request<Array<{ id: string; slug: string }>>('get', '/companies');
+  }
+
   async getCompany(overAgentCompanyId: string) {
     return this.request<Record<string, unknown>>('get', `/companies/${overAgentCompanyId}`);
   }
