@@ -17,6 +17,8 @@ import type { Response } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FillPromptError, IncompleteSheetError, fillWhatsappPrompt } from '../../../application/agent-configurator/fill-whatsapp-prompt';
 import { DecideConfiguratorProposalUseCase } from '../../../application/agent-configurator/use-cases/decide-configurator-proposal.use-case';
+import { ReconcileAllConfiguratorContextsUseCase } from '../../../application/agent-configurator/use-cases/reconcile-all-configurator-contexts.use-case';
+import { ReconcileConfiguratorContextUseCase } from '../../../application/agent-configurator/use-cases/reconcile-configurator-context.use-case';
 import { RunConfiguratorTurnUseCase } from '../../../application/agent-configurator/use-cases/run-configurator-turn.use-case';
 import type { ServiceModel } from '../../../application/prompt-studio/sheet-script';
 import { readFileSync } from 'fs';
@@ -43,6 +45,8 @@ export class AgentConfiguratorController {
   constructor(
     private readonly turns: RunConfiguratorTurnUseCase,
     private readonly proposals: DecideConfiguratorProposalUseCase,
+    private readonly reconcile: ReconcileConfiguratorContextUseCase,
+    private readonly reconcileAll: ReconcileAllConfiguratorContextsUseCase,
   ) {}
 
   @Post('fill')
@@ -152,5 +156,27 @@ export class AgentConfiguratorController {
     @Body() body: { contextCompanyId: string; platformUserId: string; targetAgentId: string },
   ) {
     return this.proposals.execute({ ...body, messageId, action: 'reject' });
+  }
+
+  @Post('reconcile')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Reaplica no agente instruções e propostas pendentes do configurador, sem novo chat',
+  })
+  reconcileContext(
+    @Body() body: { contextCompanyId: string; targetAgentId: string },
+  ) {
+    return this.reconcile.execute(body);
+  }
+
+  @Post('reconcile-all')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary:
+      'Reaplica o histórico do configurador em todos os agentes públicos que tiveram chat (lote)',
+  })
+  reconcileAllContexts() {
+    return this.reconcileAll.execute();
   }
 }

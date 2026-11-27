@@ -46,6 +46,16 @@ export interface PlatformConversationRepositoryPort {
     limit: number,
   ): Promise<PlatformMessageData[]>;
   listLatestMessages(conversationId: string, limit: number): Promise<PlatformMessageData[]>;
+  listMessagesAscending(conversationId: string): Promise<PlatformMessageData[]>;
+  listByTarget(
+    configuratorAgentId: string,
+    contextCompanyId: string,
+    targetAgentId: string,
+  ): Promise<PlatformConversationData[]>;
+  /** Pares únicos (lavanderia, agente público) com histórico no configurador. */
+  listDistinctConfiguratorTargets(
+    configuratorAgentId: string,
+  ): Promise<Array<{ contextCompanyId: string; targetAgentId: string }>>;
   findMessage(id: string): Promise<(PlatformMessageData & { conversation: PlatformConversationData }) | null>;
   updateProposalStatus(id: string, proposalStatus: string): Promise<void>;
 }

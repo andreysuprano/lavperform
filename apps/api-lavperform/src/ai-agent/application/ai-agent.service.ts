@@ -724,6 +724,14 @@ export class AiAgentService {
     });
   }
 
+  async reconcileConfiguratorContext(userId: string, companyId: string, agentId: string) {
+    await this.ensureCompanyAccess(userId, companyId);
+    return this.lavaiAgentApi.reconcileConfiguratorContext({
+      contextCompanyId: companyId,
+      targetAgentId: agentId,
+    });
+  }
+
   async playgroundTurn(
     userId: string,
     companyId: string,
@@ -746,6 +754,7 @@ export class AiAgentService {
     if (!user || !agent || agent.companyId !== overAgentCompanyId) {
       throw new NotFoundException('O teste não está disponível.');
     }
+    const sheet = await this.promptSheetService.get(companyId, agentId);
     return this.lavaiAgentApi.runPlaygroundTurn({
       contextCompanyId: overAgentCompanyId,
       platformUserId: userId,
@@ -754,7 +763,22 @@ export class AiAgentService {
       sessionId: body.sessionId,
       content: body.content,
       history: body.history,
+      sheet: { serviceModel: sheet.serviceModel, answers: sheet.answers },
     });
+  }
+
+  /** Copia para o agente o fato da ficha que ainda não está no contexto. */
+  async syncSheetFacts(
+    agentId: string,
+    serviceModel: 'CONVENTIONAL' | 'SELF_SERVICE',
+    answers: Record<string, string>,
+  ): Promise<void> {
+    try {
+      await this.lavaiAgentApi.applySheetFacts(agentId, { serviceModel, answers });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      this.logger.error(`Falha ao gravar a ficha no agente ${agentId}: ${message}`);
+    }
   }
 
   private async ensureCompanyAccess(userId: string, companyId: string): Promise<void> {

@@ -77,7 +77,10 @@ function hiddenConversation(): ConversationData {
 }
 
 describe('RunPlaygroundTurnUseCase', () => {
-  const agents = { findById: jest.fn() } as unknown as jest.Mocked<Pick<AgentRepositoryPort, 'findById'>>;
+  const agents = {
+    findById: jest.fn(),
+    updatePersona: jest.fn(),
+  } as unknown as jest.Mocked<Pick<AgentRepositoryPort, 'findById' | 'updatePersona'>>;
   const conversations = {
     findLatestInstanceToken: jest.fn(),
     upsert: jest.fn(),
@@ -145,6 +148,33 @@ describe('RunPlaygroundTurnUseCase', () => {
       }),
     );
     expect(conversations.addMessage).not.toHaveBeenCalled();
+  });
+
+  it('grava no contexto o fato da ficha que o agente ainda não tinha', async () => {
+    const savedAt = new Date('2026-11-27T12:00:00.000Z');
+    agents.updatePersona.mockResolvedValue({
+      ...agent().persona!,
+      contextPrompt: '## Fatos da ficha\n\n- Cobertor: solteiro R$ 40,00',
+      updatedAt: savedAt,
+    });
+
+    await useCase.execute({
+      ...input,
+      sheet: { serviceModel: 'CONVENTIONAL', answers: { pieceBlanket: 'solteiro R$ 40,00' } },
+    });
+
+    expect(agents.updatePersona).toHaveBeenCalledWith('agent-1', {
+      contextPrompt: expect.stringContaining('- Cobertor: solteiro R$ 40,00'),
+    });
+    expect(runner.complete).toHaveBeenCalledWith(
+      expect.objectContaining({
+        agent: expect.objectContaining({
+          persona: expect.objectContaining({
+            contextPrompt: expect.stringContaining('solteiro R$ 40,00'),
+          }),
+        }),
+      }),
+    );
   });
 
   it('usa o telefone playground quando não há conversa real', async () => {

@@ -28,6 +28,7 @@ import {
   PLAYGROUND_PHONE,
   PLAYGROUND_UNAVAILABLE,
 } from '../playground-conversation';
+import { persistSheetFacts, type SheetFactsInput } from '../../agent-configurator/sheet-facts';
 
 export interface PlaygroundHistoryMessage {
   role?: string;
@@ -42,6 +43,8 @@ export interface RunPlaygroundTurnInput {
   sessionId: string;
   content: string;
   history: PlaygroundHistoryMessage[];
+  /** Ficha da lavanderia. O teste grava no contexto o fato que ainda não estava lá. */
+  sheet?: SheetFactsInput;
 }
 
 @Injectable()
@@ -64,6 +67,18 @@ export class RunPlaygroundTurnUseCase {
     const agent = await this.agents.findById(input.targetAgentId);
     if (!agent || agent.kind !== AgentKind.PUBLIC || agent.companyId !== input.contextCompanyId) {
       throw new NotFoundException(PLAYGROUND_UNAVAILABLE);
+    }
+    if (input.sheet && agent.persona) {
+      const applied = await persistSheetFacts(
+        this.agents,
+        { id: agent.id, persona: agent.persona },
+        input.sheet,
+      );
+      agent.persona = {
+        ...agent.persona,
+        contextPrompt: applied.contextPrompt,
+        updatedAt: applied.updatedAt,
+      };
     }
 
     const instanceToken = await this.conversations.findLatestInstanceToken(agent.id);

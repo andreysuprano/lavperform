@@ -4,6 +4,9 @@ import { PLATFORM_COMPANY_PORT } from '../../application/platform-agent/ports/pl
 import { PLATFORM_CONVERSATION_REPOSITORY } from '../../application/platform-agent/ports/platform-conversation.repository.port';
 import { EnsureConfiguratorAgentService } from '../../application/agent-configurator/ensure-configurator-agent.service';
 import { DecideConfiguratorProposalUseCase } from '../../application/agent-configurator/use-cases/decide-configurator-proposal.use-case';
+import { ConfiguratorReconcileOnBootService } from '../../application/agent-configurator/configurator-reconcile-on-boot.service';
+import { ReconcileAllConfiguratorContextsUseCase } from '../../application/agent-configurator/use-cases/reconcile-all-configurator-contexts.use-case';
+import { ReconcileConfiguratorContextUseCase } from '../../application/agent-configurator/use-cases/reconcile-configurator-context.use-case';
 import { RunConfiguratorTurnUseCase } from '../../application/agent-configurator/use-cases/run-configurator-turn.use-case';
 import { AgentConfiguratorController } from '../../infrastructure/http/agent-configurator/agent-configurator.controller';
 import { AgentPlaygroundController } from '../../infrastructure/http/agent-playground/agent-playground.controller';
@@ -37,6 +40,9 @@ import { LlmModule } from '../llm/llm.module';
     ListPlatformTurnsUseCase,
     RunConfiguratorTurnUseCase,
     DecideConfiguratorProposalUseCase,
+    ReconcileConfiguratorContextUseCase,
+    ReconcileAllConfiguratorContextsUseCase,
+    ConfiguratorReconcileOnBootService,
     EnsureConfiguratorAgentService,
     RunPlaygroundTurnUseCase,
   ],

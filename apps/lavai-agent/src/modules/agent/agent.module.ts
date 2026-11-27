@@ -10,6 +10,7 @@ import { UpdateAgentMediaConfigUseCase } from '../../application/agent/use-cases
 import { UpdateAgentMemoryConfigUseCase } from '../../application/agent/use-cases/update-agent-memory-config.use-case';
 import { UpdateAgentModelConfigUseCase } from '../../application/agent/use-cases/update-agent-model-config.use-case';
 import { UpdateAgentNotificationConfigUseCase } from '../../application/agent/use-cases/update-agent-notification-config.use-case';
+import { ApplySheetFactsUseCase } from '../../application/agent-configurator/use-cases/apply-sheet-facts.use-case';
 import { UpdateAgentPersonaUseCase } from '../../application/agent/use-cases/update-agent-persona.use-case';
 import { ToggleAgentActiveUseCase } from '../../application/agent/use-cases/toggle-agent-active.use-case';
 import { UpdateAgentUseCase } from '../../application/agent/use-cases/update-agent.use-case';
@@ -37,6 +38,7 @@ import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
     UpdateAgentUseCase,
     ToggleAgentActiveUseCase,
     UpdateAgentPersonaUseCase,
+    ApplySheetFactsUseCase,
     UpdateAgentModelConfigUseCase,
     UpdateAgentMemoryConfigUseCase,
     UpdateAgentMediaConfigUseCase,
@@ -55,6 +57,7 @@ import { AgentRunnerModule } from '../agent-runner/agent-runner.module';
     FindAgentByIdUseCase,
     UpdateAgentUseCase,
     UpdateAgentPersonaUseCase,
+    ApplySheetFactsUseCase,
     UpdateAgentModelConfigUseCase,
     UpdateAgentMemoryConfigUseCase,
     ToggleAgentActiveUseCase,

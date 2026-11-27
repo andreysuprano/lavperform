@@ -15,7 +15,8 @@ import type { AgentRunTrackerPort } from '../../agent-trace/ports/agent-run-trac
 import { PLATFORM_CONVERSATION_REPOSITORY } from '../../platform-agent/ports/platform-conversation.repository.port';
 import type { PlatformConversationRepositoryPort } from '../../platform-agent/ports/platform-conversation.repository.port';
 import { MessageRole } from '../../webhook/ports/conversation.repository.port';
-import { scriptFor, type ServiceModel } from '../../prompt-studio/sheet-script';
+import type { ServiceModel } from '../../prompt-studio/sheet-script';
+import { persistSheetFacts, sheetFactLines } from '../sheet-facts';
 import {
   ACTIVITY,
   activityLabel,
@@ -34,8 +35,11 @@ import {
   toClientBlocks,
   type ClientBlock,
   type ProposalDraft,
+  type ProposalStatus,
   type StoredBlock,
 } from '../configurator-blocks';
+import { applyContextEdits } from '../context-edits';
+import { tryDirectContextInstruction } from '../direct-context-instruction';
 
 const UNAVAILABLE = 'O configurador não está disponível.';
 
@@ -92,14 +96,45 @@ export class RunConfiguratorTurnUseCase {
       userMessage.id,
       configurator.memoryConfig?.windowSize ?? AGENT_CONTEXT_WINDOW,
     );
-    const persona = target.persona;
+    const applied = await persistSheetFacts(
+      this.agents,
+      { id: target.id, persona: target.persona },
+      {
+        serviceModel: input.serviceModel,
+        answers: input.answers,
+      },
+    );
+    const persona = { ...target.persona, contextPrompt: applied.contextPrompt, updatedAt: applied.updatedAt };
+    const direct = tryDirectContextInstruction(input.text, persona.contextPrompt ?? '');
+    if (direct) {
+      if (direct.writesContext) {
+        const merged = applyContextEdits(persona.contextPrompt ?? '', {
+          replacements: direct.replacements,
+          addition: direct.addition,
+        });
+        if (!merged.ok) {
+          throw new ConfiguratorReplyError(merged.reason);
+        }
+        const savedPersona = await this.agents.updatePersona(target.id, { contextPrompt: merged.context });
+        persona.contextPrompt = savedPersona.contextPrompt ?? merged.context;
+        persona.updatedAt = savedPersona.updatedAt;
+      }
+      const stored: StoredBlock[] = [{ type: 'markdown', content: direct.confirmationMessage }];
+      const saved = await this.conversations.addMessage({
+        conversationId: conversation.id,
+        role: MessageRole.ASSISTANT,
+        content: joinedMarkdown(stored),
+        blocksJson: JSON.stringify(stored),
+        proposalStatus: null,
+      });
+      return {
+        conversationId: conversation.id,
+        blocks: [{ type: 'markdown', content: direct.confirmationMessage }],
+      };
+    }
+
     const baseUpdatedAt = persona.updatedAt.toISOString();
-    const facts = scriptFor(input.serviceModel)
-      .map((field) => {
-        const value = input.answers[field.key]?.trim();
-        return value ? `- ${field.label}: ${value}` : '';
-      })
-      .filter(Boolean);
+    const facts = sheetFactLines(input.serviceModel, input.answers);
     const snapshot = agentSnapshot(facts, {
       contextPrompt: persona.contextPrompt ?? '',
       systemPrompt: persona.systemPrompt,
@@ -210,15 +245,30 @@ export class RunConfiguratorTurnUseCase {
         ...recorded.map((label) => ({ type: 'activity' as const, label })),
         ...reply,
       ];
+      const proposalBlock = stored.find(
+        (block): block is Extract<StoredBlock, { type: 'proposal' }> => block.type === 'proposal',
+      );
+      let proposalStatus: ProposalStatus | null = null;
+      if (proposalBlock?.changes && proposalBlock.changes.length > 0) {
+        await this.agents.updatePersona(target.id, {
+          contextPrompt: proposalBlock.document.contextPrompt,
+        });
+        proposalStatus = 'accepted';
+      } else if (proposalBlock) {
+        proposalStatus = 'pending';
+      }
       const saved = await this.conversations.addMessage({
         conversationId: conversation.id,
         role: MessageRole.ASSISTANT,
         content: joinedMarkdown(stored),
         blocksJson: JSON.stringify(stored),
-        proposalStatus: stored.some((block) => block.type === 'proposal') ? 'pending' : null,
+        proposalStatus,
       });
       await this.tracker.completeRun(runId, saved.content, iterations, toolCount);
-      return { conversationId: conversation.id, blocks: toClientBlocks(saved.id, 'pending', stored) };
+      return {
+        conversationId: conversation.id,
+        blocks: toClientBlocks(saved.id, proposalStatus, stored),
+      };
     } catch (error) {
       const message = failureMessage(error);
       this.logger.error(`Turno do configurador falhou: ${message}`);

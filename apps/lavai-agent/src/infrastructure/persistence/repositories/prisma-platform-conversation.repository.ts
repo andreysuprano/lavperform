@@ -98,6 +98,45 @@ export class PrismaPlatformConversationRepository implements PlatformConversatio
     return rows.reverse().map((row) => this.mapMessage(row));
   }
 
+  async listMessagesAscending(conversationId: string): Promise<PlatformMessageData[]> {
+    const rows = await this.prisma.platformConversationMessage.findMany({
+      where: { conversationId },
+      orderBy: { createdAt: 'asc' },
+    });
+    return rows.map((row) => this.mapMessage(row));
+  }
+
+  async listByTarget(
+    configuratorAgentId: string,
+    contextCompanyId: string,
+    targetAgentId: string,
+  ): Promise<PlatformConversationData[]> {
+    const rows = await this.prisma.platformConversation.findMany({
+      where: {
+        agentId: configuratorAgentId,
+        contextCompanyId,
+        targetAgentId,
+      },
+    });
+    return rows.map((row) => this.mapConversation(row));
+  }
+
+  async listDistinctConfiguratorTargets(
+    configuratorAgentId: string,
+  ): Promise<Array<{ contextCompanyId: string; targetAgentId: string }>> {
+    const rows = await this.prisma.platformConversation.groupBy({
+      by: ['contextCompanyId', 'targetAgentId'],
+      where: {
+        agentId: configuratorAgentId,
+        targetAgentId: { not: '' },
+      },
+    });
+    return rows.map((row) => ({
+      contextCompanyId: row.contextCompanyId,
+      targetAgentId: row.targetAgentId,
+    }));
+  }
+
   async findMessage(id: string): Promise<(PlatformMessageData & { conversation: PlatformConversationData }) | null> {
     const row = await this.prisma.platformConversationMessage.findUnique({
       where: { id },
