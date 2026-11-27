@@ -96,10 +96,14 @@ export class RunConfiguratorTurnUseCase {
       userMessage.id,
       configurator.memoryConfig?.windowSize ?? AGENT_CONTEXT_WINDOW,
     );
-    const applied = await persistSheetFacts(this.agents, target, {
-      serviceModel: input.serviceModel,
-      answers: input.answers,
-    });
+    const applied = await persistSheetFacts(
+      this.agents,
+      { id: target.id, persona: target.persona },
+      {
+        serviceModel: input.serviceModel,
+        answers: input.answers,
+      },
+    );
     const persona = { ...target.persona, contextPrompt: applied.contextPrompt, updatedAt: applied.updatedAt };
     const direct = tryDirectContextInstruction(input.text, persona.contextPrompt ?? '');
     if (direct) {

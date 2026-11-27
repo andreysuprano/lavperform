@@ -69,7 +69,11 @@ export class RunPlaygroundTurnUseCase {
       throw new NotFoundException(PLAYGROUND_UNAVAILABLE);
     }
     if (input.sheet && agent.persona) {
-      const applied = await persistSheetFacts(this.agents, agent, input.sheet);
+      const applied = await persistSheetFacts(
+        this.agents,
+        { id: agent.id, persona: agent.persona },
+        input.sheet,
+      );
       agent.persona = {
         ...agent.persona,
         contextPrompt: applied.contextPrompt,

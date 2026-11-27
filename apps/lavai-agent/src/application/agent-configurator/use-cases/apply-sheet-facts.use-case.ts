@@ -12,7 +12,11 @@ export class ApplySheetFactsUseCase {
     if (!agent?.persona) {
       throw new NotFoundException('Agente não encontrado.');
     }
-    const applied = await persistSheetFacts(this.agents, agent, sheet);
+    const applied = await persistSheetFacts(
+      this.agents,
+      { id: agent.id, persona: agent.persona },
+      sheet,
+    );
     return { changed: applied.changed };
   }
 }
