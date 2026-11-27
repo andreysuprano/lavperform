@@ -2,6 +2,7 @@ import {
   extractPriceFactLines,
   isConfiguratorQuestion,
   tryDirectContextInstruction,
+  tryManualContextPersist,
 } from './direct-context-instruction';
 
 describe('isConfiguratorQuestion', () => {
@@ -42,6 +43,11 @@ describe('tryDirectContextInstruction', () => {
 
   it('não grava pergunta curta', () => {
     expect(tryDirectContextInstruction('Qual é a saudação?', '')).toBeNull();
+  });
+
+  it('gravação manual aceita texto curto informativo', () => {
+    const result = tryManualContextPersist('Cobertor solteiro custa R$ 40', '');
+    expect(result?.writesContext).toBe(true);
   });
 
   it('grava preços informados em texto livre (cobertor)', () => {

@@ -39,7 +39,7 @@ import {
   type StoredBlock,
 } from '../configurator-blocks';
 import { applyContextEdits } from '../context-edits';
-import { tryDirectContextInstruction } from '../direct-context-instruction';
+import { tryDirectContextInstruction, tryManualContextPersist } from '../direct-context-instruction';
 
 const UNAVAILABLE = 'O configurador não está disponível.';
 
@@ -52,6 +52,8 @@ export interface ConfiguratorTurnInput {
   text: string;
   serviceModel: ServiceModel;
   answers: Record<string, string>;
+  /** Botão "Salvar no agente" / modo gravação no envio */
+  forcePersist?: boolean;
 }
 
 @Injectable()
@@ -105,7 +107,10 @@ export class RunConfiguratorTurnUseCase {
       },
     );
     const persona = { ...target.persona, contextPrompt: applied.contextPrompt, updatedAt: applied.updatedAt };
-    const direct = tryDirectContextInstruction(input.text, persona.contextPrompt ?? '');
+    const manualFirst = input.forcePersist
+      ? tryManualContextPersist(input.text, persona.contextPrompt ?? '')
+      : null;
+    const direct = manualFirst ?? tryDirectContextInstruction(input.text, persona.contextPrompt ?? '');
     if (direct) {
       if (direct.writesContext) {
         const merged = applyContextEdits(persona.contextPrompt ?? '', {

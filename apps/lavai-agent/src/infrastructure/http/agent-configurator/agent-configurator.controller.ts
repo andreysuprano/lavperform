@@ -17,6 +17,7 @@ import type { Response } from 'express';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { FillPromptError, IncompleteSheetError, fillWhatsappPrompt } from '../../../application/agent-configurator/fill-whatsapp-prompt';
 import { DecideConfiguratorProposalUseCase } from '../../../application/agent-configurator/use-cases/decide-configurator-proposal.use-case';
+import { PersistConfiguratorContextUseCase } from '../../../application/agent-configurator/use-cases/persist-configurator-context.use-case';
 import { ReconcileAllConfiguratorContextsUseCase } from '../../../application/agent-configurator/use-cases/reconcile-all-configurator-contexts.use-case';
 import { ReconcileConfiguratorContextUseCase } from '../../../application/agent-configurator/use-cases/reconcile-configurator-context.use-case';
 import { RunConfiguratorTurnUseCase } from '../../../application/agent-configurator/use-cases/run-configurator-turn.use-case';
@@ -47,6 +48,7 @@ export class AgentConfiguratorController {
     private readonly proposals: DecideConfiguratorProposalUseCase,
     private readonly reconcile: ReconcileConfiguratorContextUseCase,
     private readonly reconcileAll: ReconcileAllConfiguratorContextsUseCase,
+    private readonly persistContext: PersistConfiguratorContextUseCase,
   ) {}
 
   @Post('fill')
@@ -99,6 +101,7 @@ export class AgentConfiguratorController {
       text: string;
       serviceModel: ServiceModel;
       answers: Record<string, string>;
+      forcePersist?: boolean;
     },
   ) {
     res.status(HttpStatus.OK);
@@ -138,8 +141,25 @@ export class AgentConfiguratorController {
     text: string;
     serviceModel: ServiceModel;
     answers: Record<string, string>;
+    forcePersist?: boolean;
   }) {
     return this.turns.execute(body);
+  }
+
+  @Post('persist')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Grava no contexto do agente o texto informado (sem passar pelo LLM)' })
+  persistContextManual(
+    @Body()
+    body: {
+      contextCompanyId: string;
+      platformUserId: string;
+      targetAgentId: string;
+      text: string;
+      recordInChat?: boolean;
+    },
+  ) {
+    return this.persistContext.execute(body);
   }
 
   @Post('proposals/:messageId/accept')

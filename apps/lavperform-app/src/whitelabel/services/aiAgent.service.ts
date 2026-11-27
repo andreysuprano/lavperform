@@ -347,6 +347,7 @@ export const aiAgentService = {
     text: string,
     handlers: {
       signal?: AbortSignal
+      forcePersist?: boolean
       onActivity: (event: { id: string; label: string; status: 'running' | 'done' }) => void
       onDone: (blocks: ConfiguratorBlock[]) => void
       onError: (message: string) => void
@@ -364,7 +365,7 @@ export const aiAgentService = {
           Accept: 'text/event-stream',
           ...(token ? { Authorization: `Bearer ${token}` } : {}),
         },
-        body: JSON.stringify({ text }),
+        body: JSON.stringify({ text, forcePersist: handlers.forcePersist === true }),
       }
     )
     if (!response.ok || !response.body) {
@@ -439,5 +440,25 @@ export const aiAgentService = {
     return await client.post<ConfiguratorDecision>(
       `/companies/${companyId}/ai-agents/${agentId}/configurator/proposals/${messageId}/reject`
     )
+  },
+
+  async persistConfiguratorContext(
+    companyId: string,
+    agentId: string,
+    text: string,
+    recordInChat = true
+  ) {
+    return await client.post<{ contextChanged: boolean; message: string }>(
+      `/companies/${companyId}/ai-agents/${agentId}/configurator/persist`,
+      { text, recordInChat }
+    )
+  },
+
+  async reconcileConfiguratorContext(companyId: string, agentId: string) {
+    return await client.post<{
+      contextChanged: boolean
+      appliedDirectInstructions: number
+      appliedPendingProposals: number
+    }>(`/companies/${companyId}/ai-agents/${agentId}/configurator/reconcile`)
   },
 }

@@ -80,6 +80,18 @@ export function tryDirectContextInstruction(
   return tryAutoPersistInformativeMessage(trimmed, contextPrompt);
 }
 
+/** Gravação explícita pelo usuário (botão "Salvar no agente"). */
+export function tryManualContextPersist(
+  userText: string,
+  contextPrompt: string,
+): DirectContextInstruction | null {
+  const trimmed = userText.trim();
+  if (trimmed.length < 5) return null;
+  return buildInstruction('Gravação manual', trimmed, contextPrompt, (body) =>
+    ['### Gravação manual (configurador)', '', body].join('\n'),
+  );
+}
+
 /** Texto informativo no chat (horário, regra, texto longo) — grava sem comando mágico. */
 export function tryAutoPersistInformativeMessage(
   text: string,

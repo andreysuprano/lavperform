@@ -5,6 +5,7 @@ import { PLATFORM_CONVERSATION_REPOSITORY } from '../../application/platform-age
 import { EnsureConfiguratorAgentService } from '../../application/agent-configurator/ensure-configurator-agent.service';
 import { DecideConfiguratorProposalUseCase } from '../../application/agent-configurator/use-cases/decide-configurator-proposal.use-case';
 import { ConfiguratorReconcileOnBootService } from '../../application/agent-configurator/configurator-reconcile-on-boot.service';
+import { PersistConfiguratorContextUseCase } from '../../application/agent-configurator/use-cases/persist-configurator-context.use-case';
 import { ReconcileAllConfiguratorContextsUseCase } from '../../application/agent-configurator/use-cases/reconcile-all-configurator-contexts.use-case';
 import { ReconcileConfiguratorContextUseCase } from '../../application/agent-configurator/use-cases/reconcile-configurator-context.use-case';
 import { RunConfiguratorTurnUseCase } from '../../application/agent-configurator/use-cases/run-configurator-turn.use-case';
@@ -42,6 +43,7 @@ import { LlmModule } from '../llm/llm.module';
     DecideConfiguratorProposalUseCase,
     ReconcileConfiguratorContextUseCase,
     ReconcileAllConfiguratorContextsUseCase,
+    PersistConfiguratorContextUseCase,
     ConfiguratorReconcileOnBootService,
     EnsureConfiguratorAgentService,
     RunPlaygroundTurnUseCase,

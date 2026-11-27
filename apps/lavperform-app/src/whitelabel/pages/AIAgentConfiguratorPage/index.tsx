@@ -1,7 +1,7 @@
 import { Box, Button, Flex, HStack, IconButton, Input, Spinner, Stack, Switch, Text } from '@chakra-ui/react'
 import { AxiosError } from 'axios'
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
-import { LuCheck, LuSend, LuZap } from 'react-icons/lu'
+import { LuCheck, LuRefreshCw, LuSave, LuSend, LuZap } from 'react-icons/lu'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { useAuth } from '@/context/AuthContext'
@@ -34,6 +34,7 @@ function AIAgentConfiguratorPageBase() {
   const [busy, setBusy] = useState(false)
   const [live, setLive] = useState<LiveActivity[] | null>(null)
   const [isAdvancedOpen, setIsAdvancedOpen] = useState(false)
+  const [saveOnSend, setSaveOnSend] = useState(false)
   const bottomRef = useRef<HTMLDivElement | null>(null)
   const abortRef = useRef<AbortController | null>(null)
   const { data: agent } = useAIAgent(companyId, agentId)
@@ -82,6 +83,7 @@ function AIAgentConfiguratorPageBase() {
     try {
       await aiAgentService.streamConfiguratorTurn(companyId, agentId, content, {
         signal: controller.signal,
+        forcePersist: saveOnSend,
         onActivity: (event) => {
           setLive((current) => {
             const list = current ?? []
@@ -125,6 +127,63 @@ function AIAgentConfiguratorPageBase() {
         setLive(null)
         setBusy(false)
       }
+    }
+  }
+
+  const appendAssistantNote = (markdown: string) => {
+    setMessages((current) => [
+      ...current,
+      {
+        id: `note-${Date.now()}`,
+        role: 'ASSISTANT',
+        content: markdown,
+        createdAt: new Date().toISOString(),
+        blocks: [{ type: 'markdown', content: markdown }],
+      },
+    ])
+  }
+
+  const persistText = async (content: string, recordInChat: boolean) => {
+    if (!companyId || !agentId || content.trim() === '' || busy) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      const response = await aiAgentService.persistConfiguratorContext(
+        companyId,
+        agentId,
+        content.trim(),
+        recordInChat
+      )
+      if (response.data.contextChanged) {
+        void invalidateQueries.aiAgentDetail(companyId, agentId)
+      }
+      if (recordInChat) appendAssistantNote(response.data.message)
+      else setNotice(response.data.message.replace(/\*\*/g, ''))
+    } catch {
+      setNotice('Não foi possível gravar no agente.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const reconcileHistory = async () => {
+    if (!companyId || !agentId || busy) return
+    setBusy(true)
+    setNotice(null)
+    try {
+      const response = await aiAgentService.reconcileConfiguratorContext(companyId, agentId)
+      if (response.data.contextChanged) {
+        void invalidateQueries.aiAgentDetail(companyId, agentId)
+        appendAssistantNote(
+          '**Atualizei** o agente com o que estava no histórico do configurador e ainda não tinha sido gravado.'
+        )
+      } else {
+        setNotice('Nada novo para recuperar do histórico desta conversa.')
+      }
+    } catch {
+      setNotice('Não foi possível atualizar a partir do histórico.')
+    } finally {
+      setBusy(false)
     }
   }
 
@@ -224,6 +283,20 @@ function AIAgentConfiguratorPageBase() {
             variant="outline"
             borderRadius="lg"
             flexShrink={0}
+            disabled={!agent || busy}
+            onClick={() => void reconcileHistory()}
+            title="Recupera instruções e propostas pendentes do histórico"
+          >
+            <HStack gap={1}>
+              <LuRefreshCw />
+              <Text>Atualizar do histórico</Text>
+            </HStack>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            borderRadius="lg"
+            flexShrink={0}
             disabled={!agent}
             onClick={() => setIsAdvancedOpen(true)}
           >
@@ -255,10 +328,20 @@ function AIAgentConfiguratorPageBase() {
         ) : (
           messages.map((message) =>
             message.role === 'USER' ? (
-              <Flex key={message.id} justify="flex-end">
+              <Flex key={message.id} justify="flex-end" direction="column" align="flex-end" gap={1}>
                 <Box maxW="32rem" bg="bg.muted" borderRadius="3xl" px={4} py={2}>
                   <Text whiteSpace="pre-wrap">{message.content}</Text>
                 </Box>
+                <Button
+                  size="xs"
+                  variant="ghost"
+                  color="fg.muted"
+                  disabled={busy}
+                  onClick={() => void persistText(message.content, true)}
+                >
+                  <LuSave />
+                  Salvar no agente
+                </Button>
               </Flex>
             ) : (
               <AssistantMessage key={message.id}>
@@ -299,6 +382,32 @@ function AIAgentConfiguratorPageBase() {
             void send()
           }}
         >
+          <Flex align="center" justify="space-between" gap={3} mb={2} px={1}>
+            <Switch.Root
+              checked={saveOnSend}
+              onCheckedChange={(details) => setSaveOnSend(details.checked)}
+              size="sm"
+            >
+              <Switch.HiddenInput />
+              <Switch.Control>
+                <Switch.Thumb />
+              </Switch.Control>
+            </Switch.Root>
+            <Text fontSize="sm" color="fg.muted" flex="1">
+              Salvar no agente ao enviar
+            </Text>
+            <Button
+              type="button"
+              size="sm"
+              variant="subtle"
+              borderRadius="full"
+              disabled={!ready || busy || text.trim() === ''}
+              onClick={() => void persistText(text, false)}
+            >
+              <LuSave />
+              Salvar sem conversar
+            </Button>
+          </Flex>
           <Flex align="center" borderWidth="1px" borderColor="border.muted" borderRadius="full" pl={5} pr={2} py={1}>
             <Input
               value={text}
