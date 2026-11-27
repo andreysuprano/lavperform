@@ -137,12 +137,13 @@ describe('AiAgentService - playgroundTurn', () => {
     runPlaygroundTurn: jest.fn(),
     getAgent: jest.fn(),
   };
+  const promptSheet = { get: jest.fn() };
   const service = new AiAgentService(
     prisma,
     lavaiAgentApi,
     {} as any,
     { get: jest.fn() } as any,
-    { get: jest.fn() } as any,
+    promptSheet as any,
   );
 
   beforeEach(() => {
@@ -152,6 +153,10 @@ describe('AiAgentService - playgroundTurn', () => {
     prisma.company.findUnique.mockResolvedValue({ overAgentCompanyId: 'over-1' });
     lavaiAgentApi.getAgent.mockResolvedValue({ id: 'agent-1', companyId: 'over-1' });
     lavaiAgentApi.runPlaygroundTurn.mockResolvedValue({ content: 'Abrimos às 8h' });
+    promptSheet.get.mockResolvedValue({
+      serviceModel: 'CONVENTIONAL',
+      answers: { pieceBlanket: 'solteiro R$ 40,00' },
+    });
   });
 
   it('repassa o turno com o nome do usuário logado', async () => {
@@ -171,6 +176,10 @@ describe('AiAgentService - playgroundTurn', () => {
       sessionId: '550e8400-e29b-41d4-a716-446655440000',
       content: 'Qual o horário?',
       history,
+      sheet: {
+        serviceModel: 'CONVENTIONAL',
+        answers: { pieceBlanket: 'solteiro R$ 40,00' },
+      },
     });
   });
 

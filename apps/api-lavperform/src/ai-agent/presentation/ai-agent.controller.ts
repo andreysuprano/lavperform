@@ -419,26 +419,22 @@ export class AiAgentController {
   @ApiOperation({ summary: 'Gravar resposta na ficha de prompt do agente' })
   @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
   @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
-  putPromptSheetAnswerForAgent(
+  async putPromptSheetAnswerForAgent(
     @Param('companyId') companyId: string,
     @Param('agentId') agentId: string,
     @Body() body: PutPromptSheetAnswerDto,
   ) {
-    if (body.sheetUpdatedAt) {
-      return this.promptSheetService.applyAcceptedAnswer(
-        companyId,
-        agentId,
-        body.key,
-        body.value,
-        body.sheetUpdatedAt,
-      );
-    }
-    return this.promptSheetService.putAnswer(
-      companyId,
-      agentId,
-      body.key,
-      body.value,
-    );
+    const saved = body.sheetUpdatedAt
+      ? await this.promptSheetService.applyAcceptedAnswer(
+          companyId,
+          agentId,
+          body.key,
+          body.value,
+          body.sheetUpdatedAt,
+        )
+      : await this.promptSheetService.putAnswer(companyId, agentId, body.key, body.value);
+    await this.aiAgentService.syncSheetFacts(agentId, saved.serviceModel, saved.answers);
+    return saved;
   }
 
   @Post('companies/:companyId/ai-agents/:agentId/prompt-sheet/adopt')
@@ -608,6 +604,22 @@ export class AiAgentController {
     @Param('messageId') messageId: string,
   ) {
     return this.aiAgentService.decideConfiguratorProposal(userId, companyId, agentId, messageId, 'reject');
+  }
+
+  @UseGuards(AuthGuard('jwt'))
+  @Post('companies/:companyId/ai-agents/:agentId/configurator/reconcile')
+  @ApiOperation({
+    summary:
+      'Reaplica no agente o que foi dito no configurador e ainda não estava no contexto (sem novo chat)',
+  })
+  @ApiParam({ name: 'companyId', description: 'ID interno da empresa' })
+  @ApiParam({ name: 'agentId', description: 'ID do agente no lavai-agent' })
+  reconcileConfiguratorContext(
+    @User() userId: string,
+    @Param('companyId') companyId: string,
+    @Param('agentId') agentId: string,
+  ) {
+    return this.aiAgentService.reconcileConfiguratorContext(userId, companyId, agentId);
   }
 
   @UseGuards(AuthGuard('jwt'))

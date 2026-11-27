@@ -50,6 +50,8 @@ import { UpdateAgentMediaConfigUseCase } from '../../../application/agent/use-ca
 import { UpdateAgentMemoryConfigUseCase } from '../../../application/agent/use-cases/update-agent-memory-config.use-case';
 import { UpdateAgentModelConfigUseCase } from '../../../application/agent/use-cases/update-agent-model-config.use-case';
 import { UpdateAgentNotificationConfigUseCase } from '../../../application/agent/use-cases/update-agent-notification-config.use-case';
+import { ApplySheetFactsDto } from '../../../application/agent/dtos/apply-sheet-facts.dto';
+import { ApplySheetFactsUseCase } from '../../../application/agent-configurator/use-cases/apply-sheet-facts.use-case';
 import { UpdateAgentPersonaUseCase } from '../../../application/agent/use-cases/update-agent-persona.use-case';
 import { UpdateAgentUseCase } from '../../../application/agent/use-cases/update-agent.use-case';
 
@@ -63,6 +65,7 @@ export class AgentController {
     private readonly updateAgent: UpdateAgentUseCase,
     private readonly toggleAgentActive: ToggleAgentActiveUseCase,
     private readonly updateAgentPersona: UpdateAgentPersonaUseCase,
+    private readonly applySheetFacts: ApplySheetFactsUseCase,
     private readonly updateAgentModelConfig: UpdateAgentModelConfigUseCase,
     private readonly updateAgentMemoryConfig: UpdateAgentMemoryConfigUseCase,
     private readonly updateAgentMediaConfig: UpdateAgentMediaConfigUseCase,
@@ -149,6 +152,20 @@ export class AgentController {
   ): Promise<AgentPersonaData> {
     await this.requirePublic(id);
     return this.updateAgentPersona.execute(id, dto);
+  }
+
+  @Post('agents/:id/sheet-facts')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({
+    summary: 'Gravar no contexto os fatos da ficha que ainda não estavam lá',
+  })
+  @ApiNotFoundResponse()
+  async sheetFacts(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Body() dto: ApplySheetFactsDto,
+  ): Promise<{ changed: boolean }> {
+    await this.requirePublic(id);
+    return this.applySheetFacts.execute(id, dto);
   }
 
   @Patch('agents/:id/model-config')

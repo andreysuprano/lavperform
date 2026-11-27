@@ -64,7 +64,8 @@ describe('RunConfiguratorTurnUseCase', () => {
   const agents = {
     findByPlatformCode: jest.fn(),
     findById: jest.fn(),
-  } as unknown as jest.Mocked<Pick<AgentRepositoryPort, 'findByPlatformCode' | 'findById'>>;
+    updatePersona: jest.fn(),
+  } as unknown as jest.Mocked<Pick<AgentRepositoryPort, 'findByPlatformCode' | 'findById' | 'updatePersona'>>;
 
   const conversations = {
     upsert: jest.fn(),
@@ -127,6 +128,11 @@ describe('RunConfiguratorTurnUseCase', () => {
       proposalStatus: message.proposalStatus ?? null,
     }));
     conversations.findRecentMessagesExcept.mockResolvedValue([]);
+    agents.updatePersona.mockImplementation(async (_id, data) => ({
+      ...persona(),
+      ...data,
+      updatedAt: new Date('2026-10-08T12:05:00.000Z'),
+    }));
     llm.complete.mockResolvedValue({ content: 'Só uma resposta.', toolCalls: [], finishReason: 'stop' });
     tracker.startRun.mockResolvedValue('run-1');
   });
@@ -174,10 +180,14 @@ describe('RunConfiguratorTurnUseCase', () => {
         type: 'proposal',
         messageId: 'msg-assistant',
         behavior: 'Passa a informar o horário de abertura.',
-        status: 'pending',
+        status: 'accepted',
         changes: [{ before: '', after: 'Abre às 8h.' }],
       },
     ]);
+    expect(agents.updatePersona).toHaveBeenCalledWith(
+      'public-1',
+      expect.objectContaining({ contextPrompt: expect.stringContaining('Abre às 8h.') }),
+    );
     expect(JSON.stringify(result.blocks)).not.toContain('SEGREDO-NAO-MOSTRAR');
     expect(JSON.stringify(result.blocks)).not.toContain('contexto-atual');
     expect(JSON.stringify(events)).not.toContain('SEGREDO-NAO-MOSTRAR');
@@ -224,6 +234,19 @@ describe('RunConfiguratorTurnUseCase', () => {
     llm.complete.mockRejectedValue(new Error('boom'));
     await expect(useCase.execute(input)).rejects.toThrow('boom');
     expect(tracker.failRun).toHaveBeenCalledWith('run-1', 'boom');
+  });
+
+  it('grava saudação no envio sem chamar o modelo', async () => {
+    const result = await useCase.execute({
+      ...input,
+      text: 'A saudação de abertura deve ser: Olá Qualito!',
+    });
+
+    expect(llm.complete).not.toHaveBeenCalled();
+    expect(agents.updatePersona).toHaveBeenCalled();
+    expect(result.blocks[0]).toEqual(
+      expect.objectContaining({ type: 'markdown', content: expect.stringContaining('Gravei') }),
+    );
   });
 
   it('não grava mensagem quando o agente público não existe', async () => {

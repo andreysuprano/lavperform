@@ -175,6 +175,13 @@ export class LavaiAgentApiService {
     return this.request<Record<string, unknown>>('patch', `/agents/${agentId}/persona`, dto);
   }
 
+  applySheetFacts(
+    agentId: string,
+    body: { serviceModel: 'CONVENTIONAL' | 'SELF_SERVICE'; answers: Record<string, string> },
+  ) {
+    return this.request<{ changed: boolean }>('post', `/agents/${agentId}/sheet-facts`, body);
+  }
+
   async updateModelConfig(agentId: string, dto: Record<string, unknown>) {
     return this.request<Record<string, unknown>>('patch', `/agents/${agentId}/model-config`, dto);
   }
@@ -496,6 +503,17 @@ export class LavaiAgentApiService {
     );
   }
 
+  reconcileConfiguratorContext(body: { contextCompanyId: string; targetAgentId: string }) {
+    return this.request<{
+      targetAgentId: string;
+      contextCompanyId: string;
+      conversations: number;
+      appliedDirectInstructions: number;
+      appliedPendingProposals: number;
+      contextChanged: boolean;
+    }>('post', '/agent-configurator/reconcile', body);
+  }
+
   runPlaygroundTurn(body: {
     contextCompanyId: string;
     platformUserId: string;
@@ -504,6 +522,7 @@ export class LavaiAgentApiService {
     sessionId: string;
     content: string;
     history: Array<{ role?: string; content?: string }>;
+    sheet?: { serviceModel: 'CONVENTIONAL' | 'SELF_SERVICE'; answers: Record<string, string> };
   }) {
     return this.request<{ content: string }>('post', '/agent-playground/turns', body, {
       preserve502: true,

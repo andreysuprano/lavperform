@@ -93,6 +93,12 @@ function AIAgentConfiguratorPageBase() {
           })
         },
         onDone: (blocks) => {
+          const gravou =
+            blocks.some((block) => block.type === 'proposal' && block.status === 'accepted') ||
+            blocks.some((block) => block.type === 'markdown' && block.content.includes('Gravei'))
+          if (gravou && companyId && agentId) {
+            void invalidateQueries.aiAgentDetail(companyId, agentId)
+          }
           setMessages((current) => [
             ...current,
             {

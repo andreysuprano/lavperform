@@ -192,6 +192,8 @@ describe('PromptBuilderService', () => {
       const system = builder.build(withContext('Peça o nome antes de tudo.'), [], [], 'Oi')[0].content ?? '';
       expect(system.indexOf(TITLE)).toBeGreaterThan(system.indexOf('Peça o nome antes de tudo.'));
       expect(system).toContain('siga o Contexto do Negócio');
+      expect(system).toContain('estão confirmados');
+      expect(system).toContain('Não diga que o valor não foi confirmado');
       expect(system).toContain('não invente');
       expect(system).toContain('não peça senha');
       expect(system).toContain('não prometa reembolso');

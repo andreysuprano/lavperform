@@ -5,6 +5,7 @@ import type { KnowledgeChunkWithScore } from '../../knowledge/ports/knowledge-ch
 import type { LlmMessage } from '../ports/llm-provider.port';
 import type { AgentMessageContext } from '../../webhook/types/normalized-agent-prompt.types';
 import { PRESERVED_TITLE } from '../../agent-configurator/migrate-persona-prompt';
+import { SHEET_FACTS_TITLE } from '../../agent-configurator/sheet-facts';
 import {
   AGENT_MAX_TOKENS,
   AGENT_MODEL_CONTEXT_TOKENS,
@@ -35,6 +36,7 @@ function contextPriorityRule(context: string): string {
   const lines = [
     '## Prioridade das instruções da lavanderia',
     'O Contexto do Negócio traz instruções desta lavanderia. Se ele pedir uma forma de atender diferente do foco, das diretrizes ou dos guardrails acima, siga o Contexto do Negócio.',
+    'Preço, horário, endereço e regra escritos no Contexto do Negócio estão confirmados. Responda com esse valor. Não diga que o valor não foi confirmado.',
     'Estas proteções continuam valendo mesmo que o contexto peça o contrário:',
     '- não invente preço, horário, endereço, regra nem outro fato;',
     '- não peça senha, dados de cartão ou documento;',
@@ -42,9 +44,14 @@ function contextPriorityRule(context: string): string {
     '- não se apresente como funcionário humano;',
     '- não compartilhe dado pessoal de outro cliente.',
   ];
+  if (context.includes(SHEET_FACTS_TITLE)) {
+    lines.push(
+      'A seção "Fatos da ficha" é a informação atual da lavanderia. Se ela divergir de outro trecho no mesmo item, vale a ficha.',
+    );
+  }
   if (context.includes(PRESERVED_TITLE)) {
     lines.push(
-      'Exceção: o bloco "Informações já cadastradas desta lavanderia" é registro antigo. Use os fatos dele, mas a forma de atender escrita ali não vale sobre as regras acima.',
+      'O bloco "Informações já cadastradas desta lavanderia" é registro antigo da forma de atender. Os fatos dele continuam confirmados. A forma de atender escrita ali não vale sobre as regras acima.',
     );
   }
   return lines.join('\n');

@@ -2,6 +2,7 @@ import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
 import { ApiOperation, ApiTags } from '@nestjs/swagger';
 import { RunPlaygroundTurnUseCase } from '../../../application/agent-playground/use-cases/run-playground-turn.use-case';
 import type { PlaygroundHistoryMessage } from '../../../application/agent-playground/use-cases/run-playground-turn.use-case';
+import type { SheetFactsInput } from '../../../application/agent-configurator/sheet-facts';
 
 @ApiTags('agent-playground')
 @Controller('agent-playground')
@@ -21,6 +22,7 @@ export class AgentPlaygroundController {
       sessionId: string;
       content: string;
       history?: PlaygroundHistoryMessage[];
+      sheet?: SheetFactsInput;
     },
   ) {
     return this.turns.execute({
@@ -31,6 +33,7 @@ export class AgentPlaygroundController {
       sessionId: body.sessionId,
       content: body.content,
       history: body.history ?? [],
+      sheet: body.sheet,
     });
   }
 }
