@@ -58,6 +58,7 @@ export class DecideConfiguratorProposalUseCase {
       baseUpdatedAt: proposal.baseUpdatedAt,
       currentUpdatedAt: target.persona.updatedAt.toISOString(),
       document: proposal.document,
+      changes: proposal.changes,
       action: input.action,
     });
 
@@ -66,7 +67,7 @@ export class DecideConfiguratorProposalUseCase {
     }
 
     if (decision.writeDocument) {
-      await this.agents.updatePersona(target.id, proposal.document);
+      await this.agents.updatePersona(target.id, { contextPrompt: proposal.document.contextPrompt });
     }
     await this.conversations.updateProposalStatus(message.id, decision.nextStatus);
     if (decision.message) {

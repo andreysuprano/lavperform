@@ -45,9 +45,11 @@ import { IdleCloseSchedulerService } from '../../customer-journey/services/idle-
 import { HumanTypingPauseService } from '../../webhook/services/human-typing-pause.service';
 import { HumanTakeoverService } from '../../webhook/services/human-takeover.service';
 import { MessageBufferService } from '../../webhook/services/message-buffer.service';
-
-/** Acima disso o atendimento começa a variar preço, prazo e regra. */
-const TEMPERATURE_CAP = 0.3;
+import {
+  AGENT_CONTEXT_WINDOW,
+  AGENT_MAX_TOKENS,
+  AGENT_TEMPERATURE,
+} from '../../agent/agent-model-defaults';
 
 export interface CompleteAgentTurnInput {
   agent: AgentWithConfigsData;
@@ -152,7 +154,7 @@ export class AgentRunnerService implements OnModuleInit {
     conversation: ConversationData,
     agent: AgentWithConfigsData,
   ): Promise<void> {
-    const windowSize = agent.memoryConfig?.windowSize ?? 10;
+    const windowSize = agent.memoryConfig?.windowSize ?? AGENT_CONTEXT_WINDOW;
     const model = agent.modelConfig?.modelName ?? 'openai/gpt-4o';
 
     this.logger.log(
@@ -449,8 +451,8 @@ export class AgentRunnerService implements OnModuleInit {
           model,
           messages,
           tools: allowTools && tools.length > 0 ? tools : undefined,
-          temperature: Math.min(modelConfig?.temperature ?? TEMPERATURE_CAP, TEMPERATURE_CAP),
-          maxTokens: modelConfig?.maxTokens,
+          temperature: Math.min(modelConfig?.temperature ?? AGENT_TEMPERATURE, AGENT_TEMPERATURE),
+          maxTokens: modelConfig?.maxTokens ?? AGENT_MAX_TOKENS,
           topP: modelConfig?.topP,
           frequencyPenalty: modelConfig?.frequencyPenalty,
           presencePenalty: modelConfig?.presencePenalty,

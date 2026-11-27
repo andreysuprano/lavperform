@@ -5,7 +5,9 @@ import { LuCheck, LuSend, LuZap } from 'react-icons/lu'
 import { useNavigate, useParams, useSearchParams } from 'react-router-dom'
 
 import { useAuth } from '@/context/AuthContext'
+import { invalidateQueries } from '@/lib/react-query'
 import { AIAgentAdvancedConfigDrawer } from '@/whitelabel/components/ai-agent/AIAgentAdvancedConfigDrawer'
+import { ContextChange } from '@/whitelabel/components/ai-agent/ContextChange/ContextChange'
 import { SafeMarkdown } from '@/whitelabel/components/ai-agent/SafeMarkdown/SafeMarkdown'
 import { useAIAgent } from '@/whitelabel/hooks'
 import { AIAgentPlaygroundPage } from '@/whitelabel/pages/AIAgentPlaygroundPage'
@@ -129,6 +131,10 @@ function AIAgentConfiguratorPageBase() {
         action === 'accept'
           ? await aiAgentService.acceptConfiguratorProposal(companyId, agentId, messageId)
           : await aiAgentService.rejectConfiguratorProposal(companyId, agentId, messageId)
+      // Sem recarregar, a configuração avançada mostra o texto antigo e salvar ali desfaz o aceite.
+      if (response.data.status === 'accepted') {
+        void invalidateQueries.aiAgentDetail(companyId, agentId)
+      }
       setMessages((current) =>
         current.map((message) => ({
           ...message,
@@ -381,15 +387,25 @@ function MessageBlocks({
         return (
           <Box key={`${messageId}-proposal`} borderWidth="1px" borderColor="border.muted" borderRadius="xl" p={4}>
             <SafeMarkdown source={block.behavior} />
+            <Stack gap={3} mt={3}>
+              {block.changes?.map((change, changeIndex) => (
+                <ContextChange key={changeIndex} before={change.before} after={change.after} />
+              ))}
+            </Stack>
             {block.status === 'pending' ? (
-              <Flex gap={2} mt={3}>
-                <Button size="sm" disabled={busy} onClick={() => onDecide('accept')}>
-                  Aceitar
-                </Button>
-                <Button size="sm" variant="outline" disabled={busy} onClick={() => onDecide('reject')}>
-                  Recusar
-                </Button>
-              </Flex>
+              <Box mt={3}>
+                <Text mb={2} fontSize="sm" color="fg.muted">
+                  Ainda não foi gravado. Confira e toque em Aceitar.
+                </Text>
+                <Flex gap={2}>
+                  <Button size="sm" disabled={busy} onClick={() => onDecide('accept')}>
+                    Aceitar
+                  </Button>
+                  <Button size="sm" variant="outline" disabled={busy} onClick={() => onDecide('reject')}>
+                    Recusar
+                  </Button>
+                </Flex>
+              </Box>
             ) : (
               <Text mt={3} fontSize="sm" color="fg.muted">
                 {block.status === 'accepted' ? 'Alteração gravada.' : 'Alteração recusada.'}

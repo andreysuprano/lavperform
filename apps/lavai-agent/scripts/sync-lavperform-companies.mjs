@@ -236,11 +236,11 @@ async function createLavaiAgent(client, lavaiCompanyId, row) {
     `INSERT INTO agent_model_configs (
        id, agent_id, provider, model_name, temperature, max_tokens,
        top_p, frequency_penalty, presence_penalty, streaming, created_at, updated_at
-     ) VALUES ($1, $2, 'OPENAI', 'openai/gpt-4o', 0.7, 1024, 1.0, 0.0, 0.0, false, NOW(), NOW())`,
+     ) VALUES ($1, $2, 'OPENAI', 'openai/gpt-4o', 0.3, 16384, 1.0, 0.0, 0.0, false, NOW(), NOW())`,
     [randomUUID(), agentId],
   );
 
-  const windowSize = Math.min(Math.max(row.context_window_length ?? 10, 1), 100);
+  const windowSize = 100;
 
   await client.query(
     `INSERT INTO agent_memory_configs (

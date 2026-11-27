@@ -1,6 +1,11 @@
 import { BadGatewayException, Inject, Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { readFileSync } from 'fs';
 import { join } from 'path';
+import {
+  AGENT_CONTEXT_WINDOW,
+  AGENT_MAX_TOKENS,
+  AGENT_TEMPERATURE,
+} from '../../agent/agent-model-defaults';
 import { AGENT_REPOSITORY, AgentKind } from '../../agent/ports/agent.repository.port';
 import type { AgentRepositoryPort } from '../../agent/ports/agent.repository.port';
 import { LLM_PROVIDER_PORT } from '../../agent-runner/ports/llm-provider.port';
@@ -16,6 +21,7 @@ import {
   activityLabel,
   agentSnapshot,
   configuratorTools,
+  PROPOSE_TOOL,
   runConfiguratorTool,
   type ConfiguratorActivityEvent,
 } from '../configurator-actions';
@@ -24,6 +30,7 @@ import {
   ConfiguratorReplyError,
   finalizeConfiguratorReply,
   joinedMarkdown,
+  NOTHING_CHANGED_MESSAGE,
   toClientBlocks,
   type ClientBlock,
   type ProposalDraft,
@@ -83,7 +90,7 @@ export class RunConfiguratorTurnUseCase {
     const history = await this.conversations.findRecentMessagesExcept(
       conversation.id,
       userMessage.id,
-      configurator.memoryConfig?.windowSize ?? 10,
+      configurator.memoryConfig?.windowSize ?? AGENT_CONTEXT_WINDOW,
     );
     const persona = target.persona;
     const baseUpdatedAt = persona.updatedAt.toISOString();
@@ -131,14 +138,16 @@ export class RunConfiguratorTurnUseCase {
       let content: string | null = null;
       let iterations = 0;
       let toolCount = 0;
+      let triedToPropose = false;
       const tools = configuratorTools();
       const model = configurator.modelConfig?.modelName ?? 'openai/gpt-4o';
 
-      for (let iteration = 0; iteration < 4; iteration += 1) {
+      for (let iteration = 0; iteration < 6; iteration += 1) {
         const started = Date.now();
         const response = await this.llm.complete({
           model,
-          temperature: 0.2,
+          temperature: AGENT_TEMPERATURE,
+          maxTokens: configurator.modelConfig?.maxTokens ?? AGENT_MAX_TOKENS,
           messages,
           tools,
         });
@@ -165,7 +174,14 @@ export class RunConfiguratorTurnUseCase {
 
         for (const call of response.toolCalls) {
           const finishTool = openActivity(onActivity, activityLabel(call.function.name), sequence, recorded);
-          const result = runConfiguratorTool(call.function.name, call.function.arguments, snapshot, proposal != null);
+          const result = runConfiguratorTool(
+            call.function.name,
+            call.function.arguments,
+            snapshot,
+            persona.contextPrompt ?? '',
+            proposal != null,
+          );
+          if (call.function.name === PROPOSE_TOOL) triedToPropose = true;
           if (result.proposal) proposal = result.proposal;
           toolCount += 1;
           await this.tracker.addStep(runId, {
@@ -184,7 +200,12 @@ export class RunConfiguratorTurnUseCase {
         }
       }
 
-      const reply = finalizeConfiguratorReply(content, proposal, baseUpdatedAt);
+      const reply: StoredBlock[] = triedToPropose && !proposal
+        ? [
+            ...(content?.trim() ? finalizeConfiguratorReply(content, null, baseUpdatedAt) : []),
+            { type: 'markdown', content: NOTHING_CHANGED_MESSAGE },
+          ]
+        : finalizeConfiguratorReply(content, proposal, baseUpdatedAt);
       const stored: StoredBlock[] = [
         ...recorded.map((label) => ({ type: 'activity' as const, label })),
         ...reply,

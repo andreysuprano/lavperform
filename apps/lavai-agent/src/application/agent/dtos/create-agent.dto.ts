@@ -102,14 +102,14 @@ export class AgentModelConfigDto {
   @IsOptional()
   modelName?: string;
 
-  @ApiPropertyOptional({ example: 0.7, description: '0.0 = determinístico, 2.0 = criativo' })
+  @ApiPropertyOptional({ example: 0.3, description: '0.0 = determinístico, 2.0 = criativo. Padrão: 0.3' })
   @IsNumber()
   @Min(0)
   @Max(2)
   @IsOptional()
   temperature?: number;
 
-  @ApiPropertyOptional({ example: 1024, description: 'Máximo de tokens na resposta' })
+  @ApiPropertyOptional({ example: 16384, description: 'Máximo de tokens na resposta. Padrão e teto: 16384' })
   @IsInt()
   @Min(1)
   @Max(16384)
@@ -149,7 +149,7 @@ export class AgentMemoryConfigDto {
   @IsOptional()
   memoryType?: AgentMemoryType;
 
-  @ApiPropertyOptional({ example: 10, description: 'Mensagens na janela de contexto (BUFFER)' })
+  @ApiPropertyOptional({ example: 100, description: 'Mensagens na janela de contexto (BUFFER). Padrão e teto: 100' })
   @IsInt()
   @Min(1)
   @Max(100)

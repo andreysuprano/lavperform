@@ -1,10 +1,14 @@
 import { FillPromptError } from './fill-whatsapp-prompt';
 import type { PromptDocument } from './fill-whatsapp-prompt';
+import type { ContextChange } from './context-edits';
 
 export const STALE_MESSAGE = 'O texto mudou. Peça a alteração de novo.';
 export const CONFIGURATOR_CODE = 'agent-configurator';
+export const NOTHING_CHANGED_MESSAGE = 'Nenhuma alteração foi preparada, então nada mudou no agente. Peça de novo.';
 
 export type ProposalStatus = 'pending' | 'accepted' | 'rejected';
+
+type ContextDocument = Pick<PromptDocument, 'contextPrompt'>;
 
 export type StoredBlock =
   | { type: 'activity'; label: string }
@@ -12,18 +16,21 @@ export type StoredBlock =
   | {
       type: 'proposal';
       behavior: string;
-      document: PromptDocument;
+      document: ContextDocument;
+      /** Ausente nas propostas antigas, que reescreviam os quatro campos. */
+      changes?: ContextChange[];
       baseUpdatedAt: string;
     };
 
 export type ClientBlock =
   | { type: 'activity'; label: string }
   | { type: 'markdown'; content: string }
-  | { type: 'proposal'; messageId: string; behavior: string; status: ProposalStatus };
+  | { type: 'proposal'; messageId: string; behavior: string; status: ProposalStatus; changes: ContextChange[] };
 
 export type ProposalDraft = {
   behavior: string;
-  document: PromptDocument;
+  document: ContextDocument;
+  changes: ContextChange[];
 };
 
 export class ConfiguratorReplyError extends Error {
@@ -33,9 +40,8 @@ export class ConfiguratorReplyError extends Error {
   }
 }
 
-const FIELDS = ['contextPrompt', 'systemPrompt', 'behaviorGuidelines', 'guardrails'] as const;
-
-export function parseConfiguratorReply(raw: string): Array<Omit<Extract<StoredBlock, { type: 'proposal' }>, 'baseUpdatedAt'> | { type: 'markdown'; content: string }> {
+/** Proposta escrita no texto da resposta é ignorada: só a ferramenta propõe mudança. */
+export function parseConfiguratorReply(raw: string): Array<{ type: 'markdown'; content: string }> {
   let parsed: unknown;
   try {
     parsed = JSON.parse(raw);
@@ -45,47 +51,19 @@ export function parseConfiguratorReply(raw: string): Array<Omit<Extract<StoredBl
   if (!parsed || typeof parsed !== 'object' || !Array.isArray((parsed as { blocks?: unknown }).blocks)) {
     throw new ConfiguratorReplyError();
   }
-  const blocks = (parsed as { blocks: unknown[] }).blocks;
-  const proposals = blocks.filter(
-    (block) => !!block && typeof block === 'object' && (block as { type?: string }).type === 'proposal',
-  );
-  if (proposals.length > 1) {
-    throw new ConfiguratorReplyError();
+  const markdowns: Array<{ type: 'markdown'; content: string }> = [];
+  for (const block of (parsed as { blocks: unknown[] }).blocks) {
+    const row = block as { type?: string; content?: unknown } | null;
+    if (row?.type !== 'markdown') continue;
+    if (typeof row.content !== 'string' || row.content.trim() === '') {
+      throw new ConfiguratorReplyError();
+    }
+    markdowns.push({ type: 'markdown', content: row.content });
   }
-  const markdowns = blocks.filter(
-    (block) => !!block && typeof block === 'object' && (block as { type?: string }).type === 'markdown',
-  );
   if (markdowns.length === 0) {
     throw new ConfiguratorReplyError();
   }
-
-  return blocks.map((block) => {
-    if (!block || typeof block !== 'object') throw new ConfiguratorReplyError();
-    const row = block as { type?: string; content?: string; behavior?: string; document?: Partial<PromptDocument> };
-    if (row.type === 'markdown') {
-      if (typeof row.content !== 'string' || row.content.trim() === '') {
-        throw new ConfiguratorReplyError();
-      }
-      return { type: 'markdown', content: row.content };
-    }
-    if (row.type === 'proposal') {
-      const document = readDocument(row.document);
-      if (typeof row.behavior !== 'string' || row.behavior.trim() === '') {
-        throw new ConfiguratorReplyError();
-      }
-      return { type: 'proposal', behavior: row.behavior, document };
-    }
-    throw new ConfiguratorReplyError();
-  });
-}
-
-export function stampProposal(
-  blocks: ReturnType<typeof parseConfiguratorReply>,
-  baseUpdatedAt: string,
-): StoredBlock[] {
-  return blocks.map((block) =>
-    block.type === 'proposal' ? { ...block, baseUpdatedAt } : block,
-  );
+  return markdowns;
 }
 
 export function toClientBlocks(messageId: string, status: ProposalStatus | null, blocks: StoredBlock[]): ClientBlock[] {
@@ -96,6 +74,7 @@ export function toClientBlocks(messageId: string, status: ProposalStatus | null,
       messageId,
       behavior: block.behavior,
       status: status ?? 'pending',
+      changes: block.changes ?? [],
     };
   });
 }
@@ -119,27 +98,17 @@ export function finalizeConfiguratorReply(
   const json = jsonCandidate(text);
   if (json) {
     try {
-      const parsed = stampProposal(parseConfiguratorReply(json), baseUpdatedAt);
-      const blocks = proposal
-        ? [
-            ...parsed.filter((block) => block.type === 'markdown'),
-            { type: 'proposal' as const, behavior: proposal.behavior, document: proposal.document, baseUpdatedAt },
-          ]
-        : parsed;
-      if (!blocks.some((block) => block.type === 'markdown')) {
-        throw new ConfiguratorReplyError('O modelo devolveu uma resposta sem texto.');
-      }
-      return blocks;
-    } catch (error) {
+      const markdowns = parseConfiguratorReply(json);
+      return proposal ? [...markdowns, proposalBlock(proposal, baseUpdatedAt)] : markdowns;
+    } catch {
       if (proposal) return proposalBlocks(proposal, baseUpdatedAt);
-      if (error instanceof ConfiguratorReplyError && error.message !== 'A resposta falhou.') throw error;
       throw new ConfiguratorReplyError('O modelo devolveu um formato inválido.');
     }
   }
   if (text) {
     const blocks: StoredBlock[] = [{ type: 'markdown', content: text }];
     if (proposal) {
-      blocks.push({ type: 'proposal', behavior: proposal.behavior, document: proposal.document, baseUpdatedAt });
+      blocks.push(proposalBlock(proposal, baseUpdatedAt));
     }
     return blocks;
   }
@@ -150,8 +119,12 @@ export function finalizeConfiguratorReply(
 function proposalBlocks(proposal: ProposalDraft, baseUpdatedAt: string): StoredBlock[] {
   return [
     { type: 'markdown', content: proposal.behavior.trim() },
-    { type: 'proposal', behavior: proposal.behavior, document: proposal.document, baseUpdatedAt },
+    proposalBlock(proposal, baseUpdatedAt),
   ];
+}
+
+function proposalBlock(proposal: ProposalDraft, baseUpdatedAt: string): StoredBlock {
+  return { type: 'proposal', ...proposal, baseUpdatedAt };
 }
 
 function jsonCandidate(text: string): string | null {
@@ -168,7 +141,8 @@ export function decideProposal(input: {
   status: ProposalStatus | null;
   baseUpdatedAt: string;
   currentUpdatedAt: string;
-  document: PromptDocument;
+  document: ContextDocument;
+  changes?: ContextChange[];
   action: 'accept' | 'reject';
 }): { nextStatus: ProposalStatus; writeDocument: boolean; message?: string; changed: boolean } {
   if (input.status !== 'pending') {
@@ -181,12 +155,10 @@ export function decideProposal(input: {
   if (input.action === 'reject') {
     return { nextStatus: 'rejected', writeDocument: false, changed: true };
   }
-  for (const field of FIELDS) {
-    if (input.document[field].trim() === '') {
-      throw new FillPromptError('Proposta incompleta');
-    }
+  if (input.changes && input.document.contextPrompt.trim() === '') {
+    throw new FillPromptError('Proposta incompleta');
   }
-  if (input.baseUpdatedAt !== input.currentUpdatedAt) {
+  if (!input.changes || input.baseUpdatedAt !== input.currentUpdatedAt) {
     return {
       nextStatus: 'rejected',
       writeDocument: false,
@@ -195,17 +167,4 @@ export function decideProposal(input: {
     };
   }
   return { nextStatus: 'accepted', writeDocument: true, changed: true };
-}
-
-function readDocument(document: Partial<PromptDocument> | undefined): PromptDocument {
-  if (!document) throw new ConfiguratorReplyError();
-  const result = {} as PromptDocument;
-  for (const field of FIELDS) {
-    const value = document[field];
-    if (typeof value !== 'string' || value.trim() === '') {
-      throw new ConfiguratorReplyError();
-    }
-    result[field] = value;
-  }
-  return result;
 }

@@ -67,12 +67,12 @@ function AIAgentFormBase({ mode, agentId, initialData, onClose }: Props) {
           description: description.trim() || undefined,
           modelConfig: {
             modelName: 'openai/gpt-5',
-            temperature: 0.7,
-            maxTokens: 8048,
+            temperature: 0.3,
+            maxTokens: 16384,
           },
           memoryConfig: {
             memoryType: 'BUFFER',
-            windowSize: 10,
+            windowSize: 100,
           },
           persona: {
             language: 'PT_BR',

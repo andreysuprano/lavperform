@@ -2,7 +2,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { Provider } from '@/components'
-import type { AIAgent } from '@/whitelabel/types'
+import type { AIAgent, PromptProposal } from '@/whitelabel/types'
 
 import { PersonaTab } from './PersonaTab'
 
@@ -19,7 +19,27 @@ vi.mock('@/whitelabel/hooks', () => ({
 }))
 
 vi.mock('../PromptStudio/PromptSheetChat', () => ({
-  PromptSheetChat: () => <div>chat ficha</div>,
+  PromptSheetChat: ({
+    onAcceptProposal,
+  }: {
+    onAcceptProposal: (proposal: PromptProposal) => Promise<void>
+  }) => (
+    <button
+      type="button"
+      onClick={() =>
+        void onAcceptProposal({
+          summary: 'ajuste',
+          changes: {
+            contextPrompt: 'contexto ajustado',
+            systemPrompt: 'outro sistema',
+            guardrails: 'outros limites',
+          },
+        })
+      }
+    >
+      aceitar ajuste
+    </button>
+  ),
 }))
 
 vi.mock('../PromptStudio/PromptTestPanel', () => ({
@@ -108,5 +128,28 @@ describe('PersonaTab', () => {
         })
       )
     })
+  })
+
+  it('aceitar um ajuste do chat grava somente o contexto de negócio', async () => {
+    mutateAsync.mockResolvedValue(undefined)
+
+    render(
+      <Provider>
+        <PersonaTab agent={agent} />
+      </Provider>
+    )
+
+    fireEvent.click(await screen.findByRole('button', { name: 'aceitar ajuste' }))
+
+    await waitFor(() => {
+      expect(mutateAsync).toHaveBeenCalledWith({
+        agentId: 'agent-1',
+        data: { contextPrompt: 'contexto ajustado' },
+      })
+    })
+    expect(screen.getByRole('textbox', { name: 'Contexto do negócio' })).toHaveValue(
+      'contexto ajustado'
+    )
+    expect(screen.getByRole('textbox', { name: 'Guardrails' })).toHaveValue('limites salvos')
   })
 })

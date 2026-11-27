@@ -1,4 +1,4 @@
-import type { PromptDocument, PromptField, PromptProposal } from './prompt-studio.types';
+import type { PromptDocument, PromptEditRequest, PromptField } from './prompt-studio.types';
 
 const PROMPT_FIELDS: PromptField[] = [
   'contextPrompt',
@@ -78,9 +78,9 @@ export function parseGeneratedDocument(
   return { document, suggestedQuestions: questions };
 }
 
-export function parseProposal(raw: string): PromptProposal | null {
+export function parseProposal(raw: string): PromptEditRequest | null {
   const parsed = parseJson(raw);
-  if (parsed === null || typeof parsed !== 'object' || parsed === null) {
+  if (parsed === null || typeof parsed !== 'object') {
     return null;
   }
 
@@ -88,45 +88,32 @@ export function parseProposal(raw: string): PromptProposal | null {
   if (!isNonEmptyString(record.summary)) {
     return null;
   }
-
-  const { changes } = record;
-  if (changes === null || typeof changes !== 'object' || Array.isArray(changes)) {
+  if (!Array.isArray(record.replacements) || typeof record.addition !== 'string') {
     return null;
   }
 
-  const changeRecord = changes as Record<string, unknown>;
-  const allowed = new Set<string>(PROMPT_FIELDS);
-  const filteredChanges: Partial<PromptDocument> = {};
-
-  for (const [key, value] of Object.entries(changeRecord)) {
-    if (!allowed.has(key)) {
+  const replacements: PromptEditRequest['replacements'] = [];
+  for (const item of record.replacements as unknown[]) {
+    const change = item as { before?: unknown; after?: unknown } | null;
+    if (typeof change?.before !== 'string' || typeof change.after !== 'string') {
       return null;
     }
-    if (isNonEmptyString(value)) {
-      filteredChanges[key as PromptField] = value.trim();
-    }
+    replacements.push({ before: change.before, after: change.after });
   }
 
-  if (Object.keys(filteredChanges).length === 0) {
-    return null;
-  }
-
-  const proposal: PromptProposal = {
+  const request: PromptEditRequest = {
     summary: record.summary.trim(),
-    changes: filteredChanges,
+    replacements,
+    addition: record.addition,
   };
 
-  if (typeof record.baseUpdatedAt === 'string' && record.baseUpdatedAt.trim() !== '') {
-    proposal.baseUpdatedAt = record.baseUpdatedAt.trim();
+  if (isNonEmptyString(record.answerKey)) {
+    request.answerKey = record.answerKey.trim();
   }
 
-  if (typeof record.answerKey === 'string' && record.answerKey.trim() !== '') {
-    proposal.answerKey = record.answerKey.trim();
+  if (isNonEmptyString(record.answerValue)) {
+    request.answerValue = record.answerValue.trim();
   }
 
-  if (typeof record.answerValue === 'string' && record.answerValue.trim() !== '') {
-    proposal.answerValue = record.answerValue.trim();
-  }
-
-  return proposal;
+  return request;
 }

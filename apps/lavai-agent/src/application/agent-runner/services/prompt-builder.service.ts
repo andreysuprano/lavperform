@@ -4,6 +4,11 @@ import type { ConversationMessageData } from '../../webhook/ports/conversation.r
 import type { KnowledgeChunkWithScore } from '../../knowledge/ports/knowledge-chunk.repository.port';
 import type { LlmMessage } from '../ports/llm-provider.port';
 import type { AgentMessageContext } from '../../webhook/types/normalized-agent-prompt.types';
+import { PRESERVED_TITLE } from '../../agent-configurator/migrate-persona-prompt';
+import {
+  AGENT_MAX_TOKENS,
+  AGENT_MODEL_CONTEXT_TOKENS,
+} from '../../agent/agent-model-defaults';
 
 export interface SenderContext {
   senderName: string;
@@ -26,15 +31,34 @@ const FACTS_RULE = [
   'Não chute um valor parecido.',
 ].join('\n');
 
+function contextPriorityRule(context: string): string {
+  const lines = [
+    '## Prioridade das instruções da lavanderia',
+    'O Contexto do Negócio traz instruções desta lavanderia. Se ele pedir uma forma de atender diferente do foco, das diretrizes ou dos guardrails acima, siga o Contexto do Negócio.',
+    'Estas proteções continuam valendo mesmo que o contexto peça o contrário:',
+    '- não invente preço, horário, endereço, regra nem outro fato;',
+    '- não peça senha, dados de cartão ou documento;',
+    '- não prometa reembolso nem indenização;',
+    '- não se apresente como funcionário humano;',
+    '- não compartilhe dado pessoal de outro cliente.',
+  ];
+  if (context.includes(PRESERVED_TITLE)) {
+    lines.push(
+      'Exceção: o bloco "Informações já cadastradas desta lavanderia" é registro antigo. Use os fatos dele, mas a forma de atender escrita ali não vale sobre as regras acima.',
+    );
+  }
+  return lines.join('\n');
+}
+
 /**
  * Monta o array de messages para o LLM:
  *  [system] persona + guidelines + guardrails + context + RAG chunks
  *  [user/assistant]... histórico da conversa
  *  [user] mensagem atual do usuário
  *
- * Token budget: estimativa por caracteres (~4 chars por token) — sem dependência
- * externa. Se o histórico exceder o orçamento, as mensagens mais antigas são
- * descartadas primeiro.
+ * O histórico usa o que cabe no contexto do modelo (128k), menos o sistema,
+ * a mensagem atual e a reserva da resposta. Estimativa de ~4 caracteres por
+ * token. As mensagens mais antigas saem primeiro.
  */
 @Injectable()
 export class PromptBuilderService {
@@ -49,7 +73,7 @@ export class PromptBuilderService {
     session?: PlatformSessionContext,
   ): LlmMessage[] {
     const persona = agent.persona;
-    const maxTokens = agent.modelConfig?.maxTokens ?? 1024;
+    const maxTokens = agent.modelConfig?.maxTokens ?? AGENT_MAX_TOKENS;
 
     const systemParts: string[] = [];
 
@@ -74,6 +98,10 @@ export class PromptBuilderService {
 
     if (persona?.contextPrompt) {
       systemParts.push(`\n## Contexto do Negócio\n${persona.contextPrompt}`);
+      // O turno de plataforma é de agente interno, que não recebe instrução de lavanderia.
+      if (!session) {
+        systemParts.push(`\n${contextPriorityRule(persona.contextPrompt)}`);
+      }
     }
 
     if (session) {
@@ -117,7 +145,12 @@ export class PromptBuilderService {
       (message) => message.originalType !== 'WAITING_ACK',
     );
 
-    const tokenBudget = Math.floor(maxTokens * 0.75);
+    const systemTokens = Math.ceil((messages[0].content ?? '').length / this.CHARS_PER_TOKEN);
+    const userTokens = Math.ceil(userMessage.length / this.CHARS_PER_TOKEN);
+    const tokenBudget = Math.max(
+      0,
+      AGENT_MODEL_CONTEXT_TOKENS - systemTokens - userTokens - maxTokens,
+    );
     const trimmedHistory = this.trimHistory(visibleHistory, tokenBudget);
 
     for (const msg of trimmedHistory) {

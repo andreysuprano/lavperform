@@ -48,6 +48,7 @@ export type PromptField = keyof PromptDocument
 export interface PromptProposal {
   summary: string
   changes: Partial<PromptDocument>
+  edits?: Array<{ before: string; after: string }>
   baseUpdatedAt?: string
   sheetUpdatedAt?: string
   answerKey?: string
@@ -71,6 +72,7 @@ export type ConfiguratorBlock =
       messageId: string
       behavior: string
       status: 'pending' | 'accepted' | 'rejected'
+      changes?: Array<{ before: string; after: string }>
     }
 
 export type ConfiguratorTurnMessage = {

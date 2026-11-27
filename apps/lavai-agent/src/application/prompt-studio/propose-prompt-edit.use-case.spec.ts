@@ -12,7 +12,7 @@ const answers = Object.fromEntries(
 );
 
 const document = {
-  contextPrompt: 'Lavanderia. Preço: R$ 20. Demais: sim',
+  contextPrompt: 'Lavanderia.\nPreço: R$ 20.\nHorário: 8h.',
   systemPrompt: 'Atender',
   behaviorGuidelines: 'Confirme',
   guardrails: 'Não invente',
@@ -20,9 +20,9 @@ const document = {
 const sheetUpdatedAt = '2026-09-25T10:00:00.000Z';
 const input = {
   document,
-  question: 'Quanto custa?',
-  answer: 'Custa 50 reais',
-  whatWasWrong: 'Inventou o preço',
+  question: '',
+  answer: '',
+  whatWasWrong: 'O preço agora é R$ 25',
   baseUpdatedAt: '2026-09-24T00:00:00.000Z',
   currentUpdatedAt: '2026-09-24T00:00:00.000Z',
   draftChanged: false,
@@ -32,133 +32,83 @@ const input = {
   currentSheetUpdatedAt: sheetUpdatedAt,
 };
 
+const priceEdit = {
+  summary: 'Atualiza o preço',
+  replacements: [{ before: 'R$ 20', after: 'R$ 25' }],
+  addition: '',
+};
+
+function llmReturning(...replies: unknown[]): LlmProviderPort {
+  const complete = jest.fn();
+  for (const reply of replies) {
+    complete.mockResolvedValueOnce({ content: JSON.stringify(reply), toolCalls: [], finishReason: 'stop' });
+  }
+  return { complete };
+}
+
 describe('ProposePromptEditUseCase', () => {
-  it('devolve a parte alterada sem gravar persona', async () => {
-    const llm: LlmProviderPort = {
-      complete: jest.fn().mockResolvedValue({
-        content: JSON.stringify({
-          summary: 'Tira o preço inventado',
-          changes: { guardrails: 'Não invente. Preço: R$ 20. Demais: sim' },
-          baseUpdatedAt: input.baseUpdatedAt,
-        }),
-        toolCalls: [],
-        finishReason: 'stop',
-      }),
-    };
+  it('altera só o contexto de negócio e mantém o resto do texto', async () => {
+    const llm = llmReturning(priceEdit);
     const result = await new ProposePromptEditUseCase(llm).execute(input);
-    expect(result.changes.guardrails).toBe('Não invente. Preço: R$ 20. Demais: sim');
-    expect(result.sheetUpdatedAt).toBe(sheetUpdatedAt);
+    expect(result).toEqual({
+      summary: 'Atualiza o preço',
+      changes: { contextPrompt: 'Lavanderia.\nPreço: R$ 25.\nHorário: 8h.' },
+      edits: [{ before: 'R$ 20', after: 'R$ 25' }],
+      baseUpdatedAt: input.baseUpdatedAt,
+      sheetUpdatedAt,
+    });
     expect(llm.complete).toHaveBeenCalledTimes(1);
   });
 
-  it('recusa changes vazias', async () => {
-    const llm: LlmProviderPort = {
-      complete: jest.fn().mockResolvedValue({
-        content: JSON.stringify({ summary: 'x', changes: {} }),
-        toolCalls: [],
-        finishReason: 'stop',
-      }),
-    };
-    await expect(new ProposePromptEditUseCase(llm).execute(input)).rejects.toBeInstanceOf(
-      BadGatewayException,
-    );
+  it('manda o modelo recusar pedido que exponha dado de outro cliente', async () => {
+    const llm = llmReturning(priceEdit);
+    await new ProposePromptEditUseCase(llm).execute(input);
+    const system = (llm.complete as jest.Mock).mock.calls[0][0].messages[0].content;
+    expect(system).toContain('compartilhar dado pessoal de outro cliente');
   });
 
-  it('recusa proposta sobre texto que já mudou', async () => {
-    const llm: LlmProviderPort = {
-      complete: jest.fn().mockResolvedValue({
-        content: JSON.stringify({
-          summary: 'Tira o preço',
-          changes: { guardrails: 'Não invente. Preço: R$ 20. Demais: sim' },
-        }),
-        toolCalls: [],
-        finishReason: 'stop',
-      }),
-    };
+  it('pede de novo ao modelo quando a edição não se aplica, dizendo o motivo', async () => {
+    const llm = llmReturning(
+      { ...priceEdit, replacements: [{ before: 'R$ 99', after: 'R$ 25' }] },
+      priceEdit,
+    );
+    const result = await new ProposePromptEditUseCase(llm).execute(input);
+    expect(result.changes.contextPrompt).toContain('R$ 25');
+    const retry = (llm.complete as jest.Mock).mock.calls[1][0].messages;
+    expect(retry.at(-1).content).toContain('não foi encontrado');
+  });
+
+  it('recusa reescrita dos outros campos', async () => {
+    const rewrite = { summary: 'x', changes: { guardrails: 'outro' } };
     await expect(
-      new ProposePromptEditUseCase(llm).execute({
-        ...input,
-        currentUpdatedAt: '2026-09-24T01:00:00.000Z',
-      }),
-    ).rejects.toThrow('O texto mudou. Peça a alteração de novo.');
+      new ProposePromptEditUseCase(llmReturning(rewrite, rewrite)).execute(input),
+    ).rejects.toBeInstanceOf(BadGatewayException);
+  });
+
+  it('recusa quando o valor da ficha não está no contexto novo', async () => {
+    const reply = { ...priceEdit, answerKey: 'priceWash', answerValue: 'R$ 30' };
     await expect(
-      new ProposePromptEditUseCase(llm).execute({
+      new ProposePromptEditUseCase(llmReturning(reply, reply)).execute(input),
+    ).rejects.toBeInstanceOf(BadGatewayException);
+  });
+
+  it('recusa proposta sobre texto ou ficha que já mudaram', async () => {
+    await expect(
+      new ProposePromptEditUseCase(llmReturning(priceEdit)).execute({
         ...input,
         currentUpdatedAt: '2026-09-24T01:00:00.000Z',
       }),
     ).rejects.toBeInstanceOf(ConflictException);
-  });
-
-  it('recusa proposta quando o documento mesclado perde um fato', async () => {
-    const llm: LlmProviderPort = {
-      complete: jest.fn().mockResolvedValue({
-        content: JSON.stringify({
-          summary: 'Muda preço',
-          changes: { contextPrompt: 'Lavanderia. Preço: R$ 25. Demais: sim' },
-        }),
-        toolCalls: [],
-        finishReason: 'stop',
-      }),
-    };
-    await expect(new ProposePromptEditUseCase(llm).execute(input)).rejects.toBeInstanceOf(
-      BadGatewayException,
-    );
-  });
-
-  it('recusa proposta quando a ficha já mudou', async () => {
-    const llm: LlmProviderPort = {
-      complete: jest.fn().mockResolvedValue({
-        content: JSON.stringify({
-          summary: 'Tira o preço',
-          changes: { guardrails: 'Não invente. Preço: R$ 20. Demais: sim' },
-        }),
-        toolCalls: [],
-        finishReason: 'stop',
-      }),
-    };
     await expect(
-      new ProposePromptEditUseCase(llm).execute({
+      new ProposePromptEditUseCase(llmReturning(priceEdit)).execute({
         ...input,
         currentSheetUpdatedAt: '2026-09-25T12:00:00.000Z',
       }),
     ).rejects.toThrow('O texto mudou. Peça a alteração de novo.');
-    await expect(
-      new ProposePromptEditUseCase(llm).execute({
-        ...input,
-        currentSheetUpdatedAt: '2026-09-25T12:00:00.000Z',
-      }),
-    ).rejects.toBeInstanceOf(ConflictException);
-  });
-
-  it('recusa proposta quando answerValue não aparece no documento mesclado', async () => {
-    const llm: LlmProviderPort = {
-      complete: jest.fn().mockResolvedValue({
-        content: JSON.stringify({
-          summary: 'Ajusta preço',
-          changes: { guardrails: 'Não invente. Preço: R$ 20. Demais: sim' },
-          answerKey: 'pricing',
-          answerValue: 'Preço especial R$ 15',
-        }),
-        toolCalls: [],
-        finishReason: 'stop',
-      }),
-    };
-    await expect(new ProposePromptEditUseCase(llm).execute(input)).rejects.toBeInstanceOf(
-      BadGatewayException,
-    );
   });
 
   it('ignora facts do cliente e deriva da ficha', async () => {
-    const llm: LlmProviderPort = {
-      complete: jest.fn().mockResolvedValue({
-        content: JSON.stringify({
-          summary: 'Ok',
-          changes: { guardrails: 'Não invente. Preço: R$ 20. Demais: sim' },
-        }),
-        toolCalls: [],
-        finishReason: 'stop',
-      }),
-    };
+    const llm = llmReturning(priceEdit);
     await new ProposePromptEditUseCase(llm).execute({
       ...input,
       facts: [{ text: 'FATO INVENTADO PELO CLIENTE' }],
