@@ -35,6 +35,16 @@ import type { PromptSheetResponse } from '@/whitelabel/types'
 
 const STALE = 'O texto mudou. Peça a alteração de novo.'
 const HOUR_KEYS = CADASTRO_KEYS.filter((key) => key.startsWith('hours_'))
+const SAVE_FAILED = 'Não foi possível guardar a resposta.'
+const CREATE_FAILED = 'Não foi possível criar o agente. Tente de novo.'
+
+/** Erros 4xx trazem um texto escrito para o usuário; 5xx e falhas de rede, não. */
+function failureMessage(error: unknown, fallback: string): string {
+  const response = (error as AxiosError<{ message?: unknown }>).response
+  const message = response?.data?.message
+  if (response && response.status < 500 && typeof message === 'string') return message
+  return fallback
+}
 
 type Props = {
   open: boolean
@@ -132,7 +142,6 @@ function AIAgentWizardModalBase({ open, onClose }: Props) {
   const [revisingKey, setRevisingKey] = useState<string | null>(null)
   const [notice, setNotice] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
-  const scrollerRef = useRef<HTMLDivElement>(null)
   const currentStepRef = useRef<HTMLDivElement>(null)
   const [seenKey, setSeenKey] = useState<string | null>(null)
 
@@ -192,7 +201,7 @@ function AIAgentWizardModalBase({ open, onClose }: Props) {
     setIndex(next ? freshKeys.indexOf(next) : Math.max(freshKeys.length - 1, 0))
   }
 
-  const fail = async (error: unknown) => {
+  const fail = async (error: unknown, fallback: string) => {
     const axiosError = error as AxiosError<{ message?: string; missing?: string[] }>
     if (axiosError.response?.status === 409) {
       setNotice(STALE)
@@ -213,7 +222,7 @@ function AIAgentWizardModalBase({ open, onClose }: Props) {
       setNotice('Falta responder uma pergunta.')
       return
     }
-    setNotice('Não foi possível guardar a resposta.')
+    setNotice(failureMessage(error, fallback))
   }
 
   const writeStep = async (stepKey: string, input: StepDraft, base: PromptSheetResponse) => {
@@ -266,16 +275,17 @@ function AIAgentWizardModalBase({ open, onClose }: Props) {
     if (!draftValue(stepKey, input, sheet)) return false
     setBusy(true)
     setNotice(null)
+    let saved = false
     try {
       const wrote = await writeStep(stepKey, input, sheet)
       if (!wrote) return false
       const fresh = await load()
       if (!fresh) return false
+      saved = true
       if (after) await after(fresh)
       return true
     } catch (error) {
-      await fail(error)
-      scrollerRef.current?.scrollTo?.({ top: 0 })
+      await fail(error, saved ? CREATE_FAILED : SAVE_FAILED)
       return false
     } finally {
       setBusy(false)
@@ -333,8 +343,7 @@ function AIAgentWizardModalBase({ open, onClose }: Props) {
             <Box bg="bg.muted" h="3px">
               <Box bg="primary.500" h="full" width={`${Math.round((progress.answered / progress.total) * 100)}%`} />
             </Box>
-            <Stack gap={4} maxH="62vh" overflowY="auto" px={6} py={6} ref={scrollerRef}>
-              {notice && <Text color="fg.muted">{notice}</Text>}
+            <Stack gap={4} maxH="62vh" overflowY="auto" px={6} py={6}>
               {ready &&
                 sheet &&
                 visibleKeys.map((stepKey) =>
@@ -365,14 +374,21 @@ function AIAgentWizardModalBase({ open, onClose }: Props) {
                   )
                 )}
             </Stack>
-            <Flex borderColor="border.muted" borderTopWidth="1px" justify="space-between" px={6} py={4}>
-              <Button disabled={index === 0 || busy} onClick={() => setIndex((value) => value - 1)} variant="ghost">
-                Voltar
-              </Button>
-              <Button disabled={busy || !canContinue} onClick={() => void save()}>
-                {continueLabel}
-              </Button>
-            </Flex>
+            <Stack borderColor="border.muted" borderTopWidth="1px" data-testid="wizard-footer" gap={3} px={6} py={4}>
+              {notice && (
+                <Text color="fg.error" fontSize="sm" role="alert">
+                  {notice}
+                </Text>
+              )}
+              <Flex justify="space-between">
+                <Button disabled={index === 0 || busy} onClick={() => setIndex((value) => value - 1)} variant="ghost">
+                  Voltar
+                </Button>
+                <Button disabled={!canContinue} loading={busy} onClick={() => void save()}>
+                  {continueLabel}
+                </Button>
+              </Flex>
+            </Stack>
           </Dialog.Content>
         </Dialog.Positioner>
       </Portal>

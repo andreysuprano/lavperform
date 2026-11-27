@@ -1,8 +1,11 @@
 import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { AxiosError, type AxiosResponse } from 'axios'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { Provider } from '@/components'
+import { CADASTRO_KEYS } from '@/whitelabel/components/ai-agent/PromptStudio/sheet-script'
+import { wizardKeys } from '@/whitelabel/components/ai-agent/PromptStudio/wizard-steps'
 import { aiAgentService } from '@/whitelabel/services'
 import type { PromptSheetResponse } from '@/whitelabel/types'
 
@@ -50,6 +53,33 @@ function sheet(overrides: Partial<PromptSheetResponse> = {}) {
       ...overrides,
     },
   }
+}
+
+function completeSheet() {
+  const answers = Object.fromEntries(
+    [...CADASTRO_KEYS, ...wizardKeys('CONVENTIONAL')].map((key) => [key, 'Não se aplica'])
+  )
+  return sheet({ agentName: 'Aria', agentObjective: 'Responder clientes.', answers })
+}
+
+function apiError(status: number, message: string) {
+  return new AxiosError('falhou', 'ERR', undefined, undefined, {
+    status,
+    data: { statusCode: status, message },
+  } as AxiosResponse)
+}
+
+async function clickCreate() {
+  render(
+    <Provider>
+      <MemoryRouter>
+        <AIAgentWizardModal onClose={() => undefined} open />
+      </MemoryRouter>
+    </Provider>
+  )
+  const button = await screen.findByRole('button', { name: 'Criar agente' })
+  fireEvent.click(button)
+  return button
 }
 
 describe('AIAgentWizardModal', () => {
@@ -135,5 +165,38 @@ describe('AIAgentWizardModal', () => {
     expect(screen.getByText(/auto serviço ou convencional/i)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Salvar' })).not.toBeInTheDocument()
     expect(screen.queryByText(/ponto de referência/i)).not.toBeInTheDocument()
+  })
+
+  it('mostra o motivo, junto do botão, quando a API recusa a criação', async () => {
+    const reason = 'Instância WhatsApp não encontrada para esta empresa. Conecte o WhatsApp antes de criar ou ativar o agente.'
+    vi.mocked(aiAgentService.getPromptSheet).mockResolvedValue(completeSheet() as never)
+    vi.mocked(aiAgentService.putPromptSheetAnswer).mockResolvedValue({ data: completeSheet().data } as never)
+    vi.mocked(aiAgentService.finishWizard).mockRejectedValue(apiError(404, reason))
+
+    await clickCreate()
+
+    const alert = await screen.findByRole('alert')
+    expect(alert).toHaveTextContent(reason)
+    expect(screen.getByTestId('wizard-footer')).toContainElement(alert)
+  })
+
+  it('avisa que a criação falhou sem expor o erro interno do servidor', async () => {
+    vi.mocked(aiAgentService.getPromptSheet).mockResolvedValue(completeSheet() as never)
+    vi.mocked(aiAgentService.putPromptSheetAnswer).mockResolvedValue({ data: completeSheet().data } as never)
+    vi.mocked(aiAgentService.finishWizard).mockRejectedValue(apiError(502, 'Verifique o container'))
+
+    await clickCreate()
+
+    expect(await screen.findByRole('alert')).toHaveTextContent('Não foi possível criar o agente. Tente de novo.')
+  })
+
+  it('mostra o botão carregando enquanto cria o agente', async () => {
+    vi.mocked(aiAgentService.getPromptSheet).mockResolvedValue(completeSheet() as never)
+    vi.mocked(aiAgentService.putPromptSheetAnswer).mockResolvedValue({ data: completeSheet().data } as never)
+    vi.mocked(aiAgentService.finishWizard).mockReturnValue(new Promise(() => undefined) as never)
+
+    const button = await clickCreate()
+
+    await waitFor(() => expect(button).toHaveAttribute('data-loading'))
   })
 })
